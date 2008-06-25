@@ -83,6 +83,16 @@ int MR_map(void *MRptr, int nmap,
   return mr->map(nmap,appmap,APPptr);
 }
 
+int MR_map_add(void *MRptr, int nmap,
+	   void (*mymap)(int, void *, void *),
+	   void *APPptr, int addflag)
+{
+  typedef void (MapFunc)(int, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(nmap,appmap,APPptr,addflag);
+}
+
 int MR_reduce(void *MRptr,
 	      void (*myreduce)(char *, int, char **, void *, void *),
 	      void *APPptr)

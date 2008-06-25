@@ -368,19 +368,23 @@ int MapReduce::gather(int numprocs)
 ------------------------------------------------------------------------- */
 
 int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
-		   void *ptr)
+		   void *ptr, int addflag)
 {
   MPI_Status status;
 
   delete kmv;
   kmv = NULL;
-  delete kv;
-  kv = new KeyValue(comm);
+
+  if (addflag == 0) {
+    delete kv;
+    kv = new KeyValue(comm);
+  } else if (kv == NULL) 
+    kv = new KeyValue(comm);
 
   // nprocs = 1 = all tasks to single processor
-  // mapstyle = 0 = chunk of tasks to each proc
-  // mapstyle = 1 = strided tasks to each proc
-  // mapstyle = 2 = master/slave assignment of tasks
+  // mapstyle 0 = chunk of tasks to each proc
+  // mapstyle 1 = strided tasks to each proc
+  // mapstyle 2 = master/slave assignment of tasks
 
   if (nprocs == 1) {
     for (int itask = 0; itask < nmap; itask++) appmap(itask,kv,ptr);

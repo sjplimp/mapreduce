@@ -31,7 +31,8 @@ class MapReduce {
 	       void *);
   int convert();
   int gather(int);
-  int map(int, void (*)(int, class KeyValue *, void *), void *);
+  int map(int, void (*)(int, class KeyValue *, void *), void *,
+	  int addflag = 0);
   int reduce(void (*)(char *, int, char **, class KeyValue *, void *), void *);
   int scrunch(int, char *, int);
   int sort_keys(int (*)(char *, char *));

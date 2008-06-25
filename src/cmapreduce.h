@@ -31,6 +31,9 @@ int MR_gather(void *MRptr, int numprocs);
 int MR_map(void *MRptr, int nmap,
 	   void (*mymap)(int, void *KVptr, void *APPptr),
 	   void *APPptr);
+int MR_map_add(void *MRptr, int nmap,
+	       void (*mymap)(int, void *KVptr, void *APPptr),
+	       void *APPptr, int);
 int MR_reduce(void *MRptr, void (*myreduce)(char *, int, char **,
 					    void *KVptr, void *APPptr),
 	      void *APPptr);
