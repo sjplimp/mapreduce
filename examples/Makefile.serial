@@ -1,0 +1,35 @@
+# Serial Makefile for MapReduce examples, g++, no MPI
+
+CC =		g++
+CCFLAGS =	-g -O -I../src -I../mpistubs
+LINK =		g++
+LINKFLAGS =	-g -O -L../src -L../mpistubs
+USRLIB =	-lmrmpi -lmpi
+SYSLIB =
+
+LIB =		../src/libmrmpi.a
+
+# Targets
+
+all:	wordfreq cwordfreq msd
+
+wordfreq:	wordfreq.o $(LIB)
+	$(LINK) $(LINKFLAGS) wordfreq.o $(USRLIB) $(SYSLIB) -o wordfreq
+
+cwordfreq:	cwordfreq.o $(LIB)
+	$(LINK) $(LINKFLAGS) cwordfreq.o $(USRLIB) $(SYSLIB) -o cwordfreq
+
+msd:		msd.o $(LIB)
+	$(LINK) $(LINKFLAGS) msd.o $(USRLIB) $(SYSLIB) -o msd
+
+clean:
+	rm *.o
+	rm wordfreq cwordfreq msd
+
+# Rules
+
+%.o:%.cpp
+	$(CC) $(CCFLAGS) -c $<
+
+%.o:%.c
+	$(CC) $(CCFLAGS) -c $<

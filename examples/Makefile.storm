@@ -1,0 +1,35 @@
+# RedStorm (Cray XT3) Makefile for MapReduce examples
+
+CC =		CC
+CCFLAGS =	-fastsse -I../src -DMPICH_IGNORE_CXX_SEEK
+LINK =		CC
+LINKFLAGS =	-O -L../src
+USRLIB =	-lmrmpi
+SYSLIB =
+
+LIB =		../src/libmrmpi.a
+
+# Targets
+
+all:	wordfreq cwordfreq msd
+
+wordfreq:	wordfreq.o $(LIB)
+	$(LINK) $(LINKFLAGS) wordfreq.o $(USRLIB) $(SYSLIB) -o wordfreq
+
+cwordfreq:	cwordfreq.o $(LIB)
+	$(LINK) $(LINKFLAGS) cwordfreq.o $(USRLIB) $(SYSLIB) -o cwordfreq
+
+msd:		msd.o $(LIB)
+	$(LINK) $(LINKFLAGS) msd.o $(USRLIB) $(SYSLIB) -o msd
+
+clean:
+	rm *.o
+	rm wordfreq cwordfreq msd
+
+# Rules
+
+%.o:%.cpp
+	$(CC) $(CCFLAGS) -c $<
+
+%.o:%.c
+	$(CC) $(CCFLAGS) -c $<

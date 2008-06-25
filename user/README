@@ -1,0 +1,7 @@
+This directory contains MapReduce programs written by users
+which call the MapReduce-MPI library.
+
+See the examples dir for other MapReduce programs.
+
+The MapReduce-MPI library has just been released, so there
+are no user programs yet.
