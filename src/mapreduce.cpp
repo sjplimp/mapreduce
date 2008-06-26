@@ -413,10 +413,8 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
       }
       while (ndone < nprocs-1) {
 	int iproc,tmp;
-	MPI_Recv(&tmp,1,MPI_INT,0,0,comm,&status);
-
-	//MPI_Get_proc(&status,&iproc);
-	iproc = 0;
+	MPI_Recv(&tmp,1,MPI_INT,MPI_ANY_SOURCE,0,comm,&status);
+	iproc = status.MPI_SOURCE;
 
 	if (itask < nmap) {
 	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
