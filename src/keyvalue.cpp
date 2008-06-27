@@ -233,15 +233,15 @@ void KeyValue::unpack(char *buf)
 
   // add offset to new key/value indices
 
-  for (int i = 0; i < *nkey_new; i++) {
+  for (int i = 0; i <= *nkey_new; i++) {
     keys_new[i] += keysize;
     values_new[i] += valuesize;
   }
   
   // add new KV data to existing KV data
 
-  memcpy(&keys[nkey],keys_new,*nkey_new*sizeof(int));
-  memcpy(&values[nkey],values_new,*nkey_new*sizeof(int));
+  memcpy(&keys[nkey],keys_new,(*nkey_new+1)*sizeof(int));
+  memcpy(&values[nkey],values_new,(*nkey_new+1)*sizeof(int));
   memcpy(&keydata[keysize],keydata_new,*keysize_new);
   memcpy(&valuedata[valuesize],valuedata_new,*valuesize_new);
 

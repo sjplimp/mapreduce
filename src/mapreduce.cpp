@@ -782,6 +782,7 @@ void MapReduce::sort_kv(int flag)
   delete [] order;
   delete kv;
   kv = kvnew;
+  kv->complete();
 }
 
 /* ----------------------------------------------------------------------
