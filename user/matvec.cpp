@@ -29,6 +29,7 @@
 //  $Revision: 61 $
 
 #include <iostream>
+#include <list>
 #include "mpi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
@@ -66,6 +67,11 @@ typedef struct INTDOUBLE {
                  // this flag is needed to allow x_j and column j values to
                  // be identified after being reduced.
   double d;      // A_ij or x_j, depending on use above.
+};
+
+typedef struct MatrixEntry {
+  int j;            // column index
+  INTDOUBLE value;  // emitted value:  row index + nonzero value.
 };
 
 // Macro for debugging
@@ -153,32 +159,51 @@ int main(int narg, char **args)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+
 // mm_readfiles map() function
 // For each non-zero in matrix-market file, emit (key,value) = (j,[A_ij,i]).
 // Assume matrix-market file is split into itask chunks.
+// To allow re-use of the matrix without re-reading the files, 
+// store the nonzeros and just re-emit them to re-use the matrix.
 
 void mm_readfiles(int itask, KeyValue *kv, void *ptr)
 {
-  char *basefile = (char *) ptr;                    // Matrix-market file name.
-  char filename[81];
-  sprintf(filename, "%s.%04d", basefile, itask);  // Filename for this task.
-  FILE *fp = fopen(filename,"r");
-  if (fp == NULL) {
-    cout << "File not found:  " << filename << endl;
-    exit(-1);
+  static list<MatrixEntry> Amat;
+
+  if (ptr == NULL) {
+    // No file name provided; assume previously read the matrix into Amat.
+    list<MatrixEntry>::iterator nz;
+    for (nz=Amat.begin(); nz!=Amat.end(); nz++) {
+      kv->add((char *)&((*nz).j), sizeof((*nz).j), 
+              (char *)&((*nz).value), sizeof((*nz).value));
+      ADDINGINTDOUBLE((*nz).j, (*nz).value, "mm_readfiles");
+    }
   }
+  else {
+    // Read the matrix from a file.
+    // First, clear Amat if not already clear.
+    char *basefile = (char *) ptr;                  // Matrix-market file name.
+    char filename[81];
+    sprintf(filename, "%s.%04d", basefile, itask);  // Filename for this task.
+    FILE *fp = fopen(filename,"r");
+    if (fp == NULL) {
+      cout << "File not found:  " << filename << endl;
+      exit(-1);
+    }
+    
+    // Values emitted are pair [A_ij,i].
+    struct MatrixEntry nz;
   
-  // Values emitted are pair [A_ij,i].
-  INTDOUBLE value;
-  int j;
-
-  // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
-  while (fscanf(fp, "%d %d %lf", &value.i, &j, &value.d) == 3)  {
-    kv->add((char *)&j,sizeof(j),(char *)&value,sizeof(value));
-    ADDINGINTDOUBLE(j, value, "mm_readfiles");
+    // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
+    while (fscanf(fp, "%d %d %lf", &nz.value.i, &nz.j, &nz.value.d) == 3)  {
+      Amat.push_front(nz);
+      kv->add((char *)&(nz.j), sizeof(nz.j),
+              (char *)&(nz.value),sizeof(nz.value));
+      ADDINGINTDOUBLE(nz.j, nz.value, "mm_readfiles");
+    }
+  
+    fclose(fp);
   }
-
-  fclose(fp);
 }
 
 /////////////////////////////////////////////////////////////////////////////
