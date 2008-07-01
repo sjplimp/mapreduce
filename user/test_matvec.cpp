@@ -74,7 +74,7 @@ int main(int narg, char **args)
   mr->verbosity = 0;
 
   // Persistent storage of the matrix. Will be loaded from files initially.
-  MRMatrix A;
+  MRMatrix A(N,M);
 
   //  **********************   A * x   ************************
   // Initialize x vector.
