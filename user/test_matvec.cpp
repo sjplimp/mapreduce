@@ -65,6 +65,7 @@ int main(int narg, char **args)
   }
   int N = atoi(args[3]);  // Number of rows in matrix.
   int M = atoi(args[4]);  // Number of cols in matrix.
+  int num_input_procs = atoi(args[2]);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
@@ -75,24 +76,39 @@ int main(int narg, char **args)
   // Persistent storage of the matrix. Will be loaded from files initially.
   list<MatrixEntry> Amat;
 
-  // Initialize x vector; add its entries to current map.
+  //  **********************   A * x   ************************
+  // Initialize x vector.
   int xcol = mr->map(M, &initialize_xvec, &M, 0);
-  cout << "Second Map Done:  xcol = " << xcol << endl;
+  if (Me == 0) cout << "initialize_xvec Map Done:  xcol = " << xcol << endl;
 
   // Perform matrix-vector multiplication.
-  matvec(mr, &Amat, args[1], atoi(args[2]));
+  matvec(mr, &Amat, 0, args[1], num_input_procs);
 
   // Output results:  Gather results to proc 0, sort and print.
   int nkeys = mr->gather(1);
-  cout << "Gather done:  nkeys = " << nkeys << endl;
   nkeys = mr->sort_keys(&compare);
-  cout << "Sort done:  nkeys = " << nkeys << endl;
   
   // Print results.
   nkeys = mr->convert();
-  cout << "Convert done:  nkeys = " << nkeys << endl;
   nkeys = mr->reduce(&output, NULL);
-  cout << "Output done:  nkeys = " << nkeys << endl;
+  if (Me == 0) cout << "Output done:  nkeys = " << nkeys << endl;
+
+  //  **********************   A^T * x   ************************
+  // Initialize x vector.
+  int xrow = mr->map(N, &initialize_xvec, &N, 0);
+  if (Me == 0) cout << "initialize_xvec Map Done:  xrow = " << xrow << endl;
+
+  // Perform matrix-vector multiplication with transpose; re-use A.
+  matvec(mr, &Amat, 1, NULL, num_input_procs);
+
+  // Output results:  Gather results to proc 0, sort and print.
+  nkeys = mr->gather(1);
+  nkeys = mr->sort_keys(&compare);
+  
+  // Print results.
+  nkeys = mr->convert();
+  nkeys = mr->reduce(&output, NULL);
+  if (Me == 0) cout << "TRANSPOSE Output done:  nkeys = " << nkeys << endl;
 
   // Clean up.
   delete mr;

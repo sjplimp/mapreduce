@@ -54,32 +54,37 @@ REDUCEFUNCTION rowsum;
 
 void matvec(
   MapReduce *mr,
-  list<MatrixEntry> *Amat,
-  char *basefile,
-  int numfiles
+  list<MatrixEntry> *Amat,   // Persistent memory for matrix A.
+  bool transpose,  // Flag indicating whether to do A*x or A^T * x.
+  char *basefile,  // Base filename; NULL if want to re-use existing Amat.
+  int numfiles     // Number of files to be read.
 )
 {
-  FileInfo files;
-  files.Amatptr = Amat;
-  files.basefile = basefile;
+  LoadInfo f;
+  f.Amatptr = Amat;
+  f.basefile = basefile;
+  f.transpose = transpose;
+
+  int Me;
+  MPI_Comm_rank(MPI_COMM_WORLD, &Me);
 
   // Read matrix-market files.
-  int nnz = mr->map(numfiles, &load_matrix, (void *)&files, 1);
-  cout << "First Map Done:  nnz = " << nnz << endl;
+  int nnz = mr->map(numfiles, &load_matrix, (void *)&f, 1);
+  if (Me == 0) cout << "load_matrix Map Done:  nnz = " << nnz << endl;
 
   // Gather matrix column j and x_j to same processors.
   mr->collate(NULL);
 
   // Compute terms x_j * A_ij.
   int nterms = mr->reduce(&terms, NULL);
-  cout << "Second Reduce Done:  nterms = " << nterms << endl;
+  if (Me == 0) cout << "terms Reduce Done:  nterms = " << nterms << endl;
 
   // Gather matrix now by rows.
   mr->collate(NULL);
 
   // Compute sum of terms over rows.
   int nrow = mr->reduce(&rowsum, NULL);
-  cout << "Third Reduce Done:  nrow = " << nrow << endl;
+  if (Me == 0) cout << "rowsum Reduce Done:  nrow = " << nrow << endl;
 
   // Results y_i are in the MapReduce object mr.
 }
@@ -88,21 +93,33 @@ void matvec(
 
 // load_matrix map() function
 // For each non-zero in matrix-market file, emit (key,value) = (j,[A_ij,i]).
+// For transpose, emit (key,value) = (i,[A_ij,j]).
 // Assume matrix-market file is split into itask chunks.
 // To allow re-use of the matrix without re-reading the files, 
 // store the nonzeros and just re-emit them to re-use the matrix.
 
 void load_matrix(int itask, KeyValue *kv, void *ptr)
 {
-  FileInfo *fptr = (FileInfo *) ptr;
+  LoadInfo *fptr = (LoadInfo *) ptr;
   list<MatrixEntry> *Amat = fptr->Amatptr;
+  bool transpose = fptr->transpose;
 
   if (fptr->basefile == NULL) {
     // No file name provided; assume previously read the matrix into Amat.
     list<MatrixEntry>::iterator nz;
     for (nz=Amat->begin(); nz!=Amat->end(); nz++) {
-      kv->add((char *)&((*nz).j), sizeof((*nz).j), 
-              (char *)&((*nz).value), sizeof((*nz).value));
+      INTDOUBLE value;
+      value.d = (*nz).nzv;
+      if (transpose) {
+        value.i = (*nz).j;
+        kv->add((char *)&((*nz).i), sizeof((*nz).i), 
+                (char *)&value, sizeof(value));
+      }
+      else {
+        value.i = (*nz).i;
+        kv->add((char *)&((*nz).j), sizeof((*nz).j), 
+                (char *)&value, sizeof(value));
+      }
     }
   }
   else {
@@ -118,14 +135,22 @@ void load_matrix(int itask, KeyValue *kv, void *ptr)
       exit(-1);
     }
     
-    // Values emitted are pair [A_ij,i].
     struct MatrixEntry nz;
-  
     // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
-    while (fscanf(fp, "%d %d %lf", &nz.value.i, &nz.j, &nz.value.d) == 3)  {
+    while (fscanf(fp, "%d %d %lf", &nz.i, &nz.j, &nz.nzv) == 3)  {
       Amat->push_front(nz);
-      kv->add((char *)&(nz.j), sizeof(nz.j),
-              (char *)&(nz.value), sizeof(nz.value));
+      INTDOUBLE value;
+      value.d = nz.nzv;
+      if (transpose) {
+        value.i = nz.j;
+        kv->add((char *)&(nz.i), sizeof(nz.i),
+                (char *)&value, sizeof(value));
+      }
+      else {
+        value.i = nz.i;
+        kv->add((char *)&(nz.j), sizeof(nz.j),
+                (char *)&value, sizeof(value));
+      }
     }
   
     fclose(fp);
