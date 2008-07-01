@@ -47,7 +47,6 @@ MAPFUNCTION mm_readfiles;
 MAPFUNCTION initialize_xvec;
 
 //  REDUCE FUNCTIONS
-REDUCEFUNCTION columns;
 REDUCEFUNCTION terms;
 REDUCEFUNCTION rowsum;
 REDUCEFUNCTION output;
@@ -108,13 +107,6 @@ int main(int narg, char **args)
   int nnz = mr->map(atoi(args[2]), &mm_readfiles, args[1]);
   cout << "First Map Done:  nnz = " << nnz << endl;
 
-  // Gather matrix columns on processors.
-  mr->collate(NULL);
-
-  // Output columns of matrix as a single value.
-  int ncol = mr->reduce(&columns, NULL);
-  cout << "First Reduce Done:  ncol = " << ncol << endl;
-
   // Initialize x vector; add its entries to current map.
   int xcol = mr->map(M, &initialize_xvec, &M, 1);
   cout << "Second Map Done:  xcol = " << xcol << endl;
@@ -151,8 +143,8 @@ int main(int narg, char **args)
   double tstop = MPI_Wtime();
 
   if (Me == 0) {
-    printf("Time to matvec %s (%d x %d) on %d procs = %g (secs)\n",
-	   args[1], nrow, ncol, Np, tstop-tstart);
+    printf("Time to matvec %s (%d) on %d procs = %g (secs)\n",
+	   args[1], nrow, Np, tstop-tstart);
   }
 
   MPI_Finalize();
@@ -229,25 +221,9 @@ void initialize_xvec(int itask, KeyValue *kv, void *ptr)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// columns reduce() function
-// input:  key = column index j; multivalue = set of [A_ij, i] pairs for all i 
-//         with nonzero A_ij.
-// output: key = column index j, value = concatenation of all values.
-
-void columns(char *key, int nvalues, char **multivalue, KeyValue *kv, void *ptr)
-{
-  INTDOUBLE value[nvalues+1];
-  value[0].i = nvalues;       // Encode nnz in column in value.
-  for (int k = 0; k < nvalues; k++)
-    value[k+1] = *(INTDOUBLE *) multivalue[k];
-  kv->add(key,sizeof(int),(char *)value,sizeof(value));
-  REDUCINGINTDOUBLE(key, value, nvalues, "columns");
-}
-
-/////////////////////////////////////////////////////////////////////////////
 // terms reduce() function
-// input:  key = column index; multivalue = {x_j, concatenation of A_ij for
-//         all i with nonzero A_ij.
+// input:  key = column index; multivalue = {x_j, of A_ij for
+//         all i with nonzero A_ij.}
 // output:  key = row index i; value = x_j * A_ij.
 
 void terms(char *key, int nvalues, char **multivalue, KeyValue *kv, void *ptr)
@@ -259,24 +235,18 @@ INTDOUBLE *aptr;
     // No nonzeros in this column; skip it.
     return;
 
-  assert(nvalues == 2);
-
-  xptr = (INTDOUBLE *) multivalue[0];
-  if (xptr->i < 0) {   
-    // multivalue[0] is x_j.
-    aptr = (INTDOUBLE *) multivalue[1];
+  // Find the x_j value
+  for (int k = 0; k < nvalues; k++) {
+    xptr = (INTDOUBLE *) multivalue[k];
+    if (xptr->i < 0)  // found it
+      break;
   }
-  else {
-    // multivalue[0] is column j.
-    aptr = xptr;
-    xptr = (INTDOUBLE *) multivalue[1];
-  }
-
   double x_j = xptr->d;
-  int nnz = aptr->i;
 
-  for (int k = 0; k < nnz; k++) {
-    aptr++;
+  for (int k = 0; k < nvalues; k++) {
+    aptr = (INTDOUBLE *) multivalue[k];
+    if (aptr == xptr) continue;  // don't add in x_j * x_j.
+
     double product = x_j * aptr->d;
     kv->add((char *) &aptr->i, sizeof(aptr->i), 
             (char *) &product, sizeof(product));
