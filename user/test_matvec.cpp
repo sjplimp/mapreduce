@@ -74,7 +74,7 @@ int main(int narg, char **args)
   mr->verbosity = 0;
 
   // Persistent storage of the matrix. Will be loaded from files initially.
-  list<MatrixEntry> Amat;
+  MRMatrix A;
 
   //  **********************   A * x   ************************
   // Initialize x vector.
@@ -82,7 +82,7 @@ int main(int narg, char **args)
   if (Me == 0) cout << "initialize_xvec Map Done:  xcol = " << xcol << endl;
 
   // Perform matrix-vector multiplication.
-  matvec(mr, &Amat, 0, args[1], num_input_procs);
+  A.MatVec(mr, 0, args[1], num_input_procs);
 
   // Output results:  Gather results to proc 0, sort and print.
   int nkeys = mr->gather(1);
@@ -99,7 +99,7 @@ int main(int narg, char **args)
   if (Me == 0) cout << "initialize_xvec Map Done:  xrow = " << xrow << endl;
 
   // Perform matrix-vector multiplication with transpose; re-use A.
-  matvec(mr, &Amat, 1, NULL, num_input_procs);
+  A.MatVec(mr, 1, NULL, num_input_procs);
 
   // Output results:  Gather results to proc 0, sort and print.
   nkeys = mr->gather(1);

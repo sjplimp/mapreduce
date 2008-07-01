@@ -1,27 +1,8 @@
-// MatVec via MapReduce
+// MapReduce Matrix Class
 // Karen Devine, 1416
 // June 2008
 //
-// Performs matrix-vector multiplication  A*x=y.
-//
-// Syntax: matvec basefilename #_of_files N M
-//
-// Assumes matrix file format as follows:
-//     row_i  col_j  nonzero_value    (one line for each local nonzero)
-// The number of these files is given by the #_of_files argument
-// on the command line.  These files will be read in parallel if
-// #_of_files > 1.
-//
-// The files should be named basefilename.0000, basefilename.0001, etc.
-// up to the #_of_files-1.
-//
 // The dimensions of the matrix A are given by N and M (N rows, M columns).
-// Ideally, we would store this info in the files, but I haven't yet
-// figured out how to do the broadcast necessary to get this info from
-// the files to the processors.
-//
-// Values of the resulting vector y are written to stdout in sorted order:
-//     row_i  y_i
 //
 // SVN Information:
 //  $Author:$
@@ -52,16 +33,15 @@ REDUCEFUNCTION rowsum;
 // (key,value) = (col index j, x_j);
 // Matrix A is added to the map.
 
-void matvec(
+void MRMatrix::MatVec(
   MapReduce *mr,
-  list<MatrixEntry> *Amat,   // Persistent memory for matrix A.
   bool transpose,  // Flag indicating whether to do A*x or A^T * x.
   char *basefile,  // Base filename; NULL if want to re-use existing Amat.
   int numfiles     // Number of files to be read.
 )
 {
   LoadInfo f;
-  f.Amatptr = Amat;
+  f.A = this;
   f.basefile = basefile;
   f.transpose = transpose;
 
@@ -101,13 +81,13 @@ void matvec(
 void load_matrix(int itask, KeyValue *kv, void *ptr)
 {
   LoadInfo *fptr = (LoadInfo *) ptr;
-  list<MatrixEntry> *Amat = fptr->Amatptr;
+  MRMatrix *A = fptr->A;
   bool transpose = fptr->transpose;
 
   if (fptr->basefile == NULL) {
     // No file name provided; assume previously read the matrix into Amat.
     list<MatrixEntry>::iterator nz;
-    for (nz=Amat->begin(); nz!=Amat->end(); nz++) {
+    for (nz=A->Amat.begin(); nz!=A->Amat.end(); nz++) {
       INTDOUBLE value;
       value.d = (*nz).nzv;
       if (transpose) {
@@ -124,7 +104,7 @@ void load_matrix(int itask, KeyValue *kv, void *ptr)
   }
   else {
     // First, clear Amat if not already clear.
-    Amat->clear();
+    A->MakeEmpty();
 
     // Read the matrix from a file.
     char filename[81];
@@ -135,20 +115,21 @@ void load_matrix(int itask, KeyValue *kv, void *ptr)
       exit(-1);
     }
     
-    struct MatrixEntry nz;
+    int i, j;
+    double nzv;
     // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
-    while (fscanf(fp, "%d %d %lf", &nz.i, &nz.j, &nz.nzv) == 3)  {
-      Amat->push_front(nz);
+    while (fscanf(fp, "%d %d %lf", &i, &j, &nzv) == 3)  {
+      A->AddNonzero(i, j, nzv);
       INTDOUBLE value;
-      value.d = nz.nzv;
+      value.d = nzv;
       if (transpose) {
-        value.i = nz.j;
-        kv->add((char *)&(nz.i), sizeof(nz.i),
+        value.i = j;
+        kv->add((char *)&i, sizeof(i),
                 (char *)&value, sizeof(value));
       }
       else {
-        value.i = nz.i;
-        kv->add((char *)&(nz.j), sizeof(nz.j),
+        value.i = i;
+        kv->add((char *)&j, sizeof(j),
                 (char *)&value, sizeof(value));
       }
     }
