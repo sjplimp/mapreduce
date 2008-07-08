@@ -51,7 +51,7 @@ int main(int narg, char **args)
   mr->verbosity = 2;
 
   //int nwords = mr->map(narg-1,&fileread,&args[1]);
-  int nwords = mr->map(1000,narg-1,&args[1],'\n',128,&strread,NULL);
+  int nwords = mr->map(100,narg-1,&args[1],'\n',128,&strread,NULL);
 
   mr->collate(NULL);
   int nunique = mr->reduce(&sum,NULL);

@@ -616,6 +616,9 @@ void MapReduce::map_file_wrapper(int imap, KeyValue *kv, void *ptr)
   int readsize = readnext - readstart + filemap.delta;
   readsize = MIN(readsize,filesize-readstart);
 
+  if (itask < ntask-1 && readsize <= 2*filemap.delta)
+    error->all("File delta is large enough to create read overlap");
+
   // read from appropriate file
   // terminate string with NULL
 
@@ -1000,15 +1003,6 @@ void MapReduce::sort_kv(int flag)
   kv = kvnew;
   kv->complete();
 }
-
-/* ----------------------------------------------------------------------
-   wrappers on user-provided appmapfile function
-   2-level wrapper needed b/c file map() calls non-file map()
-     and cannot pass it a class method unless it were static,
-     but then it couldn't access MR class data
-   so non-file map() is passed standalone non-class method
-   it accesses static class member mrptr, set before non-file map() call
-   standalone calls back into class wrapper which calls user appmapfile()
 
 /* ----------------------------------------------------------------------
    wrappers on user-provided key and value comparison functions
