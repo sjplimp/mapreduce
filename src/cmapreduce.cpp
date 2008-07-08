@@ -39,10 +39,10 @@ int MR_clone(void *MRptr)
   return mr->clone();
 }
 
-int MR_collapse(void *MRptr, char *key, int keylen)
+int MR_collapse(void *MRptr, char *key, int keybytes)
 {
   MapReduce *mr = (MapReduce *) MRptr;
-  return mr->collapse(key,keylen);
+  return mr->collapse(key,keybytes);
 }
 
 int MR_collate(void *MRptr, int (*myhash)(char *, int))
@@ -52,10 +52,12 @@ int MR_collate(void *MRptr, int (*myhash)(char *, int))
 }
 
 int MR_compress(void *MRptr,
-		void (*mycompress)(char *, int, char **, void *, void *),
+		void (*mycompress)(char *, int, char *,
+				   int, int *, void *, void *),
 		void *APPptr)
 {
-  typedef void (CompressFunc)(char *, int, char **, KeyValue *, void *);
+  typedef void (CompressFunc)(char *, int, char *,
+			      int, int *, KeyValue *, void *);
   MapReduce *mr = (MapReduce *) MRptr;
   CompressFunc *appcompress = (CompressFunc *) mycompress;
   return mr->compress(appcompress,APPptr);
@@ -93,58 +95,108 @@ int MR_map_add(void *MRptr, int nmap,
   return mr->map(nmap,appmap,APPptr,addflag);
 }
 
+int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
+		     char sepchar, int delta,
+		     void (*mymap)(int, void *, void *),
+		     void *APPptr)
+{
+  typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(nmap,nfiles,files,sepchar,delta,appmap,APPptr);
+}
+
+int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
+		     char sepchar, int delta,
+		     void (*mymap)(int, void *, void *),
+		     void *APPptr, int addflag)
+{
+  typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(nmap,nfiles,files,sepchar,delta,appmap,APPptr,addflag);
+}
+
+int MR_map_file_str(void *MRptr, int nmap, int nfiles, char **files,
+		    char *sepstr, int delta,
+		    void (*mymap)(int, void *, void *),
+		    void *APPptr)
+{
+  typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(nmap,nfiles,files,sepstr,delta,appmap,APPptr);
+}
+
+int MR_map_file_str(void *MRptr, int nmap, int nfiles, char **files,
+		    char *sepstr, int delta,
+		    void (*mymap)(int, void *, void *),
+		    void *APPptr, int addflag)
+{
+  typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(nmap,nfiles,files,sepstr,delta,appmap,APPptr,addflag);
+}
+
 int MR_reduce(void *MRptr,
-	      void (*myreduce)(char *, int, char **, void *, void *),
+	      void (*myreduce)(char *, int, char *,
+			       int, int *, void *, void *),
 	      void *APPptr)
 {
-  typedef void (ReduceFunc)(char *, int, char **, KeyValue *, void *);
+  typedef void (ReduceFunc)(char *, int, char *,
+			    int, int *, KeyValue *, void *);
   MapReduce *mr = (MapReduce *) MRptr;
   ReduceFunc *appreduce = (ReduceFunc *) myreduce;
   return mr->reduce(appreduce,APPptr);
 }
 
-int MR_scrunch(void *MRptr, int numprocs, char *key, int keylen)
+int MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes)
 {
   MapReduce *mr = (MapReduce *) MRptr;
-  return mr->scrunch(numprocs,key,keylen);
+  return mr->scrunch(numprocs,key,keybytes);
 }
 
-int MR_sort_keys(void *MRptr, int (*mycompare)(char *, char *))
+int MR_sort_keys(void *MRptr, int (*mycompare)(char *, int, char *, int))
 {
   MapReduce *mr = (MapReduce *) MRptr;
   return mr->sort_keys(mycompare);
 }
 
-int MR_sort_values(void *MRptr, int (*mycompare)(char *, char *))
+int MR_sort_values(void *MRptr, int (*mycompare)(char *, int, char *, int))
 {
   MapReduce *mr = (MapReduce *) MRptr;
   return mr->sort_values(mycompare);
 }
 
-int MR_sort_multivalues(void *MRptr, int (*mycompare)(char *, char *))
+int MR_sort_multivalues(void *MRptr, int (*mycompare)(char *, int, 
+						      char *, int))
 {
   MapReduce *mr = (MapReduce *) MRptr;
   return mr->sort_multivalues(mycompare);
 }
 
-void MR_kv_add(void *KVptr, char *key, int keylen, char *value, int valuelen)
+void MR_kv_add(void *KVptr, char *key, int keybytes,
+	       char *value, int valuebytes)
 {
   KeyValue *kv = (KeyValue *) KVptr;
-  kv->add(key,keylen,value,valuelen);
+  kv->add(key,keybytes,value,valuebytes);
 }
 
 void MR_kv_add_multi_static(void *KVptr, int n, 
-			    char *key, int keylen, char *value, int valuelen)
+			    char *key, int keybytes,
+			    char *value, int valuebytes)
 {
   KeyValue *kv = (KeyValue *) KVptr;
-  kv->add(n,key,keylen,value,valuelen);
+  kv->add(n,key,keybytes,value,valuebytes);
 }
 
-void MR_kv_add_multi_vary(void *KVptr, int n, 
-			  char *key, int *keylen, char *value, int *valuelen)
+void MR_kv_add_multi_dynamic(void *KVptr, int n, 
+			     char *key, int *keybytes,
+			     char *value, int *valuebytes)
 {
   KeyValue *kv = (KeyValue *) KVptr;
-  kv->add(n,key,keylen,value,valuelen);
+  kv->add(n,key,keybytes,value,valuebytes);
 }
 
 void MR_kv_stats(void *MRptr, int level)

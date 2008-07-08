@@ -22,9 +22,10 @@
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
-void sum(char *, int, char **, KeyValue *, void *);
-int ncompare(char *, char *);
-void output(char *, int, char **, KeyValue *, void *);
+void strread(int, char *, int, KeyValue *, void *);
+void sum(char *, int, char *, int, int *, KeyValue *, void *);
+int ncompare(char *, int, char *, int);
+void output(char *, int, char *, int, int *, KeyValue *, void *);
 
 #define FILESIZE 1000000
 
@@ -49,7 +50,9 @@ int main(int narg, char **args)
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 2;
 
-  int nwords = mr->map(narg-1,&fileread,&args[1]);
+  //int nwords = mr->map(narg-1,&fileread,&args[1]);
+  int nwords = mr->map(1000,narg-1,&args[1],'\n',128,&strread,NULL);
+
   mr->collate(NULL);
   int nunique = mr->reduce(&sum,NULL);
   mr->gather(1);
@@ -85,7 +88,7 @@ int main(int narg, char **args)
 
 void fileread(int itask, KeyValue *kv, void *ptr)
 {
-  char *whitespace = " \t\n\f\r\0";
+  char *whitespace = " \t\n\f\r";
   char *text = new char[FILESIZE];
 
   char **files = (char **) ptr;
@@ -104,13 +107,29 @@ void fileread(int itask, KeyValue *kv, void *ptr)
 }
 
 /* ----------------------------------------------------------------------
+   strread map() function
+   for each word in string, emit key = word, value = NULL
+------------------------------------------------------------------------- */
+
+void strread(int itask, char *str, int size, KeyValue *kv, void *ptr)
+{
+  char *whitespace = " \t\n\f\r";
+  char *word = strtok(str,whitespace);
+  while (word) {
+    kv->add(word,strlen(word)+1,NULL,0);
+    word = strtok(NULL,whitespace);
+  }
+}
+
+/* ----------------------------------------------------------------------
    sum reduce() function
    emit key = word, value = # of multi-values
 ------------------------------------------------------------------------- */
 
-void sum(char *key, int nvalues, char **values, KeyValue *kv, void *ptr) 
+void sum(char *key, int keybytes, char *multivalue,
+	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  kv->add(key,strlen(key)+1,(char *) &nvalues,4);
+  kv->add(key,keybytes,(char *) &nvalues,sizeof(int));
 }
 
 /* ----------------------------------------------------------------------
@@ -118,7 +137,7 @@ void sum(char *key, int nvalues, char **values, KeyValue *kv, void *ptr)
    order values by count, largest first
 ------------------------------------------------------------------------- */
 
-int ncompare(char *p1, char *p2)
+int ncompare(char *p1, int len1, char *p2, int len2)
 {
   int i1 = *(int *) p1;
   int i2 = *(int *) p2;
@@ -132,9 +151,10 @@ int ncompare(char *p1, char *p2)
    print count, word to file
 ------------------------------------------------------------------------- */
 
-void output(char *key, int nvalues, char **values, KeyValue *kv, void *ptr)
+void output(char *key, int keybytes, char *multivalue,
+	    int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
 {
   FILE *fp = (FILE *) ptr;
-  int n = *(int *) values[0];
+  int n = *(int *) multivalue;
   fprintf(fp,"%d %s\n",n,key);
 }

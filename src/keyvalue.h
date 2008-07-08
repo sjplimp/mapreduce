@@ -16,14 +16,16 @@ namespace MAPREDUCE_NS {
 class KeyValue {
  public:
   int nkey;                     // # of KV pairs
+  int keysize;                  // size of keydata array
+  int valuesize;                // size of valuedata array
+  int *keys;                    // keys[i] = Ith key offset in keydata
+  int *values;                  // values[i] = Ith value offset in valuedata
+  char *keydata;                // keys, one after another
+  char *valuedata;              // values, one after another
+
   int maxkey;                   // max size of keys,values arrays
-  int keysize;                  // current size of keydata array
   int maxkeysize;               // max size of keydata
-  int valuesize;                // current size of valuedata array
   int maxvaluesize;             // max size of valuedata
-  int *keys;                    // keys[i] = offset into keydata for Ith key
-  int *values;                  // values[i] = offset into valdata for Ith val
-  char *keydata,*valuedata;
 
   KeyValue(MPI_Comm);
   ~KeyValue();

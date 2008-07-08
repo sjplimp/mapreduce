@@ -56,16 +56,17 @@ void KeyValue::add(char *key, int keybytes, char *value, int valuebytes)
 {
   if (nkey == maxkey) {
     maxkey += KEYCHUNK;
-    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"keys");
-    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"values");
+    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"KV:keys");
+    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"KV:values");
   }
   if (keysize+keybytes >= maxkeysize) {
     maxkeysize += BUFCHUNK;
-    keydata = (char *) memory->srealloc(keydata,maxkeysize,"keydata");
+    keydata = (char *) memory->srealloc(keydata,maxkeysize,"KV:keydata");
   }
   if (valuesize+valuebytes >= maxvaluesize) {
     maxvaluesize += BUFCHUNK;
-    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,"valuedata");
+    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,
+					  "KV:valuedata");
   }
 
   keys[nkey] = keysize;
@@ -89,8 +90,8 @@ void KeyValue::add(int n, char *key, int keybytes,
 {
   if (nkey+n >= maxkey) {
     while (nkey+n >= maxkey) maxkey += KEYCHUNK;
-    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"keys");
-    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"values");
+    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"KV:keys");
+    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"KV:values");
   }
 
   for (int i = 0; i < n; i++) {
@@ -102,11 +103,12 @@ void KeyValue::add(int n, char *key, int keybytes,
 
   if (keysize > maxkeysize) {
     while (keysize >= maxkeysize) maxkeysize += BUFCHUNK;
-    keydata = (char *) memory->srealloc(keydata,maxkeysize,"keydata");
+    keydata = (char *) memory->srealloc(keydata,maxkeysize,"KV:keydata");
   }
   if (valuesize > maxvaluesize) {
     while (valuesize >= maxvaluesize) maxvaluesize += BUFCHUNK;
-    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,"valuedata");
+    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,
+					  "KV:valuedata");
   }
 
   memcpy(&keydata[keys[nkey]],key,n*keybytes);
@@ -124,8 +126,8 @@ void KeyValue::add(int n, char *key, int *keybytes,
 {
   if (nkey+n >= maxkey) {
     while (nkey+n >= maxkey) maxkey += KEYCHUNK;
-    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"keys");
-    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"values");
+    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"KV:keys");
+    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"KV:values");
   }
 
   int keystart = keysize;
@@ -139,11 +141,12 @@ void KeyValue::add(int n, char *key, int *keybytes,
 
   if (keysize > maxkeysize) {
     while (keysize >= maxkeysize) maxkeysize += BUFCHUNK;
-    keydata = (char *) memory->srealloc(keydata,maxkeysize,"keydata");
+    keydata = (char *) memory->srealloc(keydata,maxkeysize,"KV:keydata");
   }
   if (valuesize > maxvaluesize) {
     while (valuesize >= maxvaluesize) maxvaluesize += BUFCHUNK;
-    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,"valuedata");
+    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,
+					  "KV:valuedata");
   }
 
   memcpy(&keydata[keys[nkey]],key,keysize-keystart);
@@ -219,16 +222,17 @@ void KeyValue::unpack(char *buf)
 
   if (nkey + *nkey_new >= maxkey) {
     maxkey = nkey + *nkey_new;
-    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"keys");
-    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"values");
+    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"KV:keys");
+    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"KV:values");
   }
   if (keysize + *keysize_new > maxkeysize) {
     maxkeysize = keysize + *keysize_new;
-    keydata = (char *) memory->srealloc(keydata,maxkeysize,"keydata");
+    keydata = (char *) memory->srealloc(keydata,maxkeysize,"KV:keydata");
   }
   if (valuesize + *valuesize_new > maxvaluesize) {
     maxvaluesize = valuesize + *valuesize_new;
-    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,"valuedata");
+    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,
+					  "KV:valuedata");
   }
 
   // add offset to new key/value indices
@@ -260,8 +264,8 @@ void KeyValue::complete()
 {
   if (nkey == maxkey) {
     maxkey += KEYCHUNK;
-    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"keys");
-    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"values");
+    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"KV:keys");
+    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"KV:values");
   }
 
   keys[nkey] = keysize;

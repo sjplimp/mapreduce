@@ -11,6 +11,8 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "stdint.h"
+#include "sys/types.h"
+#include "sys/stat.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "keymultivalue.h"
@@ -23,20 +25,13 @@ using namespace MAPREDUCE_NS;
 
 int compare_keys_wrapper(const void *, const void *);
 int compare_values_wrapper(const void *, const void *);
+int compare_multivalues_wrapper(const void *, const void *);
+void map_file_wrapper(int nmap, KeyValue *ptr, void *data);
 
 MapReduce *MapReduce::mrptr;
 
-/*
-    printf("AAA %d %d %d %d\n",me,kv->nkey,kv->keysize,kv->valuesize);
-    for (int i = 0; i < kv->nkey; i++)
-      printf("AAA KEYS %d\n",kv->keys[i]);
-    for (int i = 0; i < kv->nkey; i++)
-      printf("AAA VALS %d\n",kv->values[i]);
-    for (int i = 0; i < kv->nkey; i++)
-      printf("AAA KDAT %s\n",&kv->keydata[kv->keys[i]]);
-    for (int i = 0; i < kv->nkey; i++)
-      printf("AAA VDAT %d\n",*(int*)&kv->valuedata[kv->values[i]]);
-*/
+#define MIN(A,B) ((A) < (B)) ? (A) : (B)
+#define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
 /* ---------------------------------------------------------------------- */
 
@@ -80,9 +75,6 @@ int MapReduce::aggregate(int (*hash)(char *, int))
   if (kv == NULL) error->all("Cannot aggregate without KeyValue");
   if (nprocs == 1) return kv->nkey;
 
-  delete kmv;
-  kmv = NULL;
-
   KeyValue *kvnew = new KeyValue(comm);
   Irregular *irregular = new Irregular(comm);
 
@@ -98,9 +90,9 @@ int MapReduce::aggregate(int (*hash)(char *, int))
 
   for (int i = 0; i < nkey; i++) {
     char *key = &keydata[keys[i]];
-    int keylen = keys[i+1] - keys[i];
-    if (hash) proclist[i] = hash(key,keylen) % nprocs;
-    else proclist[i] = hashlittle(key,keylen,nprocs) % nprocs;
+    int keybytes = keys[i+1] - keys[i];
+    if (hash) proclist[i] = hash(key,keybytes) % nprocs;
+    else proclist[i] = hashlittle(key,keybytes,nprocs) % nprocs;
   }
 
   // redistribute key sizes, key data, value sizes, value data
@@ -177,9 +169,7 @@ int MapReduce::clone()
 
   delete kmv;
   kmv = new KeyMultiValue(comm);
-
-  kmv->cloned = 1;
-  kmv->nkey = kv->nkey;
+  kmv->clone(kv);
 
   stats("Clone",1,verbosity);
 
@@ -195,17 +185,13 @@ int MapReduce::clone()
    new value = list of old key,value,key,value,etc
 ------------------------------------------------------------------------- */
 
-int MapReduce::collapse(char *key, int keylen)
+int MapReduce::collapse(char *key, int keybytes)
 {
   if (kv == NULL) error->all("Cannot collapse without KeyValue");
 
   delete kmv;
   kmv = new KeyMultiValue(comm);
-
-  kmv->collapsed = 1;
-  kmv->singlekey = new char[keylen];
-  memcpy(kmv->singlekey,key,keylen);
-  kmv->nkey = 1;
+  kmv->collapse(key,keybytes,kv);
 
   stats("Collapse",1,verbosity);
 
@@ -247,23 +233,35 @@ int MapReduce::collate(int (*hash)(char *, int))
    appcompress() returns single key/value to new KV
 ------------------------------------------------------------------------- */
 
-int MapReduce::compress(void (*appcompress)(char *, int, char **,
-					    KeyValue *, void *), void *ptr)
+int MapReduce::compress(void (*appcompress)(char *, int, char *,
+					    int, int *, KeyValue *, void *),
+			void *ptr)
 {
   if (kv == NULL) error->all("Cannot compress without KeyValue");
 
-  delete kmv;
-  KeyValue *kvnew = new KeyValue(comm);
-  KeyMultiValue *kmv = new KeyMultiValue(comm);
+  KeyMultiValue *kmvtmp = new KeyMultiValue(comm);
+  kmvtmp->convert(kv);
 
-  kmv->create(kv);
-  callback(kv,kmv,kvnew,appcompress,ptr);
-
-  delete kmv;
-  kmv = NULL;
   delete kv;
-  kv = kvnew;
+  kv = new KeyValue(comm);
 
+  int ncompress = kmvtmp->nkey;
+  int *keys = kmvtmp->keys;
+  int *multivalues = kmvtmp->multivalues;
+  int *nvalues = kmvtmp->nvalues;
+  int *valuesizes = kmvtmp->valuesizes;
+  char *keydata = kmvtmp->keydata;
+  char *multivaluedata = kmvtmp->multivaluedata;
+
+  for (int i = 0; i < ncompress; i++)
+    appcompress(&keydata[keys[i]],keys[i+1]-keys[i],
+		&multivaluedata[multivalues[i]],
+		nvalues[i+1]-nvalues[i],&valuesizes[nvalues[i]],
+		kv,ptr);
+
+  delete kmvtmp;
+
+  kv->complete();
   stats("Compress",0,verbosity);
 
   int nkeyall;
@@ -285,8 +283,7 @@ int MapReduce::convert()
 
   delete kmv;
   kmv = new KeyMultiValue(comm);
-
-  kmv->create(kv);
+  kmv->convert(kv);
 
   stats("Convert",1,verbosity);
 
@@ -311,9 +308,6 @@ int MapReduce::gather(int numprocs)
     MPI_Allreduce(&kv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
     return nkeyall;
   }
-
-  delete kmv;
-  kmv = NULL;
 
   // lo procs collect key/value pairs from hi procs
   // lo procs are those with ID < numprocs
@@ -353,7 +347,6 @@ int MapReduce::gather(int numprocs)
   }
 
   kv->complete();
-
   stats("Gather",0,verbosity);
 
   int nkeyall;
@@ -371,9 +364,6 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
 		   void *ptr, int addflag)
 {
   MPI_Status status;
-
-  delete kmv;
-  kmv = NULL;
 
   if (addflag == 0) {
     delete kv;
@@ -446,54 +436,267 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
 }
 
 /* ----------------------------------------------------------------------
+   create a KV via a parallel map operation for nmap tasks
+   nfiles filenames are split into nmap pieces based on separator char
+------------------------------------------------------------------------- */
+
+int MapReduce::map(int nmap, int nfiles, char **files,
+		   char sepchar, int delta,
+		   void (*appmap)(int, char *, int, KeyValue *, void *),
+		   void *ptr, int addflag)
+{
+  filemap.sepwhich = 1;
+  filemap.sepchar = sepchar;
+  filemap.delta = delta;
+
+  mapfile(nmap,nfiles,files,appmap,ptr,addflag);
+}
+
+/* ----------------------------------------------------------------------
+   create a KV via a parallel map operation for nmap tasks
+   nfiles filenames are split into nmap pieces based on separator string
+------------------------------------------------------------------------- */
+
+int MapReduce::map(int nmap, int nfiles, char **files,
+		   char *sepstr, int delta,
+		   void (*appmap)(int, char *, int, KeyValue *, void *),
+		   void *ptr, int addflag)
+{
+  filemap.sepwhich = 0;
+  int n = strlen(sepstr) + 1;
+  filemap.sepstr = new char[n];
+  strcpy(filemap.sepstr,sepstr);
+  filemap.delta = delta;
+
+  mapfile(nmap,nfiles,files,appmap,ptr,addflag);
+}
+
+/* ----------------------------------------------------------------------
+   create a KV via a parallel map operation for nmap tasks
+   nfiles filenames are split into nmap pieces based on separator
+   FileMap struct stores info on how to split files
+   calls non-file map() to partition tasks to processors
+     with callback to map_file_wrapper()
+   map_file_wrapper() reads chunk of file and passes it to user appmap()
+------------------------------------------------------------------------- */
+
+int MapReduce::mapfile(int nmap, int nfiles, char **files,
+		       void (*appmap)(int, char *, int, KeyValue *, void *),
+		       void *ptr, int addflag)
+{
+  if (nfiles > nmap) error->all("Cannot map with more files than tasks");
+
+  // copy filenames into FileMap
+
+  filemap.filename = new char*[nfiles];
+  for (int i = 0; i < nfiles; i++) {
+    int n = strlen(files[i]) + 1;
+    filemap.filename[i] = new char[n];
+    strcpy(filemap.filename[i],files[i]);
+  }
+
+  // get filesize of each file via stat()
+  // proc 0 queries files, bcasts results to all procs
+
+  filemap.filesize = new uint64_t[nfiles];
+  struct stat stbuf;
+
+  if (me == 0) {
+    for (int i = 0; i < nfiles; i++) {
+      stat(files[i],&stbuf);
+      filemap.filesize[i] = stbuf.st_size;
+    }
+  }
+
+  MPI_Bcast(filemap.filesize,nfiles*sizeof(uint64_t),MPI_BYTE,0,comm);
+
+  // ntotal = total size of all files
+  // nideal = ideal # of bytes per task
+
+  uint64_t ntotal = 0;
+  for (int i = 0; i < nfiles; i++) ntotal += filemap.filesize[i];
+  uint64_t nideal = MAX(1,ntotal/nmap);
+
+  // tasksperfile[i] = # of tasks for Ith file
+  // initial assignment based on ideal chunk size
+  // increment/decrement tasksperfile until reach target # of tasks
+  // even small files must have 1 task
+
+  filemap.tasksperfile = new int[nfiles];
+
+  int ntasks = 0;
+  for (int i = 0; i < nfiles; i++) {
+    filemap.tasksperfile[i] = MAX(1,filemap.filesize[i]/nideal);
+    ntasks += filemap.tasksperfile[i];
+  }
+
+  while (ntasks < nmap)
+    for (int i = 0; i < nfiles; i++)
+      if (filemap.filesize[i] > nideal) {
+	filemap.tasksperfile[i]++;
+	ntasks++;
+	if (ntasks == nmap) break;
+      }
+  while (ntasks > nmap)
+    for (int i = 0; i < nfiles; i++)
+      if (filemap.tasksperfile[i] > 1) {
+	filemap.tasksperfile[i]--;
+	ntasks--;
+	if (ntasks == nmap) break;
+      }
+
+  // whichfile[i] = which file is associated with the Ith task
+  // whichtask[i] = which task in that file the Ith task is
+
+  filemap.whichfile = new int[nmap];
+  filemap.whichtask = new int[nmap];
+
+  int itask = 0;
+  for (int i = 0; i < nfiles; i++)
+    for (int j = 0; j < filemap.tasksperfile[i]; j++) {
+      filemap.whichfile[itask] = i;
+      filemap.whichtask[itask++] = j;
+    }
+
+  // use non-file map() partition tasks to procs
+  // it calls map_file_wrapper once for each task
+
+  int verbosity_hold = verbosity;
+  verbosity = 0;
+
+  mrptr = this;
+  filemap.appmapfile = appmap;
+  map(nmap,&map_file_wrapper,ptr,addflag);
+
+  verbosity = verbosity_hold;
+  stats("Map",0,verbosity);
+
+  // destroy FileMap
+
+  if (filemap.sepwhich == 0) delete [] filemap.sepstr;
+  for (int i = 0; i < nfiles; i++) delete [] filemap.filename[i];
+  delete [] filemap.filename;
+  delete [] filemap.filesize;
+  delete [] filemap.tasksperfile;
+  delete [] filemap.whichfile;
+  delete [] filemap.whichtask;
+
+  int nkeyall;
+  MPI_Allreduce(&kv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
+   wrappers on user-provided appmapfile function
+   2-level wrapper needed b/c file map() calls non-file map()
+     and cannot pass it a class method unless it were static,
+     but then it couldn't access MR class data
+   so non-file map() is passed wrapper, which is non-class method
+   it accesses static class member mrptr, set before non-file map() call
+   wrapper calls back into class which calls user appmapfile()
+------------------------------------------------------------------------- */
+
+void map_file_wrapper(int imap, KeyValue *kv, void *ptr)
+{
+  MapReduce::mrptr->map_file_user(imap,kv,ptr);
+}
+
+void MapReduce::map_file_user(int imap, KeyValue *kv, void *ptr)
+{
+  // readstart = position in file to start reading for this task
+  // readsize = # of bytes to read including delta
+
+  uint64_t filesize = filemap.filesize[filemap.whichfile[imap]];
+  int itask = filemap.whichtask[imap];
+  int ntask = filemap.tasksperfile[filemap.whichfile[imap]];
+
+  uint64_t readstart = itask*filesize/ntask;
+  uint64_t readnext = (itask+1)*filesize/ntask;
+  int readsize = readnext - readstart + filemap.delta;
+  readsize = MIN(readsize,filesize-readstart);
+
+  // read from appropriate file
+  // terminate string with NULL
+
+  char *str = new char[readsize+1];
+  FILE *fp = fopen(filemap.filename[filemap.whichfile[imap]],"rb");
+  fseek(fp,readstart,SEEK_SET);
+  fread(str,1,readsize,fp);
+  str[readsize] = '\0';
+  fclose(fp);
+
+  // if not first task in file, trim start of string
+  // separator can be single char or a string
+  // str[strstart] = 1st char in string
+  // if separator = char, strstart is char after separator
+  // if separator = string, strstart is 1st char of separator
+
+  int strstart = 0;
+  if (itask > 0) {
+    char *ptr;
+    if (filemap.sepwhich) ptr = strchr(str,filemap.sepchar);
+    else ptr = strstr(str,filemap.sepstr);
+    if (ptr == NULL || ptr-str > filemap.delta)
+      error->one("Could not find separator within delta");
+    strstart = ptr-str + filemap.sepwhich;
+  }
+
+  // if not last task in file, trim end of string
+  // separator can be single char or a string
+  // str[strstop] = last char in string = inserted NULL
+  // if separator = char, NULL is char after separator
+  // if separator = string, NULL is 1st char of separator
+
+  int strstop = readsize;
+  if (itask < ntask-1) {
+    char *ptr;
+    if (filemap.sepwhich) 
+      ptr = strchr(&str[readnext-readstart],filemap.sepchar);
+    else 
+      ptr = strstr(&str[readnext-readstart],filemap.sepstr);
+    if (ptr == NULL) error->one("Could not find separator within delta");
+    if (filemap.sepwhich) ptr++;
+    *ptr = '\0';
+    strstop = ptr-str;
+  }
+
+  // call user appmapfile() function
+
+  int strsize = strstop - strstart + 1;
+  filemap.appmapfile(imap,&str[strstart],strsize,kv,ptr);
+  delete [] str;
+}
+
+/* ----------------------------------------------------------------------
    create a KV from a KMV via a parallel reduce operation for nmap tasks
    make one call to appreduce() for each KMV pair
    each proc processes its owned KMV pairs
 ------------------------------------------------------------------------- */
 
-int MapReduce::reduce(void (*appreduce)(char *, int, char **,
-					KeyValue *, void *), void *ptr)
+int MapReduce::reduce(void (*appreduce)(char *, int, char *,
+					int, int *, KeyValue *, void *),
+		      void *ptr)
 {
   if (kmv == NULL) error->all("Cannot reduce without KeyMultiValue");
 
-  KeyValue *kvnew = new KeyValue(comm);
-
-  if (kmv->collapsed) {
-    int nkey = kv->nkey;
-    int *keys = kv->keys;
-    int *values = kv->values;
-    char *keydata = kv->keydata;
-    char *valuedata = kv->valuedata;
-
-    char **valueptrs = new char*[2*nkey];
-    int nvalues = 0;
-    for (int i = 0; i < kv->nkey; i++) {
-      valueptrs[nvalues++] = &keydata[keys[i]];
-      valueptrs[nvalues++] = &valuedata[values[i]];
-    }
-    appreduce(kmv->singlekey,nvalues,valueptrs,kvnew,ptr);
-    delete [] valueptrs;
-
-  } else if (kmv->cloned) {
-    int nkey = kv->nkey;
-    int *keys = kv->keys;
-    int *values = kv->values;
-    char *keydata = kv->keydata;
-    char *valuedata = kv->valuedata;
-
-    for (int i = 0; i < nkey; i++) {
-      char *valueptr = &valuedata[values[i]];
-      appreduce(&keydata[keys[i]],1,&valueptr,kvnew,ptr);
-    }
-
-  } else callback(kv,kmv,kvnew,appreduce,ptr);
-
-  delete kmv;
-  kmv = NULL;
   delete kv;
-  kv = kvnew;
-  kv->complete();
+  kv = new KeyValue(comm);
 
+  int nreduce = kmv->nkey;
+  int *keys = kmv->keys;
+  int *multivalues = kmv->multivalues;
+  int *nvalues = kmv->nvalues;
+  int *valuesizes = kmv->valuesizes;
+  char *keydata = kmv->keydata;
+  char *multivaluedata = kmv->multivaluedata;
+
+  for (int i = 0; i < nreduce; i++)
+    appreduce(&keydata[keys[i]],keys[i+1]-keys[i],
+	      &multivaluedata[multivalues[i]],
+	      nvalues[i+1]-nvalues[i],&valuesizes[nvalues[i]],
+	      kv,ptr);
+
+  kv->complete();
   stats("Reduce",0,verbosity);
 
   int nkeyall;
@@ -509,7 +712,7 @@ int MapReduce::reduce(void (*appreduce)(char *, int, char **,
    new value = list of old key,value,key,value,etc
 ------------------------------------------------------------------------- */
 
-int MapReduce::scrunch(int numprocs, char *key, int keylen)
+int MapReduce::scrunch(int numprocs, char *key, int keybytes)
 {
   if (kv == NULL) error->all("Cannot scrunch without KeyValue");
 
@@ -517,7 +720,7 @@ int MapReduce::scrunch(int numprocs, char *key, int keylen)
   verbosity = 0;
 
   gather(numprocs);
-  collapse(key,keylen);
+  collapse(key,keybytes);
 
   verbosity = verbosity_hold;
   stats("Scrunch",1,verbosity);
@@ -533,7 +736,7 @@ int MapReduce::scrunch(int numprocs, char *key, int keylen)
    each proc sorts only its data
 ------------------------------------------------------------------------- */
 
-int MapReduce::sort_keys(int (*appcompare)(char *, char *))
+int MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
 {
   if (kv == NULL) error->all("Cannot sort_keys without KeyValue");
 
@@ -554,7 +757,7 @@ int MapReduce::sort_keys(int (*appcompare)(char *, char *))
    each proc sorts only its data
 ------------------------------------------------------------------------- */
 
-int MapReduce::sort_values(int (*appcompare)(char *, char *))
+int MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
 {
   if (kv == NULL) error->all("Cannot sort_values without KeyValue");
 
@@ -575,55 +778,67 @@ int MapReduce::sort_values(int (*appcompare)(char *, char *))
    each proc sorts only its data
 ------------------------------------------------------------------------- */
 
-int MapReduce::sort_multivalues(int (*appcompare)(char *, char *))
+int MapReduce::sort_multivalues(int (*appcompare)(char *, int, char *, int))
 {
   if (kmv == NULL) error->all("Cannot sort_multivalues without KeyMultiValue");
 
-  if (kmv->cloned || kmv->collapsed) {
-    int nkeyall;
-    MPI_Allreduce(&kmv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
-    return nkeyall;
-  }
-
   int nkey = kmv->nkey;
-  KeyMultiValue::KeyEntry *unique = kmv->keys;
-  int *valueindex = kmv->valueindex;
+  int *multivalues = kmv->multivalues;
+  int *nvalues = kmv->nvalues;
+  int *valuesizes = kmv->valuesizes;
+  char *multivaluedata = kmv->multivaluedata;
 
-  // valueindices = initial ordering of values in multi-value for one KMV key
+  // order = ordering of values in one multivalue in KMV, initially 0 to N-1
   // will get reordered by qsort
-  // use reordered valueindices to reset valueindex
-  // is an in-place sort of the values in the multi-value
 
-  int *valueindices = NULL;
-  int maxvalue = 0;
+  int *order = NULL;
+  mv_values = NULL;
+  int maxn = 0;
+  char *multivalue_new = NULL;
+  int maxmv = 0;
 
   for (int i = 0; i < nkey; i++) {
-    int nvalues = unique[i].count;
-    int vindex = unique[i].valuehead;
-    
-    if (nvalues > maxvalue) {
-      maxvalue = nvalues;
-      delete [] valueindices;
-      valueindices = new int[nvalues];
+    int n = nvalues[i+1] - nvalues[i];
+    if (n > maxn) {
+      maxn = n;
+      delete [] order;
+      order = new int[n];
+      delete [] mv_values;
+      mv_values = new char*[n];
     }
     
-    for (int j = 0; j < nvalues; j++) {
-      valueindices[j] = vindex;
-      vindex = valueindex[vindex];
-    }
+    for (int j = 0; j < n; j++) order[j] = j;
+    mv_valuesizes = &valuesizes[nvalues[i]];
+    mv_values[0] = &multivaluedata[multivalues[i]];
+    for (int j = 1; j < n; j++)
+      mv_values[j] = mv_values[j-1] + mv_valuesizes[j-1];
 
     compare = appcompare;
     mrptr = this;
-    qsort(valueindices,nvalues,sizeof(int),compare_values_wrapper);
+    qsort(order,n,sizeof(int),compare_multivalues_wrapper);
 
-    unique[i].valuehead = valueindices[0];
-    for (int j = 1; j < nvalues; j++) {
-      valueindex[valueindices[j-1]] = valueindices[j];
+    // create a new ordered multivalue, overwrite old one
+
+    int mvsize = multivalues[i+1] - multivalues[i];
+    if (mvsize > maxmv) {
+      maxmv = mvsize;
+      delete [] multivalue_new;
+      multivalue_new = new char[mvsize];
     }
-    valueindex[valueindices[nvalues-1]] = -1;
+
+    int offset = 0;
+    for (int j = 0; j < n; j++) {
+      int size = mv_valuesizes[order[j]];
+      memcpy(&multivalue_new[offset],mv_values[order[j]],size);
+      offset += size;
+    }
+
+    memcpy(&multivaluedata[multivalues[i]],multivalue_new,mvsize);
   }
 
-  delete [] valueindices;
+  delete [] order;
+  delete [] mv_values;
+  delete [] multivalue_new;
 
   stats("Sort_multivalues",0,verbosity);
 
@@ -641,6 +856,7 @@ void MapReduce::kv_stats(int level)
   if (kv == NULL) error->all("Cannot print stats without KeyValue");
 
   int nkeyall;
+
   MPI_Allreduce(&kv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
   double keysize = kv->keysize;
   double keysizeall;
@@ -693,17 +909,17 @@ void MapReduce::kmv_stats(int level)
 
   int nkeyall;
   MPI_Allreduce(&kmv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
-  double keysize = kv->keysize;
+  double keysize = kmv->keysize;
   double keysizeall;
   MPI_Allreduce(&keysize,&keysizeall,1,MPI_DOUBLE,MPI_SUM,comm);
-  double valuesize = kv->valuesize;
-  double valuesizeall;
-  MPI_Allreduce(&valuesize,&valuesizeall,1,MPI_DOUBLE,MPI_SUM,comm);
+  double multivaluesize = kmv->multivaluesize;
+  double multivaluesizeall;
+  MPI_Allreduce(&multivaluesize,&multivaluesizeall,1,MPI_DOUBLE,MPI_SUM,comm);
 
   if (me == 0)
     printf("%d key/multi-value pairs, "
 	   "%.1g Mb of key data, %.1g Mb of value data\n",
-	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
+	   nkeyall,keysizeall/1024.0/1024.0,multivaluesizeall/1024.0/1024.0);
 
   if (level == 2) {
     int histo[10],histotmp[10];
@@ -716,7 +932,7 @@ void MapReduce::kmv_stats(int level)
       for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
       printf("\n");
     }
-    tmp = kv->keysize/1024.0/1024.0;
+    tmp = kmv->keysize/1024.0/1024.0;
     histogram(1,&tmp,ave,max,min,10,histo,histotmp);
     if (me == 0) {
       printf("  Kdata (Mb): %g ave %g max %g min\n",ave,max,min);
@@ -724,7 +940,7 @@ void MapReduce::kmv_stats(int level)
       for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
       printf("\n");
     }
-    tmp = kv->valuesize/1024.0/1024.0;
+    tmp = kmv->multivaluesize/1024.0/1024.0;
     histogram(1,&tmp,ave,max,min,10,histo,histotmp);
     if (me == 0) {
       printf("  Vdata (Mb): %g ave %g max %g min\n",ave,max,min);
@@ -744,9 +960,8 @@ void MapReduce::kmv_stats(int level)
 }
 
 /* ----------------------------------------------------------------------
-   sort values in a KV to create a new KV
-   use appcompare() to compare 2 values
-   each proc sorts only its data
+   sort keys or values in a KV to create a new KV
+   flag = 0 = sort keys, flag = 1 = sort values
 ------------------------------------------------------------------------- */
 
 void MapReduce::sort_kv(int flag)
@@ -760,8 +975,8 @@ void MapReduce::sort_kv(int flag)
   char *keydata = kv->keydata;
   char *valuedata = kv->valuedata;
 
-  // order = ordering of keys in KV, initially 0 to N-1
-  // will get reordered by qsort
+  // order = ordering of keys or values in KV, initially 0 to N-1
+  // will be reordered by qsort
   // use reordered order array to build a new KV, one key/value at a time
 
   int *order = new int[nkey];
@@ -773,10 +988,10 @@ void MapReduce::sort_kv(int flag)
   KeyValue *kvnew = new KeyValue(comm);
   for (int i = 0; i < nkey; i++) {
     char *key = &keydata[keys[order[i]]];
-    int keylen = keys[order[i]+1] - keys[order[i]];
+    int keybytes = keys[order[i]+1] - keys[order[i]];
     char *value = &valuedata[values[order[i]]];
-    int valuelen = values[order[i]+1] - values[order[i]];
-    kvnew->add(key,keylen,value,valuelen);
+    int valuebytes = values[order[i]+1] - values[order[i]];
+    kvnew->add(key,keybytes,value,valuebytes);
   }
 
   delete [] order;
@@ -786,13 +1001,13 @@ void MapReduce::sort_kv(int flag)
 }
 
 /* ----------------------------------------------------------------------
-   wrappers on user-provided key comparison function
-   necessary so can extract 2 keys to pass back to application
+   wrappers on user-provided key and value comparison functions
+   necessary so can extract 2 keys or values to pass back to application
    2-level wrapper needed b/c qsort() cannot be passed a class method
      unless it were static, but then it couldn't access MR class data
-   so qsort() is passed compare_keys_wrapper, which is non-class method
+   so qsort() is passed wrapper, which is non-class method
    it accesses static class member mrptr, set before qsort() call
-   compare_keys_wrapper calls back into class which calls user compare()
+   wrapper calls back into class which calls user compare()
 ------------------------------------------------------------------------- */
 
 int compare_keys_wrapper(const void *iptr, const void *jptr)
@@ -802,18 +1017,9 @@ int compare_keys_wrapper(const void *iptr, const void *jptr)
 
 int MapReduce::compare_keys(int i, int j)
 {
-  return compare(&kv->keydata[kv->keys[i]],&kv->keydata[kv->keys[j]]);
+  return compare(&kv->keydata[kv->keys[i]],kv->keys[i+1]-kv->keys[i],
+		 &kv->keydata[kv->keys[j]],kv->keys[j+1]-kv->keys[j]);
 }
-
-/* ----------------------------------------------------------------------
-   wrappers on user-provided value comparison function
-   necessary so can extract 2 values to pass back to application
-   2-level wrapper needed b/c qsort() cannot be passed a class method
-     unless it were static, but then it couldn't access MR class data
-   so qsort() is passed compare_values_wrapper, which is non-class method
-   it accesses static class member mrptr, set before qsort() call
-   compare_values_wrapper calls back into class which calls user compare()
-------------------------------------------------------------------------- */
 
 int compare_values_wrapper(const void *iptr, const void *jptr)
 {
@@ -822,7 +1028,18 @@ int compare_values_wrapper(const void *iptr, const void *jptr)
 
 int MapReduce::compare_values(int i, int j)
 {
-  return compare(&kv->valuedata[kv->values[i]],&kv->valuedata[kv->values[j]]);
+  return compare(&kv->valuedata[kv->values[i]],kv->values[i+1]-kv->values[i],
+		 &kv->valuedata[kv->values[j]],kv->values[j+1]-kv->values[j]);
+}
+
+int compare_multivalues_wrapper(const void *iptr, const void *jptr)
+{
+  return MapReduce::mrptr->compare_multivalues(*(int *) iptr,*(int *) jptr);
+}
+
+int MapReduce::compare_multivalues(int i, int j)
+{
+  return compare(mv_values[i],mv_valuesizes[i],mv_values[j],mv_valuesizes[j]);
 }
 
 /* ----------------------------------------------------------------------
@@ -835,52 +1052,6 @@ void MapReduce::stats(char *heading, int which, int level)
   if (me == 0) printf("%s: ",heading);
   if (which == 0) kv_stats(level);
   else kmv_stats(level);
-}
-
-/* ----------------------------------------------------------------------
-   perform a series of callbacks on KMV pairs
-   used by compress() and reduce()
-------------------------------------------------------------------------- */
-
-void MapReduce::callback(KeyValue *kv1, KeyMultiValue *kmv1, KeyValue *kv2,
-			 void (*func)(char *, int, char **,
-				      KeyValue *, void *), void *ptr)
-{
-  int ncallback = kmv1->nkey;
-  KeyMultiValue::KeyEntry *unique = kmv1->keys;
-  int *valueindex = kmv1->valueindex;
-
-  int *keys = kv1->keys;
-  int *values = kv1->values;
-  char *keydata = kv1->keydata;
-  char *valuedata = kv1->valuedata;
-
-  // build list of multi-value ptrs to pass with each callback invocation
-  // could pass an interator instead
-
-  char **valueptrs = NULL;
-  int maxvalue = 0;
-
-  for (int i = 0; i < ncallback; i++) {
-    int keyindex = unique[i].keyindex;
-    int nvalues = unique[i].count;
-    int vindex = unique[i].valuehead;
-    
-    if (nvalues > maxvalue) {
-      maxvalue = nvalues;
-      delete [] valueptrs;
-      valueptrs = new char*[nvalues];
-    }
-    
-    for (int j = 0; j < nvalues; j++) {
-      valueptrs[j] = &valuedata[values[vindex]];
-      vindex = valueindex[vindex];
-    }
-    
-    func(&keydata[keys[keyindex]],nvalues,valueptrs,kv2,ptr);
-  }
-
-  delete [] valueptrs;
 }
 
 /* ---------------------------------------------------------------------- */

@@ -1,8 +1,8 @@
 <HTML>
-<H2><CENTER>MapReduce-MPI Library 
+<H2><CENTER>MapReduce MPI Library 
 </CENTER></H2>
-<P>This document describes the 18 June 2008 version of the MapReduce-MPI
-library that implements the <A HREF = "http://wikipedia/mapreduce.html">MapReduce operation</A> popularized by
+<P>This document describes the 18 June 2008 version of the MapReduce MPI
+library that implements the <A HREF = "http://en.wikipedia.org/wiki/Mapreduce">MapReduce operation</A> popularized by
 Google.  The library is designed for parallel execution on
 distributed-memory platforms, but will also operate on a single
 processor.  The library is written in C++, is callable from hi level
@@ -33,7 +33,7 @@ provide source code.
 </P>
 <P>The distrubution includes this documentation and a few examples of
 simple programs that illustrate the use of MapReduce.  I also
-distribute the MapReduce-MPI library with our parallel <A HREF = "http://lammps.sandia.gov">LAMMPS</A>
+distribute the MapReduce MPI library with our parallel <A HREF = "http://lammps.sandia.gov">LAMMPS</A>
 molecular dynamics package, since it can be used to post-process
 simulation data.
 </P>
@@ -146,7 +146,7 @@ communication between processors via MPI, again allowing disks to be
 used for out-of-core operations, since their Linux cluster has one
 disk per processing node.
 </P>
-<P>This MapReduce-MPI library is a very simple and lightweight
+<P>This MapReduce MPI library is a very simple and lightweight
 implementation of the basic MapReduce functionality, borrowing ideas
 from both the <A HREF = "#Dean">Dean and Sanjay</A> and <A HREF = "#Tu">Tu, et al</A> papers.  It
 has the following features:
@@ -160,9 +160,9 @@ MapReduce objects can be instantiated and invoked by the user's
 program.  The latter means that the library can be called from C or
 other hi-level languages such as Fortran or a scripting language. 
 
-<LI>Small, portable.  The entire library is about 2500 lines of C++ code
-in a handful of C++ files which can be built on any machine with a C++
-compiler.  For parallel operation, you link with MPI, a standard
+<LI>Small, portable.  The entire library is a few thousand lines of C++
+code in a handful of C++ files which can be built on any machine with
+a C++ compiler.  For parallel operation, you link with MPI, a standard
 message passing library available on any distributed memory machine.
 For serial operation, a dummy MPI library can be substituted, which is
 provided. 
@@ -198,7 +198,7 @@ scientific computations such as N-body forces via multipole
 expansions, k-means clustering, and machine learning algorithms, can
 be formulated as MapReduce operations.  Thus there is an expanding set
 of data-intense or compute-intense problems that may be amenable to
-solution using a MapReduce-MPI library such as this.
+solution using a MapReduce MPI library such as this.
 </P>
 <HR>
 
@@ -276,7 +276,7 @@ application-specific.  The remaining portions (the collate function,
 assignment of map or reduce tasks to processors, and combining of the
 map/reduce output across processors) can be handled behind the scenes
 in an application-independent fashion.  That is the portion of the
-code that is handled by the MapReduce-MPI library.  The user only need
+code that is handled by the MapReduce MPI library.  The user only need
 provide a small driving program to call the library and two serial
 functions for performing the desired map() and reduce() operations.
 </P>
@@ -284,7 +284,7 @@ functions for performing the desired map() and reduce() operations.
 
 <A NAME = "start"></A><H3>Getting Started 
 </H3>
-<P>Once you have <A HREF = "http://www.cs.sandia.gov/~sjplimp/download.html">downloaded</A> the MapReduce-MPI library, you
+<P>Once you have <A HREF = "http://www.cs.sandia.gov/~sjplimp/download.html">downloaded</A> the MapReduce MPI library, you
 should have the tarball mapreduce.tar.gz on your machine.
 Unpack it with the following commands:
 </P>
@@ -302,15 +302,15 @@ tar xvf mapreduce.tar
 <LI>user 
 </UL>
 <P>The doc directory contains this file.  The examples directory contains
-a few simple MapReduce programs which call the MapReduce-MPI library.
+a few simple MapReduce programs which call the MapReduce MPI library.
 These are documented by a README file in that directory and are
 discussed below.  The mpistubs directory contains a dummy MPI library
 which can be used to build a MapReduce program on a serial machine.
-The src directory contains the files that comprise the MapReduce-MPI
+The src directory contains the files that comprise the MapReduce MPI
 library.  The user directory contains user-contributed MapReduce
 programs.  See the README in that directory for further details.
 </P>
-<P>The MapReduce-MPI library is built by typing
+<P>The MapReduce MPI library is built by typing
 </P>
 <PRE>make -f Makefile.foo 
 </PRE>
@@ -324,7 +324,7 @@ dummy MPI library, you will need to build it first by typing "make"
 from within mpistubs.  Again, you may need to edit mpistubs/Makefile
 for your machine.
 </P>
-<P>If you successfully build the MapReduce-MPI library, you should
+<P>If you successfully build the MapReduce MPI library, you should
 produce the file "libmrmpi.a" which can be linked by other programs.
 Both a C++ and C interface are part of the library, as discussed
 below.
@@ -342,7 +342,7 @@ example programs (wordfreq) is provided both as a C++ and C program.
 
 <A NAME = "program"></A><H3>Writing a MapReduce program 
 </H3>
-<P>The usual way to use the MapReduce-MPI library is to write a small
+<P>The usual way to use the MapReduce MPI library is to write a small
 main program that calls the library.  In C++, your program includes
 two library header files and uses the MapReduce namespace:
 </P>
@@ -370,7 +370,7 @@ mr->reduce(&myreduce);                           // parallel reduce
 delete mr;                                       // delete the MR object 
 </PRE>
 <P>Often the main program you write is no more complicated than this.
-The API for the MapReduce-MPI library is a handful of methods which are
+The API for the MapReduce MPI library is a handful of methods which are
 lo-level components of a MapReduce operation.  They can be combined in
 more complex sequences of calls than listed above.  For example, one
 map() may be followed by several reduce() operations to massage your
@@ -378,7 +378,7 @@ data in a desired way.  Output of final results is typically performed
 as part of a myreduce() function you write which executes on one or
 more processors and writes to a file(s) or the screen.
 </P>
-<P>The MapReduce-MPI library operates on "keys" and "values" which are
+<P>The MapReduce MPI library operates on "keys" and "values" which are
 generated and manipulated by your mymap() and myreduce() functions.  A
 key and a value are simply byte strings of arbitrary length which are
 logically associated with each other, and can thus represent anything
@@ -390,7 +390,7 @@ string or a complex data structure that you create.
 
 <A NAME = "lib"></A><H3>Library Interface 
 </H3>
-<P>This section discusses how to call the MapReduce-MPI library from a
+<P>This section discusses how to call the MapReduce MPI library from a
 C++ program and gives a description of all its methods and variable
 settings.  Use of the library from a C program (or other hi-level
 language) is discussed at the end of the section.
@@ -406,12 +406,9 @@ be the same.
 </P>
 <P>A KMV is also a collection of key/value pairs.  But each key in the
 KMV is unique, meaning it appears exactly once (see the clone() method
-for a possible exception).  Because a KMV is derived from a KV it has
-two special properties.  First, the value associated with a KMV key is
-a concatenated list (a multi-value) of all the values associated with
-the same key in the KV.  Second, the KMV does not really store keys
-and values; it simply points to where the data is stored in the KV.
-Thus a KMV is always associated with an existing KV.
+for a possible exception).  The value associated with a KMV key is a
+concatenated list (a multi-value) of all the values associated with
+the same key in the KV.
 </P>
 <P>More details about how KV and KMV objects are stored are given in the
 <A HREF = "#tech">Technical Details</A> section.
@@ -437,13 +434,11 @@ how the various operations can be chained together in your program:
 </TD></TR></TABLE></DIV>
 
 <P>If a method creates a new KV or KMV, the old one is deleted (if it
-existed).  Since a KMV is associated with a KV, if a new KV is
-created, an existing KMV is also deleted.  The methods flagged as
-"serial" perform their operation on the portion of a KV or KMV owned
-by an individual processor.  They involve only local computation
-(performed simultaneously on all processors) and no parallel
-comuunication.  The methods flagged as "parallel" involve
-communication between processors.
+existed).  The methods flagged as "serial" perform their operation on
+the portion of a KV or KMV owned by an individual processor.  They
+involve only local computation (performed simultaneously on all
+processors) and no parallel comuunication.  The methods flagged as
+"parallel" involve communication between processors.
 </P>
 <HR>
 
@@ -492,19 +487,19 @@ load-balanced fashion.
 <P>In this example the user function is called myhash() and it must have
 the following interface:
 </P>
-<PRE>int iproc = myhash(char *key, int keylen) 
+<PRE>int iproc = myhash(char *key, int keybytes) 
 </PRE>
 <P>Your function will be passed a key (byte string) and its length in
 bytes.  Typically you want to return an integer such that 0 <= iproc <
 P, where P is the number of processors.  But you can return any
-integer, since the MapReduce-MPI library uses the result in this
+integer, since the MapReduce MPI library uses the result in this
 manner to assign the key to a processor:
 </P>
-<PRE>int iproc = myhash(key,keylen) % P; 
+<PRE>int iproc = myhash(key,keybytes) % P; 
 </PRE>
 <P>If you don't care how your keys are assigned to processors, then pass
 a NULL to the aggregate() method, i.e. mr->aggregate(NULL), and the
-MapReduce-MPI library will use its own internal hash function.
+MapReduce MPI library will use its own internal hash function.
 </P>
 <P>Because the aggregate() method will, in general, reassign all
 key/value pairs to new processors, it incurs a large volume of
@@ -545,7 +540,7 @@ KeyValue pairs.
 
 <A NAME = "collapse"></A><H4>MapReduce::collapse() method 
 </H4>
-<PRE>int mr->collapse(char *key, int keylen) 
+<PRE>int mr->collapse(char *key, int keybytes) 
 </PRE>
 <P>This calls the collapse() method of a MapReduce object, which
 collapses a KeyValue object into a KeyMultiValue object with a single
@@ -563,9 +558,12 @@ will be 1 for each processor owning pairs.
 </P>
 <PRE>(key,["dog",3,"me",45,"parallel",1]) 
 </PRE>
-<P>This method can be used to collect a set of key/value pairs to use
-in a reduce() method so that it can all be passed to a single
-invocation of your myreduce() function for output.
+<P>This method can be used to collect a set of key/value pairs to use in
+a reduce() method so that it can all be passed to a single invocation
+of your myreduce() function for output.  See the <A HREF = "#tech">Technical
+Details</A> section for details on how the clone() method affects
+the alignment of keys and values that may eventually be passed
+to your myreduce() function via the reduce() method.
 </P>
 <P>This method is an on-processor operation, requiring no communication.
 When run in parallel, each processor collapses the key/value pairs it
@@ -604,7 +602,7 @@ on-processor operation (convert).
 
 <A NAME = "compress"></A><H4>MapReduce::compress() method 
 </H4>
-<PRE>int nkey = mr->compress(void (*mycompress)(char *, int, char **, KeyValue *, void *), void *ptr) 
+<PRE>int nkey = mr->compress(void (*mycompress)(char *, int, char *, int, int *, KeyValue *, void *), void *ptr) 
 </PRE>
 <P>This calls the compress() method of a MapReduce object, which
 compresses a KeyValue object with duplicate keys into a new KeyValue
@@ -628,15 +626,19 @@ need this.
 have the following interface, which is the same as that used
 by the reduce() method:
 </P>
-<PRE>void mycompress(char *key, int nvalues, char **values, KeyValue *kv, void *ptr) 
+<PRE>void mycompress(char *key, int keybytes, char *multivalue, int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 </PRE>
-<P>A single key/value pair is passed to your function from a temporary
-KeyMultiValue object created by the library.  The key is unique to
-this compress task and the value is a list of the nvalues associated
-with key when it was generated multiple times during the map phase of
-the MapReduce operation.  The char **values argument is a
-nvalues-length vector of pointers to the individual elements of the
-list.  Your function is also passed a kv pointer to a new KeyValue
+<P>A single key/multi-value pair is passed to your function from a
+temporary KeyMultiValue object created by the library.  That object
+creates a multi-value for each unique key in the KeyValue object which
+contains a list of the nvalues associated with that key.  Note that
+this is only the values on this processor, not across all processors.
+The char *multivalue argument is a pointer to the beginning of the
+multi-value which contains all nvalues, packed one after the other.
+The int *valuebytes argument is an array which stores the length of
+each value in bytes.  If needed, it can be used by your function to
+compute an offset into char *values for where each individual value
+begins.  Your function is also passed a kv pointer to a new KeyValue
 object created and stored internally by the MapReduce object.
 </P>
 <P>Your mycompress() function should typicaly produce a single key/value
@@ -645,6 +647,11 @@ method of the KeyValue object.  The syntax for registration is
 described below with the KeyValue::add() method.  For example, if the
 set of nvalues were integers, the compressed value might be the sum of
 those integers.
+</P>
+<P>See the <A HREF = "#tech">Technical Details</A> section for details ont the
+byte-alignment of keys and values that are passed to your mycompress()
+function and on how to byte-align keys and values you register with
+the KeyValue::add() method.
 </P>
 <P>This method is an on-processor operation, requiring no communication.
 When run in parallel, each processor operates only on the key/value
@@ -710,6 +717,12 @@ processors send their key/value pairs to other processors.
 <PRE>int nkeys = mr->map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr)
 int nkeys = mr->map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr, int addflag) 
 </PRE>
+<PRE>int nkeys = mr->map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
+int nkeys = mr->map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
+</PRE>
+<PRE>int nkeys = mr->map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
+int nkeys = mr->map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
+</PRE>
 <P>This calls the map() method of a MapReduce object, passing it nmap
 which is the total number of map tasks to perform across all
 processors.  A function pointer to a mapping function you write is
@@ -718,9 +731,23 @@ an existing KeyValue object to store all the key/value pairs generated
 by your mymap function.  The method returns the total number of
 key/value pairs in the KeyValue object.
 </P>
-<P>You can give this method a pointer (void *ptr) which will be returned
-to your mymap() function.  See the <A HREF = "#tech">Technical Details</A> section
-for why this can be useful.  Just pass a NULL if you don't need this.
+<P>The first set of variants (with and without addflag) simply specify a
+number of map tasks (nmap) to perform.  The index of the map task is
+passed back to your mymap() function.  The second set of variants also
+pass in a list of one or more files and a separation character
+(sepchar).  The third set of variants likewise pass in a list of one
+or more files and a separation string (sepstr).  In the cases with
+file(s) and a separation criterion, the file(s) are split into nmap
+chunks with roughly equal numbers of bytes in each chunk.  One chunk
+of one of the files is read and is passed back to your mymap()
+function, so your code does not have to read the file(s).  See more
+details below about the splitting methodology and the delta input
+parameter.
+</P>
+<P>You can give these map() methods a pointer (void *ptr) which will be
+returned to your mymap() function.  See the <A HREF = "#tech">Technical Details</A>
+section for why this can be useful.  Just pass a NULL if you don't
+need this.
 </P>
 <P>If the last argument <I>addflag</I> is omitted or is specified as 0, then
 map() will create a new KeyValue object, after deleting an existing
@@ -729,16 +756,45 @@ generated by your mymap() function are added to an existing KeyValue
 object (which is created if needed).  In either case any associated
 KeyMultiValue object is deleted, since the KeyValue object is changed.
 </P>
-<P>In this example the user function is called mymap() and it must have
-the following interface:
+<P>In this example the user function is called mymap() and it has one of
+two interfaces depending on which variant of the map() method is used:
 </P>
-<PRE>void mymap(int itask, KeyValue *, void *ptr) 
+<PRE>void mymap(int itask, KeyValue *, void *ptr)
+void mymap(int itask, char *str, int size, KeyValue *, void *ptr) 
 </PRE>
-<P>A single task number (0 <= itask < nmap) is passed to your function.
-For example, you can use itask to select a file for your mymap()
-function to open and read.  Your function is also passed a kv pointer
-to a new KeyValue object created and stored internally by the MapReduce
-object.
+<P>In the first case, a single task number (0 <= itask < nmap) is passed
+to your function.  For example, you can use itask to select a file for
+your mymap() function to open and read.  In the second case, a chunk
+of bytes read from one of the input files is passed to your function.
+Its length in bytes, including a trailing '\0' that is appended, is
+given by size.  Your function is also passed a kv pointer to a new
+KeyValue object created and stored internally by the MapReduce object.
+</P>
+<P>For map() methods that use files and a separation criterion, you must
+specify nmap >= nfiles, so that there is one or more map tasks per
+file.  For files that are split into multiple chunks, the split is
+done at occurrences of the separation character or string.  You
+specify a delta of how many extra bytes to read with each chunk that
+will guarantee the splitting character or string is found within that
+many bytes.  For example if the files are lines of text, you could
+choose a newline character '\n' as the sepchar, and a delta of 80 (if
+the longest line in your files is 80 characters).  If the files are
+snapshots of simulation data where each snapshot is 1000 lines (no
+more than 80 characters per line), you could choose the first line of
+each snapshot (e.g. "Snapshot") as the sepstr, and a delta of 80000.
+Note that if the separation character or string is not found within
+delta bytes, an error will be generated.  Also note that there is no
+harm in choosing a large delta so long as it is not larger than the
+chunk size for a particular file.
+</P>
+<P>If the separation criterion is a character (sepchar), the chunk of
+bytes passed to your mymap() function will start with the character
+after a sepchar, and will end with a sepchar (followed by a '\0').  If
+the separation criterion is a string (sepstr), the chunk of bytes
+passed to your mymap() function will start with sepstr, and will end
+with the character immediately preceeding a sepstr (followed by a
+'\0').  Note that this means your mymap() function will be passed
+different byte strings if you specify sepchar = 'A' vs sepstr = "A".
 </P>
 <P>The MapReduce map() method assigns the nmap tasks to processors.
 Different options for how it does this can be controlled by MapReduce
@@ -751,6 +807,10 @@ registers with the MapReduce object by calling the add() method of the
 KeyValue object.  The syntax for registration is described below with
 the KeyValue::add() method.
 </P>
+<P>See the <A HREF = "#tech">Technical Details</A> section for details on the
+length and byte-alignment of keys and values you register with the
+KeyValue::add() method.
+</P>
 <P>Aside from the assignment of tasks to processors, this method is
 really an on-processor operation, requiring no communication.  When
 run in parallel, each processor generates key/value pairs and stores
@@ -760,7 +820,7 @@ them, independently of other processors.
 
 <A NAME = "reduce"></A><H4>MapReduce::reduce() method 
 </H4>
-<PRE>int nkey = reduce(void (*myreduce)(char *, int, char **, KeyValue *, void *), void *ptr) 
+<PRE>int nkey = reduce(void (*myreduce)(char *, int, char *, int, int *, KeyValue *, void *), void *ptr) 
 </PRE>
 <P>This calls the reduce() method of a MapReduce object, passing it a
 function pointer to a reduce function you write.  It operates on a
@@ -778,15 +838,18 @@ need this.
 <P>In this example the user function is called myreduce() and it must
 have the following interface:
 </P>
-<PRE>void myreduce(char *key, int nvalues, char **values, KeyValue *kv, void *ptr) 
+<PRE>void myreduce(char *key, int keybytes, char *multivalue, int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 </PRE>
-<P>A single key/value pair is passed to your function from the
+<P>A single key/multi-value pair is passed to your function from the
 KeyMultiValue object stored by the MapReduce object.  The key is
-unique to this reduce task and the value is a list of the nvalues
-associated with this key when it was generated multiple times during
-the map phase of the MapReduce operation.  The char **values argument
-is a nvalues-length vector of pointers to the individual elements of
-the list.  Your function is also passed a kv pointer to a new KeyValue
+typically unique to this reduce task and the multi-value is a list of
+the nvalues associated with that key in the KeyMultiValue object.  The
+char *multivalue argument is a pointer to the beginning of the
+multi-value which contains all nvalues, packed one after the other.
+The int *valuebytes argument is an array which stores the length of
+each value in bytes.  If needed, it can be used by your function to
+compute an offset into char *values for where each individual value
+begins.  Your function is also passed a kv pointer to a new KeyValue
 object created and stored internally by the MapReduce object.
 </P>
 <P>Your myreduce() function can produce key/value pairs (though this is
@@ -794,6 +857,11 @@ not required) which it registers with the MapReduce object by calling
 the add() method of the KeyValue object.  The syntax for registration
 is described below with the KeyValue::add() method.  Alternatively,
 your myreduce() function can write information to an output file.
+</P>
+<P>See the <A HREF = "#tech">Technical Details</A> section for details on the
+byte-alignment of keys and values that are passed to your myreduce()
+function and on how to byte-align keys and values you register with
+the KeyValue::add() method.
 </P>
 <P>This method is an on-processor operation, requiring no communication.
 When run in parallel, each processor performs a myreduce() on each of
@@ -804,7 +872,7 @@ generates.
 
 <A NAME = "scrunch"></A><H4>MapReduce::scrunch() method 
 </H4>
-<PRE>int nkey = mr->scrunch(int nprocs, char *key, int keylen) 
+<PRE>int nkey = mr->scrunch(int nprocs, char *key, int keybytes) 
 </PRE>
 <P>This calls the scrunch() method of a MapReduce object, which gathers a
 KeyValue object onto nprocs and collapses it into a KeyMultiValue
@@ -815,7 +883,7 @@ one for each of the nprocs.
 </P>
 <P>The nprocs argument is used by the gather() portion of the operation.
 See the <A HREF = "#gather">description of that method</A> for details.  The key and
-keylen arguments are used by the callapse() portion of the operation.
+keybytes arguments are used by the callapse() portion of the operation.
 See the <A HREF = "#collapse">description of that method</A> for details.
 </P>
 <P>Note that if nprocs > 1, then the same key will be assigned to the
@@ -832,15 +900,14 @@ on-processor operation (collapse).
 
 <A NAME = "sort_keys"></A><H4>MapReduce::sort_keys() method 
 </H4>
-<PRE>int nkey = mr->sort_keys(int (*mycompare)(char *, char *)) 
+<PRE>int nkey = mr->sort_keys(int (*mycompare)(char *, int, char *, int)) 
 </PRE>
 <P>This calls the sort_keys() method of a MapReduce object, which sorts a
 KeyValue object by its keys to produce a new KeyValue object.  The
 mycompare() function you provide compares pairs of keys for the sort,
-since the MapReduce object does not otherwise know how to interpret
-the content of your keys.  The method returns the total number of
-key/value pairs in the new KeyValue object which will be the same as
-in the original.
+since the MapReduce object does not know how to interpret the content
+of your keys.  The method returns the total number of key/value pairs
+in the new KeyValue object which will be the same as in the original.
 </P>
 <P>This method is used to sort key/value pairs by key before a KeyValue
 object is transformed into a KeyMultiValue object, e.g. via the
@@ -856,11 +923,12 @@ lost, since those methods move key/value pairs to new processors.
 <P>In this example the user function is called mycompare() and it must
 have the following interface
 </P>
-<PRE>int mycompare(char *key1, char *key2) 
+<PRE>int mycompare(char *key1, int len1, char *key2, int len2) 
 </PRE>
-<P>Key1 and key2 are pointers to the byte strings for 2 keys.  Your
-function should compare them and return a -1, 0, or 1 if key1 is less
-than, equal to, or greater than key2, respectively.
+<P>Key1 and key2 are pointers to the byte strings for 2 keys, each of
+length len1 and len2.  Your function should compare them and return a
+-1, 0, or 1 if key1 is less than, equal to, or greater than key2,
+respectively.
 </P>
 <P>This method is an on-processor operation, requiring no communication.
 When run in parallel, each processor operates only on the key/value
@@ -870,15 +938,15 @@ pairs it stores.
 
 <A NAME = "sort_values"></A><H4>MapReduce::sort_values() method 
 </H4>
-<PRE>int nkey = mr->sort_values(int (*mycompare)(char *, char *)) 
+<PRE>int nkey = mr->sort_values(int (*mycompare)(char *, int, char *, int)) 
 </PRE>
 <P>This calls the sort_values() method of a MapReduce object, which sorts
 a KeyValue object by its values to produce a new KeyValue object.  The
 mycompare() function you provide compares pairs of values for the
-sort, since the MapReduce object does not otherwise know how to
-interpret the content of your values.  The method returns the total
-number of key/value pairs in the new KeyValue object which will be the
-same as in the original.
+sort, since the MapReduce object does not know how to interpret the
+content of your values.  The method returns the total number of
+key/value pairs in the new KeyValue object which will be the same as
+in the original.
 </P>
 <P>This method is used to sort key/value pairs by value before a KeyValue
 object is transformed into a KeyMultiValue object, e.g. via the
@@ -895,11 +963,12 @@ new processors.
 <P>In this example the user function is called mycompare() and it must
 have the following interface
 </P>
-<PRE>int mycompare(char *value1, char *value2) 
+<PRE>int mycompare(char *value1, int len1, char *value2, int len2) 
 </PRE>
-<P>Value1 and value2 are pointers to the byte strings for 2 values.  Your
-function should compare them and return a -1, 0, or 1 if value1 is
-less than, equal to, or greater than value2, respectively.
+<P>Value1 and value2 are pointers to the byte strings for 2 values, each
+of length len1 and len2.  Your function should compare them and return
+a -1, 0, or 1 if value1 is less than, equal to, or greater than
+value2, respectively.
 </P>
 <P>This method is an on-processor operation, requiring no communication.
 When run in parallel, each processor operates only on the key/value
@@ -909,35 +978,32 @@ pairs it stores.
 
 <A NAME = "sort_multivalues"></A><H4>MapReduce::sort_multivalues() method 
 </H4>
-<PRE>int nkey = mr->sort_multivalues(int (*mycompare)(char *, char *)) 
+<PRE>int nkey = mr->sort_multivalues(int (*mycompare)(char *, int, char *, int)) 
 </PRE>
 <P>This calls the sort_multivalues() method of a MapReduce object, which
 sorts the values for each key within a KeyMultiValue object to produce
 a new KeyMultiValue object.  The mycompare() function you provide
 compares pairs of values for the sort, since the MapReduce object does
-not otherwise know how to interpret the content of your values.  The
-method returns the total number of key/value pairs in the new
-KeyMultiValue object which will be the same as in the original.
+not know how to interpret the content of your values.  The method
+returns the total number of key/value pairs in the new KeyMultiValue
+object which will be the same as in the original.
 </P>
 <P>This method can be used to sort a set of multi-values within a key
 before they are passed to your application, e.g. via the reduce()
-method.  Note that it only makes sense to use sort_multivalues() for a
-KeyMultiValue object created by the convert() or collate() methods.
-KeyMultiValue objects created by the clone() or collapse() or
-scrunch() methods cannot be sorted, since those kinds of objects
-either contain only one value per key, or the value is a combination
-of keys and values from the original KeyValue object.  For these kinds
-of KeyMultiValue objects, sort_multivalues() simply returns without
-performing a sort.
+method.  Note that it typically only makes sense to use
+sort_multivalues() for a KeyMultiValue object created by the convert()
+or collate() methods, not KeyMultiValue objects created by the clone()
+or collapse() or scrunch() methods.
 </P>
 <P>In this example the user function is called mycompare() and it must
 have the following interface
 </P>
-<PRE>int mycompare(char *value1, char *value2) 
+<PRE>int mycompare(char *value1, int len1, char *value2, int len2) 
 </PRE>
-<P>Value1 and value2 are pointers to the byte strings for 2 values.  Your
-function should compare them and return a -1, 0, or 1 if value1 is
-less than, equal to, or greater than value2, respectively.
+<P>Value1 and value2 are pointers to the byte strings for 2 values, each
+of length len1 and len2.  Your function should compare them and return
+a -1, 0, or 1 if value1 is less than, equal to, or greater than
+value2, respectively.
 </P>
 <P>This method is an on-processor operation, requiring no communication.
 When run in parallel, each processor operates only on the
@@ -971,10 +1037,10 @@ information is also printed in a one-line histogram format.
 
 <A NAME = "add"></A><H4>KeyValue::add() method 
 </H4>
-<PRE>kv->add(char *key, int keylen, char *value, int valuelen)
-kv->add(int n, char *keys, int keylen, char *values, int valuelen) 
+<PRE>kv->add(char *key, int keybytes, char *value, int valuebytes)
+kv->add(int n, char *keys, int keybytes, char *values, int valuebytes) 
 </PRE>
-<PRE>kv->add(int n, char *keys, int *keylen, char *values, int *valuelen) 
+<PRE>kv->add(int n, char *keys, int *keybytes, char *values, int *valuebytes) 
 </PRE>
 <P>This method is called by the mymap(), mycompress(), and myreduce()
 functions in your program to register key/value pairs with the
@@ -985,37 +1051,15 @@ and the values are all the same length.  The third version registers a
 set of N key/value pairs where the length of each key and of each
 value is specified.
 </P>
-<P>As explained above, from the perspective of the MapReduce-MPI library,
+<P>As explained above, from the perspective of the MapReduce MPI library,
 keys and values are variable-length byte strings.  To register such
 strings, you must specify their length in bytes.  This is done via the
-keylen and valuelen arguments, either as single integer lengths or as
-vectors of integer lengths.
-</P>
-<P>Note that if your key or value is a text string, it should typically
-include a trailing "0" to terminate the string (see next paragraph).
-If your key or value is one or more integers or floating point values,
-you should take care to align them appropriately if you plan to later
-access them for computation or output.  E.g. if your "value" is a
-4-byte integer followed by an 8-byte double, you might think it can be
-stored as 12 contiguous bytes.  However, this would likely mean the
-double is mis-aligned with respect to 8-byte boundaries, which is
-often a bad idea.  One solution is to convert the int to a double
-before storing it in the 16-byte value string.  Another solution is to
-create a struct to store the int double and use the sizeof() function
-to determine the length of the struct.  The compiler should then
-guarantee proper alignment of each structure member.
-</P>
-<P>Also note that key/value pairs are typically returned to your program
-for further processing or output, e.g. as arguments passed to your
-myreduce() function by the MapReduce reduce() method.  When this
-occurs, your function is NOT told their length.  Instead it is simply
-given pointers to the keys and values.  Thus your function must
-convert the pointer to the appropriate data type and interpret the
-byte string of the key or value correctly.  This is why text strings
-should typically be terminated by a "0".  If a value is a complex data
-structure its internal structure, you must be able to decode it.  For
-example, if the value is a variable-length list of numbers, you may
-need to store its length as the first value in the list.
+keybytes and valuebytes arguments, either as a single length or as a
+vectors of lengths.  Note that if your key or value is a text string,
+it should typically include a trailing "0" to terminate the string.
+See the <A HREF = "#tech">Technical Details</A> section for details on the length
+and byte-alignment of keys and values you register with the add()
+method.
 </P>
 <HR>
 
@@ -1066,10 +1110,10 @@ detect imbalance in memory usage.
 
 <A NAME = "cinterface"></A><H4>C interface 
 </H4>
-<P>The MapReduce-MPI library can be called from a C program, using the
+<P>The MapReduce MPI library can be called from a C program, using the
 interface defined in src/cmapreduce.h.  This is a C file which should
 be included in your C program to define API to the library.  The C
-interface could also be used to call the MapReduce-MPI library from
+interface could also be used to call the MapReduce MPI library from
 Fortran or another hi-level language such as a scripting language.
 </P>
 <P>The C interface consists of the following functions:
@@ -1079,11 +1123,11 @@ void MR_destroy(void *MRptr);
 </PRE>
 <PRE>int MR_aggregate(void *MRptr, int (*myhash)(char *, int));
 int MR_clone(void *MRptr);
-int MR_collapse(void *MRptr, char *key, int keylen);
+int MR_collapse(void *MRptr, char *key, int keybytes);
 int MR_collate(void *MRptr, int (*myhash)(char *, int));
 int MR_compress(void *MRptr, 
-		void (*mycompress)(char *, int, char **,
-				   void *KVptr, void *APPptr),
+		void (*mycompress)(char *, int, char *,
+				   int, int *, void *KVptr, void *APPptr),
 		void *APPptr);
 int MR_convert(void *MRptr);
 int MR_gather(void *MRptr, int numprocs);
@@ -1091,19 +1135,44 @@ int MR_map(void *MRptr, int nmap,
 	   void (*mymap)(int, void *KVptr, void *APPptr),
 	   void *APPptr);
 int MR_map_add(void *MRptr, int nmap,
-               void (*mymap)(int, void *KVptr, void *APPptr),
+	       void (*mymap)(int, void *KVptr, void *APPptr),
 	       void *APPptr, int addflag);
-int MR_reduce(void *MRptr, void (*myreduce)(char *, int, char **,
-					    void *KVptr, void *APPptr),
+int MR_map_file_char(void *MRptr, int nmap, int files, char **files,
+		     char sepchar, int delta,
+		     void (*mymap)(int, void *KVptr, void *APPptr),
+		     void *APPptr);
+int MR_map_file_char_add(void *MRptr, int nmap, int files, char **files,
+			 char sepchar, int delta,
+			 void (*mymap)(int, void *KVptr, void *APPptr),
+			 void *APPptr, int addflag);
+int MR_map_file_str(void *MRptr, int nmap, int files, char **files,
+		    char *sepstr, int delta,
+		    void (*mymap)(int, void *KVptr, void *APPptr),
+		    void *APPptr);
+int MR_map_file_str_add(void *MRptr, int nmap, int files, char **files,
+			char *sepstr, int delta,
+			void (*mymap)(int, void *KVptr, void *APPptr),
+			void *APPptr, int addflag);
+int MR_reduce(void *MRptr,
+	      void (*myreduce)(char *, int, char *,
+			       int, int *, void *KVptr, void *APPptr),
 	      void *APPptr);
-int MR_scrunch(void *MRptr, int numprocs, char *key, int keylen);
-int MR_sort_keys(void *MRptr, int (*mycompare)(char *, char *));
-int MR_sort_values(void *MRptr, int (*mycompare)(char *, char *));
-int MR_sort_multivalues(void *MRptr, int (*mycompare)(char *, char *)); 
+int MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes);
+int MR_sort_keys(void *MRptr, 
+		 int (*mycompare)(char *, int, char *, int));
+int MR_sort_values(void *MRptr,
+		   int (*mycompare)(char *, int, char *, int));
+int MR_sort_multivalues(void *MRptr,
+			int (*mycompare)(char *, int, char *, int)); 
 </PRE>
-<PRE>void MR_kv_add(void *KVptr, char *key, int keylen, char *value, int valuelen);
-void MR_kv_addn(void *KVptr, int n,
-		char *key, int *keylen, char *value, int *valuelen);
+<PRE>void MR_kv_add(void *KVptr, char *key, int keybytes, 
+	       char *value, int valuebytes);
+void MR_kv_add_multi_static(void *KVptr, int n,
+			    char *key, int keybytes,
+			    char *value, int valuebytes);
+void MR_kv_add_multi_dynamic(void *KVptr, int n,
+			    char *key, int *keybytes,
+			    char *value, int *valuebytes);
 void MR_kv_stats(void *MRptr, int level);
 void MR_kmv_stats(void *MRptr, int level); 
 </PRE>
@@ -1111,8 +1180,10 @@ void MR_kmv_stats(void *MRptr, int level);
 void MR_set_verbosity(void *MRptr, int value); 
 </PRE>
 <P>These functions correspond one-to-one with the C++ methods described
-above.  The MR_set() functions are added to the C interface to enable
-the corresponding library variables to be set.
+above, except that for C++ methods with multiple interfaces
+(e.g. map()), there is one C function for each interface with a
+slightly different name.  The MR_set() functions are added to the C
+interface to enable the corresponding library variables to be set.
 </P>
 <P>Note that when you call MR_create() it returns MRptr which is a
 pointer to the MapReduce object created by the library.  This pointer
@@ -1120,12 +1191,12 @@ is used as the first argument of all the other MR calls.  The
 remaining arguments are exactly the same as those used with the C++
 methods.
 </P>
-<P>The only exception are the 2 functions MR_kv_add() and MR_kv_addn()
-which take a KVptr as their first argument.  This is a pointer to a
-KeyValue object.  These calls are made from your program's mymap(),
-myreduce(), and mycompress() functions to register key/value pairs
-with the MapReduce-MPI library.  The KVptr is passed as an argument to
-your functions when they are called back from the MapReduce library.
+<P>The only exception are the MR_kv_add() functions which take a KVptr as
+their first argument.  This is a pointer to a KeyValue object.  These
+calls are made from your program's mymap(), myreduce(), and
+mycompress() functions to register key/value pairs with the MapReduce
+MPI library.  The KVptr is passed as an argument to your functions
+when they are called back from the MapReduce library.
 </P>
 <P>See the examples/cwordfreq.c program as an example of how these
 calls are made from a C program.  It is conceptually identical to
@@ -1136,20 +1207,84 @@ the C++ wordfreq.cpp program.
 <A NAME = "tech"></A><H3>Technical Details 
 </H3>
 <P>This section provides additional details about using the MapReduce
-library and how it is implemented.
+library and how it is implemented.  These topics are covered:
 </P>
+<UL><LI>Length and byte-alignment of keys and values
+<LI>Memory requirements for KeyValue and KeyMultiValue objects
+<LI>Hash functions
+<LI>Callback functions
+<LI>Error messages 
+</UL>
+<H4>Length and byte-alignment of keys and values 
+</H4>
 <P>As explained in <A HREF = "#lib">this section</A>, keys and values are
-variable-length strings of bytes.  The MapReduce-MPI library knows nothing
-of what they contain and simply treats them as contiguous chunks of
-bytes.
+variable-length strings of bytes.  The MapReduce MPI library knows
+nothing of their contents and simply treats them as contiguous chunks
+of bytes.
 </P>
-<P>KeyValue and KeyMultiValue objects were also described in <A HREF = "#lib">this
+<P>When you register a key and value in your <A HREF = "#map">mymap()</A> or
+<A HREF = "#compress">mycompress()</A> or <A HREF = "#reduce">myreduce()</A> function via the
+<A HREF = "#add">KeyValue::add() method</A>, you specify their lengths in bytes.
+Keys and values are typically returned to your program for further
+processing or output, e.g. as arguments passed to your myreduce()
+function by the <A HREF = "#reduce">MapReduce reduce() operation</A>, and their
+lengths are also returned to your function.
+</P>
+<P>Keys and values are passed as character pointers to your functions
+which may need to convert the pointer to an appropriate data type and
+then correctly interpret the byte string.  If the key or value is a
+variable-length text string, it should typically be terminated by a
+"0", so that C-library style string functions can be invoked on it.
+If a key or value is a complex data structure, your function must be
+able to decode it.
+</P>
+<P>A related issue with keys and values is the byte-alignment of integer
+or floating point values they include.  For example, it is usually a
+bad idea to store an 8-byte double in memory such that it is
+mis-aligned with respect to 8-byte boundaries.  The reason is that
+accessing a mis-aligned double for computaion may be slower.
+</P>
+<P>As an example, say your "value" is a 4-byte integer followed by an
+8-byte double.  You might think it can be stored and registered as 12
+contiguous bytes.  However, this would likely mean the double is
+mis-aligned.  One solution is to convert the int to a double before
+storing both quantities in a 16-byte value string.  Another solution
+is to create a struct to store the int and double and use the sizeof()
+function to determine the length of the struct and use that as the
+length of your "value".  The compiler should then guarantee proper
+alignment of each structure member.
+</P>
+<P>Special care should also be taken if your keys and values are
+heterogeneous.  This is because the MapReduce MPI library packs keys
+one after the other into one long byte string, and similarly for
+values; see below for a discussion of memory usage.  When values from
+a KeyValue object are orgnized into a multi-value in a KeyMultiValue
+object, the values are likewise packed one after the other.  Thus even
+if the components of your keys and values were aligned when you
+registered them with the <A HREF = "#add">KeyValue::add() method</A>, they may not
+be if they later get mixed in with other keys and values of different
+lengths.  For example, the <A HREF = "#collapse">collapse</A> operation creates a
+multi-value that is sequence of key,value,key,value,etc from a KV.  If
+the keys are variable-length text strings and the values are ints,
+then the values will not be aligned on 4-byte boundaries.
+</P>
+<P>The solution in this case is for your callback function to copy the
+bytes of a key or value into a local data structure (e.g. using the C
+memcpy() function) that has the proper alignment.  E.g. in the collapse
+example above, these lines of code:
+</P>
+<PRE>int myvalue;
+memcpy(&myvalue,&values<B>offsets<B>i</B></B>,sizeof(int)); 
+</PRE>
+<P>would load the 4 bytes of the Ith value in the multi-value into the
+local integer "myvalue", where it can safely be used for computation.
+</P>
+<H4>Memory requirements for KeyValue and KeyMultiValue objects 
+</H4>
+<P>KeyValue and KeyMultiValue objects were described in <A HREF = "#lib">this
 section</A>.  An instance of a MapReduce object contains a single
-KeyValue object (KV) and a single KeyMultiValue object (KMV).
-</P>
-<P>As mentioned above, a KMV does not actually store key/value pairs but
-simply points to their storage locations in a KV.  Thus a KMV always
-exists in conjunction with a KV.
+KeyValue object (KV) and a single KeyMultiValue object (KMV),
+depending on which methods you have invoked.
 </P>
 <P>The memory cost for storing a KV is as follows.  The key and value
 strings are packed into contiguous arrays of bytes.  For each key and
@@ -1158,33 +1293,52 @@ byte arrays of where that key or value starts.  Thus the total memory
 of a KV is the memory for the key/value data itself plus 2 ints per
 pair.
 </P>
-<P>The memory cost for storing a KMV is as follows.  There is no
-duplicate storage of the keys and vales of the associated KV.  For
-each unique key in the KV, 4 integers are stored.  For each value in
-the KV, 1 integer is stored.  Additionally, an integer array of hash
-buckets is formed.  Its length is the next power-of-two larger than
-the number of unique keys in the KV.
+<P>Recall that a KMV contains key/multi-value pairs where the number of
+pairs is typically the number of unique keys in the original KV.  The
+memory cost for storing a KMV is as follows.  The key and multi-value
+strings are packed into contiguous arrays of bytes.  For each key and
+for each multi-value an integer is also stored, which is the offset
+into the byte arrays of where that key or multi-value starts.
+For each key an additional integer stores the number of values in the
+associated multi-value.  An array of offsets for individual values in 
+each multi-value is also stored.
+</P>
+<P>Thus the total memory of a KMV is the memory for the key/multi-value
+data itself plus 3 ints per pair plus 1 int per value in the original
+KV.  Note that memory for key data is typically less than for the
+original KV, since the KMV only stores unique keys.  The memory for
+multi-value data is exactly the same as the value data in the original
+KV, since all the KV values are in the multi-values.
+</P>
+<P>When the KMV is formed from a KV via a <A HREF = "#convert">convert</A> operation,
+additional memory is temporarily required for a hash table used to
+find duplicate keys.  This requires approximately 5 ints per unique
+key in the KMV.
 </P>
 <P>Note that in parallel, for a KV or KMV, each processor stores the
 above data for only the fraction of key/value pairs it generated
-during a map operation (or acquired during other operations).  If this
+during a map operation or acquired during other operations.  If this
 is imbalanced, one processor may run out of memory before others do.
 </P>
 <P>If you run out of memory when performing a MapReduce operation, the
 library should print an error message and die.  One solution is to run
-on more processors.  If possible, you can write your mymap() function
-so that it combines multiple key/value pairs into fewer or smaller
-key/value pairs before registering them with the MapReduce object
-which will save memory.  Calling the compress() method before
+on more processors.  Another way to save memory, if possible, is to
+write your mymap() function so that it combines multiple key/value
+pairs into fewer or smaller key/value pairs before registering them
+with the MapReduce object.  Calling the compress() method before
 performing an aggregate() or collate() may also save memory.
 </P>
+<H4>Hash functions 
+</H4>
 <P>The convert() and collate() methods use a hash function to organize
-keys and find duplicates.  The MapReduce-MPI library uses the
+keys and find duplicates.  The MapReduce MPI library uses the
 hashlittle() function from lookup3.c, written by Bob Jenkins and
 available freely on the WWW.  It operates on arbitrary-length byte
 strings (a key) and produces a 32-bit integer hash value, a portion of
 which is used as a bucket index into a hash table.
 </P>
+<H4>Callback functions 
+</H4>
 <P>Several of the library methods take a callback function as an
 argument, meaning that function is called back to from the library
 when the method is invoked.  These functions are part of your
@@ -1201,21 +1355,26 @@ parallel machine supports it, they could invoke another program or
 script to read/parse an input file or calculate some result.
 </P>
 <P>Note that in your program, a callback function CANNOT be a class
-method unless it is declared to be static.  Or it can be a non-class
+method unless it is declared to be "static".  Or it can be a non-class
 method, i.e. just a stand-alone function.  In either case, such a
-function cannot access class data.  You might end up needing global
-variables to allow your function to access information it needs.
+function cannot access class data.
 </P>
-<P>To get around this, several of the library methods which use callback
-functions allow you to pass in a pointer to whatever data you wish.
-This pointer is returned as an argument when the callback is made.
-This pointer should be cast to (void *) when passed in, and your
-callback function can cast it back to the appropriate data type.  For
-example, a class could set the pointer to an array or an internal data
-structure or the class itself as "(void *) this".  Pass a NULL to the
-library method if you won't use the pointer.
+<P>One way to get around this restriction is to define global variables
+that allow your function to access information it needs.
 </P>
-<P>The error messages printed by the MapReduce-MPI library are hopefully
+<P>Another way to get around the restriction is to use the feature
+provided by several of the library methods with callback function
+arguments which allow you to pass in a pointer to whatever data you
+wish.  This pointer is returned as an argument when the callback is
+made.  This pointer should be cast to (void *) when passed in, and
+your callback function can cast it back to the appropriate data type.
+For example, a class could set the pointer to an array or an internal
+data structure or the class itself as "(void *) this".  Pass a NULL to
+the library method if your function doesn't need the pointer.
+</P>
+<H4>Error messages 
+</H4>
+<P>The error messages printed by the MapReduce MPI library are hopefully
 self-explanatory.  At some point I will document them in this manual.
 </P>
 <HR>
@@ -1232,7 +1391,7 @@ follows:
 <LI>graph.cpp 
 </UL>
 <P>All of the examples can be made (assuming you have already built the
-MapReduce-MPI library) by typing
+MapReduce MPI library) by typing
 </P>
 <PRE>make -f Makefile.foo 
 </PRE>
@@ -1268,7 +1427,7 @@ in this manner using the Linux command "sort":
 
 <H4>Open-source Philosophy 
 </H4>
-<P>As explained above, this MapReduce-MPI library is licensed under the
+<P>As explained above, this MapReduce MPI library is licensed under the
 <A HREF = "http://www.gnu.org/licenses/gpl.html">GNU General Public Licence (GPL)</A>.  This means it can be used by
 anyone for any purpose, including for commercial purposes.  The only
 restriction is that if you make modifications to the library or you
@@ -1278,14 +1437,14 @@ not require you to distribute your version of the library or your
 MapReduce program, but if you do distribute it, you must provide
 source code.
 </P>
-<P>If you use the MapReduce-MPI library for something interesting, I'd
+<P>If you use the MapReduce MPI library for something interesting, I'd
 like to hear about it.
 </P>
 <P>If you write a MapReduce program which calls the library, that others
 would be interested in, you can send it and I'll include it in the
 distribution.
 </P>
-<P>If you enhance the MapReduce-MPI library itself, we can discuss including
+<P>If you enhance the MapReduce MPI library itself, we can discuss including
 your improvements in future releases.
 </P>
 <P>You can send me an email regarding any of these issues.

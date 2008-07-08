@@ -6,11 +6,13 @@
    See the README file in the top-level MapReduce directory for more info
 ------------------------------------------------------------------------- */
 
-/* MapReduce word frequency example in C
-  Syntax: cwordfreq file1 file2 ...
-  (1) reads all files, parses into words separated by whitespace
-  (2) counts occurrence of each word in all files
-  (3) writes word counts to tmp.out */
+/*
+MapReduce word frequency example in C
+Syntax: cwordfreq file1 file2 ...
+(1) reads all files, parses into words separated by whitespace
+(2) counts occurrence of each word in all files
+(3) writes word counts to tmp.out
+*/
 
 #include "mpi.h"
 #include "stdio.h"
@@ -18,9 +20,9 @@
 #include "cmapreduce.h"
 
 void fileread(int, void *, void *);
-void sum(char *, int, char **, void *, void *);
-int ncompare(char *, char *);
-void output(char *, int, char **, void *, void *);
+void sum(char *, int, char *, int, int *, void *, void *);
+int ncompare(char *, int, char *, int);
+void output(char *, int, char *, int, int*, void *, void *);
 
 #define FILESIZE 1000000
 
@@ -105,9 +107,10 @@ void fileread(int itask, void *kv, void *ptr)
    emit key = word, value = # of multi-values
 ------------------------------------------------------------------------- */
 
-void sum(char *key, int nvalues, char **values, void *kv, void *ptr) 
+void sum(char *key, int keybytes, char *multivalue,
+	 int nvalues, int *valuebytes, void *kv, void *ptr) 
 {
-  MR_kv_add(kv,key,strlen(key)+1,(char *) &nvalues,4);
+  MR_kv_add(kv,key,keybytes,(char *) &nvalues,sizeof(int));
 }
 
 /* ----------------------------------------------------------------------
@@ -115,7 +118,7 @@ void sum(char *key, int nvalues, char **values, void *kv, void *ptr)
    order values by count, largest first
 ------------------------------------------------------------------------- */
 
-int ncompare(char *p1, char *p2)
+int ncompare(char *p1, int len1, char *p2, int len2)
 {
   int i1 = *(int *) p1;
   int i2 = *(int *) p2;
@@ -129,9 +132,10 @@ int ncompare(char *p1, char *p2)
    print count, word to file
 ------------------------------------------------------------------------- */
 
-void output(char *key, int nvalues, char **values, void *kv, void *ptr)
+void output(char *key, int keybytes, char *multivalue,
+	    int nvalues, int *valuebytes, void *kv, void *ptr)
 {
   FILE *fp = (FILE *) ptr;
-  int n = *(int *) values[0];
+  int n = *(int *) multivalue;
   fprintf(fp,"%d %s\n",n,key);
 }

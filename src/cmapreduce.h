@@ -20,11 +20,11 @@ void MR_destroy(void *MRptr);
 
 int MR_aggregate(void *MRptr, int (*myhash)(char *, int));
 int MR_clone(void *MRptr);
-int MR_collapse(void *MRptr, char *key, int keylen);
+int MR_collapse(void *MRptr, char *key, int keybytes);
 int MR_collate(void *MRptr, int (*myhash)(char *, int));
 int MR_compress(void *MRptr, 
-		void (*mycompress)(char *, int, char **,
-				   void *KVptr, void *APPptr),
+		void (*mycompress)(char *, int, char *,
+				   int, int *, void *KVptr, void *APPptr),
 		void *APPptr);
 int MR_convert(void *MRptr);
 int MR_gather(void *MRptr, int numprocs);
@@ -33,20 +33,43 @@ int MR_map(void *MRptr, int nmap,
 	   void *APPptr);
 int MR_map_add(void *MRptr, int nmap,
 	       void (*mymap)(int, void *KVptr, void *APPptr),
-	       void *APPptr, int);
-int MR_reduce(void *MRptr, void (*myreduce)(char *, int, char **,
-					    void *KVptr, void *APPptr),
+	       void *APPptr, int addflag);
+int MR_map_file_char(void *MRptr, int nmap, int files, char **files,
+		     char sepchar, int delta,
+		     void (*mymap)(int, void *KVptr, void *APPptr),
+		     void *APPptr);
+int MR_map_file_char_add(void *MRptr, int nmap, int files, char **files,
+			 char sepchar, int delta,
+			 void (*mymap)(int, void *KVptr, void *APPptr),
+			 void *APPptr, int addflag);
+int MR_map_file_str(void *MRptr, int nmap, int files, char **files,
+		    char *sepstr, int delta,
+		    void (*mymap)(int, void *KVptr, void *APPptr),
+		    void *APPptr);
+int MR_map_file_str_add(void *MRptr, int nmap, int files, char **files,
+			char *sepstr, int delta,
+			void (*mymap)(int, void *KVptr, void *APPptr),
+			void *APPptr, int addflag);
+int MR_reduce(void *MRptr,
+	      void (*myreduce)(char *, int, char *,
+			       int, int *, void *KVptr, void *APPptr),
 	      void *APPptr);
-int MR_scrunch(void *MRptr, int numprocs, char *key, int keylen);
-int MR_sort_keys(void *MRptr, int (*mycompare)(char *, char *));
-int MR_sort_values(void *MRptr, int (*mycompare)(char *, char *));
-int MR_sort_multivalues(void *MRptr, int (*mycompare)(char *, char *));
+int MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes);
+int MR_sort_keys(void *MRptr, 
+		 int (*mycompare)(char *, int, char *, int));
+int MR_sort_values(void *MRptr,
+		   int (*mycompare)(char *, int, char *, int));
+int MR_sort_multivalues(void *MRptr,
+			int (*mycompare)(char *, int, char *, int));
 
-void MR_kv_add(void *KVptr, char *key, int keylen, char *value, int valuelen);
+void MR_kv_add(void *KVptr, char *key, int keybytes, 
+	       char *value, int valuebytes);
 void MR_kv_add_multi_static(void *KVptr, int n,
-			    char *key, int keylen, char *value, int valuelen);
-void MR_kv_add_multi_vary(void *KVptr, int n,
-			  char *key, int *keylen, char *value, int *valuelen);
+			    char *key, int keybytes,
+			    char *value, int valuebytes);
+void MR_kv_add_multi_dynamic(void *KVptr, int n,
+			     char *key, int *keybytes,
+			     char *value, int *valuebytes);
 void MR_kv_stats(void *MRptr, int level);
 void MR_kmv_stats(void *MRptr, int level);
 

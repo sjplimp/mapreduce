@@ -8,14 +8,14 @@
 
 // MapReduce mean-squared displacement computation
 // Syntax: msd switch args switch args ...
-// Switches:
+// switches:
 //   -s 0/1 = scaled =  0: coords are not scaled, 1: scaled, default = 1
 //   -x 3 4 5 = xyz = columns for x,y,z coords, default = 3,4,5
 //   -i 7 8 9 = image = columns for image flags, default = no image flags
 //   -t 1 2 = type = only include atoms of this type, default = 0 = all types
 //   -e 0/1 = every = 0: no intervals, 1: compute all time intervals, def = 1
 //   -f file1 file2 ... = files = list of files to read in
-// Writes MSD data to tmp.out
+// writes MSD data to tmp.out
 
 // needs to be mean of squares for everyflag = 1 -> values are sqs not disps
 // implement choice of ID and type col, inclusion of only some types
@@ -35,12 +35,13 @@ using namespace MAPREDUCE_NS;
 #define MAXLINE 256
 
 void fileread(int, KeyValue *, void *);
-int tcompare(char *, char *);
-void displacement(char *, int, char **, KeyValue *, void *);
+void snapread(int, char *, int, KeyValue *, void *);
+int tcompare(char *, int, char *, int);
+void displacement(char *, int, char *, int, int *, KeyValue *, void *);
 void remap(double &, double, double, double);
-void meandisp(char *, int, char **, KeyValue *, void *);
-int icompare(char *, char *);
-void output(char *, int, char **, KeyValue *, void *);
+void meandisp(char *, int, char *, int, int *, KeyValue *, void *);
+int icompare(char *, int, char *, int);
+void output(char *, int, char *, int, int *, KeyValue *, void *);
 void error(int, char *);
 void errorone(char *);
 
@@ -138,7 +139,9 @@ int main(int narg, char **args)
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 2;
 
-  mr->map(msd.nfiles,&fileread,&msd);
+  //mr->map(msd.nfiles,&fileread,&msd);
+  mr->map(4,msd.nfiles,msd.files,"ITEM: TIMESTEP",150000,&snapread,&msd);
+
   mr->collate(NULL);
   mr->sort_multivalues(&tcompare);
   mr->reduce(&displacement,&msd);
@@ -265,11 +268,103 @@ void fileread(int itask, KeyValue *kv, void *ptr)
 }
 
 /* ----------------------------------------------------------------------
+   snapread map() function
+   passed text of one or more snapshots from a file
+   for each atom in each snapshot, emit key = ID, value = (time,x,y,z)
+------------------------------------------------------------------------- */
+
+void snapread(int itask, char *str, int size, KeyValue *kv, void *ptr)
+{
+  char *line;
+  char *words[20];
+
+  MSD *msd = (MSD *) ptr;
+
+  char *next = strchr(str,'\n');
+  while (next) {
+    *next = '\0';
+    int ntimestep,natoms;
+    line = next + 1; next = strchr(line,'\n'); *next = '\0';
+    sscanf(line,"%d",&ntimestep);
+    line = next + 1; next = strchr(line,'\n'); *next = '\0';
+    line = next + 1; next = strchr(line,'\n'); *next = '\0';
+    sscanf(line,"%d",&natoms);
+    line = next + 1; next = strchr(line,'\n'); *next = '\0';
+    line = next + 1; next = strchr(line,'\n'); *next = '\0';
+    sscanf(line,"%lg %lg",&msd->box.xlo,&msd->box.xhi);
+    line = next + 1; next = strchr(line,'\n'); *next = '\0';
+    sscanf(line,"%lg %lg",&msd->box.ylo,&msd->box.yhi);
+    line = next + 1; next = strchr(line,'\n'); *next = '\0';
+    sscanf(line,"%lg %lg",&msd->box.zlo,&msd->box.zhi);
+    line = next + 1; next = strchr(line,'\n'); *next = '\0';
+
+    int scaled = msd->scaled;
+    int idcol = msd->idcol - 1;
+    int tcol = msd->tcol - 1;
+    int xcol = msd->xcol - 1;
+    int ycol = msd->ycol - 1;
+    int zcol = msd->zcol - 1;
+
+    int imageflag = msd->imageflag;
+    int ixcol,iycol,izcol;
+    if (imageflag) {
+      ixcol = msd->ixcol;
+      iycol = msd->iycol;
+      izcol = msd->izcol;
+    }
+
+    double xlo = msd->box.xlo;
+    double xhi = msd->box.xhi;
+    double ylo = msd->box.ylo;
+    double yhi = msd->box.yhi;
+    double zlo = msd->box.zlo;
+    double zhi = msd->box.zhi;
+    double xprd = xhi - xlo;
+    double yprd = yhi - ylo;
+    double zprd = zhi - zlo;
+
+    int *id = new int[natoms];
+    Atom *atoms = new Atom[natoms];
+
+    for (int i = 0; i < natoms; i++) {
+      line = next + 1; next = strchr(line,'\n'); *next = '\0';
+      words[0] = strtok(line," \n");
+      int j = 1;
+      while (words[j] = strtok(NULL," \n")) j++;
+
+      id[i] = atoi(words[idcol]);
+      atoms[i].time = ntimestep;
+      if (scaled) {
+	atoms[i].x = xlo + xprd*atof(words[xcol]);
+	atoms[i].y = ylo + yprd*atof(words[ycol]);
+	atoms[i].z = zlo + zprd*atof(words[zcol]);
+      } else {
+	atoms[i].x = atof(words[xcol]);
+	atoms[i].y = atof(words[ycol]);
+	atoms[i].z = atof(words[zcol]);
+      }
+      if (imageflag) {
+	atoms[i].x += xprd*atoi(words[ixcol]);
+	atoms[i].y += yprd*atoi(words[iycol]);
+	atoms[i].z += zprd*atoi(words[izcol]);
+      }
+    }
+
+    kv->add(natoms,(char *) id,sizeof(int),(char *) atoms,sizeof(Atom));
+
+    delete [] id;
+    delete [] atoms;
+
+    line = next + 1; next = strchr(line,'\n');
+  }
+}
+
+/* ----------------------------------------------------------------------
    tcompare compare() function
    order values by timestamp
 ------------------------------------------------------------------------- */
 
-int tcompare(char *p1, char *p2)
+int tcompare(char *p1, int len1, char *p2, int len2)
 {
   int i1 = *(int *) p1;
   int i2 = *(int *) p2;
@@ -284,8 +379,8 @@ int tcompare(char *p1, char *p2)
    use image flags or box size to determine box crossings
 ------------------------------------------------------------------------- */
 
-void displacement(char *key, int nvalues, char **values,
-		  KeyValue *kv, void *ptr) 
+void displacement(char *key, int keybytes, char *multivalue,
+		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   int i,j,m,n;
   int *time = new int[nvalues];
@@ -294,16 +389,16 @@ void displacement(char *key, int nvalues, char **values,
   double *dxyz = new double[3*(nvalues-1)];
 
   MSD *msd = (MSD *) ptr;
+  Atom *atom = (Atom *) multivalue;
 
   // extract trajectory from values
 
   m = 0;
   for (i = 0; i < nvalues; i++) {
-    Atom *atom = (Atom *) values[i];
-    time[i] = atom->time;
-    xyz[m++] = atom->x;
-    xyz[m++] = atom->y;
-    xyz[m++] = atom->z;
+    time[i] = atom[i].time;
+    xyz[m++] = atom[i].x;
+    xyz[m++] = atom[i].y;
+    xyz[m++] = atom[i].z;
   }
 
   // PBC unwrap the trajectory if image flags were not used in map() function
@@ -400,18 +495,20 @@ void remap(double &coord, double origin, double prd, double half)
    for each interval, emit key = dt, value = mean of (dx^2,dy^2,dz^2)
 ------------------------------------------------------------------------- */
 
-void meandisp(char *key, int nvalues, char **values,
-	      KeyValue *kv, void *ptr) 
+void meandisp(char *key, int keybytes, char *multivalue,
+	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   double xsqsum = 0.0;
   double ysqsum = 0.0;
   double zsqsum = 0.0;
 
+  int offset = 0;
   for (int i = 0; i < nvalues; i++) {
-    double *disp = (double *) values[i];
+    double *disp = (double *) &multivalue[offset];
     xsqsum += disp[0]*disp[0];
     ysqsum += disp[1]*disp[1];
     zsqsum += disp[2]*disp[2];
+    offset += valuebytes[i];
   }
 
   double xyz[3];
@@ -419,7 +516,7 @@ void meandisp(char *key, int nvalues, char **values,
   xyz[1] = ysqsum/nvalues;
   xyz[2] = zsqsum/nvalues;
 
-  kv->add(key,sizeof(int),(char *) xyz,3*sizeof(double));
+  kv->add(key,keybytes,(char *) xyz,3*sizeof(double));
 }
 
 /* ----------------------------------------------------------------------
@@ -427,7 +524,7 @@ void meandisp(char *key, int nvalues, char **values,
    order keys by time interval
 ------------------------------------------------------------------------- */
 
-int icompare(char *p1, char *p2)
+int icompare(char *p1, int len1, char *p2, int len2)
 {
   int i1 = *(int *) p1;
   int i2 = *(int *) p2;
@@ -441,11 +538,12 @@ int icompare(char *p1, char *p2)
    print dt, msd to file
 ------------------------------------------------------------------------- */
 
-void output(char *key, int nvalues, char **values, KeyValue *kv, void *ptr)
+void output(char *key, int keybytes, char *multivalue,
+	    int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   FILE *fp = (FILE *) ptr;
   int dt = *(int *) key;
-  double *xyz = (double *) values[0];
+  double *xyz = (double *) multivalue;
   double x = xyz[0];
   double y = xyz[1];
   double z = xyz[2];
