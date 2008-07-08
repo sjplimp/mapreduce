@@ -23,10 +23,10 @@
 
 using namespace MAPREDUCE_NS;
 
+void map_file_wrapper(int nmap, KeyValue *ptr, void *data);
 int compare_keys_wrapper(const void *, const void *);
 int compare_values_wrapper(const void *, const void *);
 int compare_multivalues_wrapper(const void *, const void *);
-void map_file_wrapper(int nmap, KeyValue *ptr, void *data);
 
 MapReduce *MapReduce::mrptr;
 
@@ -449,7 +449,7 @@ int MapReduce::map(int nmap, int nfiles, char **files,
   filemap.sepchar = sepchar;
   filemap.delta = delta;
 
-  mapfile(nmap,nfiles,files,appmap,ptr,addflag);
+  map_file(nmap,nfiles,files,appmap,ptr,addflag);
 }
 
 /* ----------------------------------------------------------------------
@@ -468,10 +468,11 @@ int MapReduce::map(int nmap, int nfiles, char **files,
   strcpy(filemap.sepstr,sepstr);
   filemap.delta = delta;
 
-  mapfile(nmap,nfiles,files,appmap,ptr,addflag);
+  map_file(nmap,nfiles,files,appmap,ptr,addflag);
 }
 
 /* ----------------------------------------------------------------------
+   called by 2 map methods that take files and a separator
    create a KV via a parallel map operation for nmap tasks
    nfiles filenames are split into nmap pieces based on separator
    FileMap struct stores info on how to split files
@@ -480,9 +481,9 @@ int MapReduce::map(int nmap, int nfiles, char **files,
    map_file_wrapper() reads chunk of file and passes it to user appmap()
 ------------------------------------------------------------------------- */
 
-int MapReduce::mapfile(int nmap, int nfiles, char **files,
-		       void (*appmap)(int, char *, int, KeyValue *, void *),
-		       void *ptr, int addflag)
+int MapReduce::map_file(int nmap, int nfiles, char **files,
+			void (*appmap)(int, char *, int, KeyValue *, void *),
+			void *ptr, int addflag)
 {
   if (nfiles > nmap) error->all("Cannot map with more files than tasks");
 
@@ -1005,17 +1006,17 @@ void MapReduce::sort_kv(int flag)
    necessary so can extract 2 keys or values to pass back to application
    2-level wrapper needed b/c qsort() cannot be passed a class method
      unless it were static, but then it couldn't access MR class data
-   so qsort() is passed wrapper, which is non-class method
-   it accesses static class member mrptr, set before qsort() call
-   wrapper calls back into class which calls user compare()
+   so qsort() is passed 1st wrapper, which is non-class method
+   1st wrapper accesses static class member mrptr, set before qsort() call
+   1st wrapper calls back into class (2nd wrapper) which calls user compare()
 ------------------------------------------------------------------------- */
 
 int compare_keys_wrapper(const void *iptr, const void *jptr)
 {
-  return MapReduce::mrptr->compare_keys(*(int *) iptr,*(int *) jptr);
+  return MapReduce::mrptr->compare_keys_user(*(int *) iptr,*(int *) jptr);
 }
 
-int MapReduce::compare_keys(int i, int j)
+int MapReduce::compare_keys_user(int i, int j)
 {
   return compare(&kv->keydata[kv->keys[i]],kv->keys[i+1]-kv->keys[i],
 		 &kv->keydata[kv->keys[j]],kv->keys[j+1]-kv->keys[j]);
@@ -1023,10 +1024,10 @@ int MapReduce::compare_keys(int i, int j)
 
 int compare_values_wrapper(const void *iptr, const void *jptr)
 {
-  return MapReduce::mrptr->compare_values(*(int *) iptr,*(int *) jptr);
+  return MapReduce::mrptr->compare_values_user(*(int *) iptr,*(int *) jptr);
 }
 
-int MapReduce::compare_values(int i, int j)
+int MapReduce::compare_values_user(int i, int j)
 {
   return compare(&kv->valuedata[kv->values[i]],kv->values[i+1]-kv->values[i],
 		 &kv->valuedata[kv->values[j]],kv->values[j+1]-kv->values[j]);
@@ -1034,10 +1035,11 @@ int MapReduce::compare_values(int i, int j)
 
 int compare_multivalues_wrapper(const void *iptr, const void *jptr)
 {
-  return MapReduce::mrptr->compare_multivalues(*(int *) iptr,*(int *) jptr);
+  return MapReduce::mrptr->
+    compare_multivalues_user(*(int *) iptr,*(int *) jptr);
 }
 
-int MapReduce::compare_multivalues(int i, int j)
+int MapReduce::compare_multivalues_user(int i, int j)
 {
   return compare(mv_values[i],mv_valuesizes[i],mv_values[j],mv_valuesizes[j]);
 }

@@ -57,9 +57,9 @@ class MapReduce {
   // functions accessed thru non-class wrappers
 
   void map_file_user(int, class KeyValue *, void *);
-  int compare_keys(int, int);
-  int compare_values(int, int);
-  int compare_multivalues(int, int);
+  int compare_keys_user(int, int);
+  int compare_values_user(int, int);
+  int compare_multivalues_user(int, int);
 
  private:
   MPI_Comm comm;
@@ -67,10 +67,10 @@ class MapReduce {
   class Memory *memory;
   class Error *error;
 
-  class KeyValue *kv;
-  class KeyMultiValue *kmv;
+  class KeyValue *kv;              // single KV stored by MR
+  class KeyMultiValue *kmv;        // single KMV stored by MR
 
-  typedef int (CompareFunc)(char *, int, char *, int);
+  typedef int (CompareFunc)(char *, int, char *, int);  // used by sorts
   CompareFunc *compare;
 
   char **mv_values;      // used by sort_multivalues()
@@ -81,19 +81,19 @@ class MapReduce {
     char sepchar;
     char *sepstr;
     int delta;
-    char **filename;
-    uint64_t *filesize;
-    int *tasksperfile;
-    int *whichfile;
-    int *whichtask;
+    char **filename;          // names of files to read
+    uint64_t *filesize;       // size in bytes of each file
+    int *tasksperfile;        // # of map tasks for each file
+    int *whichfile;           // which file each map task reads
+    int *whichtask;           // which sub-task in file each map task is
     typedef void (MapFileFunc)(int, char *, int, class KeyValue *, void *);
     MapFileFunc *appmapfile;
   };
   FileMap filemap;
 
-  int mapfile(int, int, char **,
-	      void (*)(int, char *, int, class KeyValue *, void *),
-	      void *, int addflag);
+  int map_file(int, int, char **,
+	       void (*)(int, char *, int, class KeyValue *, void *),
+	       void *, int addflag);
   void sort_kv(int);
   void stats(char *, int, int);
   void histogram(int, double *, double &, double &, double &,
