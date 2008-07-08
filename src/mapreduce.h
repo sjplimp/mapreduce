@@ -54,12 +54,12 @@ class MapReduce {
   void kv_stats(int);
   void kmv_stats(int);
 
-  // functions accessed thru non-class wrappers
+  // functions accessed thru non-class wrapper functions
 
-  void map_file_user(int, class KeyValue *, void *);
-  int compare_keys_user(int, int);
-  int compare_values_user(int, int);
-  int compare_multivalues_user(int, int);
+  void map_file_wrapper(int, class KeyValue *, void *);
+  int compare_keys_wrapper(int, int);
+  int compare_values_wrapper(int, int);
+  int compare_multivalues_wrapper(int, int);
 
  private:
   MPI_Comm comm;

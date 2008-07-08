@@ -23,10 +23,10 @@
 
 using namespace MAPREDUCE_NS;
 
-void map_file_wrapper(int nmap, KeyValue *ptr, void *data);
-int compare_keys_wrapper(const void *, const void *);
-int compare_values_wrapper(const void *, const void *);
-int compare_multivalues_wrapper(const void *, const void *);
+void map_file_standalone(int nmap, KeyValue *ptr, void *data);
+int compare_keys_standalone(const void *, const void *);
+int compare_values_standalone(const void *, const void *);
+int compare_multivalues_standalone(const void *, const void *);
 
 MapReduce *MapReduce::mrptr;
 
@@ -477,8 +477,8 @@ int MapReduce::map(int nmap, int nfiles, char **files,
    nfiles filenames are split into nmap pieces based on separator
    FileMap struct stores info on how to split files
    calls non-file map() to partition tasks to processors
-     with callback to map_file_wrapper()
-   map_file_wrapper() reads chunk of file and passes it to user appmap()
+     with callback to non-class map_file_standalone()
+   map_file_standalone() reads chunk of file and passes it to user appmap()
 ------------------------------------------------------------------------- */
 
 int MapReduce::map_file(int nmap, int nfiles, char **files,
@@ -560,14 +560,14 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
     }
 
   // use non-file map() partition tasks to procs
-  // it calls map_file_wrapper once for each task
+  // it calls map_file_standalone once for each task
 
   int verbosity_hold = verbosity;
   verbosity = 0;
 
   mrptr = this;
   filemap.appmapfile = appmap;
-  map(nmap,&map_file_wrapper,ptr,addflag);
+  map(nmap,&map_file_standalone,ptr,addflag);
 
   verbosity = verbosity_hold;
   stats("Map",0,verbosity);
@@ -592,17 +592,17 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
    2-level wrapper needed b/c file map() calls non-file map()
      and cannot pass it a class method unless it were static,
      but then it couldn't access MR class data
-   so non-file map() is passed wrapper, which is non-class method
+   so non-file map() is passed standalone non-class method
    it accesses static class member mrptr, set before non-file map() call
-   wrapper calls back into class which calls user appmapfile()
+   standalone calls back into class wrapper which calls user appmapfile()
 ------------------------------------------------------------------------- */
 
-void map_file_wrapper(int imap, KeyValue *kv, void *ptr)
+void map_file_standalone(int imap, KeyValue *kv, void *ptr)
 {
-  MapReduce::mrptr->map_file_user(imap,kv,ptr);
+  MapReduce::mrptr->map_file_wrapper(imap,kv,ptr);
 }
 
-void MapReduce::map_file_user(int imap, KeyValue *kv, void *ptr)
+void MapReduce::map_file_wrapper(int imap, KeyValue *kv, void *ptr)
 {
   // readstart = position in file to start reading for this task
   // readsize = # of bytes to read including delta
@@ -816,7 +816,7 @@ int MapReduce::sort_multivalues(int (*appcompare)(char *, int, char *, int))
 
     compare = appcompare;
     mrptr = this;
-    qsort(order,n,sizeof(int),compare_multivalues_wrapper);
+    qsort(order,n,sizeof(int),compare_multivalues_standalone);
 
     // create a new ordered multivalue, overwrite old one
 
@@ -983,8 +983,8 @@ void MapReduce::sort_kv(int flag)
   int *order = new int[nkey];
   for (int i = 0; i < nkey; i++) order[i] = i;
 
-  if (flag == 0) qsort(order,nkey,sizeof(int),compare_keys_wrapper);
-  else qsort(order,nkey,sizeof(int),compare_values_wrapper);
+  if (flag == 0) qsort(order,nkey,sizeof(int),compare_keys_standalone);
+  else qsort(order,nkey,sizeof(int),compare_values_standalone);
 
   KeyValue *kvnew = new KeyValue(comm);
   for (int i = 0; i < nkey; i++) {
@@ -1002,44 +1002,53 @@ void MapReduce::sort_kv(int flag)
 }
 
 /* ----------------------------------------------------------------------
+   wrappers on user-provided appmapfile function
+   2-level wrapper needed b/c file map() calls non-file map()
+     and cannot pass it a class method unless it were static,
+     but then it couldn't access MR class data
+   so non-file map() is passed standalone non-class method
+   it accesses static class member mrptr, set before non-file map() call
+   standalone calls back into class wrapper which calls user appmapfile()
+
+/* ----------------------------------------------------------------------
    wrappers on user-provided key and value comparison functions
    necessary so can extract 2 keys or values to pass back to application
    2-level wrapper needed b/c qsort() cannot be passed a class method
      unless it were static, but then it couldn't access MR class data
-   so qsort() is passed 1st wrapper, which is non-class method
-   1st wrapper accesses static class member mrptr, set before qsort() call
-   1st wrapper calls back into class (2nd wrapper) which calls user compare()
+   so qsort() is passed standalone non-class method
+   it accesses static class member mrptr, set before qsort() call
+   standalone calls back into class wrapper which calls user compare()
 ------------------------------------------------------------------------- */
 
-int compare_keys_wrapper(const void *iptr, const void *jptr)
+int compare_keys_standalone(const void *iptr, const void *jptr)
 {
-  return MapReduce::mrptr->compare_keys_user(*(int *) iptr,*(int *) jptr);
+  return MapReduce::mrptr->compare_keys_wrapper(*(int *) iptr,*(int *) jptr);
 }
 
-int MapReduce::compare_keys_user(int i, int j)
+int MapReduce::compare_keys_wrapper(int i, int j)
 {
   return compare(&kv->keydata[kv->keys[i]],kv->keys[i+1]-kv->keys[i],
 		 &kv->keydata[kv->keys[j]],kv->keys[j+1]-kv->keys[j]);
 }
 
-int compare_values_wrapper(const void *iptr, const void *jptr)
+int compare_values_standalone(const void *iptr, const void *jptr)
 {
-  return MapReduce::mrptr->compare_values_user(*(int *) iptr,*(int *) jptr);
+  return MapReduce::mrptr->compare_values_wrapper(*(int *) iptr,*(int *) jptr);
 }
 
-int MapReduce::compare_values_user(int i, int j)
+int MapReduce::compare_values_wrapper(int i, int j)
 {
   return compare(&kv->valuedata[kv->values[i]],kv->values[i+1]-kv->values[i],
 		 &kv->valuedata[kv->values[j]],kv->values[j+1]-kv->values[j]);
 }
 
-int compare_multivalues_wrapper(const void *iptr, const void *jptr)
+int compare_multivalues_standalone(const void *iptr, const void *jptr)
 {
   return MapReduce::mrptr->
-    compare_multivalues_user(*(int *) iptr,*(int *) jptr);
+    compare_multivalues_wrapper(*(int *) iptr,*(int *) jptr);
 }
 
-int MapReduce::compare_multivalues_user(int i, int j)
+int MapReduce::compare_multivalues_wrapper(int i, int j)
 {
   return compare(mv_values[i],mv_valuesizes[i],mv_values[j],mv_valuesizes[j]);
 }
