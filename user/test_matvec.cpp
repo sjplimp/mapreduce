@@ -33,13 +33,11 @@
 #include "mpi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "matvec.h"
+#include "mrmatrix.h"
+#include "mrvector.h"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
-
-//  MAP FUNCTIONS
-MAPFUNCTION initialize_xvec;
 
 //  REDUCE FUNCTIONS
 REDUCEFUNCTION output;
@@ -53,11 +51,11 @@ COMPAREFUNCTION compare;
 ////////////////////////////////////////////////////////////////////////////
 int main(int narg, char **args)
 {
-  int me, Np;      // Processor rank and number of processors.
+  int me, np;      // Processor rank and number of processors.
   MPI_Init(&narg,&args);
 
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
-  MPI_Comm_size(MPI_COMM_WORLD,&Np);
+  MPI_Comm_size(MPI_COMM_WORLD,&np);
 
   if (narg != 5) {
     if (me == 0) printf("Syntax: matvec file.mtx numfiles N M\n");
@@ -77,12 +75,11 @@ int main(int narg, char **args)
   MRMatrix A(mr, N, M, args[1], num_input_procs);
 
   //  **********************   A * x   ************************
-  // Initialize x vector.
-  int xcol = mr->map(M, &initialize_xvec, &M, 0);
-  if (me == 0) cout << "initialize_xvec Map Done:  xcol = " << xcol << endl;
+  // Allocate and initialize persistent storage for vector.
+  MRVector x(mr, M);
 
   // Perform matrix-vector multiplication.
-  A.MatVec(mr, 0);
+  A.MatVec(mr, x, 0);
 
   // Output results:  Gather results to proc 0, sort and print.
   int nkeys = mr->gather(1);
@@ -94,12 +91,11 @@ int main(int narg, char **args)
   if (me == 0) cout << "Output done:  nkeys = " << nkeys << endl;
 
   //  **********************   A^T * x   ************************
-  // Initialize x vector.
-  int xrow = mr->map(N, &initialize_xvec, &N, 0);
-  if (me == 0) cout << "initialize_xvec Map Done:  xrow = " << xrow << endl;
+  // Allocate and initialize persistent storage for vector.
+  MRVector xt(mr, N);
 
   // Perform matrix-vector multiplication with transpose; re-use A.
-  A.MatVec(mr, 1);
+  A.MatVec(mr, xt, 1);
 
   // Output results:  Gather results to proc 0, sort and print.
   nkeys = mr->gather(1);
@@ -118,7 +114,7 @@ int main(int narg, char **args)
 
   if (me == 0) {
     printf("Time to matvec %s on %d procs = %g (secs)\n",
-	   args[1], Np, tstop-tstart);
+	   args[1], np, tstop-tstart);
   }
 
   MPI_Finalize();

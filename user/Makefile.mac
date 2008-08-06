@@ -15,8 +15,8 @@ LIB =		../src/libmrmpi.a
 
 all:	matvec
 
-matvec:	test_matvec.o matvec.o $(LIB)
-	$(LINK) $(LINKFLAGS) test_matvec.o matvec.o $(USRLIB) $(SYSLIB) -o matvec
+matvec:	test_matvec.o mrmatrix.o mrvector.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_matvec.o mrmatrix.o mrvector.o $(USRLIB) $(SYSLIB) -o matvec
 
 clean:
 	rm *.o

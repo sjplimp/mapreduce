@@ -14,7 +14,8 @@
 #include "mpi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "matvec.h"
+#include "mrmatrix.h"
+#include "mrvector.h"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
@@ -22,6 +23,7 @@ using namespace std;
 //  MAP FUNCTIONS
 MAPFUNCTION load_matrix;
 MAPFUNCTION emit_matrix;
+MAPFUNCTION emit_vector;
 
 //  REDUCE FUNCTIONS
 REDUCEFUNCTION terms;
@@ -56,16 +58,22 @@ MRMatrix::MRMatrix(
 
 void MRMatrix::MatVec(
   MapReduce *mr,
+  MRVector &x,
   bool transpose   // Flag indicating whether to do A*x or A^T * x.
 )
 {
   int me = mr->my_proc();
+  int np = mr->num_procs();
 
   transposeFlag = transpose;
 
   // Emit matrix values.
-  int nnz = mr->map(mr->num_procs(), &emit_matrix, (void *)this, 1);
+  int nnz = mr->map(np, &emit_matrix, (void *)this, 0);
   if (me == 0) cout << "emit_matrix Map Done:  nnz = " << nnz << endl;
+
+  // Emit vector values.
+  int nv = mr->map(np, &emit_vector, (void *)&x, 1);
+  if (me == 0) cout << "emit_vector Map Done:  nv = " << nv << endl;
 
   // Gather matrix column j and x_j to same processors.
   mr->collate(NULL);
@@ -82,6 +90,25 @@ void MRMatrix::MatVec(
   if (me == 0) cout << "rowsum Reduce Done:  nrow = " << nrow << endl;
 
   // Results y_i are in the MapReduce object mr.
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// emit_vector map() function
+// For each entry in input MRVector, emit (key,value) = (j,[A_ij,i]).
+// For transpose, emit (key,value) = (i,[A_ij,j]).
+void emit_vector(int itask, KeyValue *kv, void *ptr)
+{
+  // Assume ptr = MRVector.
+  MRVector *x = (MRVector *) ptr;
+  INTDOUBLE value;
+
+  int first = x->First();
+  int len = x->Len();
+  for (int i = first; i < first + len; i++) {
+    value.i = XVECVALUE;
+    value.d = (*x)[i];
+    kv->add((char *)&i, sizeof(i), (char *) &value, sizeof(value));
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////
