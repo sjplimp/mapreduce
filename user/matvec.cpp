@@ -42,12 +42,10 @@ MRMatrix::MRMatrix(
   f.A = this;
   f.basefile = basefile;
 
-  int me;
-  MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
   // Read matrix-market files.
   int nnz = mr->map(numfiles, &load_matrix, (void *)&f, 0);
-  if (me == 0) cout << "load_matrix Map Done:  nnz = " << nnz << endl;
+  if (mr->my_proc()==0) cout << "load_matrix Map Done:  nnz = " << nnz << endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -61,14 +59,12 @@ void MRMatrix::MatVec(
   bool transpose   // Flag indicating whether to do A*x or A^T * x.
 )
 {
-  int me, nProc;
-  MPI_Comm_rank(MPI_COMM_WORLD, &me);
-  MPI_Comm_rank(MPI_COMM_WORLD, &nProc);
+  int me = mr->my_proc();
 
   transposeFlag = transpose;
 
   // Emit matrix values.
-  int nnz = mr->map(nProc, &emit_matrix, (void *)this, 1);
+  int nnz = mr->map(mr->num_procs(), &emit_matrix, (void *)this, 1);
   if (me == 0) cout << "emit_matrix Map Done:  nnz = " << nnz << endl;
 
   // Gather matrix column j and x_j to same processors.
@@ -94,10 +90,8 @@ void MRMatrix::MatVec(
 // For transpose, emit (key,value) = (i,[A_ij,j]).
 void emit_matrix(int itask, KeyValue *kv, void *ptr)
 {
-printf("%d EMIT_MATRIX HEY\n", itask);
   MRMatrix *A = (MRMatrix *) ptr;
   bool transpose = A->UseTranspose();
-printf("%d EMIT_MATRIX %x %d\n", itask, A, A->Amat.size());
 
   list<MatrixEntry>::iterator nz;
   for (nz=A->Amat.begin(); nz!=A->Amat.end(); nz++) {
@@ -145,7 +139,6 @@ void load_matrix(int itask, KeyValue *kv, void *ptr)
   // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
   while (fscanf(fp, "%d %d %lf", &i, &j, &nzv) == 3)  {
     A->AddNonzero(i, j, nzv);
-printf("%d LOAD_MATRIX %d %d %lf\n", itask, i, j, nzv);
   }
  
   fclose(fp);
@@ -160,23 +153,21 @@ printf("%d LOAD_MATRIX %d %d %lf\n", itask, i, j, nzv);
 void terms(char *key, int keylen, char *multivalue, int nvalues, int *mvlen,
            KeyValue *kv, void *ptr)
 {
-INTDOUBLE *xptr;
-INTDOUBLE *aptr;
 
   if (nvalues == 1) 
     // No nonzeros in this column; skip it.
     return;
 
   // Find the x_j value
-  for (int k = 0; k < nvalues; k++) {
-    xptr = (INTDOUBLE *) multivalue[k];
+  INTDOUBLE *xptr = (INTDOUBLE *) multivalue;
+  for (int k = 0; k < nvalues; k++, xptr++) {
     if (xptr->i < 0)  // found it
       break;
   }
   double x_j = xptr->d;
 
-  for (int k = 0; k < nvalues; k++) {
-    aptr = (INTDOUBLE *) multivalue[k];
+  INTDOUBLE *aptr = (INTDOUBLE *) multivalue;
+  for (int k = 0; k < nvalues; k++, aptr++) {
     if (aptr == xptr) continue;  // don't add in x_j * x_j.
 
     double product = x_j * aptr->d;

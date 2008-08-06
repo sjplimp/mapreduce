@@ -53,6 +53,8 @@ class MapReduce {
 
   void kv_stats(int);
   void kmv_stats(int);
+  int  num_procs() {return nprocs;};
+  int  my_proc() {return me;};
 
   // functions accessed thru non-class wrapper functions
 

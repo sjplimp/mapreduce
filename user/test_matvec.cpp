@@ -53,14 +53,14 @@ COMPAREFUNCTION compare;
 ////////////////////////////////////////////////////////////////////////////
 int main(int narg, char **args)
 {
-  int Me, Np;      // Processor rank and number of processors.
+  int me, Np;      // Processor rank and number of processors.
   MPI_Init(&narg,&args);
 
-  MPI_Comm_rank(MPI_COMM_WORLD,&Me);
+  MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&Np);
 
   if (narg != 5) {
-    if (Me == 0) printf("Syntax: matvec file.mtx numfiles N M\n");
+    if (me == 0) printf("Syntax: matvec file.mtx numfiles N M\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
   int N = atoi(args[3]);  // Number of rows in matrix.
@@ -79,7 +79,7 @@ int main(int narg, char **args)
   //  **********************   A * x   ************************
   // Initialize x vector.
   int xcol = mr->map(M, &initialize_xvec, &M, 0);
-  if (Me == 0) cout << "initialize_xvec Map Done:  xcol = " << xcol << endl;
+  if (me == 0) cout << "initialize_xvec Map Done:  xcol = " << xcol << endl;
 
   // Perform matrix-vector multiplication.
   A.MatVec(mr, 0);
@@ -91,12 +91,12 @@ int main(int narg, char **args)
   // Print results.
   nkeys = mr->convert();
   nkeys = mr->reduce(&output, NULL);
-  if (Me == 0) cout << "Output done:  nkeys = " << nkeys << endl;
+  if (me == 0) cout << "Output done:  nkeys = " << nkeys << endl;
 
   //  **********************   A^T * x   ************************
   // Initialize x vector.
   int xrow = mr->map(N, &initialize_xvec, &N, 0);
-  if (Me == 0) cout << "initialize_xvec Map Done:  xrow = " << xrow << endl;
+  if (me == 0) cout << "initialize_xvec Map Done:  xrow = " << xrow << endl;
 
   // Perform matrix-vector multiplication with transpose; re-use A.
   A.MatVec(mr, 1);
@@ -108,7 +108,7 @@ int main(int narg, char **args)
   // Print results.
   nkeys = mr->convert();
   nkeys = mr->reduce(&output, NULL);
-  if (Me == 0) cout << "TRANSPOSE Output done:  nkeys = " << nkeys << endl;
+  if (me == 0) cout << "TRANSPOSE Output done:  nkeys = " << nkeys << endl;
 
   // Clean up.
   delete mr;
@@ -116,7 +116,7 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
-  if (Me == 0) {
+  if (me == 0) {
     printf("Time to matvec %s on %d procs = %g (secs)\n",
 	   args[1], Np, tstop-tstart);
   }
@@ -135,7 +135,6 @@ void initialize_xvec(int itask, KeyValue *kv, void *ptr)
 // Emit uniform input vector.
 // Assume ptr = number of columns in matrix = M = ncol.
 // Assume initialize_xvec is issued once for each column.
-int Me; MPI_Comm_rank(MPI_COMM_WORLD, &Me); printf("%d KDDKDD initialize_xvec\n", Me);
 
   int ncol = *(int *)ptr;
   INTDOUBLE value;
