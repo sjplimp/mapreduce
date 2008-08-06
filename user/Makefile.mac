@@ -13,7 +13,10 @@ LIB =		../src/libmrmpi.a
 
 # Targets
 
-all:	matvec
+all:	matvec pagerank
+
+pagerank:	test_pagerank.o mrmatrix.o mrvector.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_pagerank.o mrmatrix.o mrvector.o $(USRLIB) $(SYSLIB) -o matvec
 
 matvec:	test_matvec.o mrmatrix.o mrvector.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_matvec.o mrmatrix.o mrvector.o $(USRLIB) $(SYSLIB) -o matvec

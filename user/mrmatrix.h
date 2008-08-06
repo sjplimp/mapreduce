@@ -63,6 +63,7 @@ class MRMatrix {
       Amat.push_front(nz);
     };
     void MatVec(MapReduce *, MRVector &, bool);
+    void Scale(double);
     void MakeEmpty() {Amat.clear();};
     bool UseTranspose() {return transposeFlag;}
     list<MatrixEntry> Amat;  // Non-zeros; probably should make private later.

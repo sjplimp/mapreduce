@@ -50,6 +50,7 @@ class MRVector {
     int First() { return first; };
     int Len() { return local_len; };
     int GlobalLen() { return global_len; };
+    int PutScalar(double a) {for (int i = 0; i < local_len; i++) vec[i] = a;};
   private:
     int global_len;  // Global number of entries in vector
     int first;       // First global entry in vector; one-based.

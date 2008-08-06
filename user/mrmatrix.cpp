@@ -51,6 +51,18 @@ MRMatrix::MRMatrix(
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Scale each matrix entry by value alpha.
+void MRMatrix::Scale(
+  double alpha
+)
+{
+  list<MatrixEntry>::iterator nz;
+  for (nz=Amat.begin(); nz!=Amat.end(); nz++) 
+     (*nz).nzv *= alpha;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
 // matrix-vector multiplication function:  A * x.
 // Assumes vector x is already in the MapReduce object mr with 
 // (key,value) = (col index j, x_j);

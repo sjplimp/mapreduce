@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include <list>
+#include <math.h>
 #include "mpi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
@@ -47,6 +48,60 @@ COMPAREFUNCTION compare;
 
 ////////////////////////////////////////////////////////////////////////////
 // Global variables.
+
+////////////////////////////////////////////////////////////////////////////
+void pagerank(
+  MapReduce *mr,
+  MRMatrix &A,
+  MRVector &x,
+  double alpha,
+  double tolerance
+)
+{
+  int maxniter = (int) ceil(log10(tolerance) / log10(alpha));
+
+  // Scale matrix A.
+  A.Scale(alpha);
+  x.PutScalar(1./x.GlobalLen());
+
+  // Do all-zero row detection.
+
+  double randomlink = (1.-alpha)/(double)x.GlobalLen();
+  int first = x.First();
+  int len = x.Len();
+
+  for (int iter = 0; iter < maxniter; iter++) {
+
+    // Compute adjustment for irreducibility (1-alpha)/n
+    double ladj = 0.;
+    for (int i = first; i < first + len; i++) 
+      ladj += x[i];
+    ladj *= randomlink;
+
+    // Compute local adjustment for all-zero rows.
+
+    // Compute global adjustment via all-reduce-like operation.
+
+    // Compute global adjustment.
+    A.MatVec(mr, x, 1);
+
+    // Add adjustment to product vector in mr.
+    // That is a map operation, I think; for each key-value pair, issue
+    // key, value+adjustment pair.
+
+    // Compute max-norm of vector in mr.
+
+    // Scale vector in mr by 1/maxnorm.
+
+    // Compute local max residual.
+
+    // Compute global max residual.
+    double residual;
+
+    if (residual < tolerance) 
+      break;  // Iterations are done.
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////
 int main(int narg, char **args)
@@ -74,12 +129,11 @@ int main(int narg, char **args)
   // Persistent storage of the matrix. Will be loaded from files initially.
   MRMatrix A(mr, N, M, args[1], num_input_procs);
 
-  //  **********************   A * x   ************************
-  // Allocate and initialize persistent storage for vector.
+  // Allocate and initialize persistent storage for pagerank vector.
   MRVector x(mr, M);
 
-  // Perform matrix-vector multiplication.
-  A.MatVec(mr, x, 0);
+  // Call PageRank function.
+  pagerank(mr, A, x, 0.8, 0.00001);  // Make alpha & tol input params later.
 
   // Output results:  Gather results to proc 0, sort and print.
   int nkeys = mr->gather(1);
@@ -89,22 +143,6 @@ int main(int narg, char **args)
   nkeys = mr->convert();
   nkeys = mr->reduce(&output, NULL);
   if (me == 0) cout << "Output done:  nkeys = " << nkeys << endl;
-
-  //  **********************   A^T * x   ************************
-  // Allocate and initialize persistent storage for vector.
-  MRVector xt(mr, N);
-
-  // Perform matrix-vector multiplication with transpose; re-use A.
-  A.MatVec(mr, xt, 1);
-
-  // Output results:  Gather results to proc 0, sort and print.
-  nkeys = mr->gather(1);
-  nkeys = mr->sort_keys(&compare);
-  
-  // Print results.
-  nkeys = mr->convert();
-  nkeys = mr->reduce(&output, NULL);
-  if (me == 0) cout << "TRANSPOSE Output done:  nkeys = " << nkeys << endl;
 
   // Clean up.
   delete mr;
