@@ -74,7 +74,7 @@ int main(int narg, char **args)
   mr->verbosity = 0;
 
   // Persistent storage of the matrix. Will be loaded from files initially.
-  MRMatrix A(N,M);
+  MRMatrix A(mr, N, M, args[1], num_input_procs);
 
   //  **********************   A * x   ************************
   // Initialize x vector.
@@ -82,7 +82,7 @@ int main(int narg, char **args)
   if (Me == 0) cout << "initialize_xvec Map Done:  xcol = " << xcol << endl;
 
   // Perform matrix-vector multiplication.
-  A.MatVec(mr, 0, args[1], num_input_procs);
+  A.MatVec(mr, 0);
 
   // Output results:  Gather results to proc 0, sort and print.
   int nkeys = mr->gather(1);
@@ -99,7 +99,7 @@ int main(int narg, char **args)
   if (Me == 0) cout << "initialize_xvec Map Done:  xrow = " << xrow << endl;
 
   // Perform matrix-vector multiplication with transpose; re-use A.
-  A.MatVec(mr, 1, NULL, num_input_procs);
+  A.MatVec(mr, 1);
 
   // Output results:  Gather results to proc 0, sort and print.
   nkeys = mr->gather(1);
@@ -135,6 +135,8 @@ void initialize_xvec(int itask, KeyValue *kv, void *ptr)
 // Emit uniform input vector.
 // Assume ptr = number of columns in matrix = M = ncol.
 // Assume initialize_xvec is issued once for each column.
+int Me; MPI_Comm_rank(MPI_COMM_WORLD, &Me); printf("%d KDDKDD initialize_xvec\n", Me);
+
   int ncol = *(int *)ptr;
   INTDOUBLE value;
 
@@ -151,17 +153,19 @@ void initialize_xvec(int itask, KeyValue *kv, void *ptr)
 //         multivalue = {x_j*A_ij for all j with nonzero A_ij}.
 // output: print (i, y_i).
 
-void output(char *key, int nvalues, char **multivalue, KeyValue *kv, void *ptr)
+void output(char *key, int keylen, char *multivalue, int nvalues, int *mvlen, 
+            KeyValue *kv, void *ptr)
 {
   assert(nvalues == 1);
-  cout << *(int*) key <<  "    " << *(double*)multivalue[0] << endl;
+  double *dptr = (double *) multivalue;
+  cout << *(int*) key <<  "    " << dptr[0] << endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // compare comparison function.
 // Compares two integer keys a and b; returns -1, 0, 1 if a<b, a==b, a>b,
 // respectively.
-int compare(char *a, char *b)
+int compare(char *a, int lena, char *b, int lenb)
 {
 int ia = *(int*)a;
 int ib = *(int*)b;

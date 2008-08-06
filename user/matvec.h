@@ -48,7 +48,7 @@ typedef struct MatrixEntry {
 
 class MRMatrix {
   public:  
-    MRMatrix(int n, int m) {N = n; M = m;};
+    MRMatrix(MapReduce *, int, int, char *, int);
     ~MRMatrix() {Amat.clear();}
 
     int NumRows() { return N; }
@@ -60,20 +60,23 @@ class MRMatrix {
       nz.nzv = nzv;
       Amat.push_front(nz);
     };
-    void MatVec(MapReduce *, bool, char *, int);
+    void MatVec(MapReduce *, bool);
     void MakeEmpty() {Amat.clear();};
+    bool UseTranspose() {return transposeFlag;}
     list<MatrixEntry> Amat;  // Non-zeros; probably should make private later.
   private:
     int N;  // Number of rows
     int M;  // Number of cols
+    bool transposeFlag;  // State variable; indicates whether to use 
+                         // A or A^T in current operation.
 };
 
 
 /////////////////////////////////////////////////////////////////////////////
 //  These should probably be in the include file for MapReduce library.
 typedef void MAPFUNCTION(int, KeyValue *, void *);
-typedef void REDUCEFUNCTION(char *, int, char **, KeyValue *, void *);
-typedef int COMPAREFUNCTION(char *, char *);
+typedef void REDUCEFUNCTION(char *, int, char *, int, int*, KeyValue *, void *);
+typedef int COMPAREFUNCTION(char *, int, char *, int);
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -83,7 +86,6 @@ typedef int COMPAREFUNCTION(char *, char *);
 typedef struct LoadInfo {
   MRMatrix *A;
   char *basefile;
-  bool transpose;
 };
 
 //  Data type for values emitted.
