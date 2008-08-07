@@ -546,6 +546,28 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
 	if (ntasks == nmap) break;
       }
 
+  // check if any tasks are so small they will cause overlapping reads w/ delta
+  // if so, reduce number of tasks in that file and issue warning
+
+  int flag = 0;
+  for (int i = 0; i < nfiles; i++) {
+    if (filemap.filesize[i] / filemap.tasksperfile[i] > filemap.delta)
+      continue;
+    flag = 1;
+    while (filemap.tasksperfile[i] > 1) {
+      filemap.tasksperfile[i]--;
+      nmap--;
+      if (filemap.filesize[i] / filemap.tasksperfile[i] > filemap.delta) break;
+    }
+  }
+
+  if (flag & me == 0) {
+    char str[128];
+    sprintf(str,"File(s) too small for file delta - decreased map tasks to %d",
+	    nmap);
+    error->warning(str);
+  }
+
   // whichfile[i] = which file is associated with the Ith task
   // whichtask[i] = which task in that file the Ith task is
 
@@ -593,7 +615,7 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
      and cannot pass it a class method unless it were static,
      but then it couldn't access MR class data
    so non-file map() is passed standalone non-class method
-   it accesses static class member mrptr, set before non-file map() call
+   it accesses static class member mrptr, set before call to non-file map()
    standalone calls back into class wrapper which calls user appmapfile()
 ------------------------------------------------------------------------- */
 
@@ -1010,7 +1032,7 @@ void MapReduce::sort_kv(int flag)
    2-level wrapper needed b/c qsort() cannot be passed a class method
      unless it were static, but then it couldn't access MR class data
    so qsort() is passed standalone non-class method
-   it accesses static class member mrptr, set before qsort() call
+   it accesses static class member mrptr, set before call to qsort()
    standalone calls back into class wrapper which calls user compare()
 ------------------------------------------------------------------------- */
 
