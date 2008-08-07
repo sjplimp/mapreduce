@@ -259,18 +259,17 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&np);
 
-  if (narg != 4) {
-    if (me == 0) printf("Syntax: pagerank file.mtx numfiles N \n");
+  if (narg != 3) {
+    if (me == 0) printf("Syntax: pagerank file.mtx N \n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
-  int N = atoi(args[3]);  // Number of rows in matrix.
-  int num_input_procs = atoi(args[2]);
+  int N = atoi(args[2]);  // Number of rows in matrix.
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
 
   // Persistent storage of the matrix. Will be loaded from files initially.
-  MRMatrix A(mr, N, N, args[1], num_input_procs);
+  MRMatrix A(mr, N, N, args[1]);
 
   // Call PageRank function.
   MRVector *x = pagerank(mr, &A, 0.8, 0.00001);  // Make alpha & tol input params later.

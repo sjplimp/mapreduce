@@ -57,13 +57,12 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&np);
 
-  if (narg != 5) {
+  if (narg != 4) {
     if (me == 0) printf("Syntax: matvec file.mtx numfiles N M\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
-  int N = atoi(args[3]);  // Number of rows in matrix.
-  int M = atoi(args[4]);  // Number of cols in matrix.
-  int num_input_procs = atoi(args[2]);
+  int N = atoi(args[2]);  // Number of rows in matrix.
+  int M = atoi(args[3]);  // Number of cols in matrix.
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
@@ -72,7 +71,7 @@ int main(int narg, char **args)
   mr->verbosity = 0;
 
   // Persistent storage of the matrix. Will be loaded from files initially.
-  MRMatrix A(mr, N, M, args[1], num_input_procs);
+  MRMatrix A(mr, N, M, args[1]);
 
   //  **********************   A * x   ************************
   // Allocate and initialize persistent storage for vector.

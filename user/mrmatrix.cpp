@@ -21,7 +21,7 @@ using namespace MAPREDUCE_NS;
 using namespace std;
 
 //  MAP FUNCTIONS
-MAPFUNCTION load_matrix;
+MAPFILEFUNCTION load_matrix;
 MAPFUNCTION emit_matrix_entries;
 MAPFUNCTION emit_matvec_matrix;
 MAPFUNCTION emit_matvec_vector;
@@ -38,18 +38,15 @@ MRMatrix::MRMatrix(
   MapReduce *mr,
   int n,          // Number of matrix rows 
   int m,          // Number of matrix columns 
-  char *basefile,  // Base filename; NULL if want to re-use existing Amat.
-  int numfiles     // Number of files to be read.
+  char *filename  // Base filename; NULL if want to re-use existing Amat.
 )
 {
-  LoadInfo f;
-  f.A = this;
-  f.basefile = basefile;
   N = n;
   M = m;
 
   // Read matrix-market files.
-  int nnz = mr->map(numfiles, &load_matrix, (void *)&f, 0);
+  int nnz = mr->map(mr->num_procs(), 1, &filename, '\n', 40, &load_matrix,
+                    (void *)this, 0);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -172,30 +169,26 @@ void emit_matvec_empty_terms(int itask, KeyValue *kv, void *ptr)
 // To allow re-use of the matrix without re-reading the files, 
 // store the nonzeros read by this processor.
 
-void load_matrix(int itask, KeyValue *kv, void *ptr)
+void load_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 {
-  LoadInfo *fptr = (LoadInfo *) ptr;
-  MRMatrix *A = fptr->A;
+  MRMatrix *A = (MRMatrix *) ptr;
 
   A->MakeEmpty();
 
-  // Read the matrix from a file.
-  char filename[81];
-  sprintf(filename, "%s.%04d", fptr->basefile, itask); // File for this task.
-  FILE *fp = fopen(filename,"r");
-  if (fp == NULL) {
-    cout << "File not found:  " << filename << endl;
-    exit(-1);
-  }
-  
   int i, j;
   double nzv;
+  char line[81];
   // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
-  while (fscanf(fp, "%d %d %lf", &i, &j, &nzv) == 3)  {
-    A->AddNonzero(i, j, nzv);
+  int linecnt = 0;
+  for (int k = 0; k < nbytes-1; k++) {
+    line[linecnt++] = bytes[k];
+    if (bytes[k] == '\n') {
+      sscanf(line, "%d %d %lf", &i, &j, &nzv);
+printf("ADDNONZERO %d %d %f\n", i, j, nzv);
+      A->AddNonzero(i, j, nzv);
+      linecnt = 0;
+    }
   }
- 
-  fclose(fp);
 }
 
 /////////////////////////////////////////////////////////////////////////////

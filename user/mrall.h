@@ -43,6 +43,7 @@ using namespace std;
 /////////////////////////////////////////////////////////////////////////////
 //  These should probably be in the include file for MapReduce library.
 typedef void MAPFUNCTION(int, KeyValue *, void *);
+typedef void MAPFILEFUNCTION(int, char *, int, KeyValue *, void *);
 typedef void REDUCEFUNCTION(char *, int, char *, int, int*, KeyValue *, void *);
 typedef int COMPAREFUNCTION(char *, int, char *, int);
 

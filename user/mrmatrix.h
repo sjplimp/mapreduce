@@ -50,7 +50,7 @@ typedef struct MatrixEntry {
 
 class MRMatrix {
   public:  
-    MRMatrix(MapReduce *, int, int, char *, int);
+    MRMatrix(MapReduce *, int, int, char *);
     ~MRMatrix() {Amat.clear();}
 
     int NumRows() { return N; }
@@ -75,12 +75,3 @@ class MRMatrix {
                          // A or A^T in current operation.
 };
 
-
-/////////////////////////////////////////////////////////////////////////////
-//  Typedefs for values.
-
-//  Data type for file information.
-typedef struct LoadInfo {
-  MRMatrix *A;
-  char *basefile;
-};
