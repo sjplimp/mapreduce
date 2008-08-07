@@ -22,8 +22,10 @@ using namespace std;
 
 //  MAP FUNCTIONS
 MAPFUNCTION load_matrix;
-MAPFUNCTION emit_matrix;
+MAPFUNCTION emit_matrix_entries;
+MAPFUNCTION emit_matvec_matrix;
 MAPFUNCTION emit_matvec_vector;
+MAPFUNCTION emit_matvec_empty_terms;
 
 //  REDUCE FUNCTIONS
 REDUCEFUNCTION terms;
@@ -80,7 +82,7 @@ void MRMatrix::MatVec(
   transposeFlag = transpose;
 
   // Emit matrix values.
-  int nnz = mr->map(np, &emit_matrix, (void *)this, 0);
+  int nnz = mr->map(np, &emit_matvec_matrix, (void *)this, 0);
 
   // Emit vector values.
   int nv = mr->map(np, &emit_matvec_vector, (void *)x, 1);
@@ -90,6 +92,15 @@ void MRMatrix::MatVec(
 
   // Compute terms x_j * A_ij.
   int nterms = mr->reduce(&terms, NULL);
+
+  // Even if A is sparse, want resulting product vector to be dense.
+  // Emit some dummies to make the product vector dense.
+  // These are dummy terms in the rowsum that will cause product
+  // vector entries to be added.
+  if (transpose) 
+    nv = mr->map(NumCols(), &emit_matvec_empty_terms, NULL, 1);
+  else
+    nv = mr->map(NumRows(), &emit_matvec_empty_terms, NULL, 1);
 
   // Gather matrix now by rows.
   mr->collate(NULL);
@@ -117,10 +128,10 @@ void emit_matvec_vector(int itask, KeyValue *kv, void *ptr)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// emit_matrix map() function
+// emit_matvec_matrix map() function
 // For each non-zero in MRMatrix, emit (key,value) = (j,[A_ij,i]).
 // For transpose, emit (key,value) = (i,[A_ij,j]).
-void emit_matrix(int itask, KeyValue *kv, void *ptr)
+void emit_matvec_matrix(int itask, KeyValue *kv, void *ptr)
 {
   MRMatrix *A = (MRMatrix *) ptr;
   bool transpose = A->UseTranspose();
@@ -141,6 +152,17 @@ void emit_matrix(int itask, KeyValue *kv, void *ptr)
     }
   }
 }
+
+/////////////////////////////////////////////////////////////////////////////
+// emit_matvec_empty_terms map() function
+// For each itask, emit (key,value) = (i,0)
+void emit_matvec_empty_terms(int itask, KeyValue *kv, void *ptr)
+{
+  double zero = 0.;
+  int row = itask+1;  // Matrix-market is one-based.
+  kv->add((char *)&row, sizeof(row), (char *) &zero, sizeof(zero));
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -231,3 +253,28 @@ void rowsum(char *key, int keylen, char *multivalue, int nvalues, int *mvlen,
     kv->add((char *) &row, sizeof(row), (char *) &sum, sizeof(sum));
 }
 
+
+/////////////////////////////////////////////////////////////////////////////
+// MRMatrix::EmitEntries
+// Emits all nonzero entries of matrix with key = row index.
+// Flag add indicates whether to add entries to existing mr->kv (1) or to
+// start a new mr->kv (0).
+void MRMatrix::EmitEntries(
+  MapReduce *mr,
+  int add
+)
+{
+  mr->map(mr->num_procs(), emit_matrix_entries, (void *)this, add);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// emit_matrix_entries map() function
+// For each non-zero in MRMatrix, emit (key,value) = (i, A_ij)
+void emit_matrix_entries(int itask, KeyValue *kv, void *ptr)
+{
+  MRMatrix *A = (MRMatrix *) ptr;
+  list<MatrixEntry>::iterator nz;
+  for (nz=A->Amat.begin(); nz!=A->Amat.end(); nz++)
+    kv->add((char *)&((*nz).i), sizeof((*nz).i), 
+              (char *)&((*nz).nzv), sizeof((*nz).nzv));
+}

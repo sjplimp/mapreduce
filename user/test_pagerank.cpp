@@ -42,11 +42,15 @@ using namespace std;
 
 #define ABS(a) ((a) >= 0. ? (a) : -1*(a));
 
+
 //  MAP FUNCTIONS
-MAPFUNCTION emit_vec_entries;
+MAPFUNCTION emit_allzero_rows;
+MAPFUNCTION emit_matvec_empty_terms;
 
 //  REDUCE FUNCTIONS
 REDUCEFUNCTION compute_lmax_residual;
+REDUCEFUNCTION collect_allzero_rows;
+REDUCEFUNCTION allzero_contribution;
 REDUCEFUNCTION output;
 
 // COMPARISON FUNCTIONS
@@ -54,6 +58,89 @@ COMPAREFUNCTION compare;
 
 ////////////////////////////////////////////////////////////////////////////
 // Global variables.
+
+////////////////////////////////////////////////////////////////////////////
+void detect_allzero_rows(
+  MapReduce *mr,
+  MRMatrix *A,
+  list<int> *allzero   // Output:  Indices of allzero rows in A.
+)
+{
+  // Emit nonzeros of matrix.
+  A->EmitEntries(mr, 0);
+  // Emit empty terms (row i, 0).
+  mr->map(A->NumRows(), &emit_matvec_empty_terms, NULL, 1);
+
+  mr->collate(NULL);
+
+  mr->reduce(&collect_allzero_rows, (void *) allzero);
+}
+
+////////////////////////////////////////////////////////////////////////////
+// collect_allzero_rows reduce() function
+// Input:  matrix entries (i, a_ij) + unit vector entries (i, e_i).
+// Output:  Updated allzero list of rows that are allzero.
+void collect_allzero_rows(char *key, int keylen, char *multivalue, 
+                          int nvalues, int *mvlen,
+                          KeyValue *kv, void *ptr)
+{
+  list<int> *allzero = (list<int> *) ptr;
+  if (nvalues == 1) {
+    // only the identity vector entry existed for this key -- no a_ij values!
+    int row = *((int*) key);
+printf("ALLZERO ROW %d\n", row);
+    allzero->push_front(row);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Compute local contribution to adjustment for allzero rows.
+double compute_local_allzero_adj(
+  MapReduce *mr,
+  MRVector *x,
+  list<int> allzero,
+  double alpha
+)
+{
+  mr->map(mr->num_procs(), emit_allzero_rows, &allzero, 0);
+  x->EmitEntries(mr, 1);
+
+  mr->collate(NULL);  // this should require little or no communication.
+
+  double sum = 0.;
+  mr->reduce(allzero_contribution, &sum);
+
+  return (alpha * sum / x->GlobalLen());
+}
+
+////////////////////////////////////////////////////////////////////////////
+// emit_allzero_rows  map() function
+// Emit (i, 0) for allzero row i.
+void emit_allzero_rows(int itask, KeyValue *kv, void *ptr)
+{
+  list<int> *allzero = (list<int> *) ptr;
+  list<int>::iterator i;
+  double zero = 0.;
+  for (i = allzero->begin(); i != allzero->end(); i++)
+    kv->add((char *) &(*i), sizeof(*i), (char *) &zero, sizeof(zero));
+}
+
+////////////////////////////////////////////////////////////////////////////
+// allzero_contribution reduce() function
+// Input:  vector entries (i, v_i) + indices of allzero rows (i, 0)
+// Output:  sum of v_j for each allzero row j; stored in ptr.
+void allzero_contribution(char *key, int keylen, char *multivalue, 
+                          int nvalues, int *mvlen,
+                          KeyValue *kv, void *ptr)
+{
+  if (nvalues > 1) {
+    // This is an allzero row; multivalue as both allzero row index and x_j.
+    double *sum = (double *) ptr;
+    double *values = (double *) multivalue;
+    for (int i = 0; i < nvalues; i++) 
+      *sum += values[i];
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////
 MRVector *pagerank(
@@ -74,7 +161,8 @@ MRVector *pagerank(
   x->PutScalar(1./x->GlobalLen());
 
   // Do all-zero row detection.
-
+  list<int> allzero;
+  detect_allzero_rows(mr, A, &allzero);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
@@ -89,7 +177,7 @@ MRVector *pagerank(
 
     // Compute local adjustment for all-zero rows.
     double allzeroadj = 0.;
-    // NEED STUFF HERE
+    allzeroadj = compute_local_allzero_adj(mr, x, allzero, alpha);
     ladj += allzeroadj;
 
     // Compute global adjustment via all-reduce-like operation.
@@ -193,7 +281,7 @@ int main(int narg, char **args)
   double xavg = x->GlobalSum(mr) / x->GlobalLen();
   if (x->GlobalLen() < 40) {
     if (me == 0) printf("PageRank Vector:\n");
-    mr->map(np, &emit_vec_entries, x, 0);
+    x->EmitEntries(mr, 0);
     mr->gather(1);
     mr->sort_keys(&compare);
     mr->convert();

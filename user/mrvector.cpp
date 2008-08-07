@@ -21,7 +21,7 @@ using namespace MAPREDUCE_NS;
 using namespace std;
 
 MAPFUNCTION initialize_vec;
-MAPFUNCTION emit_vec_entries;
+MAPFUNCTION emit_vector_entries;
 
 /////////////////////////////////////////////////////////////////////////////
 // Vector constructor.  Allocates memory and stores in persistent memory.
@@ -199,13 +199,13 @@ void MRVector::EmitEntries(
   int add
 ) 
 {
-  mr->map(mr->num_procs(), emit_vec_entries, (void *)this, add);
+  mr->map(mr->num_procs(), emit_vector_entries, (void *)this, add);
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// emit_vec_entries map() function
+// emit_vector_entries map() function
 // For each entry in input MRVector, emit (key,value) = (i,x_i).
-void emit_vec_entries(int itask, KeyValue *kv, void *ptr)
+void emit_vector_entries(int itask, KeyValue *kv, void *ptr)
 {
   // Assume ptr = MRVector.
   MRVector *x = (MRVector *) ptr;

@@ -66,6 +66,7 @@ class MRMatrix {
     void Scale(double);
     void MakeEmpty() {Amat.clear();};
     bool UseTranspose() {return transposeFlag;}
+    void EmitEntries(MapReduce *, int);
     list<MatrixEntry> Amat;  // Non-zeros; probably should make private later.
   private:
     int N;  // Number of rows
