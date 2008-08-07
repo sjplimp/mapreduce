@@ -77,9 +77,10 @@ int main(int narg, char **args)
   //  **********************   A * x   ************************
   // Allocate and initialize persistent storage for vector.
   MRVector x(mr, M);
+  x.PutScalar(1./(double)M);
 
   // Perform matrix-vector multiplication.
-  A.MatVec(mr, x, 0);
+  A.MatVec(mr, &x, NULL, 0);
 
   // Output results:  Gather results to proc 0, sort and print.
   int nkeys = mr->gather(1);
@@ -93,9 +94,10 @@ int main(int narg, char **args)
   //  **********************   A^T * x   ************************
   // Allocate and initialize persistent storage for vector.
   MRVector xt(mr, N);
+  xt.PutScalar(1./(double)N);
 
   // Perform matrix-vector multiplication with transpose; re-use A.
-  A.MatVec(mr, xt, 1);
+  A.MatVec(mr, &xt, NULL, 1);
 
   // Output results:  Gather results to proc 0, sort and print.
   nkeys = mr->gather(1);

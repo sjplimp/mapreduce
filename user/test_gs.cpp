@@ -33,32 +33,34 @@
 #include "mpi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
+#include "mrmatrix.h"
+#include "mrvector.h"
+#include "mrall.h"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
 
-#include "mrall.h"
+////////////////////////////////////////////////////////////////////////////
+// Global variables.
 
-/////////////////////////////////////////////////////////////////////////////
-class MRVector {
-  public:
-    MRVector(MapReduce *, int);
-    ~MRVector() {MakeEmpty();}
-    void AddEntry(int, double);
-    void MakeEmpty();
-    void PutScalar(double);
-    void AddScalar(double);
-    void Scale(double);
-    double GlobalSum(MapReduce *);
-    double GlobalMax(MapReduce *);
-    double GlobalMin(MapReduce *);
-    double LocalSum();
-    double LocalMax();
-    double LocalMin();
-    int GlobalLen() {return global_len;};
-    void EmitEntries(MapReduce *, int);
-    void Print();
-    list<INTDOUBLE> vec; // Probably should be private; we'll do later.
-  private:
-    int global_len;
-};
+////////////////////////////////////////////////////////////////////////////
+int main(int narg, char **args)
+{
+  int me, np;      // Processor rank and number of processors.
+  MPI_Init(&narg,&args);
+
+  MPI_Comm_rank(MPI_COMM_WORLD,&me);
+  MPI_Comm_size(MPI_COMM_WORLD,&np);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tstart = MPI_Wtime();
+
+  MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+  mr->verbosity = 0;
+
+  int gsum = MRGlobalSum(mr, me);
+  printf("%d KDDKDD gsum=%d\n", me, gsum);
+
+  MPI_Finalize();
+}
+

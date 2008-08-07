@@ -62,7 +62,7 @@ class MRMatrix {
       nz.nzv = nzv;
       Amat.push_front(nz);
     };
-    void MatVec(MapReduce *, MRVector &, bool);
+    void MatVec(MapReduce *, MRVector *, MRVector *, bool);
     void Scale(double);
     void MakeEmpty() {Amat.clear();};
     bool UseTranspose() {return transposeFlag;}

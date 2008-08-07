@@ -3,27 +3,33 @@
 CC =		mpic++ -m64
 #CCFLAGS =	-g -O -I../src 
 CCFLAGS =	-g  -I../src 
+
 LINK =		mpic++ -m64
 #LINKFLAGS =	-g -O -L../src -lmrmpi
 LINKFLAGS =	-g  
 USRLIB =	-L../src -lmrmpi
 SYSLIB =	
-
 LIB =		../src/libmrmpi.a
+
+SRC = 		mrvector.cpp mrmatrix.cpp 
+OBJS = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank
+all:	matvec pagerank gs
 
-pagerank:	test_pagerank.o mrmatrix.o mrvector.o $(LIB)
-	$(LINK) $(LINKFLAGS) test_pagerank.o mrmatrix.o mrvector.o $(USRLIB) $(SYSLIB) -o matvec
+gs:	test_gs.o mrglobalsum.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_gs.o mrglobalsum.o $(USRLIB) $(SYSLIB) -o gs
 
-matvec:	test_matvec.o mrmatrix.o mrvector.o $(LIB)
-	$(LINK) $(LINKFLAGS) test_matvec.o mrmatrix.o mrvector.o $(USRLIB) $(SYSLIB) -o matvec
+pagerank:	test_pagerank.o $(OBJS) $(LIB)
+	$(LINK) $(LINKFLAGS) test_pagerank.o $(OBJS) $(USRLIB) $(SYSLIB) -o pagerank
+
+matvec:	test_matvec.o $(OBJS) $(LIB)
+	$(LINK) $(LINKFLAGS) test_matvec.o $(OBJS) $(USRLIB) $(SYSLIB) -o matvec
 
 clean:
 	rm *.o
-	rm matvec
+	rm matvec pagerank
 
 # Rules
 
