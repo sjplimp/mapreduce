@@ -449,7 +449,7 @@ int MapReduce::map(int nmap, int nfiles, char **files,
   filemap.sepchar = sepchar;
   filemap.delta = delta;
 
-  map_file(nmap,nfiles,files,appmap,ptr,addflag);
+  return map_file(nmap,nfiles,files,appmap,ptr,addflag);
 }
 
 /* ----------------------------------------------------------------------
@@ -468,7 +468,7 @@ int MapReduce::map(int nmap, int nfiles, char **files,
   strcpy(filemap.sepstr,sepstr);
   filemap.delta = delta;
 
-  map_file(nmap,nfiles,files,appmap,ptr,addflag);
+  return map_file(nmap,nfiles,files,appmap,ptr,addflag);
 }
 
 /* ----------------------------------------------------------------------
