@@ -88,7 +88,6 @@ void collect_allzero_rows(char *key, int keylen, char *multivalue,
   if (nvalues == 1) {
     // only the identity vector entry existed for this key -- no a_ij values!
     int row = *((int*) key);
-printf("ALLZERO ROW %d\n", row);
     allzero->push_front(row);
   }
 }
