@@ -547,7 +547,7 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
       }
 
   // check if any tasks are so small they will cause overlapping reads w/ delta
-  // if so, reduce number of tasks in that file and issue warning
+  // if so, reduce number of tasks for that file and issue warning
 
   int flag = 0;
   for (int i = 0; i < nfiles; i++) {
@@ -637,9 +637,6 @@ void MapReduce::map_file_wrapper(int imap, KeyValue *kv, void *ptr)
   uint64_t readnext = (itask+1)*filesize/ntask;
   int readsize = readnext - readstart + filemap.delta;
   readsize = MIN(readsize,filesize-readstart);
-
-  if (itask < ntask-1 && readsize <= 2*filemap.delta)
-    error->all("File delta is large enough to create read overlap");
 
   // read from appropriate file
   // terminate string with NULL
