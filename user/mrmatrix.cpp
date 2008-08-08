@@ -172,6 +172,9 @@ void emit_matvec_empty_terms(int itask, KeyValue *kv, void *ptr)
 void load_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 {
   MRMatrix *A = (MRMatrix *) ptr;
+static int KDD = 0;
+int KDDme;
+MPI_Comm_rank(MPI_COMM_WORLD, &KDDme);
 
   A->MakeEmpty();
 
@@ -185,6 +188,8 @@ void load_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
     if (bytes[k] == '\n') {
       sscanf(line, "%d %d %lf", &i, &j, &nzv);
       A->AddNonzero(i, j, nzv);
+KDD++;
+if (KDD%10000==0) {cout << KDDme << " " << KDD << endl; flush(cout);}
       linecnt = 0;
     }
   }

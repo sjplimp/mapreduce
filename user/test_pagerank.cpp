@@ -149,6 +149,8 @@ MRVector *pagerank(
   double tolerance
 )
 {
+  int me = mr->my_proc();
+  if (me == 0) {cout << "Initializing vectors..." << endl; flush(cout);}
   MRVector *x = new MRVector(mr, A->NumRows());
   MRVector *y = new MRVector(mr, x->GlobalLen());
 
@@ -160,12 +162,14 @@ MRVector *pagerank(
   x->PutScalar(1./x->GlobalLen());
 
   // Do all-zero row detection.
+  if (me == 0) {cout << "Detecting allzero rows..." << endl; flush(cout);}
   list<int> allzero;
   detect_allzero_rows(mr, A, &allzero);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
+  if (me == 0) {cout << "Beginning iterations..." << endl; flush(cout);}
   // PageRank iteration
   for (iter = 0; iter < maxniter; iter++) {
 
@@ -213,6 +217,7 @@ MRVector *pagerank(
     x = y;
     y = tmp;
 
+if (me == 0) {cout << "iteration " << iter+1 << " resid " << gresid << endl; flush(cout);}
     if (gresid < tolerance) 
       break;  // Iterations are done.
   }
@@ -257,6 +262,7 @@ int main(int narg, char **args)
 
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&np);
+  if (me == 0) {cout << "Here we go..." << endl; flush(cout);}
 
   if (narg != 3) {
     if (me == 0) printf("Syntax: pagerank file.mtx N \n");
@@ -268,10 +274,13 @@ int main(int narg, char **args)
   mr->verbosity = 0;
 
   // Persistent storage of the matrix. Will be loaded from files initially.
+  if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
   MRMatrix A(mr, N, N, args[1]);
 
   // Call PageRank function.
+  if (me == 0) {cout << "Calling pagerank..." << endl; flush(cout);}
   MRVector *x = pagerank(mr, &A, 0.8, 0.00001);  // Make alpha & tol input params later.
+  if (me == 0) {cout << "Pagerank done..." << endl; flush(cout);}
 
   // Output results:  Gather results to proc 0, sort and print.
   double xmin = x->GlobalMin(mr);    
