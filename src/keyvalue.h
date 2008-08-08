@@ -27,9 +27,6 @@ class KeyValue {
   int maxkeysize;               // max size of keydata
   int maxvaluesize;             // max size of valuedata
 
-  int totalsize;                // current size of all 4 arrays in KV
-  int chunksize;                // file chunk size for KV
-
   KeyValue(MPI_Comm);
   ~KeyValue();
 
@@ -41,23 +38,8 @@ class KeyValue {
   void unpack(char *);
   void complete();
 
-  void add_chunk();
-  void write(int);
-  void read(int);
-  void clean();
-
  private:
-  int me,nprocs;
   class Memory *memory;
-
-  struct Chunk {
-    char *filename;
-    int nkey;
-    int keysize;                  // size of keydata array
-    int valuesize;                // size of valuedata array
-  };
-  Chunk *chunks;
-  int nchunk;
 };
 
 }
