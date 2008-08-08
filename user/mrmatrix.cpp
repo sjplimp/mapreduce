@@ -184,7 +184,6 @@ void load_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
     line[linecnt++] = bytes[k];
     if (bytes[k] == '\n') {
       sscanf(line, "%d %d %lf", &i, &j, &nzv);
-printf("ADDNONZERO %d %d %f\n", i, j, nzv);
       A->AddNonzero(i, j, nzv);
       linecnt = 0;
     }
