@@ -55,6 +55,7 @@ class MapReduce {
   void kmv_stats(int);
   int  num_procs() {return nprocs;};
   int  my_proc() {return me;};
+  MPI_Comm communicator() {return comm;};
 
   // functions accessed thru non-class wrapper functions
 
