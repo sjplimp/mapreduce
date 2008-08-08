@@ -22,8 +22,15 @@ using namespace MAPREDUCE_NS;
 
 KeyValue::KeyValue(MPI_Comm caller)
 {
-  memory = new Memory(caller);
+  MPI_Comm_rank(caller,&me);
+  MPI_Comm_size(caller,&nprocs);
 
+  memory = new Memory(caller);
+  chunksize = 2000000000;
+  chunks = NULL;
+  nchunk = 0;
+
+  totalsize = 0;
   nkey = maxkey = 0;
   keysize = maxkeysize = 0;
   valuesize = maxvaluesize = 0;
@@ -40,11 +47,15 @@ KeyValue::KeyValue(MPI_Comm caller)
 
 KeyValue::~KeyValue()
 {
+  clean();
+
+  for (int i = 0; i < nchunk; i++) {
+    remove(chunks[i].filename);
+    delete [] chunks[i].filename;
+  }
+  memory->sfree(chunks);
+
   delete memory;
-  memory->sfree(keys);
-  memory->sfree(values);
-  memory->sfree(keydata);
-  memory->sfree(valuedata);
 }
 
 /* ----------------------------------------------------------------------
@@ -65,8 +76,8 @@ void KeyValue::add(char *key, int keybytes, char *value, int valuebytes)
   }
   if (valuesize+valuebytes >= maxvaluesize) {
     maxvaluesize += BUFCHUNK;
-    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,
-					  "KV:valuedata");
+    valuedata = 
+      (char *) memory->srealloc(valuedata,maxvaluesize,"KV:valuedata");
   }
 
   keys[nkey] = keysize;
@@ -78,6 +89,9 @@ void KeyValue::add(char *key, int keybytes, char *value, int valuebytes)
   valuesize += valuebytes;
 
   nkey++;
+
+  totalsize += 2*sizeof(int) + keybytes + valuebytes;
+  if (totalsize > chunksize) add_chunk();
 }
 
 /* ----------------------------------------------------------------------
@@ -107,13 +121,16 @@ void KeyValue::add(int n, char *key, int keybytes,
   }
   if (valuesize > maxvaluesize) {
     while (valuesize >= maxvaluesize) maxvaluesize += BUFCHUNK;
-    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,
-					  "KV:valuedata");
+    valuedata = 
+      (char *) memory->srealloc(valuedata,maxvaluesize,"KV:valuedata");
   }
 
   memcpy(&keydata[keys[nkey]],key,n*keybytes);
   memcpy(&valuedata[values[nkey]],value,n*valuebytes);
   nkey += n;
+
+  totalsize += n * (2*sizeof(int) + keybytes + valuebytes);
+  if (totalsize > chunksize) add_chunk();
 }
 
 /* ----------------------------------------------------------------------
@@ -152,6 +169,9 @@ void KeyValue::add(int n, char *key, int *keybytes,
   memcpy(&keydata[keys[nkey]],key,keysize-keystart);
   memcpy(&valuedata[values[nkey]],value,valuesize-valuestart);
   nkey += n;
+
+  totalsize += 2*n*sizeof(int) + keysize-keystart + valuesize-valuestart;
+  if (totalsize > chunksize) add_chunk();
 }
 
 /* ----------------------------------------------------------------------
@@ -252,6 +272,9 @@ void KeyValue::unpack(char *buf)
   keysize += *keysize_new;
   valuesize += *valuesize_new;
   nkey += *nkey_new;
+
+  totalsize += 2*(*nkey_new)*sizeof(int) + *keysize_new + *valuesize_new;
+  if (totalsize > chunksize) add_chunk();
 }
 
 /* ----------------------------------------------------------------------
@@ -270,4 +293,87 @@ void KeyValue::complete()
 
   keys[nkey] = keysize;
   values[nkey] = valuesize;
+}
+
+/* ----------------------------------------------------------------------
+   add a chunk
+------------------------------------------------------------------------- */
+
+void KeyValue::add_chunk()
+{
+  chunks =
+    (Chunk *) memory->srealloc(chunks,(nchunk+1)*sizeof(Chunk),"KV:chunks");
+  chunks[nchunk].filename = new char[128];
+  sprintf(chunks[nchunk].filename,"tmp.kv.%d.%d",me,nchunk);
+
+  write(nchunk);
+  clean();
+  nchunk++;
+}
+
+/* ----------------------------------------------------------------------
+   write the current KV to scratch file ichunk
+------------------------------------------------------------------------- */
+
+void KeyValue::write(int ichunk)
+{
+  Chunk *chunk = &chunks[ichunk];
+  chunk->nkey = nkey;
+  chunk->keysize = keysize;
+  chunk->valuesize = valuesize;
+
+  FILE *fp = fopen(chunk->filename,"w");
+  fwrite(keys,sizeof(int),nkey+1,fp);
+  fwrite(values,sizeof(int),nkey+1,fp);
+  fwrite(keydata,1,keysize,fp);
+  fwrite(valuedata,1,valuesize,fp);
+  fclose(fp);
+}
+
+/* ----------------------------------------------------------------------
+   read from ichunk scratch file into current KV
+   assumes KV is cleaned
+------------------------------------------------------------------------- */
+
+void KeyValue::read(int ichunk)
+{
+  Chunk *chunk = &chunks[ichunk];
+  nkey = chunk->nkey;
+  keysize = maxkeysize = chunk->keysize;
+  valuesize = maxvaluesize = chunk->valuesize;
+  maxkey = nkey + 1;    // is this right, or should alloc as maxkey+1
+
+  keys = (int *) memory->smalloc(maxkey*sizeof(int),"KV:keys");
+  values = (int *) memory->smalloc(maxkey*sizeof(int),"KV:values");
+  keydata = (char *) memory->smalloc(maxkeysize,"KV:keydata");
+  valuedata = (char *) memory->smalloc(maxvaluesize,"KV:valuedata");
+  
+  FILE *fp = fopen(chunk->filename,"r");
+  fread(keys,sizeof(int),nkey+1,fp);
+  fread(values,sizeof(int),nkey+1,fp);
+  fread(keydata,1,keysize,fp);
+  fread(valuedata,1,valuesize,fp);
+  fclose(fp);
+}
+
+/* ----------------------------------------------------------------------
+   clean out KV memory
+------------------------------------------------------------------------- */
+
+void KeyValue::clean()
+{
+  totalsize = 0;
+  nkey = maxkey = 0;
+  keysize = maxkeysize = 0;
+  valuesize = maxvaluesize = 0;
+
+  memory->sfree(keys);
+  memory->sfree(values);
+  memory->sfree(keydata);
+  memory->sfree(valuedata);
+
+  keys = NULL;
+  values = NULL;
+  keydata = NULL;
+  valuedata = NULL;
 }
