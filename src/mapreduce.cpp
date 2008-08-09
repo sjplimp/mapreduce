@@ -380,8 +380,9 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
     for (int itask = 0; itask < nmap; itask++) appmap(itask,kv,ptr);
 
   } else if (mapstyle == 0) {
-    int lo = me * nmap / nprocs;
-    int hi = (me+1) * nmap / nprocs;
+    uint64_t nmap64 = nmap;
+    int lo = me * nmap64 / nprocs;
+    int hi = (me+1) * nmap64 / nprocs;
     for (int itask = lo; itask < hi; itask++) appmap(itask,kv,ptr);
 
   } else if (mapstyle == 1) {
