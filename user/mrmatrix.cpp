@@ -120,6 +120,7 @@ void emit_matvec_vector(int itask, KeyValue *kv, void *ptr)
   for (v = x->vec.begin(); v != x->vec.end(); v++) {
     value.i = XVECVALUE;
     value.d = (*v).d;
+//printf("DkkDkk  emit_matvec_vector %d %f\n", (*v).i, value.d);
     kv->add((char *)&((*v).i), sizeof((*v).i), (char *) &value, sizeof(value));
   }
 }
@@ -139,6 +140,7 @@ void emit_matvec_matrix(int itask, KeyValue *kv, void *ptr)
     value.d = (*nz).nzv;
     if (transpose) {
       value.i = (*nz).j;
+//printf("DkkDkk  emit_matvec_matrix %d %d %f\n", (*nz).i, (*nz).j, (*nz).nzv);
       kv->add((char *)&((*nz).i), sizeof((*nz).i), 
               (char *)&value, sizeof(value));
     }
@@ -157,6 +159,7 @@ void emit_matvec_empty_terms(int itask, KeyValue *kv, void *ptr)
 {
   double zero = 0.;
   int row = itask+1;  // Matrix-market is one-based.
+// printf("  kDDkDD emit_matvec_empty_terms %d %f\n", row, zero);
   kv->add((char *)&row, sizeof(row), (char *) &zero, sizeof(zero));
 }
 
@@ -183,8 +186,20 @@ void load_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
   for (int k = 0; k < nbytes-1; k++) {
     line[linecnt++] = bytes[k];
     if (bytes[k] == '\n') {
-      sscanf(line, "%d %d %lf", &i, &j, &nzv);
-      A->AddNonzero(i, j, nzv);
+      if (line[0] != '%') {  // i.e., not a comment line.
+        sscanf(line, "%d %d %lf", &i, &j, &nzv);
+        if (nzv <= 1.) {
+          // Valid matrix entry for pagerank problem have nzv <= 1.
+          // Not general for all problems!!!!
+          A->AddNonzero(i, j, nzv);
+        }
+        else {
+          // Valid matrix entry for pagerank problem have nzv <= 1.
+          // Not general for all problems!!!!
+          cout << "Skipping line with values (" << i << ", " 
+               << j << ") == " << nzv << endl;
+        }
+      }
       linecnt = 0;
     }
   }
@@ -217,6 +232,7 @@ void terms(char *key, int keylen, char *multivalue, int nvalues, int *mvlen,
     if (aptr == xptr) continue;  // don't add in x_j * x_j.
 
     double product = x_j * aptr->d;
+// printf("  kDDkDD terms %d %f\n", aptr->i, product);
     kv->add((char *) &aptr->i, sizeof(aptr->i), 
             (char *) &product, sizeof(product));
   }
@@ -239,8 +255,10 @@ void rowsum(char *key, int keylen, char *multivalue, int nvalues, int *mvlen,
   for (int k = 0; k < nvalues; k++) 
     sum += dptr[k];
 
-  if (y)
+  if (y) {
+// printf("  kDDkDD rowsum %d %f\n", row, sum);
     y->AddEntry(row, sum);
+  }
   else
     kv->add((char *) &row, sizeof(row), (char *) &sum, sizeof(sum));
 }
@@ -266,7 +284,9 @@ void emit_matrix_entries(int itask, KeyValue *kv, void *ptr)
 {
   MRMatrix *A = (MRMatrix *) ptr;
   list<MatrixEntry>::iterator nz;
-  for (nz=A->Amat.begin(); nz!=A->Amat.end(); nz++)
+  for (nz=A->Amat.begin(); nz!=A->Amat.end(); nz++) {
+//printf("DkkDkk EmitMatrix %d %f\n", (*nz).i, (*nz).nzv);
     kv->add((char *)&((*nz).i), sizeof((*nz).i), 
               (char *)&((*nz).nzv), sizeof((*nz).nzv));
+  }
 }

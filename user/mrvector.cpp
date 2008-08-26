@@ -64,6 +64,7 @@ void MRVector::AddEntry(
   INTDOUBLE v;
   v.i = i;
   v.d = d;
+// printf("    kddkdd AddEntry %d %f\n", i, d);
   vec.push_front(v);
 }
 
@@ -209,11 +210,10 @@ void emit_vector_entries(int itask, KeyValue *kv, void *ptr)
 {
   // Assume ptr = MRVector.
   MRVector *x = (MRVector *) ptr;
-  INTDOUBLE value;
 
   list<INTDOUBLE>::iterator v;
   for (v = x->vec.begin(); v != x->vec.end(); v++) {
-    value.d = (*v).d;
+// printf("    kddkdd EmitVec %d %f\n", (*v).i, (*v).d);
     kv->add((char *)&((*v).i), sizeof((*v).i),
             (char *) &((*v).d), sizeof((*v).d));
   }
