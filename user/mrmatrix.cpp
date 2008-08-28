@@ -21,13 +21,15 @@ using namespace MAPREDUCE_NS;
 using namespace std;
 
 //  MAP FUNCTIONS
-MAPFILEFUNCTION load_matrix;
+MAPFILEFUNCTION store_matrix_directly;
+MAPFILEFUNCTION initialize_matrix;
 MAPFUNCTION emit_matrix_entries;
 MAPFUNCTION emit_matvec_matrix;
 MAPFUNCTION emit_matvec_vector;
 MAPFUNCTION emit_matvec_empty_terms;
 
 //  REDUCE FUNCTIONS
+REDUCEFUNCTION store_matrix_by_map;
 REDUCEFUNCTION terms;
 REDUCEFUNCTION rowsum;
 
@@ -38,15 +40,32 @@ MRMatrix::MRMatrix(
   MapReduce *mr,
   int n,          // Number of matrix rows 
   int m,          // Number of matrix columns 
-  char *filename  // Base filename; NULL if want to re-use existing Amat.
+  char *filename, // Base filename; NULL if want to re-use existing Amat.
+  bool store_by_map  // Flag indicating whether to remap data by rows
+                     // before storing on processors.  
+                     // KDDKDD:  Matvec uses indexing by columns, but since
+                     // KDDKDD:  we want to use transpose for pagerank, 
+                     // KDDKDD:  I'll store by rows.  This distribution is
+                     // KDDKDD:  not general!
 )
 {
   N = n;
   M = m;
 
-  // Read matrix-market files.
-  int nnz = mr->map(mr->num_procs(), 1, &filename, '\n', 40, &load_matrix,
-                    (void *)this, 0);
+  if (store_by_map) {
+    // Read matrix-market files; emit values with row number as index.
+    int nnz = mr->map(mr->num_procs(), 1, &filename, '\n', 40,
+                      &initialize_matrix, (void *)this, 0);
+    // Gather rows to processors.
+    mr->collate(NULL);
+    // Store matrix by rows on processors.
+    mr->reduce(&store_matrix_by_map, (void *)this);
+  }
+  else {
+    // Read matrix-market files; store it in the proc that reads it.
+    int nnz = mr->map(mr->num_procs(), 1, &filename, '\n', 40, 
+                      &store_matrix_directly, (void *)this, 0);
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -165,14 +184,75 @@ void emit_matvec_empty_terms(int itask, KeyValue *kv, void *ptr)
 
 
 /////////////////////////////////////////////////////////////////////////////
-
-// load_matrix map() function
+// initialize_matrix map() function
 // Read matrix from matrix-market file.
 // Assume matrix-market file is split into itask chunks.
 // To allow re-use of the matrix without re-reading the files, 
 // store the nonzeros read by this processor.
 
-void load_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
+void initialize_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, 
+                       void *ptr)
+{
+  MRMatrix *A = (MRMatrix *) ptr;
+
+  A->MakeEmpty();
+
+  int i, j;
+  double nzv;
+  char line[81];
+  // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
+  int linecnt = 0;
+  for (int k = 0; k < nbytes-1; k++) {
+    line[linecnt++] = bytes[k];
+    if (bytes[k] == '\n') {
+      if (line[0] != '%') {  // i.e., not a comment line.
+        sscanf(line, "%d %d %lf", &i, &j, &nzv);
+        if (nzv <= 1.) {
+          // Valid matrix entry for pagerank problem have nzv <= 1.
+          // Not general for all problems!!!!
+          MatrixEntry nz;
+          nz.i = i;
+          nz.j = j;
+          nz.nzv = nzv;
+          kv->add((char *)&i, sizeof(i), (char *)&nz, sizeof(nz));
+        }
+        else {
+          // Valid matrix entry for pagerank problem have nzv <= 1.
+          // Not general for all problems!!!!
+          cout << "Skipping line with values (" << i << ", " 
+               << j << ") == " << nzv << endl;
+        }
+      }
+      linecnt = 0;
+    }
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// store_matrix_by_map reduce() function
+// Having received row-indexed matrix entries, the processor stores the
+// entries.
+
+void store_matrix_by_map(char *key, int keylen, char *multivalue, int nvalues, 
+                         int *mvlen, KeyValue *kv, void *ptr)
+{
+  MRMatrix *A = (MRMatrix *) ptr;
+  int row = *((int *)key);
+  MatrixEntry *nz = (MatrixEntry *)multivalue;
+
+  for (int k = 0; k < nvalues; k++, nz++) 
+    A->AddNonzero(nz->i, nz->j, nz->nzv);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// store_matrix_directly map() function
+// Read matrix from matrix-market file.
+// Assume matrix-market file is split into itask chunks.
+// To allow re-use of the matrix without re-reading the files, 
+// store the nonzeros read by this processor.
+
+void store_matrix_directly(int itask, char *bytes, int nbytes, KeyValue *kv, 
+                           void *ptr)
 {
   MRMatrix *A = (MRMatrix *) ptr;
 

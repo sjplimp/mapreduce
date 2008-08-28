@@ -50,7 +50,7 @@ typedef struct MatrixEntry {
 
 class MRMatrix {
   public:  
-    MRMatrix(MapReduce *, int, int, char *);
+    MRMatrix(MapReduce *, int, int, char *, bool store_by_map=0);
     ~MRMatrix() {Amat.clear();}
 
     int NumRows() { return N; }
@@ -60,6 +60,7 @@ class MRMatrix {
       nz.i = i;
       nz.j = j;
       nz.nzv = nzv;
+// printf("HOHO AddNonzero %d %d %f\n", i, j, nzv);
       Amat.push_front(nz);
     };
     void MatVec(MapReduce *, MRVector *, MRVector *, bool);

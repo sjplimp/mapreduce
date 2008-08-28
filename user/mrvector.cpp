@@ -21,14 +21,20 @@ using namespace MAPREDUCE_NS;
 using namespace std;
 
 MAPFUNCTION initialize_vec;
+MAPFUNCTION store_vec_directly;
 MAPFUNCTION emit_vector_entries;
+REDUCEFUNCTION store_vec_by_map;
 
 /////////////////////////////////////////////////////////////////////////////
 // Vector constructor.  Allocates memory and stores in persistent memory.
 // Initializes vector uniformly to 1/n.
 MRVector::MRVector(
   MapReduce *mr,
-  int n           // Total number of vector entries 
+  int n,                   // Total number of vector entries 
+  bool store_by_map        // Flag indicating whether to redistribute the
+                           // entries to processors before storing them
+                           // (to try to reduce communication and data 
+                           // movement later).
 )
 {
   if (n == 0) {
@@ -37,21 +43,58 @@ MRVector::MRVector(
   }
   global_len = n;
 
-  mr->map(n, &initialize_vec, (void *)this, 0);
+  if (store_by_map) {
+    // Emit vector values
+    mr->map(n, &initialize_vec, (void *)this, 0);
+    // Gather values to processors based on vector index.
+    mr->collate(NULL);
+    // Store the vector entries on the processors that MapReduce maps them to.
+    mr->reduce(&store_vec_by_map, (void *)this);
+  }
+  else {
+    // Directory store vector values.
+    mr->map(n, &store_vec_directly, (void *)this, 0);
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// initialize_vec map() function
+// store_vec_directly map() function
 // Creates and initializes a vector; stores it in persistent memory.
 // The vector pointer is sent in the ptr argument.
 // Vector entries are initialized to zero.
 // This map does not emit any key,value pairs; it only creates the 
 // vector entries in memory.
-// Should store entries on processors according to row hashing scheme.
-void initialize_vec(int itask, KeyValue *kv, void *ptr)
+void store_vec_directly(int itask, KeyValue *kv, void *ptr)
 {
   MRVector *x = (MRVector *) ptr;
   x->AddEntry(itask+1, 0.);  // Matrix-market is one-based.
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// initialize_vec map() function
+// Initializes a vector; emits its values to be hashed to processors by row.
+// The vector pointer is sent in the ptr argument.
+// Vector entries are initialized to zero.
+void initialize_vec(int itask, KeyValue *kv, void *ptr)
+{
+  double zero = 0.;
+  MRVector *x = (MRVector *) ptr;
+  int i = itask+1;  // Matrix-market is one-based.
+  kv->add((char *) &i, sizeof(i), (char *)&zero, sizeof(zero));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// store_vec_by_map reduce() function
+// Receive vector entries created; store them on the processor on which
+// they were received.  Doing it this way will, I hope, store data where
+// it is most-often used, reducing communication volume later.
+void store_vec_by_map(char *key, int keylen, char *multivalue, int nvalues,
+                      int *mvlen, KeyValue *kv, void *ptr)
+{
+  int i = *((int *)key);
+  double val = *((double*)multivalue);
+  MRVector *x = (MRVector *) ptr;
+  x->AddEntry(i, val); 
 }
 
 /////////////////////////////////////////////////////////////////////////////

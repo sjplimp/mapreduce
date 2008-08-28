@@ -42,7 +42,7 @@ using namespace std;
 /////////////////////////////////////////////////////////////////////////////
 class MRVector {
   public:
-    MRVector(MapReduce *, int);
+    MRVector(MapReduce *, int, bool store_by_map=0);
     ~MRVector() {MakeEmpty();}
     void AddEntry(int, double);
     void MakeEmpty();

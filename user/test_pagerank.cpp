@@ -2,18 +2,15 @@
 // Karen Devine, 1416
 // August 2008
 //
-// Performs PageRank on a square matrix A.
+// Performs PageRank on a square matrix A using MapReduce library.
 //
-// Syntax: pagerank basefilename #_of_files N 
+// Syntax: pagerank basefilename N [store_by_map 1/0]
 //
 // Assumes matrix file format as follows:
 //     row_i  col_j  nonzero_value    (one line for each local nonzero)
 // The number of these files is given by the #_of_files argument
 // on the command line.  These files will be read in parallel if
 // #_of_files > 1.
-//
-// The files should be named basefilename.0000, basefilename.0001, etc.
-// up to the #_of_files-1.
 //
 // The dimensions of the matrix A are given by N (N rows, N columns).
 // Ideally, we would store this info in the files, but I haven't yet
@@ -24,9 +21,9 @@
 //     row_i  y_i
 //
 // SVN Information:
-//  $Author$
-//  $Date$
-//  $Revision$
+//  $Author:$
+//  $Date:$
+//  $Revision:$
 
 #include <iostream>
 #include <list>
@@ -146,13 +143,14 @@ MRVector *pagerank(
   MapReduce *mr,
   MRMatrix *A,
   double alpha,
-  double tolerance
+  double tolerance,
+  bool store_by_map
 )
 {
   int me = mr->my_proc();
   if (me == 0) {cout << "Initializing vectors..." << endl; flush(cout);}
-  MRVector *x = new MRVector(mr, A->NumRows());
-  MRVector *y = new MRVector(mr, x->GlobalLen());
+  MRVector *x = new MRVector(mr, A->NumRows(), store_by_map);
+  MRVector *y = new MRVector(mr, x->GlobalLen(), store_by_map);
 
   double randomlink = (1.-alpha)/(double)(x->GlobalLen());
   int iter, maxniter = (int) ceil(log10(tolerance) / log10(alpha));
@@ -246,6 +244,7 @@ void compute_lmax_residual(char *key, int keylen,
                            char *multivalue, int nvalues, int *mvlen,
                            KeyValue *kv, void *ptr)
 {
+// printf("KDDKDD key %d nvalues = %d (%f,%f)\n", *((int*)key), nvalues, *((double*)multivalue), *((double*)multivalue+1));
   assert(nvalues == 2);
   double *lmax = (double *) ptr;
   double *values = (double *) multivalue;
@@ -264,11 +263,13 @@ int main(int narg, char **args)
   MPI_Comm_size(MPI_COMM_WORLD,&np);
   if (me == 0) {cout << "Here we go..." << endl; flush(cout);}
 
-  if (narg != 3) {
-    if (me == 0) printf("Syntax: pagerank file.mtx N \n");
+  if (narg < 3) {
+    if (me == 0) printf("Syntax: pagerank file.mtx N [store_by_map 0/1]\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
   int N = atoi(args[2]);  // Number of rows in matrix.
+  bool store_by_map = 0;
+  if (narg == 4) store_by_map = atoi(args[3]);
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
@@ -276,11 +277,11 @@ int main(int narg, char **args)
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
-  MRMatrix A(mr, N, N, args[1]);
+  MRMatrix A(mr, N, N, args[1], store_by_map);
 
   // Call PageRank function.
   if (me == 0) {cout << "Calling pagerank..." << endl; flush(cout);}
-  MRVector *x = pagerank(mr, &A, 0.8, 0.00001);  // Make alpha & tol input params later.
+  MRVector *x = pagerank(mr, &A, 0.8, 0.00001, store_by_map);  // Make alpha & tol input params later.
   if (me == 0) {cout << "Pagerank done..." << endl; flush(cout);}
 
   // Output results:  Gather results to proc 0, sort and print.
