@@ -4,7 +4,7 @@
 //
 // Performs PageRank on a square matrix A using MapReduce library.
 //
-// Syntax: pagerank basefilename N [store_by_map 1/0]
+// Syntax: pagerank basefilename N [store_by_map 0/1]
 //
 // Assumes matrix file format as follows:
 //     row_i  col_j  nonzero_value    (one line for each local nonzero)
@@ -144,13 +144,13 @@ MRVector *pagerank(
   MRMatrix *A,
   double alpha,
   double tolerance,
-  bool store_by_map
+  int storage_format
 )
 {
   int me = mr->my_proc();
   if (me == 0) {cout << "Initializing vectors..." << endl; flush(cout);}
-  MRVector *x = new MRVector(mr, A->NumRows(), store_by_map);
-  MRVector *y = new MRVector(mr, x->GlobalLen(), store_by_map);
+  MRVector *x = new MRVector(mr, A->NumRows(), storage_format);
+  MRVector *y = new MRVector(mr, x->GlobalLen(), storage_format);
 
   double randomlink = (1.-alpha)/(double)(x->GlobalLen());
   int iter, maxniter = (int) ceil(log10(tolerance) / log10(alpha));
@@ -214,6 +214,7 @@ MRVector *pagerank(
     MRVector *tmp = x;
     x = y;
     y = tmp;
+    if (x->StorageFormat()) x->vec.sort(); // YUK! need vector sorted by index.
 
 if (me == 0) {cout << "iteration " << iter+1 << " resid " << gresid << endl; flush(cout);}
     if (gresid < tolerance) 
@@ -270,6 +271,8 @@ int main(int narg, char **args)
   int N = atoi(args[2]);  // Number of rows in matrix.
   bool store_by_map = 0;
   if (narg == 4) store_by_map = atoi(args[3]);
+  int storage_format = (store_by_map ? BY_ROW : BY_FILE);  // Best to store by
+                                                           // row for pagerank
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
@@ -281,7 +284,7 @@ int main(int narg, char **args)
 
   // Call PageRank function.
   if (me == 0) {cout << "Calling pagerank..." << endl; flush(cout);}
-  MRVector *x = pagerank(mr, &A, 0.8, 0.00001, store_by_map);  // Make alpha & tol input params later.
+  MRVector *x = pagerank(mr, &A, 0.8, 0.00001, storage_format);  // Make alpha & tol input params later.
   if (me == 0) {cout << "Pagerank done..." << endl; flush(cout);}
 
   // Output results:  Gather results to proc 0, sort and print.

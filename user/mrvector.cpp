@@ -31,7 +31,7 @@ REDUCEFUNCTION store_vec_by_map;
 MRVector::MRVector(
   MapReduce *mr,
   int n,                   // Total number of vector entries 
-  bool store_by_map        // Flag indicating whether to redistribute the
+  int store_by_map        // Flag indicating whether to redistribute the
                            // entries to processors before storing them
                            // (to try to reduce communication and data 
                            // movement later).
@@ -42,6 +42,7 @@ MRVector::MRVector(
     exit(-1);
   }
   global_len = n;
+  storeByMap = store_by_map;
 
   if (store_by_map) {
     // Emit vector values
@@ -50,6 +51,8 @@ MRVector::MRVector(
     mr->collate(NULL);
     // Store the vector entries on the processors that MapReduce maps them to.
     mr->reduce(&store_vec_by_map, (void *)this);
+    // Sort the vector by index.
+    vec.sort();
   }
   else {
     // Directory store vector values.

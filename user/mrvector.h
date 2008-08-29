@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include <list>
+#include <hashmap>
 #include "mpi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
@@ -42,7 +43,7 @@ using namespace std;
 /////////////////////////////////////////////////////////////////////////////
 class MRVector {
   public:
-    MRVector(MapReduce *, int, bool store_by_map=0);
+    MRVector(MapReduce *, int, int store_by_map=0);
     ~MRVector() {MakeEmpty();}
     void AddEntry(int, double);
     void MakeEmpty();
@@ -59,6 +60,8 @@ class MRVector {
     void EmitEntries(MapReduce *, int);
     void Print();
     list<INTDOUBLE> vec; // Probably should be private; we'll do later.
+    bool StorageFormat() {return storeByMap;}
   private:
     int global_len;
+    int storeByMap;   // Persistent storage either by MapReduce map or not.
 };

@@ -27,11 +27,24 @@ MAPFUNCTION emit_matrix_entries;
 MAPFUNCTION emit_matvec_matrix;
 MAPFUNCTION emit_matvec_vector;
 MAPFUNCTION emit_matvec_empty_terms;
+MAPFUNCTION local_terms;
 
 //  REDUCE FUNCTIONS
 REDUCEFUNCTION store_matrix_by_map;
 REDUCEFUNCTION terms;
 REDUCEFUNCTION rowsum;
+
+/////////////////////////////////////////////////////////////////////////////
+// Comparison functions for matrix entries.
+bool sort_by_row(const MatrixEntry &lhs, const MatrixEntry &rhs)
+{
+  return lhs.i < rhs.i;
+}
+
+bool sort_by_col(const MatrixEntry &lhs, const MatrixEntry &rhs)
+{
+  return lhs.j < rhs.j;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // Matrix constructor.  Reads matrix from files; stores in persistent memory.
@@ -41,18 +54,15 @@ MRMatrix::MRMatrix(
   int n,          // Number of matrix rows 
   int m,          // Number of matrix columns 
   char *filename, // Base filename; NULL if want to re-use existing Amat.
-  bool store_by_map  // Flag indicating whether to remap data by rows
-                     // before storing on processors.  
-                     // KDDKDD:  Matvec uses indexing by columns, but since
-                     // KDDKDD:  we want to use transpose for pagerank, 
-                     // KDDKDD:  I'll store by rows.  This distribution is
-                     // KDDKDD:  not general!
+  int storage     // Flag indicating whether to remap data by rows or cols
+                  // before storing on processors.  
 )
 {
   N = n;
   M = m;
+  storageFormat = storage;
 
-  if (store_by_map) {
+  if (storage != BY_FILE) {
     // Read matrix-market files; emit values with row number as index.
     int nnz = mr->map(mr->num_procs(), 1, &filename, '\n', 40,
                       &initialize_matrix, (void *)this, 0);
@@ -60,8 +70,13 @@ MRMatrix::MRMatrix(
     mr->collate(NULL);
     // Store matrix by rows on processors.
     mr->reduce(&store_matrix_by_map, (void *)this);
+    if (storageFormat == BY_COL) 
+      Amat.sort(sort_by_col); // sort by column for easy matvec
+    else
+      Amat.sort(sort_by_row); // sort by row for easy matvec
   }
   else {
+    // storage = BY_FILE
     // Read matrix-market files; store it in the proc that reads it.
     int nnz = mr->map(mr->num_procs(), 1, &filename, '\n', 40, 
                       &store_matrix_directly, (void *)this, 0);
@@ -97,26 +112,43 @@ void MRMatrix::MatVec(
 
   transposeFlag = transpose;
 
-  // Emit matrix values.
-  int nnz = mr->map(np, &emit_matvec_matrix, (void *)this, 0);
+  if (x->StorageFormat() &&
+      ((storageFormat == BY_ROW && transposeFlag) ||  
+      (storageFormat == BY_COL && !transposeFlag))) {
+    // needed vector and matrix entries are on same proc;
+    // don't need to move them around before matvec.
+    struct {
+      MRMatrix *A;
+      MRVector *x;
+    } tmp;
+    tmp.A = this;
+    tmp.x = x;
+    int nterms = mr->map(np, &local_terms, &tmp, 0);
+  }
+  else {
+    // Data is not stored the way we want to use it for matvec.
+    // Need to reorganize.
+    // Emit matrix values.
+    int nnz = mr->map(np, &emit_matvec_matrix, (void *)this, 0);
 
-  // Emit vector values.
-  int nv = mr->map(np, &emit_matvec_vector, (void *)x, 1);
+    // Emit vector values.
+    mr->map(np, &emit_matvec_vector, (void *)x, 1);
 
-  // Gather matrix column j and x_j to same processors.
-  mr->collate(NULL);
+    // Gather matrix column j and x_j to same processors.
+    mr->collate(NULL);
 
-  // Compute terms x_j * A_ij.
-  int nterms = mr->reduce(&terms, NULL);
+    // Compute terms x_j * A_ij.
+    int nterms = mr->reduce(&terms, NULL);
+  }
 
   // Even if A is sparse, want resulting product vector to be dense.
   // Emit some dummies to make the product vector dense.
   // These are dummy terms in the rowsum that will cause product
   // vector entries to be added.
   if (transpose) 
-    nv = mr->map(NumCols(), &emit_matvec_empty_terms, NULL, 1);
+    mr->map(NumCols(), &emit_matvec_empty_terms, NULL, 1);
   else
-    nv = mr->map(NumRows(), &emit_matvec_empty_terms, NULL, 1);
+    mr->map(NumRows(), &emit_matvec_empty_terms, NULL, 1);
 
   // Gather matrix now by rows.
   mr->collate(NULL);
@@ -214,7 +246,10 @@ void initialize_matrix(int itask, char *bytes, int nbytes, KeyValue *kv,
           nz.i = i;
           nz.j = j;
           nz.nzv = nzv;
-          kv->add((char *)&i, sizeof(i), (char *)&nz, sizeof(nz));
+          if (A->StorageFormat() == BY_ROW)
+            kv->add((char *)&i, sizeof(i), (char *)&nz, sizeof(nz));
+          else
+            kv->add((char *)&j, sizeof(j), (char *)&nz, sizeof(nz));
         }
         else {
           // Valid matrix entry for pagerank problem have nzv <= 1.
@@ -286,6 +321,44 @@ void store_matrix_directly(int itask, char *bytes, int nbytes, KeyValue *kv,
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// local_terms map() function
+// input:  ptr with A, x.
+// output: key = row index i; value = x_j * A_ij for each local A_ij.
+
+void local_terms(int itask, KeyValue *kv, void *ptr)
+{
+  struct matpoint{
+    MRMatrix *A;
+    MRVector *x;
+  };
+  struct matpoint *tmp = (struct matpoint *) ptr;
+  MRMatrix *A = tmp->A;
+  MRVector *x = tmp->x;
+  list<MatrixEntry>::iterator nz;
+  list<INTDOUBLE>::iterator v;
+  v = x->vec.begin();
+  if (A->UseTranspose()) {
+    // Would only be in local_terms if stored by rows and sorted by rows.
+    for (nz=A->Amat.begin(); nz!=A->Amat.end(); nz++) {
+      while ((*v).i != (*nz).i && v != x->vec.end()) v++;
+      double product = (*v).d * (*nz).nzv;
+ //  printf("  kDDkDD local_terms %d %f\n", (*nz).j, product);
+      kv->add((char *) &((*nz).j), sizeof((*nz).j), 
+              (char *) &product, sizeof(product));
+    }
+  }
+  else {
+    // Would only be in local_terms if stored by cols and sorted by cols.
+    for (nz=A->Amat.begin(); nz!=A->Amat.end(); nz++) {
+      while ((*v).i != (*nz).j && v != x->vec.end()) v++;
+      double product = (*v).d * (*nz).nzv;
+//   printf("  kDDkDD local_terms %d %f\n", (*nz).i, product);
+      kv->add((char *) &((*nz).i), sizeof((*nz).i), 
+              (char *) &product, sizeof(product));
+    }
+  }
+}
+/////////////////////////////////////////////////////////////////////////////
 // terms reduce() function
 // input:  key = column index; multivalue = {x_j, of A_ij for
 //         all i with nonzero A_ij.}
@@ -312,7 +385,7 @@ void terms(char *key, int keylen, char *multivalue, int nvalues, int *mvlen,
     if (aptr == xptr) continue;  // don't add in x_j * x_j.
 
     double product = x_j * aptr->d;
-// printf("  kDDkDD terms %d %f\n", aptr->i, product);
+//printf("  kDDkDD terms %d %f\n", aptr->i, product);
     kv->add((char *) &aptr->i, sizeof(aptr->i), 
             (char *) &product, sizeof(product));
   }
@@ -370,3 +443,4 @@ void emit_matrix_entries(int itask, KeyValue *kv, void *ptr)
               (char *)&((*nz).nzv), sizeof((*nz).nzv));
   }
 }
+

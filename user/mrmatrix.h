@@ -40,17 +40,32 @@ using namespace std;
 #include "mrall.h"
 class MRVector;
 
+//  Flags indicating how to store the matrix in persistent memory.
+//  BY_FILE == each proc gets a chunk of the matrix-market file and stores
+//             nonzeros from that chunk.
+//             DON'T CHANGE THIS VALUE FROM ZERO!  WE WILL TEST FOR > 0.
+//  BY_ROW  == MapReduce maps row indices to processors; the procs store
+//             the nonzeros mapped to them.
+//  BY_COL  == MapReduce maps column indices to procs; the procs store the
+//             nonzeros mapped to them.
+#define BY_FILE 0  
+#define BY_ROW  1  
+#define BY_COL  2
+
 ////////////////////////////////////////////////////////////////////////////
 
-typedef struct MatrixEntry {
+class MatrixEntry {
+public:
   int i;            // row index
   int j;            // column index
   double nzv;       // non-zero value.
+  MatrixEntry() {};
+  ~MatrixEntry() {};
 };
 
 class MRMatrix {
   public:  
-    MRMatrix(MapReduce *, int, int, char *, bool store_by_map=0);
+    MRMatrix(MapReduce *, int, int, char *, int storage=0);
     ~MRMatrix() {Amat.clear();}
 
     int NumRows() { return N; }
@@ -69,10 +84,13 @@ class MRMatrix {
     bool UseTranspose() {return transposeFlag;}
     void EmitEntries(MapReduce *, int);
     list<MatrixEntry> Amat;  // Non-zeros; probably should make private later.
+    int StorageFormat() {return storageFormat;}
   private:
     int N;  // Number of rows
     int M;  // Number of cols
     bool transposeFlag;  // State variable; indicates whether to use 
                          // A or A^T in current operation.
+    int  storageFormat; // How to store nonzeros in persistent memory:
+                         // BY_FILE, BY_ROW, BY_COL.
 };
 
