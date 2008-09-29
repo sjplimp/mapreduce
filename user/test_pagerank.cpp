@@ -94,17 +94,28 @@ void collect_allzero_rows(char *key, int keylen, char *multivalue,
 double compute_local_allzero_adj(
   MapReduce *mr,
   MRVector *x,
-  list<int> allzero,
-  double alpha
+  list<int> *allzero,
+  double alpha,
+  bool storage_aware
 )
 {
-  mr->map(mr->num_procs(), emit_allzero_rows, &allzero, 0);
-  x->EmitEntries(mr, 1);
-
-  mr->collate(NULL);  // this should require little or no communication.
-
   double sum = 0.;
-  mr->reduce(allzero_contribution, &sum);
+  if (storage_aware) {
+    list<int>::iterator i;
+    list<INTDOUBLE>::iterator v;
+    double zero = 0.;
+    v = x->vec.begin();
+    for (i = allzero->begin(); i != allzero->end(); i++) {
+      while ((*i) != (*v).i) v++;
+      sum += (*v).d;
+    }
+  }
+  else {
+    mr->map(mr->num_procs(), emit_allzero_rows, allzero, 0);
+    x->EmitEntries(mr, 1);
+    mr->collate(NULL);  // this should require little or no communication.
+    mr->reduce(allzero_contribution, &sum);
+  }
 
   return (alpha * sum / x->GlobalLen());
 }
@@ -144,7 +155,8 @@ MRVector *pagerank(
   MRMatrix *A,
   double alpha,
   double tolerance,
-  int storage_format
+  int storage_format,
+  bool storage_aware
 )
 {
   int me = mr->my_proc();
@@ -178,7 +190,8 @@ MRVector *pagerank(
 
     // Compute local adjustment for all-zero rows.
     double allzeroadj = 0.;
-    allzeroadj = compute_local_allzero_adj(mr, x, allzero, alpha);
+    allzeroadj = compute_local_allzero_adj(mr, x, &allzero, alpha, 
+                                           storage_aware);
     ladj += allzeroadj;
 
     // Compute global adjustment via all-reduce-like operation.
@@ -186,7 +199,7 @@ MRVector *pagerank(
     MPI_Allreduce(&ladj, &gadj, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     // Compute global adjustment.
-    A->MatVec(mr, x, y, 1);
+    A->MatVec(mr, x, y, 1, storage_aware);
 
     // Add adjustment to product vector in mr.
     y->AddScalar(gadj);
@@ -199,10 +212,22 @@ MRVector *pagerank(
 
     // Compute local max residual.
     double lresid = 0.;
-    x->EmitEntries(mr, 0);
-    y->EmitEntries(mr, 1);
-    mr->collate(NULL);
-    mr->reduce(compute_lmax_residual, &lresid);
+    if (storage_aware) {
+      y->vec.sort();
+      list<INTDOUBLE>::iterator v, w;
+      for (v=x->vec.begin(), w=y->vec.begin(); v!=x->vec.end(); v++, w++) {
+        // Sanity check 
+        if ((*v).i != (*w).i) cout << "I HATE LIFE\n" << endl;
+        double tmp = ABS((*v).d - (*w).d);
+        lresid = (tmp > lresid ? tmp : lresid);
+      }
+    }
+    else {
+      x->EmitEntries(mr, 0);
+      y->EmitEntries(mr, 1);
+      mr->collate(NULL);
+      mr->reduce(compute_lmax_residual, &lresid);
+    }
 
     // Compute global max residual.
     // Cheating here!  Should be done through MapReduce.
@@ -214,9 +239,12 @@ MRVector *pagerank(
     MRVector *tmp = x;
     x = y;
     y = tmp;
-    if (x->StorageFormat()) x->vec.sort(); // YUK! need vector sorted by index.
 
-if (me == 0) {cout << "iteration " << iter+1 << " resid " << gresid << endl; flush(cout);}
+    // if (me == 0) {
+    //   cout << "iteration " << iter+1 << " resid " << gresid << endl; 
+    //   flush(cout);
+    // }
+
     if (gresid < tolerance) 
       break;  // Iterations are done.
   }
@@ -264,15 +292,77 @@ int main(int narg, char **args)
   MPI_Comm_size(MPI_COMM_WORLD,&np);
   if (me == 0) {cout << "Here we go..." << endl; flush(cout);}
 
-  if (narg < 3) {
-    if (me == 0) printf("Syntax: pagerank file.mtx N [store_by_map 0/1]\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
-  }
-  int N = atoi(args[2]);  // Number of rows in matrix.
+  // Default parameters
+  bool storage_aware = 0;
   bool store_by_map = 0;
-  if (narg == 4) store_by_map = atoi(args[3]);
+  double alpha = 0.8;
+  double tolerance = 0.00001;
+  int NumberOfPageranks = 1;
+
+  // Parse the command line.
+  int ch;
+  opterr = 0;
+  char *optstring = "a:t:n:g:s:";
+
+  while ((ch = getopt(narg, args, optstring)) != -1) {
+    switch (ch) {
+    case 'a':
+      // Pagerank relaxation param
+      alpha = atof(optarg);
+      break;
+    case 't': 
+      // Pagerank tolerance
+      tolerance = atof(optarg);
+      break;
+    case 'n':
+      // Number of times to do pagerank
+      NumberOfPageranks = atoi(optarg);
+      break;
+    case 'g':
+      // Algorithm to use:  pure_mapreduce or storage_aware
+      if (optarg[0] == 'p' || optarg[0] == 'P') 
+        storage_aware = 0;
+      else if (optarg[0] == 's' || optarg[0] == 'S') 
+        storage_aware = 1;
+      else {
+        cout << "Invalid value for option -g" << endl;
+        MPI_Abort(MPI_COMM_WORLD, -1);
+      }
+      break;
+    case 's':
+      // Storage to use:  FILE or MAP
+      if (optarg[0] == 'f' || optarg[0] == 'F') 
+        store_by_map = 0;
+      else if (optarg[0] == 'm' || optarg[0] == 'M') 
+        store_by_map = 1;
+      else {
+        cout << "Invalid value for option -s" << endl;
+        MPI_Abort(MPI_COMM_WORLD, -1);
+      }
+      break;
+    case '?':
+      printf("Invalid option -%c\n", optopt);
+      MPI_Abort(MPI_COMM_WORLD, -1);
+      break;
+    }
+  }
+
+ 
+  if ((narg-optind) < 2) {
+    if (me == 0) 
+      cout << "Syntax: pagerank [-s {FILE|MAP}] "
+           << "[-g {PURE_MAPREDUCE|STORAGE_AWARE}] [-a alpha] [-t tolerance] "
+           << "[-n NumberOfPageranks] file.mtx N" << endl;
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+  int N = atoi(args[optind+1]);  // Number of rows in matrix.
   int storage_format = (store_by_map ? BY_ROW : BY_FILE);  // Best to store by
                                                            // row for pagerank
+  if (!store_by_map && storage_aware) {
+    cout << "Invalid options; must use store_by_map with "
+         << "storage_aware algorithm" << endl;
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
@@ -280,30 +370,33 @@ int main(int narg, char **args)
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
-  MRMatrix A(mr, N, N, args[1], store_by_map);
+  MRMatrix A(mr, N, N, args[optind], store_by_map);
 
   // Call PageRank function.
-  if (me == 0) {cout << "Calling pagerank..." << endl; flush(cout);}
-  MRVector *x = pagerank(mr, &A, 0.8, 0.00001, storage_format);  // Make alpha & tol input params later.
-  if (me == 0) {cout << "Pagerank done..." << endl; flush(cout);}
+  for (int npr = 0; npr < NumberOfPageranks; npr++) {
+    if (me == 0) {cout << "Calling pagerank..." << endl; flush(cout);}
+    MRVector *x = pagerank(mr, &A, alpha, tolerance,
+                           storage_format, storage_aware);  
+    if (me == 0) {cout << "Pagerank done..." << endl; flush(cout);}
 
-  // Output results:  Gather results to proc 0, sort and print.
-  double xmin = x->GlobalMin(mr);    
-  double xmax = x->GlobalMax(mr);       
-  double xavg = x->GlobalSum(mr) / x->GlobalLen();
-  if (x->GlobalLen() < 40) {
-    if (me == 0) printf("PageRank Vector:\n");
-    x->EmitEntries(mr, 0);
-    mr->gather(1);
-    mr->sort_keys(&compare);
-    mr->convert();
-    mr->reduce(&output, NULL);
-  }
-  if (me == 0) {
-    cout << "Page Rank Stats:  " << endl;
-    cout << "      Max Value:  " << xmax << endl;
-    cout << "      Min Value:  " << xmin << endl;
-    cout << "      Avg Value:  " << xavg << endl;
+    // Output results:  Gather results to proc 0, sort and print.
+    double xmin = x->GlobalMin(mr);    
+    double xmax = x->GlobalMax(mr);       
+    double xavg = x->GlobalSum(mr) / x->GlobalLen();
+    if (x->GlobalLen() < 40) {
+      if (me == 0) printf("PageRank Vector:\n");
+      x->EmitEntries(mr, 0);
+      mr->gather(1);
+      mr->sort_keys(&compare);
+      mr->convert();
+      mr->reduce(&output, NULL);
+    }
+    if (me == 0) {
+      cout << "Page Rank Stats:  " << endl;
+      cout << "      Max Value:  " << xmax << endl;
+      cout << "      Min Value:  " << xmin << endl;
+      cout << "      Avg Value:  " << xavg << endl;
+    }
   }
 
   // Clean up.

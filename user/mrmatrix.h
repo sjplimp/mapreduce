@@ -78,7 +78,8 @@ class MRMatrix {
 // printf("HOHO AddNonzero %d %d %f\n", i, j, nzv);
       Amat.push_front(nz);
     };
-    void MatVec(MapReduce *, MRVector *, MRVector *, bool);
+    void MatVec(MapReduce *, MRVector *, MRVector *, bool transpose = 0, 
+                bool storage_aware=0);
     void Scale(double);
     void MakeEmpty() {Amat.clear();};
     bool UseTranspose() {return transposeFlag;}

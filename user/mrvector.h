@@ -30,7 +30,6 @@
 
 #include <iostream>
 #include <list>
-#include <hashmap>
 #include "mpi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"

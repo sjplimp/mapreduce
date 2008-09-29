@@ -257,9 +257,9 @@ void emit_vector_entries(int itask, KeyValue *kv, void *ptr)
   // Assume ptr = MRVector.
   MRVector *x = (MRVector *) ptr;
 
+
   list<INTDOUBLE>::iterator v;
   for (v = x->vec.begin(); v != x->vec.end(); v++) {
-// printf("    kddkdd EmitVec %d %f\n", (*v).i, (*v).d);
     kv->add((char *)&((*v).i), sizeof((*v).i),
             (char *) &((*v).d), sizeof((*v).d));
   }

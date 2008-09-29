@@ -104,7 +104,8 @@ void MRMatrix::MatVec(
   MapReduce *mr,
   MRVector *x,
   MRVector *y,     // Result of A*x; optional.
-  bool transpose   // Flag indicating whether to do A*x or A^T * x.
+  bool transpose,  // Flag indicating whether to do A*x or A^T * x.
+  bool storage_aware // Use storage-aware algorithm if possible.
 )
 {
   int me = mr->my_proc();
@@ -112,7 +113,7 @@ void MRMatrix::MatVec(
 
   transposeFlag = transpose;
 
-  if (x->StorageFormat() &&
+  if (storage_aware && x->StorageFormat() &&
       ((storageFormat == BY_ROW && transposeFlag) ||  
       (storageFormat == BY_COL && !transposeFlag))) {
     // needed vector and matrix entries are on same proc;
