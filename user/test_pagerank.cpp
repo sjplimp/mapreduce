@@ -165,7 +165,10 @@ MRVector *pagerank(
   MRVector *y = new MRVector(mr, x->GlobalLen(), storage_format);
 
   double randomlink = (1.-alpha)/(double)(x->GlobalLen());
-  int iter, maxniter = (int) ceil(log10(tolerance) / log10(alpha));
+  int iter; 
+  int maxniter = (int) ceil(log10(tolerance) / log10(alpha));
+
+printf("%d KDDKDD MAXNITER %f %f %f %f %f %d\n", me, tolerance, alpha, log10(tolerance), log10(alpha), ceil(log10(tolerance) / log10(alpha)), maxniter);
 
   // Scale matrix A.
   A->Scale(alpha);
@@ -183,6 +186,7 @@ MRVector *pagerank(
   // PageRank iteration
   for (iter = 0; iter < maxniter; iter++) {
 
+printf("%d KDDKDD Start loop %d of %d  %f  %f\n", me, iter, maxniter, tolerance, alpha);
     // Compute adjustment for irreducibility (1-alpha)/n
     double ladj = 0.;
     double gadj = 0.;
@@ -240,13 +244,15 @@ MRVector *pagerank(
     x = y;
     y = tmp;
 
-    // if (me == 0) {
-    //   cout << "iteration " << iter+1 << " resid " << gresid << endl; 
-    //   flush(cout);
-    // }
+printf("%d KDDKDD Done switcheroo %d  %f  %f\n", me, iter, gresid, tolerance);
+    if (me == 0) {
+      cout << "iteration " << iter+1 << " resid " << gresid << endl; 
+      flush(cout);
+    }
 
     if (gresid < tolerance) 
       break;  // Iterations are done.
+printf("%d KDDKDD Done loop %d  %f  %f\n", me, iter, gresid, tolerance);
   }
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -370,7 +376,7 @@ int main(int narg, char **args)
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
-  MRMatrix A(mr, N, N, args[optind], store_by_map);
+  MRMatrix A(mr, N, N, args[optind], store_by_map, storage_aware);
 
   // Call PageRank function.
   for (int npr = 0; npr < NumberOfPageranks; npr++) {

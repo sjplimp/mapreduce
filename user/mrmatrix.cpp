@@ -54,8 +54,9 @@ MRMatrix::MRMatrix(
   int n,          // Number of matrix rows 
   int m,          // Number of matrix columns 
   char *filename, // Base filename; NULL if want to re-use existing Amat.
-  int storage     // Flag indicating whether to remap data by rows or cols
+  int storage,    // Flag indicating whether to remap data by rows or cols
                   // before storing on processors.  
+  bool storage_aware // Use storage-aware algorithm if possible.
 )
 {
   N = n;
@@ -70,10 +71,11 @@ MRMatrix::MRMatrix(
     mr->collate(NULL);
     // Store matrix by rows on processors.
     mr->reduce(&store_matrix_by_map, (void *)this);
-    if (storageFormat == BY_COL) 
-      Amat.sort(sort_by_col); // sort by column for easy matvec
-    else
-      Amat.sort(sort_by_row); // sort by row for easy matvec
+    if (storage_aware)
+      if (storageFormat == BY_COL) 
+        Amat.sort(sort_by_col); // sort by column for easy matvec
+      else
+        Amat.sort(sort_by_row); // sort by row for easy matvec
   }
   else {
     // storage = BY_FILE

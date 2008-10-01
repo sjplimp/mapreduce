@@ -65,7 +65,7 @@ public:
 
 class MRMatrix {
   public:  
-    MRMatrix(MapReduce *, int, int, char *, int storage=0);
+    MRMatrix(MapReduce *, int, int, char *, int storage=0, bool storage_aware=0);
     ~MRMatrix() {Amat.clear();}
 
     int NumRows() { return N; }
