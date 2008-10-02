@@ -281,6 +281,30 @@ void compute_lmax_residual(char *key, int keylen,
   if (diff > *lmax) *lmax = diff;
 }
 
+////////////////////////////////////////////////////////////////////////////
+// Print some simple stats.
+void simple_stats(MapReduce *mr, MRMatrix *A, MRVector *x)
+{
+int me = mr->my_proc();
+int np;  MPI_Comm_size(MPI_COMM_WORLD, &np);
+int lnentry, maxnentry, minnentry, sumnentry;
+
+  lnentry = A->Amat.size();
+  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  if (me == 0) 
+    printf("Matrix Stats:  nonzeros/proc (max, min, avg):  %d %d %d\n", 
+           maxnentry, minnentry, sumnentry/np);
+
+  lnentry = x->vec.size();
+  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  if (me == 0) 
+    printf("Vector Stats:  entries/proc (max, min, avg):  %d %d %d\n", 
+           maxnentry, minnentry, sumnentry/np);
+}
 
 ////////////////////////////////////////////////////////////////////////////
 int main(int narg, char **args)
@@ -397,6 +421,7 @@ int main(int narg, char **args)
       cout << "      Min Value:  " << xmin << endl;
       cout << "      Avg Value:  " << xavg << endl;
     }
+    simple_stats(mr, &A, x);
   }
 
   // Clean up.
