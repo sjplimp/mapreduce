@@ -241,6 +241,7 @@ void initialize_matrix(int itask, char *bytes, int nbytes, KeyValue *kv,
     line[linecnt++] = bytes[k];
     if (bytes[k] == '\n') {
       if (line[0] != '%') {  // i.e., not a comment line.
+        line[linecnt] = '\0';
         sscanf(line, "%d %d %lf", &i, &j, &nzv);
         if (nzv <= 1.) {
           // Valid matrix entry for pagerank problem have nzv <= 1.
@@ -305,6 +306,7 @@ void store_matrix_directly(int itask, char *bytes, int nbytes, KeyValue *kv,
     line[linecnt++] = bytes[k];
     if (bytes[k] == '\n') {
       if (line[0] != '%') {  // i.e., not a comment line.
+        line[linecnt] = '\0';
         sscanf(line, "%d %d %lf", &i, &j, &nzv);
         if (nzv <= 1.) {
           // Valid matrix entry for pagerank problem have nzv <= 1.

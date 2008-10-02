@@ -168,8 +168,6 @@ MRVector *pagerank(
   int iter; 
   int maxniter = (int) ceil(log10(tolerance) / log10(alpha));
 
-printf("%d KDDKDD MAXNITER %f %f %f %f %f %d\n", me, tolerance, alpha, log10(tolerance), log10(alpha), ceil(log10(tolerance) / log10(alpha)), maxniter);
-
   // Scale matrix A.
   A->Scale(alpha);
   x->PutScalar(1./x->GlobalLen());
@@ -186,7 +184,6 @@ printf("%d KDDKDD MAXNITER %f %f %f %f %f %d\n", me, tolerance, alpha, log10(tol
   // PageRank iteration
   for (iter = 0; iter < maxniter; iter++) {
 
-printf("%d KDDKDD Start loop %d of %d  %f  %f\n", me, iter, maxniter, tolerance, alpha);
     // Compute adjustment for irreducibility (1-alpha)/n
     double ladj = 0.;
     double gadj = 0.;
@@ -244,15 +241,13 @@ printf("%d KDDKDD Start loop %d of %d  %f  %f\n", me, iter, maxniter, tolerance,
     x = y;
     y = tmp;
 
-printf("%d KDDKDD Done switcheroo %d  %f  %f\n", me, iter, gresid, tolerance);
-    if (me == 0) {
-      cout << "iteration " << iter+1 << " resid " << gresid << endl; 
-      flush(cout);
-    }
+    // if (me == 0) {
+    //   cout << "iteration " << iter+1 << " resid " << gresid << endl; 
+    //   flush(cout);
+    // }
 
     if (gresid < tolerance) 
       break;  // Iterations are done.
-printf("%d KDDKDD Done loop %d  %f  %f\n", me, iter, gresid, tolerance);
   }
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -279,7 +274,6 @@ void compute_lmax_residual(char *key, int keylen,
                            char *multivalue, int nvalues, int *mvlen,
                            KeyValue *kv, void *ptr)
 {
-// printf("KDDKDD key %d nvalues = %d (%f,%f)\n", *((int*)key), nvalues, *((double*)multivalue), *((double*)multivalue+1));
   assert(nvalues == 2);
   double *lmax = (double *) ptr;
   double *values = (double *) multivalue;
