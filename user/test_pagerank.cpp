@@ -257,6 +257,7 @@ MRVector *pagerank(
   delete y;
   double gsum = x->GlobalSum(mr);
   x->Scale(1./gsum);
+  A->Scale(1./alpha);  // Return A to original condition
   return x;
 }
 
