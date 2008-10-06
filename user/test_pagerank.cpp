@@ -100,22 +100,10 @@ double compute_local_allzero_adj(
 )
 {
   double sum = 0.;
-  if (storage_aware) {
-    list<int>::iterator i;
-    list<INTDOUBLE>::iterator v;
-    double zero = 0.;
-    v = x->vec.begin();
-    for (i = allzero->begin(); i != allzero->end(); i++) {
-      while ((*i) != (*v).i) v++;
-      sum += (*v).d;
-    }
-  }
-  else {
-    mr->map(mr->num_procs(), emit_allzero_rows, allzero, 0);
-    x->EmitEntries(mr, 1);
-    mr->collate(NULL);  // this should require little or no communication.
-    mr->reduce(allzero_contribution, &sum);
-  }
+  mr->map(mr->num_procs(), emit_allzero_rows, allzero, 0);
+  x->EmitEntries(mr, 1);
+  mr->collate(NULL);  // this should require little or no communication.
+  mr->reduce(allzero_contribution, &sum);
 
   return (alpha * sum / x->GlobalLen());
 }
