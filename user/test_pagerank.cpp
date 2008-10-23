@@ -100,6 +100,7 @@ double compute_local_allzero_adj(
 )
 {
   double sum = 0.;
+
   mr->map(mr->num_procs(), emit_allzero_rows, allzero, 0);
   x->EmitEntries(mr, 1);
   mr->collate(NULL);  // this should require little or no communication.
@@ -168,9 +169,30 @@ MRVector *pagerank(
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
+#ifdef KDDTIME
+double KDDmatvec = 0.;
+double KDDallzero = 0.;
+double KDDadjust = 0.;
+double KDDresid = 0.;
+double KDDmaxmatvec = 0.;
+double KDDmaxallzero = 0.;
+double KDDmaxadjust = 0.;
+double KDDmaxresid = 0.;
+double KDDminmatvec = 0.;
+double KDDminallzero = 0.;
+double KDDminadjust = 0.;
+double KDDminresid = 0.;
+double KDDtmp;
+#endif //KDDTIME
+
   if (me == 0) {cout << "Beginning iterations..." << endl; flush(cout);}
   // PageRank iteration
   for (iter = 0; iter < maxniter; iter++) {
+
+#ifdef KDDTIME
+MPI_Barrier(MPI_COMM_WORLD);
+KDDtmp = MPI_Wtime();
+#endif //KDDTIME
 
     // Compute adjustment for irreducibility (1-alpha)/n
     double ladj = 0.;
@@ -187,8 +209,20 @@ MRVector *pagerank(
     // Cheating here!  Should be done through MapReduce.
     MPI_Allreduce(&ladj, &gadj, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+#ifdef KDDTIME
+KDDallzero += (MPI_Wtime() - KDDtmp);
+MPI_Barrier(MPI_COMM_WORLD);
+KDDtmp = MPI_Wtime();
+#endif //KDDTIME
+
     // Compute global adjustment.
     A->MatVec(mr, x, y, 1, storage_aware);
+
+#ifdef KDDTIME
+KDDmatvec += (MPI_Wtime() - KDDtmp);
+MPI_Barrier(MPI_COMM_WORLD);
+KDDtmp = MPI_Wtime();
+#endif //KDDTIME
 
     // Add adjustment to product vector in mr.
     y->AddScalar(gadj);
@@ -198,6 +232,12 @@ MRVector *pagerank(
 
     // Scale vector in mr by 1/maxnorm.
     y->Scale(1./gmax);
+
+#ifdef KDDTIME
+KDDadjust += (MPI_Wtime() - KDDtmp);
+MPI_Barrier(MPI_COMM_WORLD);
+KDDtmp = MPI_Wtime();
+#endif //KDDTIME
 
     // Compute local max residual.
     double lresid = 0.;
@@ -223,6 +263,9 @@ MRVector *pagerank(
     double gresid;
     MPI_Allreduce(&lresid, &gresid, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
+#ifdef KDDTIME
+KDDresid += (MPI_Wtime() - KDDtmp);
+#endif //KDDTIME
 
     //  Move result y to x for next iteration.
     MRVector *tmp = x;
@@ -239,6 +282,27 @@ MRVector *pagerank(
   }
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
+
+#ifdef KDDTIME
+MPI_Allreduce(&KDDallzero, &KDDmaxallzero, 1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
+MPI_Allreduce(&KDDmatvec,  &KDDmaxmatvec,  1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
+MPI_Allreduce(&KDDadjust,  &KDDmaxadjust,  1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
+MPI_Allreduce(&KDDresid,   &KDDmaxresid,   1,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
+MPI_Allreduce(&KDDallzero, &KDDminallzero, 1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);
+MPI_Allreduce(&KDDmatvec,  &KDDminmatvec,  1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);
+MPI_Allreduce(&KDDadjust,  &KDDminadjust,  1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);
+MPI_Allreduce(&KDDresid,   &KDDminresid,   1,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);
+if (mr->my_proc() == 0) cout << "ALLZERO: " << KDDminallzero 
+                             << " " << KDDmaxallzero << "\n" 
+                             << "MATVEC:  " << KDDminmatvec  
+                             << " " << KDDmaxmatvec  << "\n"
+                             << "ADJUST:  " << KDDminadjust  
+                             << " " << KDDmaxadjust  << "\n" 
+                             << "RESID:   " << KDDminresid   
+                             << " " << KDDmaxresid   << "\n";
+#endif //KDDTIME
+
+
   if (mr->my_proc() == 0)
     cout << " Number of iterations " << iter+1 << " Iteration Time "
          << tstop-tstart << endl;

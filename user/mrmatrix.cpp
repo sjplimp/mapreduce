@@ -115,6 +115,14 @@ void MRMatrix::MatVec(
 
   transposeFlag = transpose;
 
+#ifdef KDDTIME
+double KDDMAT = 0.;
+double KDDCOLLATE = 0.;
+double KDDFINISH = 0.;
+double KDDstart = 0.;
+KDDstart = MPI_Wtime();
+#endif //KDDTIME
+
   if (storage_aware && x->StorageFormat() &&
       ((storageFormat == BY_ROW && transposeFlag) ||  
       (storageFormat == BY_COL && !transposeFlag))) {
@@ -153,12 +161,27 @@ void MRMatrix::MatVec(
   else
     mr->map(NumRows(), &emit_matvec_empty_terms, NULL, 1);
 
+#ifdef KDDTIME
+KDDMAT = MPI_Wtime() - KDDstart;
+KDDstart = MPI_Wtime();
+#endif //KDDTIME
+
   // Gather matrix now by rows.
   mr->collate(NULL);
+
+#ifdef KDDTIME
+KDDCOLLATE = MPI_Wtime() - KDDstart;
+KDDstart = MPI_Wtime();
+#endif //KDDTIME
 
   // Compute sum of terms over rows.
   if (y) y->MakeEmpty();
   int nrow = mr->reduce(&rowsum, y);
+
+#ifdef KDDTIME
+KDDFINISH = MPI_Wtime() - KDDstart;
+printf("%d KDDKDDKDDKDD  0.00000 %f  %f  %f\n", me, KDDMAT, KDDCOLLATE, KDDFINISH);
+#endif //KDDTIME
 }
 
 /////////////////////////////////////////////////////////////////////////////

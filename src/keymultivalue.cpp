@@ -75,6 +75,11 @@ void KeyMultiValue::convert(KeyValue *kv)
 
   // allocate empty hash
 
+#ifdef KDDTIME
+MPI_Barrier(MPI_COMM_WORLD); //KDDKDD
+double KDDtmp = MPI_Wtime();
+#endif //KDDTIME
+
   nbuckets = 1;
   hashmask = nbuckets-1;
   buckets = (int *) memory->smalloc(nbuckets*sizeof(int),"KMV:buckets");
@@ -83,6 +88,12 @@ void KeyMultiValue::convert(KeyValue *kv)
 
   nunique = maxunique = 0;
   uniques = NULL;
+
+#ifdef KDDTIME
+double KDDSTART = MPI_Wtime() - KDDtmp;
+MPI_Barrier(MPI_COMM_WORLD); //KDDKDD
+KDDtmp = MPI_Wtime();
+#endif //KDDTIME
 
   // use hash to identify unique keys
   // for each key, either create new unique or increment nvalue count
@@ -112,6 +123,11 @@ void KeyMultiValue::convert(KeyValue *kv)
     }
   }
 
+#ifdef KDDTIME
+double KDDHASH = MPI_Wtime() - KDDtmp;
+KDDtmp = MPI_Wtime();
+#endif //KDDTIME
+
   // setup keys and keydata for KMV from each unique key in KV
 
   nkey = nunique;
@@ -129,6 +145,11 @@ void KeyMultiValue::convert(KeyValue *kv)
     memcpy(&keydata[keys[i]],&kv_keydata[kv_keys[uniques[i].keyindex]],
 	   keys[i+1]-keys[i]);
 
+#ifdef KDDTIME
+double KDDKEYS = MPI_Wtime() - KDDtmp;
+KDDtmp = MPI_Wtime();
+#endif //KDDTIME
+
   // setup multivalues & nvalues for KMV from unique mvsize & nvalue
 
   multivalues = 
@@ -141,6 +162,11 @@ void KeyMultiValue::convert(KeyValue *kv)
     multivalues[i] = multivalues[i-1] + uniques[i-1].mvsize;
     nvalues[i] = nvalues[i-1] + uniques[i-1].nvalue;
   }
+
+#ifdef KDDTIME
+double KDDMVS = MPI_Wtime() - KDDtmp;
+KDDtmp = MPI_Wtime();
+#endif //KDDTIME
 
   // setup valuesizes and multivaluedata for KMV
   // rehash KV key to find corresponding unique entry
@@ -172,6 +198,13 @@ void KeyMultiValue::convert(KeyValue *kv)
     valuesizes[offset] = valuebytes;
     uniques[ikey].nvalue++;
   }
+#ifdef KDDTIME
+double KDDSIZES = MPI_Wtime() - KDDtmp;
+int me;
+MPI_Comm_rank(MPI_COMM_WORLD, &me);
+printf("%d KDDKDD %d KMV %f %f %f %f %f\n", 
+       me, kv_nkey, KDDSTART, KDDHASH, KDDKEYS, KDDMVS, KDDSIZES);
+#endif //KDDTIME
 
   // clean up
 

@@ -2,7 +2,7 @@
 
 CC =		mpic++ -m64
 #CCFLAGS =	-g -O -I../src 
-CCFLAGS =	-g  -I../src 
+CCFLAGS =	-g  -I../src  -DKDDTIME
 
 LINK =		mpic++ -m64
 #LINKFLAGS =	-g -O -L../src -lmrmpi
