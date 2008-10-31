@@ -1,7 +1,12 @@
 This directory contains MapReduce programs written by users
 which call the MapReduce-MPI library.
 
-See the examples dir for other MapReduce programs.
+The Makefiles in this dir can be used to build one or more of the test
+programs for various platforms.
 
-The MapReduce-MPI library has just been released, so there
-are no user programs yet.
+test_cc.cpp	     connected components of a graph
+test_gs.cpp	     global sum
+test_matvec.cpp	     matrix-vector multiply of a sparse matrix
+test_pagerank.cpp    PageRank on a sparse matrix
+
+See the examples dir for other MapReduce programs.
