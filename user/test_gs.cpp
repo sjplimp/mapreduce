@@ -2,31 +2,11 @@
 // Karen Devine, 1416
 // June 2008
 //
-// Performs matrix-vector multiplication  A*x=y.
+// Performs global sum
 //
-// Syntax: matvec basefilename #_of_files N M
+// Syntax: gs
 //
-// Assumes matrix file format as follows:
-//     row_i  col_j  nonzero_value    (one line for each local nonzero)
-// The number of these files is given by the #_of_files argument
-// on the command line.  These files will be read in parallel if
-// #_of_files > 1.
-//
-// The files should be named basefilename.0000, basefilename.0001, etc.
-// up to the #_of_files-1.
-//
-// The dimensions of the matrix A are given by N and M (N rows, M columns).
-// Ideally, we would store this info in the files, but I haven't yet
-// figured out how to do the broadcast necessary to get this info from
-// the files to the processors.
-//
-// Values of the resulting vector y are written to stdout in sorted order:
-//     row_i  y_i
-//
-// SVN Information:
-//  $Author:$
-//  $Date:$
-//  $Revision:$
+// test of global sum functionality
 
 #include <iostream>
 #include <list>

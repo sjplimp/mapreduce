@@ -1,21 +1,21 @@
-# Mac/MPI Makefile for MapReduce programs
+# Linux/MPI Makefile for MapReduce programs
 
-CC =		mpic++ -m64
-#CCFLAGS =	-g -O -I../src 
-CCFLAGS =	-g  -I../src  -DKDDTIME
-LINK =		mpic++ -m64
-#LINKFLAGS =	-g -O -L../src -lmrmpi
+CC =		g++
+CCFLAGS =	-g -I../src  -DMPICH_IGNORE_CXX_SEEK
+LINK =		g++
 LINKFLAGS =	-g  
 USRLIB =	-L../src -lmrmpi
-SYSLIB =	
-LIB =		../src/libmrmpi.a
+SYSLIB =	-lmpich -lpthread
 
 SRC = 		mrvector.cpp mrmatrix.cpp 
 OBJS = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank gs
+all:	cc matvec pagerank gs
+
+cc:	test_cc.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_cc.o $(USRLIB) $(SYSLIB) -o cc
 
 gs:	test_gs.o mrglobalsum.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_gs.o mrglobalsum.o $(USRLIB) $(SYSLIB) -o gs
@@ -28,7 +28,7 @@ matvec:	test_matvec.o $(OBJS) $(LIB)
 
 clean:
 	rm *.o
-	rm matvec pagerank
+	rm cc matvec pagerank gs
 
 # Rules
 
