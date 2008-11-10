@@ -38,10 +38,14 @@ void reduce2(char *, int, char *, int, int *, KeyValue *, void *);
 void reduce3(char *, int, char *, int, int *, KeyValue *, void *);
 void reduce4(char *, int, char *, int, int *, KeyValue *, void *);
 int sort(char *, int, char *, int);
+void procs2lattice2d(int, int, int, int, int &, int &, int &, int &);
+void procs2lattice3d(int, int, int, int, int,
+		     int &, int &, int &, int &, int &, int &);
 void error(int, char *);
 void errorone(char *);
 
 struct CC {
+  int me,nprocs;
   int root;
   int input;
   int nring;
@@ -61,9 +65,12 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
+  CC cc;
+  cc.me = me;
+  cc.nprocs = nprocs;
+
   // parse command-line args
 
-  CC cc;
   cc.root = -1;
   cc.input = NOINPUT;
   cc.nfiles = 0;
@@ -144,7 +151,7 @@ int main(int narg, char **args)
   mr->collate(NULL);
   mr->reduce(&reduce1,&cc);
 
-  while (1) {
+  while (0) {
     mr->collate(NULL);
     mr->reduce(&reduce2,&cc);
 
@@ -195,26 +202,130 @@ void read_matrix(int itask, char *str, int size, KeyValue *kv, void *ptr)
 
 /* ----------------------------------------------------------------------
    ring function for map
+   ring is periodic with Nring vertices
+   vertices are numbered 1 to Nring
+   partition vertices in chunks of size Nring/P per proc
+   emit 2 edges for each vertex I own
 ------------------------------------------------------------------------- */
 
 void ring(int itask, KeyValue *kv, void *ptr)
 {
+  int edge[2];
+
+  CC *cc = (CC *) ptr;
+  int me = cc->me;
+  int nprocs = cc->nprocs;
+  int nring = cc->nring;
+
+  int first = me*nring/nprocs + 1;
+  int last = (me+1)*nring/nprocs + 1;
+
+  for (int v = first; v < last; v++) {
+    edge[0] = v;
+    edge[1] = v+1;
+    if (edge[1] > nring) edge[1] = 1;
+    kv->add((char *) &v,sizeof(int),(char *) edge,2*sizeof(int));
+    edge[1] = v-1;
+    if (edge[1] == 0) edge[1] = nring;
+    kv->add((char *) &v,sizeof(int),(char *) edge,2*sizeof(int));
+  }
 }
 
 /* ----------------------------------------------------------------------
-   ring function for map
+   grid2d function for map
+   2d grid is non-periodic, with Nx by Ny vertices
+   vertices are numbered 1 to Nx*Ny with x varying fastest, then y
+   partition vertices in 2d chunks based on 2d partition of lattice
+   emit 4 edges for each vertex I own (less on non-periodic boundaries)
 ------------------------------------------------------------------------- */
 
 void grid2d(int itask, KeyValue *kv, void *ptr)
 {
+  int i,j,ii,jj,n,edge[2];
+
+  CC *cc = (CC *) ptr;
+  int me = cc->me;
+  int nprocs = cc->nprocs;
+  int nx = cc->nx;
+  int ny = cc->ny;
+
+  int nx_local,nx_offset,ny_local,ny_offset;
+  procs2lattice2d(me,nprocs,nx,ny,nx_local,nx_offset,ny_local,ny_offset);
+
+  for (i = 0; i < nx_local; i++) {
+    for (j = 0; j < ny_local; j++) {
+      ii = i + nx_offset;
+      jj = j + ny_offset;
+      n = jj*nx + ii + 1;
+      edge[0] = n;
+      edge[1] = n-1;
+      if (ii-1 >= 0) 
+	kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+      edge[1] = n+1;
+      if (ii+1 < nx)
+	kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+      edge[1] = n+nx;
+      if (jj-1 >= 0) 
+	kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+      edge[1] = n-nx;
+      if (jj+1 < ny)
+	kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------
-   ring function for map
+   grid3d function for map
+   3d grid is non-periodic, with Nx by Ny by Nz vertices
+   vertices are numbered 1 to Nx*Ny*Nz with x varying fastest, then y, then z
+   partition vertices in 3d chunks based on 3d partition of lattice
+   emit 6 edges for each vertex I own (less on non-periodic boundaries)
 ------------------------------------------------------------------------- */
 
 void grid3d(int itask, KeyValue *kv, void *ptr)
 {
+  int i,j,k,ii,jj,kk,n,edge[2];
+
+  CC *cc = (CC *) ptr;
+  int me = cc->me;
+  int nprocs = cc->nprocs;
+  int nx = cc->nx;
+  int ny = cc->ny;
+  int nz = cc->nz;
+
+  int nx_local,nx_offset,ny_local,ny_offset,nz_local,nz_offset;
+  procs2lattice3d(me,nprocs,nx,ny,nz,nx_local,nx_offset,
+		  ny_local,ny_offset,nz_local,nz_offset);
+
+  for (i = 0; i < nx_local; i++) {
+    for (j = 0; j < ny_local; j++) {
+      for (k = 0; k < nz_local; k++) {
+	ii = i + nx_offset;
+	jj = j + ny_offset;
+	kk = k + nz_offset;
+	n = kk*nx*ny + jj*nx + ii + 1;
+	edge[0] = n;
+	edge[1] = n-1;
+	if (ii-1 >= 0) 
+	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	edge[1] = n+1;
+	if (ii+1 < nx)
+	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	edge[1] = n+nx;
+	if (jj-1 >= 0) 
+	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	edge[1] = n-nx;
+	if (jj+1 < ny)
+	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	edge[1] = n+nx*ny;
+	if (kk-1 >= 0) 
+	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	edge[1] = n-nx*ny;
+	if (kk+1 < nz)
+	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+      }
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -264,6 +375,101 @@ int sort(char *p1, int len1, char *p2, int len2)
   if (i1 < i2) return -1;
   else if (i1 > i2) return 1;
   else return 0;
+}
+
+/* ----------------------------------------------------------------------
+   assign nprocs to 2d global lattice so as to minimize perimeter per proc
+------------------------------------------------------------------------- */
+
+void procs2lattice2d(int me, int nprocs, int nx, int ny,
+		     int &nx_local, int &nx_offset,
+		     int &ny_local, int &ny_offset)
+{
+  int ipx,ipy,nx_procs,ny_procs;
+  double boxx,boxy,surf;
+  double bestsurf = 2 * (nx+ny);
+  
+  // loop thru all possible factorizations of nprocs
+  // surf = perimeter of a proc sub-domain
+ 
+ ipx = 1;
+  while (ipx <= nprocs) {
+    if (nprocs % ipx == 0) {
+      ipy = nprocs/ipx;
+      boxx = float(nx)/ipx;
+      boxy = float(ny)/ipy;
+      surf = boxx + boxy;
+      if (surf < bestsurf) {
+	bestsurf = surf;
+	nx_procs = ipx;
+	ny_procs = ipy;
+      }
+    }
+    ipx++;
+  }
+
+  int iprocx = me/ny_procs;
+  nx_offset = iprocx*nx/nx_procs;
+  nx_local = (iprocx+1)*nx/nx_procs - nx_offset;
+
+  int iprocy = me % ny_procs;
+  ny_offset = iprocy*ny/ny_procs;
+  ny_local = (iprocy+1)*ny/ny_procs - ny_offset;
+}
+
+/* ----------------------------------------------------------------------
+   assign nprocs to 3d global lattice so as to minimize surf area per proc
+------------------------------------------------------------------------- */
+
+void procs2lattice3d(int me, int nprocs, int nx, int ny, int nz,
+		     int &nx_local, int &nx_offset,
+		     int &ny_local, int &ny_offset,
+		     int &nz_local, int &nz_offset)
+{
+  int ipx,ipy,ipz,nx_procs,ny_procs,nz_procs,nremain;
+  double boxx,boxy,boxz,surf;
+  double bestsurf = 2 * (nx*ny + ny*nz + nz*nx);
+  
+  // loop thru all possible factorizations of nprocs
+  // surf = surface area of a proc sub-domain
+
+  ipx = 1;
+  while (ipx <= nprocs) {
+    if (nprocs % ipx == 0) {
+      nremain = nprocs/ipx;
+      ipy = 1;
+      while (ipy <= nremain) {
+        if (nremain % ipy == 0) {
+          ipz = nremain/ipy;
+	  boxx = float(nx)/ipx;
+	  boxy = float(ny)/ipy;
+	  boxz = float(nz)/ipz;
+	  surf = boxx*boxy + boxy*boxz + boxz*boxx;
+	  if (surf < bestsurf) {
+	    bestsurf = surf;
+	    nx_procs = ipx;
+	    ny_procs = ipy;
+	    nz_procs = ipz;
+	  }
+	}
+	ipy++;
+      }
+    }
+    ipx++;
+  }
+
+  int nyz_procs = ny_procs*nz_procs;
+  int iprocx = (me/nyz_procs) % nx_procs;
+  nx_offset = iprocx*nx/nx_procs;
+  nx_local = (iprocx+1)*nx/nx_procs - nx_offset;
+
+  int iprocy = (me/nz_procs) % ny_procs;
+  ny_offset = iprocy*ny/ny_procs;
+  ny_local = (iprocy+1)*ny/ny_procs - ny_offset;
+
+  int iprocz = (me/1) % nz_procs;
+  nz_offset = iprocz*nz/nz_procs;
+  nz_local = (iprocz+1)*nz/nz_procs - nz_offset;
 }
 
 /* ---------------------------------------------------------------------- */
