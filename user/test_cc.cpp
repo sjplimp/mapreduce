@@ -46,6 +46,7 @@ void errorone(char *);
 
 struct CC {
   int me,nprocs;
+  int doneflag;
   int root;
   int input;
   int nring;
@@ -151,16 +152,16 @@ int main(int narg, char **args)
   mr->collate(NULL);
   mr->reduce(&reduce1,&cc);
 
-  while (0) {
+  while (1) {
     mr->collate(NULL);
     mr->reduce(&reduce2,&cc);
 
     mr->collate(NULL);
-    int doneflag = 0;
+    cc.doneflag = 1;
     mr->reduce(&reduce3,&cc);
 
     int alldone;
-    MPI_Allreduce(&doneflag,&alldone,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+    MPI_Allreduce(&cc.doneflag,&alldone,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
     if (alldone) break;
 
     mr->collate(NULL);
@@ -348,11 +349,43 @@ void reduce2(char *key, int keybytes, char *multivalue,
 
 /* ----------------------------------------------------------------------
    reduce3 function
+   input KMV = all edges in zone, stored twice with different D values
+   one value in multi-value = B, Eij, Si, Sj
+     B = sorting criterion, Eij = (Vi,Vj), Si = (Zi,dist), Sj = (Zj,dist)
+   output KV = vertices with updated state
+     key = Vi, value = (Eij,Si)
 ------------------------------------------------------------------------- */
 
 void reduce3(char *key, int keybytes, char *multivalue,
 	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  CC *cc = (CC *) ptr;
+  
+  // create empty hash table for vertex states
+  // key = vertex ID
+  // value = vertex state = Si = (Zi,dist) where Zi = zone ID
+
+  // load hash table with vertices of all edges in multi-value
+
+  // sort multi-values by B
+  // create index vector
+
+  // loop over edges in sorted order
+  // extract Si and Sj for Eij from hash table
+  // Zmin = min(Zi,Zj)
+  // Dmin = lowest dist of vertex whose S has Zmin
+  // if Si or Sj is already (Zmin,Dmin), don't change it
+  // if Si or Sj is not (Zmin,Dmin), change it to Snew = (Zmin,Dmin+1)
+  // is Si changes, put it back in hash table, set cc.doneflag = 1
+
+  // create 2nd hash table to store unique Eij in multi-value
+
+  // emit 2 KV per unique edge in MV, skip edge if already in hash table
+  // Key = Vi, Val = Eij Si
+  // Key = Vj, Val = Eij Sj
+  // Si,Sj are extracted from hash table
+
+  // delete 2 hash tables
 }
 
 /* ----------------------------------------------------------------------
