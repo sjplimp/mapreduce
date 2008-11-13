@@ -259,10 +259,12 @@ void ring(int itask, KeyValue *kv, void *ptr)
     edge[0] = v;
     edge[1] = v+1;
     if (edge[1] > nring) edge[1] = 1;
-    kv->add((char *) &v,sizeof(int),(char *) edge,2*sizeof(int));
+    kv->add((char *) &(edge[0]),sizeof(int),(char *) edge,2*sizeof(int));
+    kv->add((char *) &(edge[1]),sizeof(int),(char *) edge,2*sizeof(int));
     edge[1] = v-1;
     if (edge[1] == 0) edge[1] = nring;
-    kv->add((char *) &v,sizeof(int),(char *) edge,2*sizeof(int));
+    kv->add((char *) &(edge[0]),sizeof(int),(char *) edge,2*sizeof(int));
+    kv->add((char *) &(edge[1]),sizeof(int),(char *) edge,2*sizeof(int));
   }
 }
 
@@ -373,8 +375,11 @@ void grid3d(int itask, KeyValue *kv, void *ptr)
 #define PRINT_REDUCE1(e, s) \
     printf("reduce1:  Key (%d %d) Value (%d %d %d)\n", \
             e->vi, e->vj, s.vtx, s.zone, s.dist);  
+#define HELLO_REDUCE1(v, n) \
+    printf("HELLO REDUCE1 Vertex %d Nvalues %d\n", *v, nvalues);
 #else
 #define PRINT_REDUCE1(e, s)
+#define HELLO_REDUCE1(v, n)
 #endif
 
 void reduce1(char *key, int keybytes, char *multivalue,
@@ -384,6 +389,8 @@ void reduce1(char *key, int keybytes, char *multivalue,
   VERTEX *v = (VERTEX *) key;
   EDGE *e = (EDGE *) multivalue;
   STATE s;
+
+  HELLO_REDUCE1(v, nvalues);
 
   s.dist = 0;
   for (int n = 0; n < nvalues; n++, e++) {
@@ -405,14 +412,20 @@ void reduce1(char *key, int keybytes, char *multivalue,
            key, rout.sortdist, rout.e.vi, rout.e.vj, \
            rout.si.vtx, rout.si.zone, rout.si.dist, \
            rout.sj.vtx, rout.sj.zone, rout.sj.dist);  
+#define HELLO_REDUCE2(key, nvalues) \
+   printf("HELLO REDUCE2  (%d %d) nvalues %d\n", \
+          ((EDGE *)key)->vi, ((EDGE *)key)->vj, nvalues);
 #else
 #define PRINT_REDUCE2(key, rout) 
+#define HELLO_REDUCE2(key, nvalues) 
 #endif
 
 
 void reduce2(char *key, int keybytes, char *multivalue,
 	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  HELLO_REDUCE2(key, nvalues);
+
   assert(nvalues == 2);  // For graphs, each edge has two vertices, so 
                          // the multivalue should have at most two states.
 
@@ -509,9 +522,12 @@ void reduce3(char *key, int keybytes, char *multivalue,
 #ifdef NOISY
 #define PRINT_REDUCE4(e, s) \
     printf("reduce4:  Key (%d %d) Value (%d %d %d)\n", \
-            e->vi, e->vj, s.vtx, s.zone, s.dist);  
+            e.vi, e.vj, s.vtx, s.zone, s.dist);  
+#define HELLO_REDUCE4(key, nvalues) \
+    printf("HELLO REDUCE4 Vertex %d Nvalues %d\n", *((VERTEX *)key), nvalues);
 #else
 #define PRINT_REDUCE4(e, s)
+#define HELLO_REDUCE4(key, nvalues)
 #endif
 
 void reduce4(char *key, int keybytes, char *multivalue,
