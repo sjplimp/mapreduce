@@ -22,10 +22,18 @@
 #include "string.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
+#include "limits.h"
+#include "assert.h"
 
 using namespace MAPREDUCE_NS;
 
 #define MAXLINE 256
+#ifndef MAX
+#define MAX(a, b) ((a) >= (b) ? (a) : (b))
+#endif
+#ifndef MIN
+#define MIN(a, b) ((a) <= (b) ? (a) : (b))
+#endif
 
 enum{NOINPUT,RING,GRID2D,GRID3D,FILES};
 
@@ -55,6 +63,32 @@ struct CC {
   char **infiles;
   char *outfile;
 };
+
+/* ---------------------------------------------------------------------- */
+typedef int VERTEX;   //  Data type for vertices.
+#define BIGVAL INT_MAX-2;
+
+typedef struct {
+  VERTEX vi, vj;
+} EDGE;
+
+typedef struct {
+  VERTEX vtx;  // Vertex ID
+  int zone; // Current zone in state
+  int dist; // Distance from root of zone
+} STATE;
+
+typedef struct {   // Describes struct of value emitted from reduce 2.
+  float sortdist;  // Distance used for sorting in reduce3.
+  EDGE e;       
+  STATE si;
+  STATE sj;
+} REDUCE2VALUE;
+
+typedef struct {   // Describes struct of value emitted from reduce 3.
+  EDGE e;
+  STATE s;
+} REDUCE3VALUE;
 
 /* ---------------------------------------------------------------------- */
 
@@ -331,20 +365,96 @@ void grid3d(int itask, KeyValue *kv, void *ptr)
 
 /* ----------------------------------------------------------------------
    reduce1 function
+   Input:  One KMV per vertex; MV lists all edges incident to the vertex.
+   Output:  One KV per edge: key = edge e_ij; value = initial state_i
+   Initial state of a vertex k is zone=k, dist=0.
 ------------------------------------------------------------------------- */
+#ifdef NOISY
+#define PRINT_REDUCE1(e, s) \
+    printf("reduce1:  Key (%d %d) Value (%d %d %d)\n", \
+            e->vi, e->vj, s.vtx, s.zone, s.dist);  
+#else
+#define PRINT_REDUCE1(e, s)
+#endif
 
 void reduce1(char *key, int keybytes, char *multivalue,
 	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  struct edge *eptr;
+  VERTEX *v = (VERTEX *) key;
+  EDGE *e = (EDGE *) multivalue;
+  STATE s;
+
+  s.dist = 0;
+  for (int n = 0; n < nvalues; n++, e++) {
+    s.vtx = e->vi;
+    s.zone = e->vi;
+    kv->add((char *) e, sizeof(EDGE), (char *) &s, sizeof(STATE));
+    PRINT_REDUCE1(e, s);
+  }
 }
 
 /* ----------------------------------------------------------------------
    reduce2 function
+   Input:  One KMV per edge; MV lists state_i, state_j of v_i, v_j in edge e_ij.
+   Output:  Up to three KV based on state_i, state_j of v_i, v_j in edge e_ij.
 ------------------------------------------------------------------------- */
+#ifdef NOISY
+#define PRINT_REDUCE2(key, rout) \
+    printf("reduce2:  Key %d Value [%f (%d %d) (%d %d %d) (%d %d %d)]\n", \
+           key, rout.sortdist, rout.e.vi, rout.e.vj, \
+           rout.si.vtx, rout.si.zone, rout.si.dist, \
+           rout.sj.vtx, rout.sj.zone, rout.sj.dist);  
+#else
+#define PRINT_REDUCE2(key, rout) 
+#endif
+
 
 void reduce2(char *key, int keybytes, char *multivalue,
 	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  assert(nvalues == 2);  // For graphs, each edge has two vertices, so 
+                         // the multivalue should have at most two states.
+
+  STATE *si = (STATE *) multivalue; 
+  STATE *sj = (STATE *) (multivalue + valuebytes[0]);
+  
+  float dmin = MIN(si->dist, sj->dist);
+  float dmax = MAX(si->dist, sj->dist);
+  int zmax = MAX(si->zone, sj->zone);
+
+  REDUCE2VALUE rout;
+
+  rout.e = *((EDGE *) key);
+  rout.si = *si;
+  rout.sj = *sj;
+
+  if (si->zone == sj->zone) {
+    rout.sortdist = dmin;
+    kv->add((char *) &(si->zone), sizeof(si->zone), 
+            (char *) &rout, sizeof(REDUCE2VALUE));
+    PRINT_REDUCE2(si->zone, rout);
+
+    rout.sortdist = -(dmax + (dmax - dmin) / (dmax + 1));
+    kv->add((char *) &(si->zone), sizeof(si->zone), 
+            (char *) &rout, sizeof(REDUCE2VALUE));
+    PRINT_REDUCE2(si->zone, rout);
+  }
+  else {
+    rout.sortdist = dmin;
+    kv->add((char *) &(si->zone), sizeof(si->zone), 
+            (char *) &rout, sizeof(REDUCE2VALUE));
+    PRINT_REDUCE2(si->zone, rout);
+
+    kv->add((char *) &(sj->zone), sizeof(sj->zone), 
+            (char *) &rout, sizeof(REDUCE2VALUE));
+    PRINT_REDUCE2(sj->zone, rout);
+
+    rout.sortdist = -BIGVAL;
+    kv->add((char *) &zmax, sizeof(zmax), 
+            (char *) &rout, sizeof(REDUCE2VALUE));
+    PRINT_REDUCE2(zmax, rout);
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -381,8 +491,8 @@ void reduce3(char *key, int keybytes, char *multivalue,
   // create 2nd hash table to store unique Eij in multi-value
 
   // emit 2 KV per unique edge in MV, skip edge if already in hash table
-  // Key = Vi, Val = Eij Si
-  // Key = Vj, Val = Eij Sj
+  // Key = Vi, Val = Eij Si    (Use data type REDUCE3VALUE for Val.)
+  // Key = Vj, Val = Eij Sj    (Use data type REDUCE3VALUE for Val.)
   // Si,Sj are extracted from hash table
 
   // delete 2 hash tables
@@ -390,11 +500,47 @@ void reduce3(char *key, int keybytes, char *multivalue,
 
 /* ----------------------------------------------------------------------
    reduce4 function
+   Input:  One KMV per vertex; MV is (e_ij, state_i) for all edges incident
+           to v_i.
+   Output:  One KV for each edge indicent to v_i, with updated state_i.
+           key = e_ij; value = new state_i
 ------------------------------------------------------------------------- */
+
+#ifdef NOISY
+#define PRINT_REDUCE4(e, s) \
+    printf("reduce4:  Key (%d %d) Value (%d %d %d)\n", \
+            e->vi, e->vj, s.vtx, s.zone, s.dist);  
+#else
+#define PRINT_REDUCE4(e, s)
+#endif
 
 void reduce4(char *key, int keybytes, char *multivalue,
 	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  // Compute best state for this vertex.
+  // Best state has min zone, then min dist.
+  REDUCE3VALUE *r = (REDUCE3VALUE *) multivalue;
+  STATE best;
+
+  best.zone = r->s.zone;
+  best.dist = r->s.dist;
+
+  r++;  // Processed 0th entry already.  Move on.
+  for (int n = 1; n < nvalues; n++, r++) {
+    if (r->s.zone < best.zone) {
+      best.zone = r->s.zone;
+      best.dist = r->s.dist;
+    }
+    else if (r->s.zone == best.zone)
+      best.dist = MIN(r->s.dist, best.dist);
+  }
+
+  // Emit 
+  r = (REDUCE3VALUE *) multivalue;
+  for (int n = 0; n < nvalues; n++, r++) {
+    kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(STATE));
+    PRINT_REDUCE4(r->e, best);
+  }
 }
 
 /* ----------------------------------------------------------------------
