@@ -2,7 +2,7 @@
 
 CC =		mpic++ -m64
 #CCFLAGS =	-g -O -I../src 
-CCFLAGS =	-g  -I../src  -DKDDTIME
+CCFLAGS =	-g  -I../src  -DKDDTIME -DNOISY
 LINK =		mpic++ -m64
 #LINKFLAGS =	-g -O -L../src -lmrmpi
 LINKFLAGS =	-g  
@@ -15,7 +15,10 @@ OBJS = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank gs
+all:	matvec pagerank gs cc
+
+cc:     test_cc.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_cc.o $(USRLIB) $(SYSLIB) -o cc
 
 gs:	test_gs.o mrglobalsum.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_gs.o mrglobalsum.o $(USRLIB) $(SYSLIB) -o gs
