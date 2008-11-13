@@ -22,7 +22,6 @@
 #include "string.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "limits.h"
 #include "assert.h"
 
 using namespace MAPREDUCE_NS;
@@ -66,7 +65,7 @@ struct CC {
 
 /* ---------------------------------------------------------------------- */
 typedef int VERTEX;   //  Data type for vertices.
-#define BIGVAL INT_MAX-2;
+#define BIGVAL 1e20;
 
 typedef struct {
   VERTEX vi, vj;
@@ -392,10 +391,10 @@ void reduce1(char *key, int keybytes, char *multivalue,
 
   HELLO_REDUCE1(v, nvalues);
 
+  s.vtx = *v;
+  s.zone = *v;
   s.dist = 0;
   for (int n = 0; n < nvalues; n++, e++) {
-    s.vtx = e->vi;
-    s.zone = e->vi;
     kv->add((char *) e, sizeof(EDGE), (char *) &s, sizeof(STATE));
     PRINT_REDUCE1(e, s);
   }
