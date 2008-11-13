@@ -20,9 +20,8 @@ Collate 1
   Key = Vi, MVal = Eij, Eik, Eim, ... (all edges of Vi)
 Reduce 1
   input: one KMV pair per vertex
-  output: emit 2 KV for each edge in MV, where initial Si = (Vi,0)
+  output: emit KV for each edge in MV, where initial Si = (Vi,0)
   Key = Eij, Val = Si
-  Key = Eij, Val = Sj
 
 Loop:
 
