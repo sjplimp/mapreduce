@@ -245,7 +245,7 @@ void read_matrix(int itask, char *str, int size, KeyValue *kv, void *ptr)
 
 void ring(int itask, KeyValue *kv, void *ptr)
 {
-  int edge[2];
+  EDGE edge;
 
   CC *cc = (CC *) ptr;
   int me = cc->me;
@@ -256,15 +256,15 @@ void ring(int itask, KeyValue *kv, void *ptr)
   int last = (me+1)*nring/nprocs + 1;
 
   for (int v = first; v < last; v++) {
-    edge[0] = v;
-    edge[1] = v+1;
-    if (edge[1] > nring) edge[1] = 1;
-    kv->add((char *) &(edge[0]),sizeof(int),(char *) edge,2*sizeof(int));
-    kv->add((char *) &(edge[1]),sizeof(int),(char *) edge,2*sizeof(int));
-    edge[1] = v-1;
-    if (edge[1] == 0) edge[1] = nring;
-    kv->add((char *) &(edge[0]),sizeof(int),(char *) edge,2*sizeof(int));
-    kv->add((char *) &(edge[1]),sizeof(int),(char *) edge,2*sizeof(int));
+    edge.vi = v;
+    edge.vj = v+1;
+    if (edge.vj > nring) edge.vj = 1;
+    kv->add((char *) &(edge.vi),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+    kv->add((char *) &(edge.vj),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+    edge.vj = v-1;
+    if (edge.vj == 0) edge.vj = nring;
+    kv->add((char *) &(edge.vi),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+    kv->add((char *) &(edge.vj),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
   }
 }
 
@@ -279,7 +279,8 @@ void ring(int itask, KeyValue *kv, void *ptr)
 
 void grid2d(int itask, KeyValue *kv, void *ptr)
 {
-  int i,j,ii,jj,n,edge[2];
+  int i,j,ii,jj,n;
+  EDGE edge;
 
   CC *cc = (CC *) ptr;
   int me = cc->me;
@@ -295,26 +296,26 @@ void grid2d(int itask, KeyValue *kv, void *ptr)
       ii = i + nx_offset;
       jj = j + ny_offset;
       n = jj*nx + ii + 1;
-      edge[0] = n;
-      edge[1] = n-1;
+      edge.vi = n;
+      edge.vj = n-1;
       if (ii-1 >= 0) {
-	kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
       }
-      edge[1] = n+1;
+      edge.vj = n+1;
       if (ii+1 < nx) {
-	kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
       }
-      edge[1] = n-nx;
+      edge.vj = n-nx;
       if (jj-1 >= 0)  {
-	kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
       }
-      edge[1] = n+nx;
+      edge.vj = n+nx;
       if (jj+1 < ny) {
-	kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
       }
     }
   }
@@ -331,7 +332,8 @@ void grid2d(int itask, KeyValue *kv, void *ptr)
 
 void grid3d(int itask, KeyValue *kv, void *ptr)
 {
-  int i,j,k,ii,jj,kk,n,edge[2];
+  int i,j,k,ii,jj,kk,n;
+  EDGE edge;
 
   CC *cc = (CC *) ptr;
   int me = cc->me;
@@ -351,36 +353,36 @@ void grid3d(int itask, KeyValue *kv, void *ptr)
 	jj = j + ny_offset;
 	kk = k + nz_offset;
 	n = kk*nx*ny + jj*nx + ii + 1;
-	edge[0] = n;
-	edge[1] = n-1;
+	edge.vi = n;
+	edge.vj = n-1;
 	if (ii-1 >= 0) {
-	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
         }
-	edge[1] = n+1;
+	edge.vj = n+1;
 	if (ii+1 < nx) {
-	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
         }
-	edge[1] = n-nx;
+	edge.vj = n-nx;
 	if (jj-1 >= 0) { 
-	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
         }
-	edge[1] = n+nx;
+	edge.vj = n+nx;
 	if (jj+1 < ny) {
-	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
         }
-	edge[1] = n-nx*ny;
+	edge.vj = n-nx*ny;
 	if (kk-1 >= 0) {
-	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
         }
-	edge[1] = n+nx*ny;
+	edge.vj = n+nx*ny;
 	if (kk+1 < nz) {
-	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
-	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
         }
       }
     }
