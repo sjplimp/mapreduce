@@ -223,14 +223,42 @@ int main(int narg, char **args)
 
 /* ----------------------------------------------------------------------
    read_matrix function for map
+   Read matrix-market file containing edge list.
+   Assumption:  All non-zero values of matrix-market file are <= 1;
+   this assumption allows us to remove the header line giving the matrix
+   dimensions N M NNZ.
+   For each edge e_ij, emit 2 KV: 
+      key = v_i, value = e_ij
+      key = v_j, value = e_ij
 ------------------------------------------------------------------------- */
 
-void read_matrix(int itask, char *str, int size, KeyValue *kv, void *ptr)
+void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 {
-  char *line = strtok(str,"\n");
-  while (line) {
-    // parse line and emit KVs
-    line = strtok(NULL,"\n");
+  EDGE edge;
+  double nzv;
+
+  char line[81];
+  int linecnt = 0;
+
+  for (int k = 0; k < nbytes-1; k++) {
+    line[linecnt++] = bytes[k];
+    if (bytes[k] == '\n') {
+      if (line[0] != '%') {  // i.e., not a comment line.
+        line[linecnt] = '\0'; 
+        sscanf(line, "%d %d %lf", &edge.vi, &edge.vj, &nzv);
+        if (nzv <= 1.) {  // See assumption above.
+          kv->add((char *)&edge.vi,sizeof(VERTEX), (char *) &edge,sizeof(EDGE));
+          kv->add((char *)&edge.vj,sizeof(VERTEX), (char *) &edge,sizeof(EDGE));
+        }
+        else {
+          // Valid matrix entry has nzv <= 1.
+          // Not general for all problems!!!!
+          printf("Skipping line with values (%d %d %f)\n", 
+                 edge.vi, edge.vj, nzv);
+        }
+      }
+      linecnt = 0;
+    }
   }
 }
 
@@ -396,13 +424,13 @@ void grid3d(int itask, KeyValue *kv, void *ptr)
    Initial state of a vertex k is zone=k, dist=0.
 ------------------------------------------------------------------------- */
 #ifdef NOISY
-#define PRINT_REDUCE1(e, s) \
-    printf("reduce1:  Key (%d %d) Value (%d %d %d)\n", \
-            e->vi, e->vj, s.vtx, s.zone, s.dist);  
+#define PRINT_REDUCE1(v, e, s) \
+    printf("reduce1:  Vertex %d  Key (%d %d) Value (%d %d %d)\n", \
+            v, e->vi, e->vj, s.vtx, s.zone, s.dist);  
 #define HELLO_REDUCE1(v, n) \
     printf("HELLO REDUCE1 Vertex %d Nvalues %d\n", *v, nvalues);
 #else
-#define PRINT_REDUCE1(e, s)
+#define PRINT_REDUCE1(v, e, s)
 #define HELLO_REDUCE1(v, n)
 #endif
 
@@ -421,7 +449,7 @@ void reduce1(char *key, int keybytes, char *multivalue,
   s.dist = 0;
   for (int n = 0; n < nvalues; n++, e++) {
     kv->add((char *) e, sizeof(EDGE), (char *) &s, sizeof(STATE));
-    PRINT_REDUCE1(e, s);
+    PRINT_REDUCE1(*v, e, s);
   }
 }
 
@@ -544,13 +572,13 @@ void reduce3(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 #ifdef NOISY
-#define PRINT_REDUCE4(e, s) \
-    printf("reduce4:  Key (%d %d) Value (%d %d %d)\n", \
-            e.vi, e.vj, s.vtx, s.zone, s.dist);  
+#define PRINT_REDUCE4(v, e, s) \
+    printf("reduce4:  Vertex %d  Key (%d %d) Value (%d %d %d)\n", \
+            v, e.vi, e.vj, s.vtx, s.zone, s.dist);  
 #define HELLO_REDUCE4(key, nvalues) \
     printf("HELLO REDUCE4 Vertex %d Nvalues %d\n", *((VERTEX *)key), nvalues);
 #else
-#define PRINT_REDUCE4(e, s)
+#define PRINT_REDUCE4(v, e, s)
 #define HELLO_REDUCE4(key, nvalues)
 #endif
 
@@ -579,7 +607,7 @@ void reduce4(char *key, int keybytes, char *multivalue,
   r = (REDUCE3VALUE *) multivalue;
   for (int n = 0; n < nvalues; n++, r++) {
     kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(STATE));
-    PRINT_REDUCE4(r->e, best);
+    PRINT_REDUCE4(*((VERTEX *) key), r->e, best);
   }
 }
 
