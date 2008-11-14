@@ -12,10 +12,10 @@ OBJS = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	cc matvec pagerank gs
+all:	concomp matvec pagerank gs
 
-cc:	test_cc.o $(LIB)
-	$(LINK) $(LINKFLAGS) test_cc.o $(USRLIB) $(SYSLIB) -o cc
+concomp:test_cc.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_cc.o $(USRLIB) $(SYSLIB) -o concomp
 
 gs:	test_gs.o mrglobalsum.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_gs.o mrglobalsum.o $(USRLIB) $(SYSLIB) -o gs
@@ -28,7 +28,7 @@ matvec:	test_matvec.o $(OBJS) $(LIB)
 
 clean:
 	rm *.o
-	rm cc matvec pagerank gs
+	rm concomp matvec pagerank gs
 
 # Rules
 
