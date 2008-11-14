@@ -239,7 +239,8 @@ void read_matrix(int itask, char *str, int size, KeyValue *kv, void *ptr)
    ring is periodic with Nring vertices
    vertices are numbered 1 to Nring
    partition vertices in chunks of size Nring/P per proc
-   emit 2 edges for each vertex I own
+   emit 2 edges for each vertex I own; 
+   emit each edge twice (once with each endpoint vertex).
 ------------------------------------------------------------------------- */
 
 void ring(int itask, KeyValue *kv, void *ptr)
@@ -272,7 +273,8 @@ void ring(int itask, KeyValue *kv, void *ptr)
    2d grid is non-periodic, with Nx by Ny vertices
    vertices are numbered 1 to Nx*Ny with x varying fastest, then y
    partition vertices in 2d chunks based on 2d partition of lattice
-   emit 4 edges for each vertex I own (less on non-periodic boundaries)
+   emit 4 edges for each vertex I own (less on non-periodic boundaries);
+   emit each edge twice (once with each endpoint vertex).
 ------------------------------------------------------------------------- */
 
 void grid2d(int itask, KeyValue *kv, void *ptr)
@@ -295,17 +297,25 @@ void grid2d(int itask, KeyValue *kv, void *ptr)
       n = jj*nx + ii + 1;
       edge[0] = n;
       edge[1] = n-1;
-      if (ii-1 >= 0) 
-	kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+      if (ii-1 >= 0) {
+	kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+      }
       edge[1] = n+1;
-      if (ii+1 < nx)
-	kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
-      edge[1] = n+nx;
-      if (jj-1 >= 0) 
-	kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+      if (ii+1 < nx) {
+	kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+      }
       edge[1] = n-nx;
-      if (jj+1 < ny)
-	kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+      if (jj-1 >= 0)  {
+	kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+      }
+      edge[1] = n+nx;
+      if (jj+1 < ny) {
+	kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+      }
     }
   }
 }
@@ -315,7 +325,8 @@ void grid2d(int itask, KeyValue *kv, void *ptr)
    3d grid is non-periodic, with Nx by Ny by Nz vertices
    vertices are numbered 1 to Nx*Ny*Nz with x varying fastest, then y, then z
    partition vertices in 3d chunks based on 3d partition of lattice
-   emit 6 edges for each vertex I own (less on non-periodic boundaries)
+   emit 6 edges for each vertex I own (less on non-periodic boundaries);
+   emit each edge twice (once with each endpoint vertex).
 ------------------------------------------------------------------------- */
 
 void grid3d(int itask, KeyValue *kv, void *ptr)
@@ -342,23 +353,35 @@ void grid3d(int itask, KeyValue *kv, void *ptr)
 	n = kk*nx*ny + jj*nx + ii + 1;
 	edge[0] = n;
 	edge[1] = n-1;
-	if (ii-1 >= 0) 
-	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	if (ii-1 >= 0) {
+	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+        }
 	edge[1] = n+1;
-	if (ii+1 < nx)
-	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
-	edge[1] = n+nx;
-	if (jj-1 >= 0) 
-	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	if (ii+1 < nx) {
+	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+        }
 	edge[1] = n-nx;
-	if (jj+1 < ny)
-	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
-	edge[1] = n+nx*ny;
-	if (kk-1 >= 0) 
-	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	if (jj-1 >= 0) { 
+	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+        }
+	edge[1] = n+nx;
+	if (jj+1 < ny) {
+	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+        }
 	edge[1] = n-nx*ny;
-	if (kk+1 < nz)
-	  kv->add((char *) &n,sizeof(int),(char *) edge,2*sizeof(int));
+	if (kk-1 >= 0) {
+	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+        }
+	edge[1] = n+nx*ny;
+	if (kk+1 < nz) {
+	  kv->add((char *) &edge[0],sizeof(int),(char *) edge,2*sizeof(int));
+	  kv->add((char *) &edge[1],sizeof(int),(char *) edge,2*sizeof(int));
+        }
       }
     }
   }
