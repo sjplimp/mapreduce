@@ -44,12 +44,23 @@ void reduce1(char *, int, char *, int, int *, KeyValue *, void *);
 void reduce2(char *, int, char *, int, int *, KeyValue *, void *);
 void reduce3(char *, int, char *, int, int *, KeyValue *, void *);
 void reduce4(char *, int, char *, int, int *, KeyValue *, void *);
+void output_vtxstats(char *, int, char *, int, int *, KeyValue *, void *);
+void output_vtxdetail(char *, int, char *, int, int *, KeyValue *, void *);
+void output_zonestats(char *, int, char *, int, int *, KeyValue *, void *);
 int sort(char *, int, char *, int);
 void procs2lattice2d(int, int, int, int, int &, int &, int &, int &);
 void procs2lattice3d(int, int, int, int, int,
 		     int &, int &, int &, int &, int &, int &);
 void error(int, char *);
 void errorone(char *);
+
+struct STATS {
+  int min;
+  int max;
+  int sum;
+  int cnt;
+  int histo[10];
+};
 
 struct CC {
   int me,nprocs;
@@ -59,8 +70,11 @@ struct CC {
   int nring;
   int nx,ny,nz;
   int nfiles;
+  int nvtx;
   char **infiles;
   char *outfile;
+  STATS distStats;
+  STATS sizeStats;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -99,6 +113,8 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
+  int nVtx, nCC;  // Number of vertices and connected components, respectively.
+
   CC cc;
   cc.me = me;
   cc.nprocs = nprocs;
@@ -131,12 +147,14 @@ int main(int narg, char **args)
 	if (iarg+3 > narg) error(me,"Bad arguments");
 	cc.input = RING;
 	cc.nring = atoi(args[iarg+2]); 
+        cc.nvtx  = cc.nring;
 	iarg += 3;
       } else if (strcmp(args[iarg+1],"grid2d") == 0) {
 	if (iarg+4 > narg) error(me,"Bad arguments");
 	cc.input = GRID2D;
 	cc.nx = atoi(args[iarg+2]); 
 	cc.ny = atoi(args[iarg+3]); 
+        cc.nvtx = cc.nx * cc.ny;
 	iarg += 4;
       } else if (strcmp(args[iarg+1],"grid3d") == 0) {
 	if (iarg+5 > narg) error(me,"Bad arguments");
@@ -144,6 +162,7 @@ int main(int narg, char **args)
 	cc.nx = atoi(args[iarg+2]); 
 	cc.ny = atoi(args[iarg+3]); 
 	cc.nz = atoi(args[iarg+4]); 
+        cc.nvtx = cc.nx * cc.ny * cc.nz;
 	iarg += 5;
       } else error(me,"Bad arguments");
 
@@ -169,7 +188,7 @@ int main(int narg, char **args)
   double tstart = MPI_Wtime();
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->verbosity = 2;
+  mr->verbosity = 0;
 
   if (cc.input == FILES)
     mr->map(nprocs,cc.nfiles,cc.infiles,'\n',80,&read_matrix,&cc);
@@ -182,14 +201,20 @@ int main(int narg, char **args)
 
   // need to mark root vertex if specified, relabel with ID = 0 ??
 
-  mr->collate(NULL);
+  nVtx = mr->collate(NULL);
+  assert(nVtx == cc.nvtx);
+
   mr->reduce(&reduce1,&cc);
+
+#ifdef NOISY
+  int cnt = 0;
+#endif
 
   while (1) {
     mr->collate(NULL);
     mr->reduce(&reduce2,&cc);
 
-    mr->collate(NULL);
+    nCC = mr->collate(NULL);
     cc.doneflag = 1;
     mr->reduce(&reduce3,&cc);
 
@@ -199,12 +224,101 @@ int main(int narg, char **args)
 
     mr->collate(NULL);
     mr->reduce(&reduce4,&cc);
-  }
 
-  delete mr;
+#ifdef NOISY
+    cnt++;
+    printf("Iteration %d nCC = %d\n", cnt, nCC);
+#endif //NOISY
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
+
+#ifdef NOW_IT_IS_TESTED
+  // Output some results.
+  //
+  // Data in mr currently is keyed by vertex v; multivalue includes
+  // every edge containing v, as well as v's state.
+
+  // Compute min/max/avg distances from seed vertices.
+  cc.distStats.min = nVtx;
+  cc.distStats.max = 0;
+  cc.distStats.sum = 0;
+  cc.distStats.cnt = 0;
+  for (int i = 0; i < 10; i++) cc.distStats.histo[i] = 0;
+
+  mr->reduce(&output_vtxstats, &cc);
+  mr->collate(NULL);
+
+  STATS gDist;    // global vertex stats
+  MPI_Allreduce(&cc.distStats.min, &gDist.min, 1, MPI_INT, MPI_MIN,
+                MPI_COMM_WORLD);
+  MPI_Allreduce(&cc.distStats.max, &gDist.max, 1, MPI_INT, MPI_MAX,
+                MPI_COMM_WORLD);
+  MPI_Allreduce(&cc.distStats.sum, &gDist.sum, 1, MPI_INT, MPI_SUM,
+                MPI_COMM_WORLD);
+  MPI_Allreduce(&cc.distStats.cnt, &gDist.cnt, 1, MPI_INT, MPI_SUM,
+                MPI_COMM_WORLD);
+  MPI_Allreduce(&cc.distStats.histo, &gDist.histo, 10, MPI_INT, MPI_SUM,
+                MPI_COMM_WORLD);
+
+  assert(gDist.cnt == nVtx);
+  assert(gDist.min == 0);
+  assert(gDist.max < nVtx);
+
+  // Write all vertices with state info to a file.
+  // This operation requires all vertices to be on one processor.  
+  // Don't do this for big data!
+  if (cc.outfile) {
+    mr->gather(1);
+    mr->sort_keys(&sort);
+    mr->clone();
+    mr->reduce(&output_vtxdetail, &cc);
+    mr->collate(NULL);
+  }
+
+  // Compute min/max/avg connected-component size.
+  cc.sizeStats.min = nVtx;
+  cc.sizeStats.max = 0;
+  cc.sizeStats.sum = 0;
+  cc.sizeStats.cnt = 0;
+  for (int i = 0; i < 10; i++) cc.sizeStats.histo[i] = 0;
+
+  mr->reduce(&output_zonestats, &cc);
+  mr->collate(NULL);
+
+  STATS gCCSize;    // global CC stats
+  MPI_Allreduce(&cc.sizeStats.min, &gCCSize.min, 1, MPI_INT, MPI_MIN,
+                MPI_COMM_WORLD);
+  MPI_Allreduce(&cc.sizeStats.max, &gCCSize.max, 1, MPI_INT, MPI_MAX,
+                MPI_COMM_WORLD);
+  MPI_Allreduce(&cc.sizeStats.sum, &gCCSize.sum, 1, MPI_INT, MPI_SUM,
+                MPI_COMM_WORLD);
+  MPI_Allreduce(&cc.sizeStats.cnt, &gCCSize.cnt, 1, MPI_INT, MPI_SUM,
+                MPI_COMM_WORLD);
+  MPI_Allreduce(&cc.sizeStats.histo, &gCCSize.histo, 10, MPI_INT, MPI_SUM,
+                MPI_COMM_WORLD);
+
+  assert(gCCSize.cnt == nCC);
+  assert(gCCSize.max <= nVtx);
+
+  if (me == 0) {
+    printf("Number of vertices = %d\n", gDist.cnt);
+    printf("Number of Connected Components = %d\n", gCCSize.cnt);
+    printf("Distance from Seed (Min, Max, Avg):  %d  %d  %f\n", 
+           gDist.min, gDist.max, gDist.sum / gDist.cnt);
+    printf("Distance Histogram:  ");
+    for (int i = 0; i < 10; i++) printf("%d ", gDist.histo[i]);
+    printf("\n");
+    printf("Size of Connected Components (Min, Max, Avg):  %d  %d  %f\n", 
+           gCCSize.min, gCCSize.max, gCCSize.sum / gCCSize.cnt);
+    printf("Size Histogram:  ");
+    for (int i = 0; i < 10; i++) printf("%d ", gCCSize.histo[i]);
+    printf("\n");
+  }
+#endif // NOW_IT_IS_TESTED
+
+  delete mr;
 
   // statistics
   // test answer if test problem was used
@@ -240,6 +354,8 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
   char line[81];
   int linecnt = 0;
 
+  CC *cc = (CC *) ptr;
+
   for (int k = 0; k < nbytes-1; k++) {
     line[linecnt++] = bytes[k];
     if (bytes[k] == '\n') {
@@ -253,6 +369,8 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
         else {
           // Valid matrix entry has nzv <= 1.
           // Not general for all problems!!!!
+          cc->nvtx = edge.vi;
+          assert(edge.vi == edge.vj);
           printf("Skipping line with values (%d %d %f)\n", 
                  edge.vi, edge.vj, nzv);
         }
@@ -567,7 +685,7 @@ void reduce3(char *key, int keybytes, char *multivalue,
    reduce4 function
    Input:  One KMV per vertex; MV is (e_ij, state_i) for all edges incident
            to v_i.
-   Output:  One KV for each edge indicent to v_i, with updated state_i.
+   Output:  One KV for each edge incident to v_i, with updated state_i.
            key = e_ij; value = new state_i
 ------------------------------------------------------------------------- */
 
@@ -609,6 +727,84 @@ void reduce4(char *key, int keybytes, char *multivalue,
     kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(STATE));
     PRINT_REDUCE4(*((VERTEX *) key), r->e, best);
   }
+}
+
+/* ----------------------------------------------------------------------
+   output_vtxstats function
+   Input:  One KMV per vertex; MV is (e_ij, state_i) for all edges incident
+           to v_i.
+   Output: Two options:  
+           if (cc.outfile) Emit (0, state_i) to allow printing of vertex info
+           else Emit (zone, vertex) to allow collecting zone stats.
+------------------------------------------------------------------------- */
+
+void output_vtxstats(char *key, int keybytes, char *multivalue,
+	             int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  CC *cc = (CC *) ptr;
+  REDUCE3VALUE *mv = (REDUCE3VALUE *) multivalue;
+
+  // Gather some stats:  Min, Max and Avg distances.
+
+  // Since we have presumably reached convergence, state_i is the same in
+  // all multivalue entries.  We need to check only one.
+
+  if (mv->s.dist > cc->distStats.max) cc->distStats.max = mv->s.dist;
+  if (mv->s.dist < cc->distStats.min) cc->distStats.min = mv->s.dist;
+  cc->distStats.sum += mv->s.dist;
+  cc->distStats.cnt++;
+  int bin = (10 * mv->s.dist) / cc->nvtx;
+  cc->distStats.histo[bin]++;
+
+  if (cc->outfile) {
+    // Emit for gather to one processor for file output.
+    kv->add(key, sizeof(VERTEX), (char *) &(mv->s), sizeof(STATE));
+  }
+  else {
+    // Emit for reorg by zones to collect zone stats.
+    kv->add((char *) &(mv->s.zone), sizeof(mv->s.zone), key, sizeof(VERTEX));
+  }
+}
+
+/* ----------------------------------------------------------------------
+   output_vtxdetail function
+   Input:  One KMV; key = 0; MV is state_i for all vertices v_i.
+   Output: Emit (zone, vertex) to allow collecting zone stats.
+------------------------------------------------------------------------- */
+
+void output_vtxdetail(char *key, int keybytes, char *multivalue,
+	             int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  FILE *fp = fopen(((CC*)ptr)->outfile, "w");
+  STATE *s = (STATE *) multivalue;
+  for (int i = 0; i < nvalues; i++, s++) {
+    printf("%d %d %d\n", s->vtx, s->zone, s->dist);
+
+    // Emit for reorg by zones to collect zone stats.
+    kv->add((char *) &(s->zone), sizeof(s->zone),
+            (char *) &(s->vtx), sizeof(VERTEX));
+  }
+  fclose(fp);
+}
+
+/* ----------------------------------------------------------------------
+   output_zonestats function
+   Input:  One KMV per zone; MV is (state_i) for all vertices v_i in zone.
+   Output: None yet.
+------------------------------------------------------------------------- */
+
+void output_zonestats(char *key, int keybytes, char *multivalue,
+	              int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  CC *cc = (CC *) ptr;
+  
+  // Compute min/max/avg component size.
+  if (nvalues > cc->sizeStats.max) cc->sizeStats.max = nvalues;
+  if (nvalues < cc->sizeStats.min) cc->sizeStats.min = nvalues;
+  cc->sizeStats.sum += nvalues;
+  cc->sizeStats.cnt++;
+  int bin = (10 * nvalues) / cc->nvtx;
+  cc->sizeStats.histo[bin]++;
 }
 
 /* ----------------------------------------------------------------------
