@@ -5,7 +5,7 @@
 // Identify connected components in a graph via MapReduce
 // algorithm due to Jonathan Cohen
 // 
-// Syntax: cc switch args switch args ...
+// Syntax: concomp switch args switch args ...
 // switches:
 //   -r N = define N as root vertex, compute all distances from it
 //   -o file = output to this file, else no output except screen summary
@@ -24,6 +24,9 @@
 #include "keyvalue.h"
 #include "assert.h"
 
+#include <map>
+
+using namespace std;
 using namespace MAPREDUCE_NS;
 
 #define MAXLINE 256
@@ -77,28 +80,38 @@ struct CC {
   STATS sizeStats;
 };
 
-/* ---------------------------------------------------------------------- */
-typedef int VERTEX;   //  Data type for vertices.
-#define BIGVAL 1e20;
+struct SORTINFO {
+  char *multivalue;
+  int *offsets;
+};
 
-typedef struct {
-  VERTEX vi, vj;
+SORTINFO sortinfo;    // needed to give qsort() compare fn access to KMV
+
+/* ---------------------------------------------------------------------- */
+
+#define BIGVAL 1e20;
+#define IBIGVAL 0x7FFFFFFF
+
+typedef int VERTEX;      // vertex ID
+
+typedef struct {         // edge = 2 vertices
+  VERTEX vi,vj;
 } EDGE;
 
-typedef struct {
-  VERTEX vtx;  // Vertex ID
-  int zone; // Current zone in state
-  int dist; // Distance from root of zone
+typedef struct {         // vertex state = zone ID, distance from zone seed
+  VERTEX vtx;            // vertex ID (redundant?)
+  int zone;              // zone this vertex is in = vertex ID of zone root
+  int dist;              // distance of this vertex from root
 } STATE;
 
-typedef struct {   // Describes struct of value emitted from reduce 2.
-  float sortdist;  // Distance used for sorting in reduce3.
+typedef struct {
+  float sortdist;        // sorting distance of this edge in KMV
   EDGE e;       
   STATE si;
   STATE sj;
 } REDUCE2VALUE;
 
-typedef struct {   // Describes struct of value emitted from reduce 3.
+typedef struct {
   EDGE e;
   STATE s;
 } REDUCE3VALUE;
@@ -363,8 +376,10 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
         line[linecnt] = '\0'; 
         sscanf(line, "%d %d %lf", &edge.vi, &edge.vj, &nzv);
         if (nzv <= 1.) {  // See assumption above.
-          kv->add((char *)&edge.vi,sizeof(VERTEX), (char *) &edge,sizeof(EDGE));
-          kv->add((char *)&edge.vj,sizeof(VERTEX), (char *) &edge,sizeof(EDGE));
+          kv->add((char *)&edge.vi,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
+          kv->add((char *)&edge.vj,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
         }
         else {
           // Valid matrix entry has nzv <= 1.
@@ -502,33 +517,45 @@ void grid3d(int itask, KeyValue *kv, void *ptr)
 	edge.vi = n;
 	edge.vj = n-1;
 	if (ii-1 >= 0) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
         }
 	edge.vj = n+1;
 	if (ii+1 < nx) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
         }
 	edge.vj = n-nx;
 	if (jj-1 >= 0) { 
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
         }
 	edge.vj = n+nx;
 	if (jj+1 < ny) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
         }
 	edge.vj = n-nx*ny;
 	if (kk-1 >= 0) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
         }
 	edge.vj = n+nx*ny;
 	if (kk+1 < nz) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vi,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
+	  kv->add((char *) &edge.vj,sizeof(VERTEX),
+		  (char *) &edge,sizeof(EDGE));
         }
       }
     }
@@ -641,6 +668,40 @@ void reduce2(char *key, int keybytes, char *multivalue,
 }
 
 /* ----------------------------------------------------------------------
+   comparison function for qsort() in reduce3
+   used to compare Bi and Bj sorting criteria of 2 edge values
+------------------------------------------------------------------------- */
+
+int sort_compare(const void *iptr, const void *jptr)
+{
+  REDUCE2VALUE *value;
+
+  int i = *((int *) iptr);
+  value = (REDUCE2VALUE *) &sortinfo.multivalue[sortinfo.offsets[i]];
+  float *bi = &value->sortdist;
+  int j = *((int *) jptr);
+  value = (REDUCE2VALUE *) &sortinfo.multivalue[sortinfo.offsets[j]];
+  float *bj = &value->sortdist;
+
+  if (*bi < *bj) return -1;
+  else if (*bi > *bj) return 1;
+  return 0;
+}
+
+/* ----------------------------------------------------------------------
+   comparison function for reduce3 ehash map
+   used to compare Ei and Ej edges by comparing vertices in edge
+------------------------------------------------------------------------- */
+
+struct key_compare {
+  bool operator()(EDGE ei, EDGE ej) {
+    if (ei.vi < ej.vi) return true;
+    else if (ei.vi == ej.vi && ei.vj < ej.vj) return true;
+    return false;
+  }
+};
+
+/* ----------------------------------------------------------------------
    reduce3 function
    input KMV = all edges in zone, stored twice with different D values
    one value in multi-value = B, Eij, Si, Sj
@@ -654,31 +715,132 @@ void reduce3(char *key, int keybytes, char *multivalue,
 {
   CC *cc = (CC *) ptr;
   
-  // create empty hash table for vertex states
+  // create hash table for states of all vertices of zone edges
   // key = vertex ID
   // value = vertex state = Si = (Zi,dist) where Zi = zone ID
+  // all copies of a vertex state should be identical, so hash it once
+  // also create offsets array at same time
+  // offsets[i] = offset into multivalue for start of Ith value
 
-  // load hash table with vertices of all edges in multi-value
+  REDUCE2VALUE *value;
+  map<int,STATE> vhash;
+  int *offsets = new int[nvalues];
 
-  // sort multi-values by B
-  // create index vector
+  int offset = 0;
+  for (int i = 0; i < nvalues; i++) {
+    value = (REDUCE2VALUE *) &multivalue[offset];
+    int vi = value->e.vi;
+    int vj = value->e.vj;
+    if (vhash.find(vi) == vhash.end())
+      vhash.insert(make_pair(vi,value->si));
+    if (vhash.find(vj) == vhash.end()) 
+      vhash.insert(make_pair(vj,value->sj));
+    offsets[i] = offset;
+    offset += valuebytes[i];
+  }
 
-  // loop over edges in sorted order
+  // sort zone multi-values by B = sorting criterion
+  // order = index vector of sorted order
+  // store pointers to KMV data in sortinfo so sort_compare fn can access it
+
+  sortinfo.multivalue = multivalue;
+  sortinfo.offsets = offsets;
+
+  int *order = new int[nvalues];
+  for (int i = 0; i < nvalues; i++) order[i] = i;
+
+  qsort(order,nvalues,sizeof(int),sort_compare);
+
+  // sanity check on sorted ordering
+
+  REDUCE2VALUE *ivalue,*jvalue;
+
+  for (int i = 0; i < nvalues-1; i++) {
+    REDUCE2VALUE *ivalue = 
+      (REDUCE2VALUE *) &multivalue[offsets[order[i]]];
+    REDUCE2VALUE *jvalue = 
+      (REDUCE2VALUE *) &multivalue[offsets[order[i+1]]];
+    if (ivalue->sortdist > jvalue->sortdist) {
+      int izone = *((int *) key);
+      char str[32];
+      sprintf(str,"Bad sorted order for zone %d\n",izone);
+      errorone(str);
+    }
+  }
+
+  // loop over edges of zone in sorted order
   // extract Si and Sj for Eij from hash table
   // Zmin = min(Zi,Zj)
   // Dmin = lowest dist of vertex whose S has Zmin
   // if Si or Sj is already (Zmin,Dmin), don't change it
   // if Si or Sj is not (Zmin,Dmin), change it to Snew = (Zmin,Dmin+1)
-  // is Si changes, put it back in hash table, set cc.doneflag = 1
+  // if Si or Sj changes, put it back in hash table and set CC doneflag = 0
 
-  // create 2nd hash table to store unique Eij in multi-value
+  map<int,STATE>::iterator vloc;
+  int vi,vj,zmin,dmin;
+  STATE si,sj;
 
-  // emit 2 KV per unique edge in MV, skip edge if already in hash table
-  // Key = Vi, Val = Eij Si    (Use data type REDUCE3VALUE for Val.)
-  // Key = Vj, Val = Eij Sj    (Use data type REDUCE3VALUE for Val.)
-  // Si,Sj are extracted from hash table
+  for (int i = 0; i < nvalues-1; i++) {
+    value = (REDUCE2VALUE *) &multivalue[offsets[order[i]]];
+    vi = value->e.vi;
+    vj = value->e.vj;
+    vloc = vhash.find(vi);
+    si = vloc->second;
+    vloc = vhash.find(vj);
+    sj = vloc->second;
+    zmin = MIN(si.zone,sj.zone);
+    dmin = IBIGVAL;
+    if (si.zone == zmin) dmin = si.dist;
+    if (sj.zone == zmin) dmin = MIN(dmin,sj.dist);
+    if (si.zone != zmin || si.dist != dmin) {
+      si.zone = zmin;
+      si.dist = dmin+1;
+      vhash.insert(make_pair(vi,si));
+      cc->doneflag = 0;
+    }
+    if (sj.zone != zmin || sj.dist != dmin) {
+      sj.zone = zmin;
+      sj.dist = dmin+1;
+      vhash.insert(make_pair(vj,sj));
+      cc->doneflag = 0;
+    }
+  }
 
-  // delete 2 hash tables
+  // emit 2 KV per unique edge in MV
+  // Key = Vi, Val = Eij Si
+  // Key = Vj, Val = Eij Sj
+  // Si,Sj are extracted from vertex state hash table
+  // use edge hash table to identify unique edges
+  // skip edge if already in hash, else insert edge in hash and emit KVs
+
+  map<pair<int,int>,int> ehash;
+  REDUCE3VALUE value3;
+
+  for (int i = 0; i < nvalues; i++) {
+    value = (REDUCE2VALUE *) &multivalue[offsets[order[i]]];
+    vi = value->e.vi;
+    vj = value->e.vj;
+    if (ehash.find(make_pair(vi,vj)) == ehash.end()) {
+      ehash.insert(make_pair(make_pair(vi,vj),0));
+      vloc = vhash.find(vi);
+      si = vloc->second;
+      vloc = vhash.find(vj);
+      sj = vloc->second;
+
+      value3.e = value->e;
+      value3.s = si;
+      kv->add((char *) &vi,sizeof(VERTEX), 
+	      (char *) &value3,sizeof(REDUCE3VALUE));
+      value3.s = sj;
+      kv->add((char *) &vj,sizeof(VERTEX), 
+	      (char *) &value3,sizeof(REDUCE3VALUE));
+    }
+  }
+
+  // delete temporary storage
+
+  delete [] order;
+  delete [] offsets;
 }
 
 /* ----------------------------------------------------------------------
