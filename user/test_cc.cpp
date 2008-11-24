@@ -54,7 +54,7 @@ void output_zonestats(char *, int, char *, int, int *, KeyValue *, void *);
 int sort(char *, int, char *, int);
 void procs2lattice2d(int, int, int, int, int &, int &, int &, int &);
 void procs2lattice3d(int, int, int, int, int,
-		     int &, int &, int &, int &, int &, int &);
+                     int &, int &, int &, int &, int &, int &);
 void error(int, char *);
 void errorone(char *);
 
@@ -158,38 +158,38 @@ int main(int narg, char **args)
     } else if (strcmp(args[iarg],"-t") == 0) {
       if (iarg+2 > narg) error(me,"Bad arguments");
       if (strcmp(args[iarg+1],"ring") == 0) {
-	if (iarg+3 > narg) error(me,"Bad arguments");
-	cc.input = RING;
-	cc.nring = atoi(args[iarg+2]); 
+        if (iarg+3 > narg) error(me,"Bad arguments");
+        cc.input = RING;
+        cc.nring = atoi(args[iarg+2]); 
         cc.nvtx  = cc.nring;
-	iarg += 3;
+        iarg += 3;
       } else if (strcmp(args[iarg+1],"grid2d") == 0) {
-	if (iarg+4 > narg) error(me,"Bad arguments");
-	cc.input = GRID2D;
-	cc.nx = atoi(args[iarg+2]); 
-	cc.ny = atoi(args[iarg+3]); 
+        if (iarg+4 > narg) error(me,"Bad arguments");
+        cc.input = GRID2D;
+        cc.nx = atoi(args[iarg+2]); 
+        cc.ny = atoi(args[iarg+3]); 
         cc.nvtx = cc.nx * cc.ny;
-	iarg += 4;
+        iarg += 4;
       } else if (strcmp(args[iarg+1],"grid3d") == 0) {
-	if (iarg+5 > narg) error(me,"Bad arguments");
-	cc.input = GRID3D;
-	cc.nx = atoi(args[iarg+2]); 
-	cc.ny = atoi(args[iarg+3]); 
-	cc.nz = atoi(args[iarg+4]); 
+        if (iarg+5 > narg) error(me,"Bad arguments");
+        cc.input = GRID3D;
+        cc.nx = atoi(args[iarg+2]); 
+        cc.ny = atoi(args[iarg+3]); 
+        cc.nz = atoi(args[iarg+4]); 
         cc.nvtx = cc.nx * cc.ny * cc.nz;
-	iarg += 5;
+        iarg += 5;
       } else error(me,"Bad arguments");
 
     } else if (strcmp(args[iarg],"-f") == 0) {
       cc.input = FILES;
       iarg++;
       while (iarg < narg) {
-	if (args[iarg][0] == '-') break;
-	cc.infiles = 
-	  (char **) realloc(cc.infiles,(cc.nfiles+1)*sizeof(char *));
-	cc.infiles[cc.nfiles] = args[iarg];
-	cc.nfiles++;
-	iarg++;
+        if (args[iarg][0] == '-') break;
+        cc.infiles = 
+          (char **) realloc(cc.infiles,(cc.nfiles+1)*sizeof(char *));
+        cc.infiles[cc.nfiles] = args[iarg];
+        cc.nfiles++;
+        iarg++;
       }
     } else error(me,"Bad arguments");
   }
@@ -228,9 +228,7 @@ int main(int narg, char **args)
 
     nCC = mr->collate(NULL);
     iter++;
-#ifdef NOISY
-    printf("Iteration %d nCC = %d\n", iter, nCC);
-#endif //NOISY
+    if (me == 0) printf("Iteration %d Number of Components = %d\n", iter, nCC);
 
     cc.doneflag = 1;
     mr->reduce(&reduce3,&cc);
@@ -373,9 +371,9 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
         sscanf(line, "%d %d %lf", &edge.vi, &edge.vj, &nzv);
         if (nzv <= 1.) {  // See assumption above.
           kv->add((char *)&edge.vi,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
+                  (char *) &edge,sizeof(EDGE));
           kv->add((char *)&edge.vj,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
+                  (char *) &edge,sizeof(EDGE));
         }
         else {
           // Valid matrix entry has nzv <= 1.
@@ -418,10 +416,6 @@ void ring(int itask, KeyValue *kv, void *ptr)
     if (edge.vj > nring) edge.vj = 1;
     kv->add((char *) &(edge.vi),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
     kv->add((char *) &(edge.vj),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-    edge.vj = v-1;
-    if (edge.vj == 0) edge.vj = nring;
-    kv->add((char *) &(edge.vi),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-    kv->add((char *) &(edge.vj),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
   }
 }
 
@@ -456,23 +450,13 @@ void grid2d(int itask, KeyValue *kv, void *ptr)
       edge.vi = n;
       edge.vj = n-1;
       if (ii-1 >= 0) {
-	kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-      }
-      edge.vj = n+1;
-      if (ii+1 < nx) {
-	kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+        kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+        kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
       }
       edge.vj = n-nx;
       if (jj-1 >= 0)  {
-	kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-      }
-      edge.vj = n+nx;
-      if (jj+1 < ny) {
-	kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-	kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+        kv->add((char *) &edge.vi,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+        kv->add((char *) &edge.vj,sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
       }
     }
   }
@@ -501,57 +485,36 @@ void grid3d(int itask, KeyValue *kv, void *ptr)
 
   int nx_local,nx_offset,ny_local,ny_offset,nz_local,nz_offset;
   procs2lattice3d(me,nprocs,nx,ny,nz,nx_local,nx_offset,
-		  ny_local,ny_offset,nz_local,nz_offset);
+                  ny_local,ny_offset,nz_local,nz_offset);
 
   for (i = 0; i < nx_local; i++) {
     for (j = 0; j < ny_local; j++) {
       for (k = 0; k < nz_local; k++) {
-	ii = i + nx_offset;
-	jj = j + ny_offset;
-	kk = k + nz_offset;
-	n = kk*nx*ny + jj*nx + ii + 1;
-	edge.vi = n;
-	edge.vj = n-1;
-	if (ii-1 >= 0) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
+        ii = i + nx_offset;
+        jj = j + ny_offset;
+        kk = k + nz_offset;
+        n = kk*nx*ny + jj*nx + ii + 1;
+        edge.vi = n;
+        edge.vj = n-1;
+        if (ii-1 >= 0) {
+          kv->add((char *) &edge.vi,sizeof(VERTEX),
+                  (char *) &edge,sizeof(EDGE));
+          kv->add((char *) &edge.vj,sizeof(VERTEX),
+                  (char *) &edge,sizeof(EDGE));
         }
-	edge.vj = n+1;
-	if (ii+1 < nx) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
+        edge.vj = n-nx;
+        if (jj-1 >= 0) { 
+          kv->add((char *) &edge.vi,sizeof(VERTEX),
+                  (char *) &edge,sizeof(EDGE));
+          kv->add((char *) &edge.vj,sizeof(VERTEX),
+                  (char *) &edge,sizeof(EDGE));
         }
-	edge.vj = n-nx;
-	if (jj-1 >= 0) { 
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-        }
-	edge.vj = n+nx;
-	if (jj+1 < ny) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-        }
-	edge.vj = n-nx*ny;
-	if (kk-1 >= 0) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-        }
-	edge.vj = n+nx*ny;
-	if (kk+1 < nz) {
-	  kv->add((char *) &edge.vi,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
-	  kv->add((char *) &edge.vj,sizeof(VERTEX),
-		  (char *) &edge,sizeof(EDGE));
+        edge.vj = n-nx*ny;
+        if (kk-1 >= 0) {
+          kv->add((char *) &edge.vi,sizeof(VERTEX),
+                  (char *) &edge,sizeof(EDGE));
+          kv->add((char *) &edge.vj,sizeof(VERTEX),
+                  (char *) &edge,sizeof(EDGE));
         }
       }
     }
@@ -576,7 +539,7 @@ void grid3d(int itask, KeyValue *kv, void *ptr)
 #endif
 
 void reduce1(char *key, int keybytes, char *multivalue,
-	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+              int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   struct edge *eptr;
   VERTEX *v = (VERTEX *) key;
@@ -615,7 +578,7 @@ void reduce1(char *key, int keybytes, char *multivalue,
 
 
 void reduce2(char *key, int keybytes, char *multivalue,
-	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+              int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   HELLO_REDUCE2(key, nvalues);
 
@@ -726,7 +689,7 @@ struct key_compare {
 
 
 void reduce3(char *key, int keybytes, char *multivalue,
-	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+              int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   CC *cc = (CC *) ptr;
   
@@ -847,12 +810,12 @@ void reduce3(char *key, int keybytes, char *multivalue,
       value3.e = value->e;
       value3.s = si;
       kv->add((char *) &vi,sizeof(VERTEX), 
-	      (char *) &value3,sizeof(REDUCE3VALUE));
+              (char *) &value3,sizeof(REDUCE3VALUE));
       PRINT_REDUCE3(vi, value3);
 
       value3.s = sj;
       kv->add((char *) &vj,sizeof(VERTEX), 
-	      (char *) &value3,sizeof(REDUCE3VALUE));
+              (char *) &value3,sizeof(REDUCE3VALUE));
       PRINT_REDUCE3(vj, value3);
     }
   }
@@ -883,7 +846,7 @@ void reduce3(char *key, int keybytes, char *multivalue,
 #endif
 
 void reduce4(char *key, int keybytes, char *multivalue,
-	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+              int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   HELLO_REDUCE4(key, nvalues);
 
@@ -931,7 +894,7 @@ void reduce4(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void output_vtxstats(char *key, int keybytes, char *multivalue,
-	             int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   CC *cc = (CC *) ptr;
   REDUCE3VALUE *mv = (REDUCE3VALUE *) multivalue;
@@ -966,7 +929,7 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void output_vtxdetail(char *key, int keybytes, char *multivalue,
-	             int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   FILE *fp = fopen(((CC*)ptr)->outfile, "w");
   STATE *s = (STATE *) multivalue;
@@ -988,7 +951,7 @@ void output_vtxdetail(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void output_zonestats(char *key, int keybytes, char *multivalue,
-	              int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   CC *cc = (CC *) ptr;
   
@@ -1020,8 +983,8 @@ int sort(char *p1, int len1, char *p2, int len2)
 ------------------------------------------------------------------------- */
 
 void procs2lattice2d(int me, int nprocs, int nx, int ny,
-		     int &nx_local, int &nx_offset,
-		     int &ny_local, int &ny_offset)
+                     int &nx_local, int &nx_offset,
+                     int &ny_local, int &ny_offset)
 {
   int ipx,ipy,nx_procs,ny_procs;
   double boxx,boxy,surf;
@@ -1038,9 +1001,9 @@ void procs2lattice2d(int me, int nprocs, int nx, int ny,
       boxy = float(ny)/ipy;
       surf = boxx + boxy;
       if (surf < bestsurf) {
-	bestsurf = surf;
-	nx_procs = ipx;
-	ny_procs = ipy;
+        bestsurf = surf;
+        nx_procs = ipx;
+        ny_procs = ipy;
       }
     }
     ipx++;
@@ -1060,9 +1023,9 @@ void procs2lattice2d(int me, int nprocs, int nx, int ny,
 ------------------------------------------------------------------------- */
 
 void procs2lattice3d(int me, int nprocs, int nx, int ny, int nz,
-		     int &nx_local, int &nx_offset,
-		     int &ny_local, int &ny_offset,
-		     int &nz_local, int &nz_offset)
+                     int &nx_local, int &nx_offset,
+                     int &ny_local, int &ny_offset,
+                     int &nz_local, int &nz_offset)
 {
   int ipx,ipy,ipz,nx_procs,ny_procs,nz_procs,nremain;
   double boxx,boxy,boxz,surf;
@@ -1079,18 +1042,18 @@ void procs2lattice3d(int me, int nprocs, int nx, int ny, int nz,
       while (ipy <= nremain) {
         if (nremain % ipy == 0) {
           ipz = nremain/ipy;
-	  boxx = float(nx)/ipx;
-	  boxy = float(ny)/ipy;
-	  boxz = float(nz)/ipz;
-	  surf = boxx*boxy + boxy*boxz + boxz*boxx;
-	  if (surf < bestsurf) {
-	    bestsurf = surf;
-	    nx_procs = ipx;
-	    ny_procs = ipy;
-	    nz_procs = ipz;
-	  }
-	}
-	ipy++;
+          boxx = float(nx)/ipx;
+          boxy = float(ny)/ipy;
+          boxz = float(nz)/ipz;
+          surf = boxx*boxy + boxy*boxz + boxz*boxx;
+          if (surf < bestsurf) {
+            bestsurf = surf;
+            nx_procs = ipx;
+            ny_procs = ipy;
+            nz_procs = ipz;
+          }
+        }
+        ipy++;
       }
     }
     ipx++;
