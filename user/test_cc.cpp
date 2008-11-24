@@ -709,6 +709,18 @@ struct key_compare {
    output KV = vertices with updated state
      key = Vi, value = (Eij,Si)
 ------------------------------------------------------------------------- */
+#ifdef NOISY
+#define PRINT_REDUCE3(key, value) \
+    printf("reduce3:  Key %d Value [(%d %d) (%d %d %d)]\n", \
+           key, value.e.vi, value.e.vj, \
+           value.s.vtx, value.s.zone, value.s.dist)
+#define HELLO_REDUCE3(key, nvalues) \
+   printf("HELLO REDUCE3  %d  nvalues %d\n", key,  nvalues)
+#else
+#define PRINT_REDUCE3(key, value) 
+#define HELLO_REDUCE3(key, nvalues) 
+#endif
+
 
 void reduce3(char *key, int keybytes, char *multivalue,
 	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
@@ -721,6 +733,8 @@ void reduce3(char *key, int keybytes, char *multivalue,
   // all copies of a vertex state should be identical, so hash it once
   // also create offsets array at same time
   // offsets[i] = offset into multivalue for start of Ith value
+
+  HELLO_REDUCE3((*((int *)key)), nvalues);
 
   REDUCE2VALUE *value;
   map<int,STATE> vhash;
@@ -831,9 +845,12 @@ void reduce3(char *key, int keybytes, char *multivalue,
       value3.s = si;
       kv->add((char *) &vi,sizeof(VERTEX), 
 	      (char *) &value3,sizeof(REDUCE3VALUE));
+      PRINT_REDUCE3(vi, value3);
+
       value3.s = sj;
       kv->add((char *) &vj,sizeof(VERTEX), 
 	      (char *) &value3,sizeof(REDUCE3VALUE));
+      PRINT_REDUCE3(vj, value3);
     }
   }
 
@@ -865,11 +882,14 @@ void reduce3(char *key, int keybytes, char *multivalue,
 void reduce4(char *key, int keybytes, char *multivalue,
 	      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  HELLO_REDUCE4(key, nvalues);
+
   // Compute best state for this vertex.
   // Best state has min zone, then min dist.
   REDUCE3VALUE *r = (REDUCE3VALUE *) multivalue;
   STATE best;
 
+  best.vtx  = *((VERTEX *) key);
   best.zone = r->s.zone;
   best.dist = r->s.dist;
 
