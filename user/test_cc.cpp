@@ -813,13 +813,13 @@ void reduce3(char *key, int keybytes, char *multivalue,
     dmin = IBIGVAL;
     if (si.zone == zmin) dmin = si.dist;
     if (sj.zone == zmin) dmin = MIN(dmin,sj.dist);
-    if (si.zone != zmin || si.dist != dmin) {
+    if (si.zone != zmin || si.dist > dmin+1) {
       si.zone = zmin;
       si.dist = dmin+1;
       viloc->second = si;
       cc->doneflag = 0;
     }
-    if (sj.zone != zmin || sj.dist != dmin) {
+    if (sj.zone != zmin || sj.dist > dmin+1) {
       sj.zone = zmin;
       sj.dist = dmin+1;
       vjloc->second = sj;
