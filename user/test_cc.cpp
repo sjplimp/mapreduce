@@ -228,6 +228,11 @@ int main(int narg, char **args)
     mr->reduce(&reduce2,&cc);
 
     nCC = mr->collate(NULL);
+#ifdef NOISY
+    cnt++;
+    printf("Iteration %d nCC = %d\n", cnt, nCC);
+#endif //NOISY
+
     cc.doneflag = 1;
     mr->reduce(&reduce3,&cc);
 
@@ -237,17 +242,11 @@ int main(int narg, char **args)
 
     mr->collate(NULL);
     mr->reduce(&reduce4,&cc);
-
-#ifdef NOISY
-    cnt++;
-    printf("Iteration %d nCC = %d\n", cnt, nCC);
-#endif //NOISY
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
-#ifdef NOW_IT_IS_TESTED
   // Output some results.
   //
   // Data in mr currently is keyed by vertex v; multivalue includes
@@ -260,6 +259,7 @@ int main(int narg, char **args)
   cc.distStats.cnt = 0;
   for (int i = 0; i < 10; i++) cc.distStats.histo[i] = 0;
 
+  mr->collate(NULL);  // Collate wasn't done after reduce3 when alldone.
   mr->reduce(&output_vtxstats, &cc);
   mr->collate(NULL);
 
@@ -283,9 +283,6 @@ int main(int narg, char **args)
   // This operation requires all vertices to be on one processor.  
   // Don't do this for big data!
   if (cc.outfile) {
-    mr->gather(1);
-    mr->sort_keys(&sort);
-    mr->clone();
     mr->reduce(&output_vtxdetail, &cc);
     mr->collate(NULL);
   }
@@ -319,17 +316,16 @@ int main(int narg, char **args)
     printf("Number of vertices = %d\n", gDist.cnt);
     printf("Number of Connected Components = %d\n", gCCSize.cnt);
     printf("Distance from Seed (Min, Max, Avg):  %d  %d  %f\n", 
-           gDist.min, gDist.max, gDist.sum / gDist.cnt);
+           gDist.min, gDist.max, (float) gDist.sum / (float) gDist.cnt);
     printf("Distance Histogram:  ");
     for (int i = 0; i < 10; i++) printf("%d ", gDist.histo[i]);
     printf("\n");
     printf("Size of Connected Components (Min, Max, Avg):  %d  %d  %f\n", 
-           gCCSize.min, gCCSize.max, gCCSize.sum / gCCSize.cnt);
+           gCCSize.min, gCCSize.max, (float) gCCSize.sum / (float) gCCSize.cnt);
     printf("Size Histogram:  ");
     for (int i = 0; i < 10; i++) printf("%d ", gCCSize.histo[i]);
     printf("\n");
   }
-#endif // NOW_IT_IS_TESTED
 
   delete mr;
 
@@ -954,7 +950,8 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
 
   if (cc->outfile) {
     // Emit for gather to one processor for file output.
-    kv->add(key, sizeof(VERTEX), (char *) &(mv->s), sizeof(STATE));
+    const int zero=0;
+    kv->add((char *) &zero, sizeof(zero), (char *) &(mv->s), sizeof(STATE));
   }
   else {
     // Emit for reorg by zones to collect zone stats.
@@ -973,8 +970,9 @@ void output_vtxdetail(char *key, int keybytes, char *multivalue,
 {
   FILE *fp = fopen(((CC*)ptr)->outfile, "w");
   STATE *s = (STATE *) multivalue;
+  fprintf(fp, "Vtx\tZone\tDistance\n");
   for (int i = 0; i < nvalues; i++, s++) {
-    printf("%d %d %d\n", s->vtx, s->zone, s->dist);
+    fprintf(fp, "%d\t%d\t%d\n", s->vtx, s->zone, s->dist);
 
     // Emit for reorg by zones to collect zone stats.
     kv->add((char *) &(s->zone), sizeof(s->zone),
@@ -1000,6 +998,7 @@ void output_zonestats(char *key, int keybytes, char *multivalue,
   cc->sizeStats.sum += nvalues;
   cc->sizeStats.cnt++;
   int bin = (10 * nvalues) / cc->nvtx;
+  if (bin == 10) bin--;
   cc->sizeStats.histo[bin]++;
 }
 
