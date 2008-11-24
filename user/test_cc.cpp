@@ -910,11 +910,18 @@ void reduce4(char *key, int keybytes, char *multivalue,
       best.dist = MIN(r->s.dist, best.dist);
   }
 
-  // Emit 
+  // Emit edges with updated state for vertex key.
   r = (REDUCE3VALUE *) multivalue;
+  map<pair<int,int>,int> ehash;
+
   for (int n = 0; n < nvalues; n++, r++) {
-    kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(STATE));
-    PRINT_REDUCE4(*((VERTEX *) key), r->e, best);
+    // Emit for unique edges -- no duplicates.  
+    // KDD:  Replace this map with a true hash table for better performance.
+    if (ehash.find(make_pair(r->e.vi, r->e.vj)) == ehash.end()) {
+      ehash.insert(make_pair(make_pair(r->e.vi, r->e.vj),0));
+      kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(STATE));
+      PRINT_REDUCE4(*((VERTEX *) key), r->e, best);
+    }
   }
 }
 
