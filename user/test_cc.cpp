@@ -219,18 +219,16 @@ int main(int narg, char **args)
 
   mr->reduce(&reduce1,&cc);
 
-#ifdef NOISY
-  int cnt = 0;
-#endif
+  int iter = 0;
 
   while (1) {
     mr->collate(NULL);
     mr->reduce(&reduce2,&cc);
 
     nCC = mr->collate(NULL);
+    iter++;
 #ifdef NOISY
-    cnt++;
-    printf("Iteration %d nCC = %d\n", cnt, nCC);
+    printf("Iteration %d nCC = %d\n", iter, nCC);
 #endif //NOISY
 
     cc.doneflag = 1;
@@ -313,6 +311,7 @@ int main(int narg, char **args)
   assert(gCCSize.max <= nVtx);
 
   if (me == 0) {
+    printf("Number of iterations = %d\n", iter);
     printf("Number of vertices = %d\n", gDist.cnt);
     printf("Number of Connected Components = %d\n", gCCSize.cnt);
     printf("Distance from Seed (Min, Max, Avg):  %d  %d  %f\n", 
