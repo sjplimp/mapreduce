@@ -3,7 +3,8 @@
 // Nov 2008
 //
 // Identify connected components in a graph via MapReduce
-// algorithm due to Jonathan Cohen
+// algorithm due to Jonathan Cohen.
+// The algorithm treats all edges as undirected edges.
 // 
 // Syntax: concomp switch args switch args ...
 // switches:

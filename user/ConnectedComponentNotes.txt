@@ -1,3 +1,5 @@
+Note:  The algorithm treats all edges as undirected edges.
+
 Nv = number of vertices in entire graph
 Ne = number of edges in entire graph
 Nz = number of zones = current number of connected components
