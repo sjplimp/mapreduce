@@ -15,7 +15,7 @@
 //      style params = 2d Nx Ny = 2d grid with Nx by Ny vertices
 //      style params = 3d Nx Ny Nz = 3d grid with Nx by Ny by Nz vertices
 //   -f file1 file2 ... = input from list of files containing sparse matrix
-//   -p 0/1 = turn random permutation of input data off or on.  (Default is ON.)
+//   -p 0/1 = turn random permutation of input data off or on. (Default is OFF.)
 
 #include "mpi.h"
 #include "math.h"
@@ -105,7 +105,6 @@ struct CC {
   int nfiles;
   int nvtx;
   int permute;
-  VERTEX *permvec;
   char **infiles;
   char *outfile;
   STATS distStats;
@@ -141,8 +140,7 @@ int main(int narg, char **args)
   cc.root = -1;
   cc.input = NOINPUT;
   cc.nfiles = 0;
-  cc.permute = 1;
-  cc.permvec = NULL;
+  cc.permute = 0;
   cc.infiles = NULL;
   cc.outfile = NULL;
   cc.nvtx = 0;
@@ -401,9 +399,9 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 /* ----------------------------------------------------------------------
    compute permutation vector
 ------------------------------------------------------------------------- */
-void compute_perm_vec(CC *cc, VERTEX n)
+void compute_perm_vec(CC *cc, VERTEX n, VERTEX **permvec)
 {
-  VERTEX *perm = cc->permvec = new VERTEX[n];
+  VERTEX *perm = *permvec = new VERTEX[n];
   for (VERTEX i = 0; i < n; i++) perm[i] = i+1;
 
   srand(1);
@@ -437,13 +435,15 @@ void ring(int itask, KeyValue *kv, void *ptr)
   int first = me*nring/nprocs + 1;
   int last = (me+1)*nring/nprocs + 1;
 
-  if (cc->permute) compute_perm_vec(cc, nring);
+  // Create a random permutation of vertices if requested.
+  VERTEX *permvec = NULL;
+  if (cc->permute) compute_perm_vec(cc, nring, &permvec);
 
   for (int v = first; v < last; v++) {
-    if (cc->permvec) {
-      edge.vi = cc->permvec[v-1];
-      if (v+1 <= nring) edge.vj = cc->permvec[v];
-      else edge.vj = cc->permvec[0];
+    if (cc->permute) {
+      edge.vi = permvec[v-1];
+      if (v+1 <= nring) edge.vj = permvec[v];
+      else edge.vj = permvec[0];
     }
     else {
       edge.vi = v;
@@ -454,7 +454,7 @@ void ring(int itask, KeyValue *kv, void *ptr)
     kv->add((char *) &(edge.vj),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
   }
 
-  if (cc->permute) delete [] cc->permvec;
+  if (cc->permute) delete [] permvec;
 }
 
 /* ----------------------------------------------------------------------
