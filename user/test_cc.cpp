@@ -790,18 +790,18 @@ void reduce3(char *key, int keybytes, char *multivalue,
   // if Si or Sj is not (Zmin,Dmin), change it to Snew = (Zmin,Dmin+1)
   // if Si or Sj changes, put it back in hash table and set CC doneflag = 0
 
-  map<int,STATE>::iterator vloc;
+  map<int,STATE>::iterator vloc, viloc, vjloc;
   int vi,vj,zmin,dmin;
   STATE si,sj;
 
-  for (int i = 0; i < nvalues-1; i++) {
+  for (int i = 0; i < nvalues; i++) {
     value = (REDUCE2VALUE *) &multivalue[offsets[order[i]]];
     vi = value->e.vi;
     vj = value->e.vj;
-    vloc = vhash.find(vi);
-    si = vloc->second;
-    vloc = vhash.find(vj);
-    sj = vloc->second;
+    viloc = vhash.find(vi);
+    si = viloc->second;
+    vjloc = vhash.find(vj);
+    sj = vjloc->second;
     zmin = MIN(si.zone,sj.zone);
     dmin = IBIGVAL;
     if (si.zone == zmin) dmin = si.dist;
@@ -809,13 +809,13 @@ void reduce3(char *key, int keybytes, char *multivalue,
     if (si.zone != zmin || si.dist != dmin) {
       si.zone = zmin;
       si.dist = dmin+1;
-      vhash.insert(make_pair(vi,si));
+      viloc->second = si;
       cc->doneflag = 0;
     }
     if (sj.zone != zmin || sj.dist != dmin) {
       sj.zone = zmin;
       sj.dist = dmin+1;
-      vhash.insert(make_pair(vj,sj));
+      vjloc->second = sj;
       cc->doneflag = 0;
     }
   }
