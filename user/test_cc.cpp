@@ -636,6 +636,13 @@ void reduce2(char *key, int keybytes, char *multivalue,
   REDUCE2VALUE rout;
 
   rout.e = *((EDGE *) key);
+  // Order of states s_i and s_j in multivalue is not necessarily the
+  // same as in edge; make sure we get them correctly ordered here.
+  if (rout.e.vi != si->vtx) {
+    STATE *tmp = si;
+    si = sj;
+    sj = tmp;
+  }
   rout.si = *si;
   rout.sj = *sj;
 
