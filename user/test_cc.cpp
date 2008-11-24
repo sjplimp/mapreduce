@@ -15,6 +15,7 @@
 //      style params = 2d Nx Ny = 2d grid with Nx by Ny vertices
 //      style params = 3d Nx Ny Nz = 3d grid with Nx by Ny by Nz vertices
 //   -f file1 file2 ... = input from list of files containing sparse matrix
+//   -p 0/1 = turn random permutation of input data off or on.  (Default is ON.)
 
 #include "mpi.h"
 #include "math.h"
@@ -58,36 +59,6 @@ void procs2lattice3d(int, int, int, int, int,
 void error(int, char *);
 void errorone(char *);
 
-struct STATS {
-  int min;
-  int max;
-  int sum;
-  int cnt;
-  int histo[10];
-};
-
-struct CC {
-  int me,nprocs;
-  int doneflag;
-  int root;
-  int input;
-  int nring;
-  int nx,ny,nz;
-  int nfiles;
-  int nvtx;
-  char **infiles;
-  char *outfile;
-  STATS distStats;
-  STATS sizeStats;
-};
-
-struct SORTINFO {
-  char *multivalue;
-  int *offsets;
-};
-
-SORTINFO sortinfo;    // needed to give qsort() compare fn access to KMV
-
 /* ---------------------------------------------------------------------- */
 
 #define BIGVAL 1e20;
@@ -116,6 +87,38 @@ typedef struct {
   EDGE e;
   STATE s;
 } REDUCE3VALUE;
+struct STATS {
+  int min;
+  int max;
+  int sum;
+  int cnt;
+  int histo[10];
+};
+
+struct CC {
+  int me,nprocs;
+  int doneflag;
+  int root;
+  int input;
+  int nring;
+  int nx,ny,nz;
+  int nfiles;
+  int nvtx;
+  int permute;
+  VERTEX *permvec;
+  char **infiles;
+  char *outfile;
+  STATS distStats;
+  STATS sizeStats;
+};
+
+struct SORTINFO {
+  char *multivalue;
+  int *offsets;
+};
+
+SORTINFO sortinfo;    // needed to give qsort() compare fn access to KMV
+
 
 /* ---------------------------------------------------------------------- */
 
@@ -138,8 +141,11 @@ int main(int narg, char **args)
   cc.root = -1;
   cc.input = NOINPUT;
   cc.nfiles = 0;
+  cc.permute = 1;
+  cc.permvec = NULL;
   cc.infiles = NULL;
   cc.outfile = NULL;
+  cc.nvtx = 0;
 
   int iarg = 1;
   while (iarg < narg) {
@@ -191,6 +197,10 @@ int main(int narg, char **args)
         cc.nfiles++;
         iarg++;
       }
+    } else if (strcmp(args[iarg],"-p") == 0) {
+      if (iarg+2 > narg) error(me,"Bad arguments");
+      cc.permute = atoi(args[iarg+1]);
+      iarg += 2;
     } else error(me,"Bad arguments");
   }
 
@@ -388,6 +398,23 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
     }
   }
 }
+/* ----------------------------------------------------------------------
+   compute permutation vector
+------------------------------------------------------------------------- */
+void compute_perm_vec(CC *cc, VERTEX n)
+{
+  VERTEX *perm = cc->permvec = new VERTEX[n];
+  for (VERTEX i = 0; i < n; i++) perm[i] = i+1;
+
+  srand(1);
+  double denom = RAND_MAX + 1.;
+  for (VERTEX i = n; i > 0; i--) {
+    VERTEX number = (VERTEX) ((double) i * (double) rand() / denom);
+    VERTEX temp  = perm[number];
+    perm[number] = perm[i-1];
+    perm[i-1]    = temp;
+  }
+}
 
 /* ----------------------------------------------------------------------
    ring function for map
@@ -410,13 +437,24 @@ void ring(int itask, KeyValue *kv, void *ptr)
   int first = me*nring/nprocs + 1;
   int last = (me+1)*nring/nprocs + 1;
 
+  if (cc->permute) compute_perm_vec(cc, nring);
+
   for (int v = first; v < last; v++) {
-    edge.vi = v;
-    edge.vj = v+1;
-    if (edge.vj > nring) edge.vj = 1;
+    if (cc->permvec) {
+      edge.vi = cc->permvec[v-1];
+      if (v+1 <= nring) edge.vj = cc->permvec[v];
+      else edge.vj = cc->permvec[0];
+    }
+    else {
+      edge.vi = v;
+      edge.vj = v+1;
+      if (edge.vj > nring) edge.vj = 1;
+    }
     kv->add((char *) &(edge.vi),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
     kv->add((char *) &(edge.vj),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
   }
+
+  if (cc->permute) delete [] cc->permvec;
 }
 
 /* ----------------------------------------------------------------------
