@@ -15,7 +15,7 @@
 //      style params = 2d Nx Ny = 2d grid with Nx by Ny vertices
 //      style params = 3d Nx Ny Nz = 3d grid with Nx by Ny by Nz vertices
 //   -f file1 file2 ... = input from list of files containing sparse matrix
-//   -p 0/1 = turn random permutation of input data off or on. (Default is OFF.)
+//   -p 0/1 = turn random permutation of input data off/on (default = off)
 
 #include "mpi.h"
 #include "math.h"
@@ -52,6 +52,7 @@ void reduce4(char *, int, char *, int, int *, KeyValue *, void *);
 void output_vtxstats(char *, int, char *, int, int *, KeyValue *, void *);
 void output_vtxdetail(char *, int, char *, int, int *, KeyValue *, void *);
 void output_zonestats(char *, int, char *, int, int *, KeyValue *, void *);
+void output_testdistance(char *, int, char *, int, int *, KeyValue *, void *);
 int sort(char *, int, char *, int);
 void procs2lattice2d(int, int, int, int, int &, int &, int &, int &);
 void procs2lattice3d(int, int, int, int, int,
@@ -87,6 +88,7 @@ typedef struct {
   EDGE e;
   STATE s;
 } REDUCE3VALUE;
+
 struct STATS {
   int min;
   int max;
@@ -105,6 +107,7 @@ struct CC {
   int nfiles;
   int nvtx;
   int permute;
+  int badflag;
   char **infiles;
   char *outfile;
   STATS distStats;
@@ -129,7 +132,7 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
-  int nVtx, nCC;  // Number of vertices and connected components, respectively.
+  int nVtx, nCC;  // Number of vertices and connected components
 
   CC cc;
   cc.me = me;
@@ -253,11 +256,11 @@ int main(int narg, char **args)
   double tstop = MPI_Wtime();
 
   // Output some results.
-  //
-  // Data in mr currently is keyed by vertex v; multivalue includes
-  // every edge containing v, as well as v's state.
+  // Data in mr currently is keyed by vertex v
+  // multivalue includes every edge containing v, as well as v's state.
 
   // Compute min/max/avg distances from seed vertices.
+
   cc.distStats.min = nVtx;
   cc.distStats.max = 0;
   cc.distStats.sum = 0;
@@ -287,12 +290,14 @@ int main(int narg, char **args)
   // Write all vertices with state info to a file.
   // This operation requires all vertices to be on one processor.  
   // Don't do this for big data!
+
   if (cc.outfile) {
     mr->reduce(&output_vtxdetail, &cc);
     mr->collate(NULL);
   }
 
   // Compute min/max/avg connected-component size.
+
   cc.sizeStats.min = nVtx;
   cc.sizeStats.max = 0;
   cc.sizeStats.sum = 0;
@@ -300,7 +305,6 @@ int main(int narg, char **args)
   for (int i = 0; i < 10; i++) cc.sizeStats.histo[i] = 0;
 
   mr->reduce(&output_zonestats, &cc);
-  mr->collate(NULL);
 
   STATS gCCSize;    // global CC stats
   MPI_Allreduce(&cc.sizeStats.min, &gCCSize.min, 1, MPI_INT, MPI_MIN,
@@ -333,17 +337,25 @@ int main(int narg, char **args)
     printf("\n");
   }
 
-  delete mr;
+  // accuracy check on vertex distances if test problem was used
 
-  // statistics
-  // test answer if test problem was used
-  // do more output if -o flag was specified
+  if (cc.input != FILES) {
+    mr->reduce(&output_testdistance, &cc);
+    int badflag;
+    MPI_Allreduce(&cc.badflag, &badflag, 1, MPI_INT, MPI_SUM,
+		  MPI_COMM_WORLD);
+    if (me == 0) printf("# of Vertices with a Bad distance = %d\n",badflag);
+  }
+
+  // final timing
 
   if (me == 0)
-    printf("Time to compute CC on %d procs = %g (secs)\n",nprocs,tstop-tstart);
+    printf("Time to compute CC on %d procs = %g (secs)\n",
+	   nprocs,tstop-tstart);
 
   // clean up
 
+  delete mr;
   delete [] cc.outfile;
   free(cc.infiles);
 
@@ -399,6 +411,7 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 /* ----------------------------------------------------------------------
    compute permutation vector
 ------------------------------------------------------------------------- */
+
 void compute_perm_vec(CC *cc, VERTEX n, VERTEX **permvec)
 {
   VERTEX *perm = *permvec = new VERTEX[n];
@@ -1001,6 +1014,49 @@ void output_zonestats(char *key, int keybytes, char *multivalue,
   int bin = (10 * nvalues) / cc->nvtx;
   if (bin == 10) bin--;
   cc->sizeStats.histo[bin]++;
+}
+
+/* ----------------------------------------------------------------------
+   output_testdistance function
+   Input:  One KMV per zone; MV is (state_i) for all vertices v_i in zone.
+   Output: None.
+------------------------------------------------------------------------- */
+
+void output_testdistance(char *key, int keybytes, char *multivalue,
+			 int nvalues, int *valuebytes, KeyValue *kv,
+			 void *ptr) 
+{
+  CC *cc = (CC *) ptr;
+
+  // check distance in state of each vertex from seed
+  // check against what distance should be based on vertex ID
+  // know correct answer for ring, grid2d, grid3d
+
+  int id,dist,correct;
+  STATE *s = (STATE *) multivalue;
+
+  cc->badflag = 0;
+  for (int i = 0; i < nvalues; i++, s++) {
+    id = s->vtx;
+
+    if (cc->input == RING) {
+      if (id-1 <= cc->nring/2) correct = id - 1;
+      else correct = cc->nring + 1 - id;
+    } else if (cc->input == GRID2D) {
+      int ii = (id-1) % cc->nx;
+      int jj = (id-1) / cc->nx;
+      correct = ii + jj;
+    } else if (cc->input == GRID3D) {
+      int ii = (id-1) % cc->nx;
+      int jj = ((id-1) / cc->nx) % cc->ny;
+      int kk = (id-1) / cc->ny / cc->nx;
+      correct = ii + jj + kk;
+    }
+
+    printf("AAA %d %d %d\n",id,s->dist,correct);
+
+    if (s->dist != correct) cc->badflag++;
+  }
 }
 
 /* ----------------------------------------------------------------------
