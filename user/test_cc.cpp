@@ -941,7 +941,7 @@ void reduce4(char *key, int keybytes, char *multivalue,
            to v_i.
    Output: Two options:  
            if (cc.outfile) Emit (0, state_i) to allow printing of vertex info
-           else Emit (zone, vertex) to allow collecting zone stats.
+           else Emit (zone, state_i) to allow collecting zone stats.
 ------------------------------------------------------------------------- */
 
 void output_vtxstats(char *key, int keybytes, char *multivalue,
@@ -969,14 +969,15 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
   }
   else {
     // Emit for reorg by zones to collect zone stats.
-    kv->add((char *) &(mv->s.zone), sizeof(mv->s.zone), key, sizeof(VERTEX));
+    kv->add((char *) &(mv->s.zone), sizeof(mv->s.zone), 
+            (char *) &(mv->s), sizeof(STATE));
   }
 }
 
 /* ----------------------------------------------------------------------
    output_vtxdetail function
    Input:  One KMV; key = 0; MV is state_i for all vertices v_i.
-   Output: Emit (zone, vertex) to allow collecting zone stats.
+   Output: Emit (zone, state_i) to allow collecting zone stats.
 ------------------------------------------------------------------------- */
 
 void output_vtxdetail(char *key, int keybytes, char *multivalue,
@@ -989,8 +990,7 @@ void output_vtxdetail(char *key, int keybytes, char *multivalue,
     fprintf(fp, "%d\t%d\t%d\n", s->vtx, s->zone, s->dist);
 
     // Emit for reorg by zones to collect zone stats.
-    kv->add((char *) &(s->zone), sizeof(s->zone),
-            (char *) &(s->vtx), sizeof(VERTEX));
+    kv->add((char *) &(s->zone), sizeof(s->zone), (char *) s, sizeof(STATE));
   }
   fclose(fp);
 }
