@@ -268,7 +268,8 @@ int main(int narg, char **args)
   cc.distStats.max = 0;
   cc.distStats.sum = 0;
   cc.distStats.cnt = numSingletons;
-  for (int i = 0; i < 10; i++) cc.distStats.histo[i] = 0;
+  cc.distStats.histo[0] = numSingletons;
+  for (int i = 1; i < 10; i++) cc.distStats.histo[i] = 0;
 
   mr->collate(NULL);  // Collate wasn't done after reduce3 when alldone.
   mr->reduce(&output_vtxstats, &cc);
