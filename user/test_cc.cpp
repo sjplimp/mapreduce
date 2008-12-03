@@ -264,10 +264,10 @@ int main(int narg, char **args)
 
   // Compute min/max/avg distances from seed vertices.
 
-  cc.distStats.min = nVtx;
+  cc.distStats.min = 0;  // Smallest distance is from seed to itself.
   cc.distStats.max = 0;
   cc.distStats.sum = 0;
-  cc.distStats.cnt = 0;
+  cc.distStats.cnt = numSingletons;
   for (int i = 0; i < 10; i++) cc.distStats.histo[i] = 0;
 
   mr->collate(NULL);  // Collate wasn't done after reduce3 when alldone.
@@ -275,8 +275,7 @@ int main(int narg, char **args)
   mr->collate(NULL);
 
   STATS gDist;    // global vertex stats
-  MPI_Allreduce(&cc.distStats.min, &gDist.min, 1, MPI_INT, MPI_MIN,
-                MPI_COMM_WORLD);
+  gDist.min = 0;
   MPI_Allreduce(&cc.distStats.max, &gDist.max, 1, MPI_INT, MPI_MAX,
                 MPI_COMM_WORLD);
   MPI_Allreduce(&cc.distStats.sum, &gDist.sum, 1, MPI_INT, MPI_SUM,
@@ -286,7 +285,7 @@ int main(int narg, char **args)
   MPI_Allreduce(&cc.distStats.histo, &gDist.histo, 10, MPI_INT, MPI_SUM,
                 MPI_COMM_WORLD);
 
-  assert(gDist.cnt == nVtx);
+  assert(gDist.cnt == cc.nvtx);
   assert(gDist.min == 0);
   assert(gDist.max < nVtx);
 
@@ -301,10 +300,10 @@ int main(int narg, char **args)
 
   // Compute min/max/avg connected-component size.
 
-  cc.sizeStats.min = nVtx;
-  cc.sizeStats.max = 0;
-  cc.sizeStats.sum = 0;
-  cc.sizeStats.cnt = 0;
+  cc.sizeStats.min = (numSingletons ? 1 : nVtx); 
+  cc.sizeStats.max = 1;
+  cc.sizeStats.sum = numSingletons;
+  cc.sizeStats.cnt = numSingletons;
   cc.sizeStats.histo[0] = numSingletons;
   for (int i = 1; i < 10; i++) cc.sizeStats.histo[i] = 0;
 
@@ -322,13 +321,13 @@ int main(int narg, char **args)
   MPI_Allreduce(&cc.sizeStats.histo, &gCCSize.histo, 10, MPI_INT, MPI_SUM,
                 MPI_COMM_WORLD);
 
-  assert(gCCSize.cnt == nCC);
+  assert(gCCSize.cnt == nCC+numSingletons);
   assert(gCCSize.max <= nVtx);
 
   if (me == 0) {
     printf("Number of iterations = %d\n", iter);
     printf("Number of vertices = %d\n", cc.nvtx);
-    printf("Number of Connected Components Computed = %d\n", gCCSize.cnt);
+    printf("Number of Connected Components = %d\n", gCCSize.cnt);
     printf("Number of Singleton Vertices = %d\n", numSingletons);
     printf("Distance from Seed (Min, Max, Avg):  %d  %d  %f\n", 
            gDist.min, gDist.max, (float) gDist.sum / (float) cc.nvtx);
@@ -403,17 +402,14 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
         sscanf(line, "%d %d %lf", &edge.vi, &edge.vj, &nzv);
         if (nzv <= 1.) {  // See assumption above.
           if (edge.vi != edge.vj) {
+            // Self edges don't contribute to a connected-components algorithm.
+            // Add only non-self edges.
             kv->add((char *)&edge.vi,sizeof(VERTEX),
                     (char *) &edge,sizeof(EDGE));
             PRINT_MAP(edge.vi, edge);
             kv->add((char *)&edge.vj,sizeof(VERTEX),
                     (char *) &edge,sizeof(EDGE));
             PRINT_MAP(edge.vj, edge);
-          }
-          else {
-            // Self edges don't contribute to a connected-components algorithm.
-            // Skip them.
-            printf("Skipping self edge (%d %d %f)\n", edge.vi, edge.vj, nzv);
           }
         }
         else {
@@ -987,7 +983,6 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
   // all multivalue entries.  We need to check only one.
 
   if (mv->s.dist > cc->distStats.max) cc->distStats.max = mv->s.dist;
-  if (mv->s.dist < cc->distStats.min) cc->distStats.min = mv->s.dist;
   cc->distStats.sum += mv->s.dist;
   cc->distStats.cnt++;
   int bin = (10 * mv->s.dist) / cc->nvtx;
