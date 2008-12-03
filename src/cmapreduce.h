@@ -34,19 +34,19 @@ int MR_map(void *MRptr, int nmap,
 int MR_map_add(void *MRptr, int nmap,
 	       void (*mymap)(int, void *KVptr, void *APPptr),
 	       void *APPptr, int addflag);
-int MR_map_file_char(void *MRptr, int nmap, int files, char **files,
+int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
 		     char sepchar, int delta,
 		     void (*mymap)(int, void *KVptr, void *APPptr),
 		     void *APPptr);
-int MR_map_file_char_add(void *MRptr, int nmap, int files, char **files,
+int MR_map_file_char_add(void *MRptr, int nmap, int nfiles, char **files,
 			 char sepchar, int delta,
 			 void (*mymap)(int, void *KVptr, void *APPptr),
 			 void *APPptr, int addflag);
-int MR_map_file_str(void *MRptr, int nmap, int files, char **files,
+int MR_map_file_str(void *MRptr, int nmap, int nfiles, char **files,
 		    char *sepstr, int delta,
 		    void (*mymap)(int, void *KVptr, void *APPptr),
 		    void *APPptr);
-int MR_map_file_str_add(void *MRptr, int nmap, int files, char **files,
+int MR_map_file_str_add(void *MRptr, int nmap, int nfiles, char **files,
 			char *sepstr, int delta,
 			void (*mymap)(int, void *KVptr, void *APPptr),
 			void *APPptr, int addflag);
