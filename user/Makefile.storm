@@ -1,0 +1,39 @@
+# Red Storm (reddish) Makefile for MapReduce programs
+
+CC =		CC
+CCFLAGS =	-fastsse -I../src -DMPICH_IGNORE_CXX_SEEK
+LINK =		CC
+LINKFLAGS =	-O  
+USRLIB =	-L../src -lmrmpi
+SYSLIB =
+
+SRC = 		mrvector.cpp mrmatrix.cpp 
+OBJS = 		$(SRC:.cpp=.o)
+
+# Targets
+
+all:	concomp matvec pagerank gs
+
+concomp:test_cc.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_cc.o $(USRLIB) $(SYSLIB) -o concomp
+
+gs:	test_gs.o mrglobalsum.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_gs.o mrglobalsum.o $(USRLIB) $(SYSLIB) -o gs
+
+pagerank:	test_pagerank.o $(OBJS) $(LIB)
+	$(LINK) $(LINKFLAGS) test_pagerank.o $(OBJS) $(USRLIB) $(SYSLIB) -o pagerank
+
+matvec:	test_matvec.o $(OBJS) $(LIB)
+	$(LINK) $(LINKFLAGS) test_matvec.o $(OBJS) $(USRLIB) $(SYSLIB) -o matvec
+
+clean:
+	rm *.o
+	rm concomp matvec pagerank gs
+
+# Rules
+
+%.o:%.cpp
+	$(CC) $(CCFLAGS) -c $<
+
+%.o:%.c
+	$(CC) $(CCFLAGS) -c $<
