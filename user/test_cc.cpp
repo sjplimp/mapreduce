@@ -215,8 +215,11 @@ int main(int narg, char **args)
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
 
-  if (cc.input == FILES)
+  if (cc.input == FILES) {
     mr->map(nprocs,cc.nfiles,cc.infiles,'\n',80,&read_matrix,&cc);
+    int tmp = cc.nvtx;
+    MPI_Allreduce(&tmp, &cc.nvtx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  }
   else if (cc.input == RING)
     mr->map(nprocs,&ring,&cc);
   else if (cc.input == GRID2D)
@@ -227,7 +230,6 @@ int main(int narg, char **args)
   // need to mark root vertex if specified, relabel with ID = 0 ??
 
   nVtx = mr->collate(NULL);
-  assert(nVtx == cc.nvtx);
 
   mr->reduce(&reduce1,&cc);
 
@@ -373,6 +375,13 @@ int main(int narg, char **args)
       key = v_j, value = e_ij
 ------------------------------------------------------------------------- */
 
+#ifdef NOISY
+#define PRINT_MAP(v, e) \
+    printf("MAP:  Vertex %d  Edge (%d %d)\n", v, e.vi, e.vj);
+#else
+#define PRINT_REDUCE1(v, e)
+#endif
+
 void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 {
   EDGE edge;
@@ -392,8 +401,10 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
         if (nzv <= 1.) {  // See assumption above.
           kv->add((char *)&edge.vi,sizeof(VERTEX),
                   (char *) &edge,sizeof(EDGE));
+          PRINT_MAP(edge.vi, edge);
           kv->add((char *)&edge.vj,sizeof(VERTEX),
                   (char *) &edge,sizeof(EDGE));
+          PRINT_MAP(edge.vj, edge);
         }
         else {
           // Valid matrix entry has nzv <= 1.
@@ -668,11 +679,21 @@ void reduce2(char *key, int keybytes, char *multivalue,
     PRINT_REDUCE2(si->zone, rout);
   }
   else {
+#define KDD_BUGFIX
+#ifdef KDD_BUGFIX
+    rout.sortdist = si->dist;  // KDD_BUGFIX
+#else
     rout.sortdist = dmin;
+#endif
     kv->add((char *) &(si->zone), sizeof(si->zone), 
             (char *) &rout, sizeof(REDUCE2VALUE));
     PRINT_REDUCE2(si->zone, rout);
 
+#ifdef KDD_BUGFIX
+    rout.sortdist = sj->dist;  // KDD_BUGFIX
+#else
+    rout.sortdist = dmin;
+#endif
     kv->add((char *) &(sj->zone), sizeof(sj->zone), 
             (char *) &rout, sizeof(REDUCE2VALUE));
     PRINT_REDUCE2(sj->zone, rout);
