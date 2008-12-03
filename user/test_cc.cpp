@@ -168,7 +168,7 @@ int main(int narg, char **args)
         if (iarg+3 > narg) error(me,"Bad arguments");
         cc.input = RING;
         cc.nring = atoi(args[iarg+2]); 
-        cc.nvtx  = cc.nring;
+        cc.nvtx = cc.nring;
         iarg += 3;
       } else if (strcmp(args[iarg+1],"grid2d") == 0) {
         if (iarg+4 > narg) error(me,"Bad arguments");
@@ -230,6 +230,7 @@ int main(int narg, char **args)
   // need to mark root vertex if specified, relabel with ID = 0 ??
 
   nVtx = mr->collate(NULL);
+  int numSingletons = cc.nvtx - nVtx;  // Num vertices with degree zero.
 
   mr->reduce(&reduce1,&cc);
 
@@ -304,7 +305,8 @@ int main(int narg, char **args)
   cc.sizeStats.max = 0;
   cc.sizeStats.sum = 0;
   cc.sizeStats.cnt = 0;
-  for (int i = 0; i < 10; i++) cc.sizeStats.histo[i] = 0;
+  cc.sizeStats.histo[0] = numSingletons;
+  for (int i = 1; i < 10; i++) cc.sizeStats.histo[i] = 0;
 
   mr->reduce(&output_zonestats, &cc);
 
@@ -325,10 +327,11 @@ int main(int narg, char **args)
 
   if (me == 0) {
     printf("Number of iterations = %d\n", iter);
-    printf("Number of vertices = %d\n", gDist.cnt);
-    printf("Number of Connected Components = %d\n", gCCSize.cnt);
+    printf("Number of vertices = %d\n", cc.nvtx);
+    printf("Number of Connected Components Computed = %d\n", gCCSize.cnt);
+    printf("Number of Singleton Vertices = %d\n", numSingletons);
     printf("Distance from Seed (Min, Max, Avg):  %d  %d  %f\n", 
-           gDist.min, gDist.max, (float) gDist.sum / (float) gDist.cnt);
+           gDist.min, gDist.max, (float) gDist.sum / (float) cc.nvtx);
     printf("Distance Histogram:  ");
     for (int i = 0; i < 10; i++) printf("%d ", gDist.histo[i]);
     printf("\n");
@@ -379,7 +382,7 @@ int main(int narg, char **args)
 #define PRINT_MAP(v, e) \
     printf("MAP:  Vertex %d  Edge (%d %d)\n", v, e.vi, e.vj);
 #else
-#define PRINT_REDUCE1(v, e)
+#define PRINT_MAP(v, e)
 #endif
 
 void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
@@ -399,12 +402,19 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
         line[linecnt] = '\0'; 
         sscanf(line, "%d %d %lf", &edge.vi, &edge.vj, &nzv);
         if (nzv <= 1.) {  // See assumption above.
-          kv->add((char *)&edge.vi,sizeof(VERTEX),
-                  (char *) &edge,sizeof(EDGE));
-          PRINT_MAP(edge.vi, edge);
-          kv->add((char *)&edge.vj,sizeof(VERTEX),
-                  (char *) &edge,sizeof(EDGE));
-          PRINT_MAP(edge.vj, edge);
+          if (edge.vi != edge.vj) {
+            kv->add((char *)&edge.vi,sizeof(VERTEX),
+                    (char *) &edge,sizeof(EDGE));
+            PRINT_MAP(edge.vi, edge);
+            kv->add((char *)&edge.vj,sizeof(VERTEX),
+                    (char *) &edge,sizeof(EDGE));
+            PRINT_MAP(edge.vj, edge);
+          }
+          else {
+            // Self edges don't contribute to a connected-components algorithm.
+            // Skip them.
+            printf("Skipping self edge (%d %d %f)\n", edge.vi, edge.vj, nzv);
+          }
         }
         else {
           // Valid matrix entry has nzv <= 1.
