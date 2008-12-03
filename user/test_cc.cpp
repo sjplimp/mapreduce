@@ -267,9 +267,8 @@ int main(int narg, char **args)
   cc.distStats.min = 0;  // Smallest distance is from seed to itself.
   cc.distStats.max = 0;
   cc.distStats.sum = 0;
-  cc.distStats.cnt = numSingletons;
-  cc.distStats.histo[0] = numSingletons;
-  for (int i = 1; i < 10; i++) cc.distStats.histo[i] = 0;
+  cc.distStats.cnt = 0;
+  for (int i = 0; i < 10; i++) cc.distStats.histo[i] = 0;
 
   mr->collate(NULL);  // Collate wasn't done after reduce3 when alldone.
   mr->reduce(&output_vtxstats, &cc);
@@ -285,6 +284,10 @@ int main(int narg, char **args)
                 MPI_COMM_WORLD);
   MPI_Allreduce(&cc.distStats.histo, &gDist.histo, 10, MPI_INT, MPI_SUM,
                 MPI_COMM_WORLD);
+
+  // Add in degree-zero vertices
+  gDist.cnt += numSingletons;
+  gDist.histo[0] += numSingletons;
 
   assert(gDist.cnt == cc.nvtx);
   assert(gDist.min == 0);
@@ -303,10 +306,9 @@ int main(int narg, char **args)
 
   cc.sizeStats.min = (numSingletons ? 1 : nVtx); 
   cc.sizeStats.max = 1;
-  cc.sizeStats.sum = numSingletons;
-  cc.sizeStats.cnt = numSingletons;
-  cc.sizeStats.histo[0] = numSingletons;
-  for (int i = 1; i < 10; i++) cc.sizeStats.histo[i] = 0;
+  cc.sizeStats.sum = 0;
+  cc.sizeStats.cnt = 0;
+  for (int i = 0; i < 10; i++) cc.sizeStats.histo[i] = 0;
 
   mr->reduce(&output_zonestats, &cc);
 
@@ -321,6 +323,11 @@ int main(int narg, char **args)
                 MPI_COMM_WORLD);
   MPI_Allreduce(&cc.sizeStats.histo, &gCCSize.histo, 10, MPI_INT, MPI_SUM,
                 MPI_COMM_WORLD);
+
+  // Add in degree-zero vertices
+  gCCSize.sum += numSingletons;
+  gCCSize.cnt += numSingletons;
+  gCCSize.histo[0] += numSingletons;
 
   assert(gCCSize.cnt == nCC+numSingletons);
   assert(gCCSize.max <= nVtx);
