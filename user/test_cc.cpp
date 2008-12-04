@@ -14,6 +14,9 @@
 //      style params = ring N = 1d ring with N vertices
 //      style params = 2d Nx Ny = 2d grid with Nx by Ny vertices
 //      style params = 3d Nx Ny Nz = 3d grid with Nx by Ny by Nz vertices
+//      style params = rmat N Nz a b c d frac seed
+//        generate an RMAT matrix with 2^N rows, Nz non-zeroes per row,
+//        a,b,c,d = RMAT params, frac = RMAT iterator param, seed = RNG seed
 //   -f file1 file2 ... = input from list of files containing sparse matrix
 //   -p 0/1 = turn random permutation of input data off/on (default = off)
 
