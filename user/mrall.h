@@ -64,6 +64,12 @@ public:
   ~INTDOUBLE(){};
 };
 
+static bool compare_intdouble(INTDOUBLE x, INTDOUBLE y)
+{
+  if (x.i < y.i) return true;
+  else return false;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 

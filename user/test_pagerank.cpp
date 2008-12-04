@@ -244,7 +244,7 @@ KDDtmp = MPI_Wtime();
     // Compute local max residual.
     double lresid = 0.;
     if (storage_aware) {
-      y->vec.sort();
+      y->vec.sort(compare_intdouble);
       list<INTDOUBLE>::iterator v, w;
       for (v=x->vec.begin(), w=y->vec.begin(); v!=x->vec.end(); v++, w++) {
         // Sanity check 

@@ -52,7 +52,7 @@ MRVector::MRVector(
     // Store the vector entries on the processors that MapReduce maps them to.
     mr->reduce(&store_vec_by_map, (void *)this);
     // Sort the vector by index.
-    vec.sort();
+    vec.sort(compare_intdouble);
   }
   else {
     // Directory store vector values.
