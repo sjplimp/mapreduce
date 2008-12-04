@@ -24,6 +24,7 @@
 #include "string.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
+#include "random_mars.h"
 #include "assert.h"
 
 #include <map>
@@ -39,9 +40,12 @@ using namespace MAPREDUCE_NS;
 #define MIN(a, b) ((a) <= (b) ? (a) : (b))
 #endif
 
-enum{NOINPUT,RING,GRID2D,GRID3D,FILES};
+enum{NOINPUT,RING,GRID2D,GRID3D,FILES,RMAT};
 
 void read_matrix(int, char *, int, KeyValue *, void *);
+void rmat_generate(int, KeyValue *, void *);
+void rmat_cull(char *, int, char *, int, int *, KeyValue *, void *);
+void rmat(char *, int, char *, int, int *, KeyValue *, void *);
 void ring(int, KeyValue *, void *);
 void grid2d(int, KeyValue *, void *);
 void grid3d(int, KeyValue *, void *);
@@ -108,6 +112,12 @@ struct CC {
   int nvtx;
   int permute;
   int badflag;
+
+  double a,b,c,d,fraction;
+  int nlevels,nnonzero,seed;
+  int ngenerate;
+  RanMars *random;
+
   char **infiles;
   char *outfile;
   STATS distStats;
@@ -185,6 +195,20 @@ int main(int narg, char **args)
         cc.nz = atoi(args[iarg+4]); 
         cc.nvtx = cc.nx * cc.ny * cc.nz;
         iarg += 5;
+      } else if (strcmp(args[iarg+1],"rmat") == 0) {
+        if (iarg+10 > narg) error(me,"Bad arguments");
+        cc.input = RMAT;
+        cc.nlevels = atoi(args[iarg+2]); 
+        cc.nnonzero = atoi(args[iarg+3]); 
+        cc.a = atof(args[iarg+4]); 
+        cc.b = atof(args[iarg+5]); 
+        cc.c = atof(args[iarg+6]); 
+        cc.d = atof(args[iarg+7]); 
+        cc.fraction = atof(args[iarg+8]); 
+        cc.seed = atoi(args[iarg+9]); 
+	cc.random = new RanMars(cc.seed+me);
+        cc.nvtx = 1 << cc.nlevels;
+        iarg += 10;
       } else error(me,"Bad arguments");
 
     } else if (strcmp(args[iarg],"-f") == 0) {
@@ -219,7 +243,24 @@ int main(int narg, char **args)
     mr->map(nprocs,cc.nfiles,cc.infiles,'\n',80,&read_matrix,&cc);
     int tmp = cc.nvtx;
     MPI_Allreduce(&tmp, &cc.nvtx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+  } else if (cc.input == RMAT) {
+    int ntotal = (1 << cc.nlevels) * cc.nnonzero;
+    int nremain = ntotal;
+    while (nremain) {
+      cc.ngenerate = nremain/nprocs;
+      if (me < nremain % nprocs) cc.ngenerate++;
+      mr->verbosity = 2;
+      mr->map(nprocs,&rmat_generate,&cc,1);
+      mr->collate(NULL);
+      int nunique = mr->reduce(&rmat_cull,&cc);
+      nremain = ntotal - nunique;
+    }
+    mr->clone();
+    mr->reduce(&rmat,&cc);
+    mr->verbosity = 0;
   }
+
   else if (cc.input == RING)
     mr->map(nprocs,&ring,&cc);
   else if (cc.input == GRID2D)
@@ -433,6 +474,96 @@ void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
     }
   }
 }
+
+/* ----------------------------------------------------------------------
+   rmat_generate function for map
+   generate an RMAT matrix
+   For each edge e_ij, emit 2 KV: 
+      key = v_i, value = e_ij
+      key = v_j, value = e_ij
+------------------------------------------------------------------------- */
+
+void rmat_generate(int itask, KeyValue *kv, void *ptr)
+{
+  CC *cc = (CC *) ptr;
+
+  double a = cc->a;
+  double b = cc->b;
+  double c = cc->c;
+  double d = cc->d;
+  double fraction = cc->fraction;
+  int nlevels = cc->nlevels;
+  int ngenerate = cc->ngenerate;
+  RanMars *random = cc->random;
+
+  int i,j,ilevel,delta;
+  double a1,b1,c1,d1,total,rn;
+  EDGE edge;
+  int norder = 1 << nlevels;
+
+  for (int m = 0; m < ngenerate; m++) {
+    delta = norder >> 1;
+    a1 = a; b1 = b; c1 = c; d1 = d;
+    i = j = 0;
+    
+    for (ilevel = 0; ilevel < nlevels; ilevel++) {
+      rn = random->uniform();
+      if (rn < a1) {
+      } else if (rn < a1+b1) {
+	j += delta;
+      } else if (rn < a1+b1+c1) {
+	i += delta;
+      } else {
+	i += delta;
+	j += delta;
+      }
+      
+      delta /= 2;
+      if (fraction > 0.0) {
+	a1 += a1*fraction * (random->uniform() - 0.5);
+	b1 += b1*fraction * (random->uniform() - 0.5);
+	c1 += c1*fraction * (random->uniform() - 0.5);
+	d1 += d1*fraction * (random->uniform() - 0.5);
+	total = a1+b1+c1+d1;
+	a1 /= total;
+	b1 /= total;
+	c1 /= total;
+	d1 /= total;
+      }
+    }
+
+    edge.vi = i;
+    edge.vj = j;
+    kv->add((char *) &edge,sizeof(EDGE),NULL,0);
+  }
+}
+
+/* ----------------------------------------------------------------------
+   rmat_cull function for reduce
+   Input: one KMV per edge; MV has multiple entries if RMAT edge has duplicates
+   Output: one KV per edge: key = I,J; value = NULL
+------------------------------------------------------------------------- */
+
+void rmat_cull(char *key, int keybytes, char *multivalue,
+	       int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  kv->add(key,keybytes,NULL,0);
+}
+
+/* ----------------------------------------------------------------------
+   rmat function for reduce
+   Input: one KMV per unique edge; MV is NULL
+   emit the edge twice (once with each endpoint vertex)
+------------------------------------------------------------------------- */
+
+void rmat(char *key, int keybytes, char *multivalue,
+	  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  EDGE *edge = (EDGE *) key;
+  kv->add((char *) &(edge->vi),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+  kv->add((char *) &(edge->vj),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+}
+
 /* ----------------------------------------------------------------------
    compute permutation vector
 ------------------------------------------------------------------------- */
@@ -457,8 +588,8 @@ void compute_perm_vec(CC *cc, VERTEX n, VERTEX **permvec)
    ring is periodic with Nring vertices
    vertices are numbered 1 to Nring
    partition vertices in chunks of size Nring/P per proc
-   emit 2 edges for each vertex I own; 
-   emit each edge twice (once with each endpoint vertex).
+   emit 2 edges for each vertex I own
+   this emit each edge twice (once with each endpoint vertex)
 ------------------------------------------------------------------------- */
 
 void ring(int itask, KeyValue *kv, void *ptr)
@@ -473,7 +604,8 @@ void ring(int itask, KeyValue *kv, void *ptr)
   int first = me*nring/nprocs + 1;
   int last = (me+1)*nring/nprocs + 1;
 
-  // Create a random permutation of vertices if requested.
+  // Create a random permutation of vertices if requested
+
   VERTEX *permvec = NULL;
   if (cc->permute) compute_perm_vec(cc, nring, &permvec);
 
@@ -500,8 +632,8 @@ void ring(int itask, KeyValue *kv, void *ptr)
    2d grid is non-periodic, with Nx by Ny vertices
    vertices are numbered 1 to Nx*Ny with x varying fastest, then y
    partition vertices in 2d chunks based on 2d partition of lattice
-   emit 4 edges for each vertex I own (less on non-periodic boundaries);
-   emit each edge twice (once with each endpoint vertex).
+   emit 4 edges for each vertex I own (less on non-periodic boundaries)
+   this emits each edge twice (once with each endpoint vertex)
 ------------------------------------------------------------------------- */
 
 void grid2d(int itask, KeyValue *kv, void *ptr)
@@ -543,8 +675,8 @@ void grid2d(int itask, KeyValue *kv, void *ptr)
    3d grid is non-periodic, with Nx by Ny by Nz vertices
    vertices are numbered 1 to Nx*Ny*Nz with x varying fastest, then y, then z
    partition vertices in 3d chunks based on 3d partition of lattice
-   emit 6 edges for each vertex I own (less on non-periodic boundaries);
-   emit each edge twice (once with each endpoint vertex).
+   emit 6 edges for each vertex I own (less on non-periodic boundaries)
+   this emits each edge twice (once with each endpoint vertex)
 ------------------------------------------------------------------------- */
 
 void grid3d(int itask, KeyValue *kv, void *ptr)
