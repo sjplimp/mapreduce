@@ -726,18 +726,32 @@ void reduce2(char *key, int keybytes, char *multivalue,
 
 int sort_compare(const void *iptr, const void *jptr)
 {
-  REDUCE2VALUE *value;
+  REDUCE2VALUE *valuei, *valuej;
 
   int i = *((int *) iptr);
-  value = (REDUCE2VALUE *) &sortinfo.multivalue[sortinfo.offsets[i]];
-  float *bi = &value->sortdist;
+  valuei = (REDUCE2VALUE *) &sortinfo.multivalue[sortinfo.offsets[i]];
+  float *bi = &valuei->sortdist;
   int j = *((int *) jptr);
-  value = (REDUCE2VALUE *) &sortinfo.multivalue[sortinfo.offsets[j]];
-  float *bj = &value->sortdist;
+  valuej = (REDUCE2VALUE *) &sortinfo.multivalue[sortinfo.offsets[j]];
+  float *bj = &valuej->sortdist;
 
   if (*bi < *bj) return -1;
   else if (*bi > *bj) return 1;
+#undef STABLE_SORT  // Stable sort is needed only to make parallel runs match
+                    // serially runs identically.  It is not needed for
+                    // correctness of the algorithm, so it is not the default.
+#ifndef STABLE_SORT
   return 0;
+#else
+  else {
+    // Criteria for breaking ties -- look at edge.
+    EDGE *ei = &valuei->e;
+    EDGE *ej = &valuej->e;
+    if (ei->vi < ej->vi) return -1;
+    else if (ei->vi > ej->vi) return 1;
+    else return (ei->vj < ej->vj ? -1 : 1);
+  }
+#endif
 }
 
 /* ----------------------------------------------------------------------
