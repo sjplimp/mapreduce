@@ -394,7 +394,7 @@ int main(int narg, char **args)
 
   // accuracy check on vertex distances if test problem was used
 
-  if (cc.input != FILES) {
+  if (cc.input != FILES && cc.input != RMAT) {
     mr->reduce(&output_testdistance, &cc);
     int badflag;
     MPI_Allreduce(&cc.badflag, &badflag, 1, MPI_INT, MPI_SUM,
@@ -562,8 +562,12 @@ void rmat_map1(char *key, int keybytes, char *multivalue,
 	       int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   EDGE *edge = (EDGE *) key;
-  kv->add((char *) &(edge->vi),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
-  kv->add((char *) &(edge->vj),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
+  if (edge->vi != edge->vj) {  
+    // Self-edges are irrelevant in connected components
+    // Emit only non-self edges.
+    kv->add((char *) &(edge->vi),sizeof(VERTEX),(char *) edge,sizeof(EDGE));
+    kv->add((char *) &(edge->vj),sizeof(VERTEX),(char *) edge,sizeof(EDGE));
+  }
 }
 
 /* ----------------------------------------------------------------------
