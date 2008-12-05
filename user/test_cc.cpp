@@ -45,13 +45,13 @@ using namespace MAPREDUCE_NS;
 
 enum{NOINPUT,RING,GRID2D,GRID3D,FILES,RMAT};
 
-void read_matrix(int, char *, int, KeyValue *, void *);
+void file_map1(int, char *, int, KeyValue *, void *);
 void rmat_generate(int, KeyValue *, void *);
 void rmat_cull(char *, int, char *, int, int *, KeyValue *, void *);
-void rmat(char *, int, char *, int, int *, KeyValue *, void *);
-void ring(int, KeyValue *, void *);
-void grid2d(int, KeyValue *, void *);
-void grid3d(int, KeyValue *, void *);
+void rmat_map1(char *, int, char *, int, int *, KeyValue *, void *);
+void ring_map1(int, KeyValue *, void *);
+void grid2d_map1(int, KeyValue *, void *);
+void grid3d_map1(int, KeyValue *, void *);
 void reduce1(char *, int, char *, int, int *, KeyValue *, void *);
 void reduce2(char *, int, char *, int, int *, KeyValue *, void *);
 void reduce3(char *, int, char *, int, int *, KeyValue *, void *);
@@ -243,7 +243,7 @@ int main(int narg, char **args)
   mr->verbosity = 0;
 
   if (cc.input == FILES) {
-    mr->map(nprocs,cc.nfiles,cc.infiles,'\n',80,&read_matrix,&cc);
+    mr->map(nprocs,cc.nfiles,cc.infiles,'\n',80,&file_map1,&cc);
     int tmp = cc.nvtx;
     MPI_Allreduce(&tmp, &cc.nvtx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
@@ -255,21 +255,20 @@ int main(int narg, char **args)
       if (me < nremain % nprocs) cc.ngenerate++;
       mr->verbosity = 2;
       mr->map(nprocs,&rmat_generate,&cc,1);
-      mr->collate(NULL);
-      int nunique = mr->reduce(&rmat_cull,&cc);
+      int nunique = mr->collate(NULL);
+      if (nunique == ntotal) break;
+      mr->reduce(&rmat_cull,&cc);
       nremain = ntotal - nunique;
     }
-    mr->clone();
-    mr->reduce(&rmat,&cc);
+    mr->reduce(&rmat_map1,&cc);
     mr->verbosity = 0;
-  }
 
-  else if (cc.input == RING)
-    mr->map(nprocs,&ring,&cc);
+  } else if (cc.input == RING)
+    mr->map(nprocs,&ring_map1,&cc);
   else if (cc.input == GRID2D)
-    mr->map(nprocs,&grid2d,&cc);
+    mr->map(nprocs,&grid2d_map1,&cc);
   else if (cc.input == GRID3D)
-    mr->map(nprocs,&grid3d,&cc);
+    mr->map(nprocs,&grid3d_map1,&cc);
 
   // need to mark root vertex if specified, relabel with ID = 0 ??
 
@@ -436,7 +435,7 @@ int main(int narg, char **args)
 #define PRINT_MAP(v, e)
 #endif
 
-void read_matrix(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
+void file_map1(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 {
   EDGE edge;
   double nzv;
@@ -559,8 +558,8 @@ void rmat_cull(char *key, int keybytes, char *multivalue,
    emit the edge twice (once with each endpoint vertex)
 ------------------------------------------------------------------------- */
 
-void rmat(char *key, int keybytes, char *multivalue,
-	  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+void rmat_map1(char *key, int keybytes, char *multivalue,
+	       int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   EDGE *edge = (EDGE *) key;
   kv->add((char *) &(edge->vi),sizeof(VERTEX),(char *) &edge,sizeof(EDGE));
@@ -595,7 +594,7 @@ void compute_perm_vec(CC *cc, VERTEX n, VERTEX **permvec)
    this emit each edge twice (once with each endpoint vertex)
 ------------------------------------------------------------------------- */
 
-void ring(int itask, KeyValue *kv, void *ptr)
+void ring_map1(int itask, KeyValue *kv, void *ptr)
 {
   EDGE edge;
 
@@ -639,7 +638,7 @@ void ring(int itask, KeyValue *kv, void *ptr)
    this emits each edge twice (once with each endpoint vertex)
 ------------------------------------------------------------------------- */
 
-void grid2d(int itask, KeyValue *kv, void *ptr)
+void grid2d_map1(int itask, KeyValue *kv, void *ptr)
 {
   int i,j,ii,jj,n;
   EDGE edge;
@@ -682,7 +681,7 @@ void grid2d(int itask, KeyValue *kv, void *ptr)
    this emits each edge twice (once with each endpoint vertex)
 ------------------------------------------------------------------------- */
 
-void grid3d(int itask, KeyValue *kv, void *ptr)
+void grid3d_map1(int itask, KeyValue *kv, void *ptr)
 {
   int i,j,k,ii,jj,kk,n;
   EDGE edge;
