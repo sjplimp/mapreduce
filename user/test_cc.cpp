@@ -236,9 +236,6 @@ int main(int narg, char **args)
 
   // find connected components via MapReduce
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  double tstart = MPI_Wtime();
-
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
 
@@ -272,6 +269,11 @@ int main(int narg, char **args)
 
   // need to mark root vertex if specified, relabel with ID = 0 ??
 
+  if (me == 0) {printf("Input complete\n"); fflush(stdout);}
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tstart = MPI_Wtime();
+
   nVtx = mr->collate(NULL);
   int numSingletons = cc.nvtx - nVtx;  // Num vertices with degree zero.
 
@@ -279,6 +281,7 @@ int main(int narg, char **args)
 
   int iter = 0;
 
+  if (me == 0) {printf("Beginning iterations\n"); fflush(stdout);}
   while (1) {
     mr->collate(NULL);
     mr->reduce(&reduce2,&cc);
