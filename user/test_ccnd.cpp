@@ -71,12 +71,10 @@ void errorone(char *);
 #define IBIGVAL 0x7FFFFFFF
 
 typedef int VERTEX;      // vertex ID
-
+typedef VERTEX ZONE;     // Zone number.
 typedef struct {         // edge = 2 vertices
   VERTEX vi,vj;
 } EDGE;
-
-typedef int ZONE;        // Zone number.
 
 typedef struct {
   EDGE e;       
@@ -87,6 +85,11 @@ typedef struct {
   EDGE e;
   ZONE zone;
 } REDUCE3VALUE;
+
+typedef struct {
+  VERTEX v;
+  ZONE zone;
+} VTXDETAIL;
 
 struct STATS {
   int min;
@@ -886,18 +889,18 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
 {
   CC *cc = (CC *) ptr;
   REDUCE3VALUE *mv = (REDUCE3VALUE *) multivalue;
+  VTXDETAIL det;
 
   if (cc->outfile) {
     // Emit for gather to one processor for file output.
     const int zero=0;
-    // KDDKDD  Will need to do something different here; now need to transmit
-    // KDDKDD  the vertex IDs, too, since they aren't in the STATE anymore.
-    kv->add((char *) &zero, sizeof(zero), (char *) &(mv->zone), sizeof(ZONE));
+    det.v = *((VERTEX *) key);
+    det.zone = mv->zone;
+    kv->add((char *) &zero, sizeof(zero), (char *) &det, sizeof(VTXDETAIL));
   }
   else {
     // Emit for reorg by zones to collect zone stats.
-    kv->add((char *) &(mv->zone), sizeof(mv->zone), 
-            (char *) &(mv->zone), sizeof(ZONE));
+    kv->add((char *) &(mv->zone), sizeof(mv->zone), NULL, 0);
   }
 }
 
@@ -910,16 +913,14 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
 void output_vtxdetail(char *key, int keybytes, char *multivalue,
                      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-// KDDKDD THIS CODE DOES NOT YET WORK SINCE REVISED TO EXCLUDE DISTANCES.
   FILE *fp = fopen(((CC*)ptr)->outfile, "w");
-  ZONE *zone = (ZONE *) multivalue;
+  VTXDETAIL *det = (VTXDETAIL *) multivalue;
   fprintf(fp, "Vtx\tZone\n");
-  for (int i = 0; i < nvalues; i++, zone++) {
-    fprintf(fp, "%d\t%d\n", 0, *zone);
+  for (int i = 0; i < nvalues; i++, det++) {
+    fprintf(fp, "%d\t%d\n", det->v, det->zone);
 
-// KDDKDD THIS LOOKS FISHY.
     // Emit for reorg by zones to collect zone stats.
-    kv->add((char *) zone, sizeof(ZONE), (char *) zone, sizeof(ZONE));
+    kv->add((char *) &(det->zone), sizeof(ZONE), NULL, 0);
   }
   fclose(fp);
 }
