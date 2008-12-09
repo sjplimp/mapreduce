@@ -76,20 +76,16 @@ typedef struct {         // edge = 2 vertices
   VERTEX vi,vj;
 } EDGE;
 
-typedef struct {         // vertex state = vertex ID, zone ID
-  VERTEX vtx;            // vertex ID (redundant?)
-  int zone;              // zone this vertex is in = vertex ID of zone root
-} STATE;
+typedef int ZONE;        // Zone number.
 
 typedef struct {
   EDGE e;       
-  STATE si;
-  STATE sj;
+  ZONE zone;
 } REDUCE2VALUE;
 
 typedef struct {
   EDGE e;
-  STATE s;
+  ZONE zone;
 } REDUCE3VALUE;
 
 struct STATS {
@@ -690,8 +686,8 @@ void grid3d_map1(int itask, KeyValue *kv, void *ptr)
 ------------------------------------------------------------------------- */
 #ifdef NOISY
 #define PRINT_REDUCE1(v, e, s) \
-    printf("reduce1:  Vertex %d  Key EDGE (%d %d) Value STATE (%d %d)\n", \
-            v, e->vi, e->vj, s.vtx, s.zone);  
+    printf("reduce1:  Vertex %d  Key EDGE (%d %d) Value ZONE %d\n", \
+            v, e->vi, e->vj, s);  
 #define HELLO_REDUCE1(v, n) \
     printf("HELLO REDUCE1 Vertex %d Nvalues %d\n", *v, nvalues);
 #else
@@ -705,15 +701,14 @@ void reduce1(char *key, int keybytes, char *multivalue,
   struct edge *eptr;
   VERTEX *v = (VERTEX *) key;
   EDGE *e = (EDGE *) multivalue;
-  STATE s;
+  ZONE zone;
 
   HELLO_REDUCE1(v, nvalues);
 
-  s.vtx = *v;
-  s.zone = *v;
+  zone = *v;
   for (int n = 0; n < nvalues; n++, e++) {
-    kv->add((char *) e, sizeof(EDGE), (char *) &s, sizeof(STATE));
-    PRINT_REDUCE1(*v, e, s);
+    kv->add((char *) e, sizeof(EDGE), (char *) &zone, sizeof(ZONE));
+    PRINT_REDUCE1(*v, e, zone);
   }
 }
 
@@ -724,10 +719,9 @@ void reduce1(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 #ifdef NOISY
 #define PRINT_REDUCE2(key, rout) \
-    printf("reduce2:  Key %d Value [Edge (%d %d) State (%d %d) (%d %d)]\n", \
+    printf("reduce2:  Key %d Value [Edge (%d %d) Zone %d]\n", \
            key, rout.e.vi, rout.e.vj, \
-           rout.si.vtx, rout.si.zone, \
-           rout.sj.vtx, rout.sj.zone);  
+           rout.zone);  
 #define HELLO_REDUCE2(key, nvalues) \
    printf("HELLO REDUCE2  (%d %d) nvalues %d\n", \
           ((EDGE *)key)->vi, ((EDGE *)key)->vj, nvalues);
@@ -745,35 +739,29 @@ void reduce2(char *key, int keybytes, char *multivalue,
   assert(nvalues == 2);  // For graphs, each edge has two vertices, so 
                          // the multivalue should have at most two states.
 
-  STATE *si = (STATE *) multivalue; 
-  STATE *sj = (STATE *) (multivalue + valuebytes[0]);
+  ZONE si = *((ZONE *) multivalue); 
+  ZONE sj = *((ZONE *) (multivalue + valuebytes[0]));
   
   REDUCE2VALUE rout;
 
   rout.e = *((EDGE *) key);
-  // Order of states s_i and s_j in multivalue is not necessarily the
-  // same as in edge; make sure we get them correctly ordered here.
-  if (rout.e.vi != si->vtx) {
-    STATE *tmp = si;
-    si = sj;
-    sj = tmp;
-  }
-  rout.si = *si;
-  rout.sj = *sj;
 
-  if (si->zone == sj->zone) {
-    kv->add((char *) &(si->zone), sizeof(si->zone), 
-            (char *) &rout, sizeof(REDUCE2VALUE));
-    PRINT_REDUCE2(si->zone, rout);
+  // Pick the better zone for this edge's vertices; better zone has lower value.
+  ZONE better = si;
+  if (sj < si) 
+    better = sj;
+  rout.zone = better;
+
+  if (si == sj) {
+    kv->add((char *) &si, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
+    PRINT_REDUCE2(si, rout);
   }
   else {
-    kv->add((char *) &(si->zone), sizeof(si->zone), 
-            (char *) &rout, sizeof(REDUCE2VALUE));
-    PRINT_REDUCE2(si->zone, rout);
+    kv->add((char *) &si, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
+    PRINT_REDUCE2(si, rout);
 
-    kv->add((char *) &(sj->zone), sizeof(sj->zone), 
-            (char *) &rout, sizeof(REDUCE2VALUE));
-    PRINT_REDUCE2(sj->zone, rout);
+    kv->add((char *) &sj, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
+    PRINT_REDUCE2(sj, rout);
   }
 }
 
@@ -787,9 +775,8 @@ void reduce2(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 #ifdef NOISY
 #define PRINT_REDUCE3(key, value) \
-    printf("reduce3:  Key %d Value [Edge (%d %d) State (%d %d)]\n", \
-           key, value.e.vi, value.e.vj, \
-           value.s.vtx, value.s.zone)
+    printf("reduce3:  Key %d Value [Edge (%d %d) Zone %d]\n", \
+           key, value.e.vi, value.e.vj, value.zone)
 #define HELLO_REDUCE3(key, nvalues) \
    printf("HELLO REDUCE3  %d  nvalues %d\n", key,  nvalues)
 #else
@@ -803,55 +790,35 @@ void reduce3(char *key, int keybytes, char *multivalue,
 {
   CC *cc = (CC *) ptr;
   int i;
+  ZONE thiszone = *((ZONE *) key);
+
+  HELLO_REDUCE3(*key, nvalues);
   
   // Find smallest zone among all vertices in edges in this zone.
   REDUCE2VALUE *value;
   int minzone = cc->nvtx + 1;
   for (i = 0, value = (REDUCE2VALUE*)multivalue; i < nvalues; i++, value++) {
-    if (value->si.zone < minzone) minzone = value->si.zone;
-    if (value->sj.zone < minzone) minzone = value->sj.zone;
+    if (value->zone < minzone) minzone = value->zone;
   }
+
+  if (thiszone != minzone) cc->doneflag = 0;
 
   // Relabel all vertices in zone to have minzone.
-  for (i = 0, value = (REDUCE2VALUE*)multivalue; i < nvalues; i++, value++) {
-    if (value->si.zone != minzone) {
-      cc->doneflag = 0;
-      value->si.zone = minzone;
-    }
-    if (value->sj.zone != minzone) {
-      cc->doneflag = 0;
-      value->sj.zone = minzone;
-    }
-  }
-
-  // emit 2 KV per unique edge in MV
-  // Key = Vi, Val = Eij Si
-  // Key = Vj, Val = Eij Sj
-  // Si,Sj are extracted from updated multivalue.
-  // use edge hash table to identify unique edges
-  // skip edge if already in hash, else insert edge in hash and emit KVs
-
-  map<pair<int,int>,int> ehash;
   REDUCE3VALUE value3;
-  VERTEX vi, vj;
+  value3.zone = minzone;
 
   for (i = 0, value = (REDUCE2VALUE*)multivalue; i < nvalues; i++, value++) {
-    vi = value->e.vi;
-    vj = value->e.vj;
-    if (ehash.find(make_pair(vi,vj)) == ehash.end()) {
-      ehash.insert(make_pair(make_pair(vi,vj),0));
 
-      value3.e = value->e;
-      value3.s = value->si;
-      kv->add((char *) &vi,sizeof(VERTEX), 
-              (char *) &value3,sizeof(REDUCE3VALUE));
-      PRINT_REDUCE3(vi, value3);
+    VERTEX vi = value->e.vi;
+    VERTEX vj = value->e.vj;
+    value3.e = value->e;
+    kv->add((char *) &vi,sizeof(VERTEX), 
+            (char *) &value3,sizeof(REDUCE3VALUE));
+    PRINT_REDUCE3(vi, value3);
 
-      value3.s = value->sj;
-      kv->add((char *) &vj,sizeof(VERTEX), 
-              (char *) &value3,sizeof(REDUCE3VALUE));
-      PRINT_REDUCE3(vj, value3);
-    }
+    kv->add((char *) &vj,sizeof(VERTEX), 
+            (char *) &value3,sizeof(REDUCE3VALUE));
+    PRINT_REDUCE3(vj, value3);
   }
 }
 
@@ -865,8 +832,8 @@ void reduce3(char *key, int keybytes, char *multivalue,
 
 #ifdef NOISY
 #define PRINT_REDUCE4(v, e, s) \
-    printf("reduce4:  Vertex %d  Key (%d %d) Value STATE (%d %d)\n", \
-            v, e.vi, e.vj, s.vtx, s.zone);  
+    printf("reduce4:  Vertex %d  Key (%d %d) Value ZONE %d \n", \
+            v, e.vi, e.vj, s);  
 #define HELLO_REDUCE4(key, nvalues) \
     printf("HELLO REDUCE4 Vertex %d Nvalues %d\n", *((VERTEX *)key), nvalues);
 #else
@@ -882,15 +849,13 @@ void reduce4(char *key, int keybytes, char *multivalue,
   // Compute best state for this vertex.
   // Best state has min zone.
   REDUCE3VALUE *r = (REDUCE3VALUE *) multivalue;
-  STATE best;
+  ZONE best;
 
-  best.vtx  = *((VERTEX *) key);
-  best.zone = r->s.zone;
-
+  best = r->zone;
   r++;  // Processed 0th entry already.  Move on.
   for (int n = 1; n < nvalues; n++, r++) 
-    if (r->s.zone < best.zone) 
-      best.zone = r->s.zone;
+    if (r->zone < best) 
+      best = r->zone;
 
   // Emit edges with updated state for vertex key.
   r = (REDUCE3VALUE *) multivalue;
@@ -901,7 +866,7 @@ void reduce4(char *key, int keybytes, char *multivalue,
     // KDD:  Replace this map with a true hash table for better performance.
     if (ehash.find(make_pair(r->e.vi, r->e.vj)) == ehash.end()) {
       ehash.insert(make_pair(make_pair(r->e.vi, r->e.vj),0));
-      kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(STATE));
+      kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(ZONE));
       PRINT_REDUCE4(*((VERTEX *) key), r->e, best);
     }
   }
@@ -925,12 +890,14 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
   if (cc->outfile) {
     // Emit for gather to one processor for file output.
     const int zero=0;
-    kv->add((char *) &zero, sizeof(zero), (char *) &(mv->s), sizeof(STATE));
+    // KDDKDD  Will need to do something different here; now need to transmit
+    // KDDKDD  the vertex IDs, too, since they aren't in the STATE anymore.
+    kv->add((char *) &zero, sizeof(zero), (char *) &(mv->zone), sizeof(ZONE));
   }
   else {
     // Emit for reorg by zones to collect zone stats.
-    kv->add((char *) &(mv->s.zone), sizeof(mv->s.zone), 
-            (char *) &(mv->s), sizeof(STATE));
+    kv->add((char *) &(mv->zone), sizeof(mv->zone), 
+            (char *) &(mv->zone), sizeof(ZONE));
   }
 }
 
@@ -943,14 +910,16 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
 void output_vtxdetail(char *key, int keybytes, char *multivalue,
                      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+// KDDKDD THIS CODE DOES NOT YET WORK SINCE REVISED TO EXCLUDE DISTANCES.
   FILE *fp = fopen(((CC*)ptr)->outfile, "w");
-  STATE *s = (STATE *) multivalue;
+  ZONE *zone = (ZONE *) multivalue;
   fprintf(fp, "Vtx\tZone\n");
-  for (int i = 0; i < nvalues; i++, s++) {
-    fprintf(fp, "%d\t%d\n", s->vtx, s->zone);
+  for (int i = 0; i < nvalues; i++, zone++) {
+    fprintf(fp, "%d\t%d\n", 0, *zone);
 
+// KDDKDD THIS LOOKS FISHY.
     // Emit for reorg by zones to collect zone stats.
-    kv->add((char *) &(s->zone), sizeof(s->zone), (char *) s, sizeof(STATE));
+    kv->add((char *) zone, sizeof(ZONE), (char *) zone, sizeof(ZONE));
   }
   fclose(fp);
 }
