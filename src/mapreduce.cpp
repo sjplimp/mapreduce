@@ -529,7 +529,8 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
 
   if (me == 0) {
     for (int i = 0; i < nfiles; i++) {
-      stat(files[i],&stbuf);
+      int flag = stat(files[i],&stbuf);
+      if (flag < 0) error->one("Could not query file size");
       filemap.filesize[i] = stbuf.st_size;
     }
   }
