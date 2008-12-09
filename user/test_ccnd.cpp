@@ -795,31 +795,44 @@ void reduce2(char *key, int keybytes, char *multivalue,
 {
   HELLO_REDUCE2(key, nvalues);
 
-  assert(nvalues == 2);  // For graphs, each edge has two vertices, so 
-                         // the multivalue should have at most two states.
+  assert(nvalues >= 2);  // For graphs, each edge has two vertices, so 
+                         // the multivalue should have at least two states.
+                         // Since we allow reduce4 to emit duplicates,
+                         // reduce2 may receive more than 2 states.
 
-  ZONE si = *((ZONE *) multivalue); 
-  ZONE sj = *((ZONE *) (multivalue + valuebytes[0]));
+  ZONE *si = (ZONE *) multivalue; 
+  ZONE *sj = si+1;
+
+  // We are allowing duplicate edges to be emitted by reduce4.
+  // If this edge is completely within one zone, all multivalues will be the 
+  // same.  But just in case the edge isn't completely within one zone, we have
+  // to check duplicates for different zones.  Once we have two different
+  // zones or have searched all duplicates, we can move on.
+  if (*si == *sj)
+    for (int i = 2; i < nvalues; i++) {
+      sj = si + i;
+      if (*si != *sj) break;
+    }
   
   REDUCE2VALUE rout;
 
   rout.e = *((EDGE *) key);
 
   // Pick the better zone for this edge's vertices; better zone has lower value.
-  ZONE better = si;
-  if (sj < si) 
-    better = sj;
+  ZONE better = *si;
+  if (*sj < *si) 
+    better = *sj;
   rout.zone = better;
 
-  if (si == sj) {
-    kv->add((char *) &si, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
+  if (*si == *sj) {
+    kv->add((char *) si, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
     PRINT_REDUCE2(si, rout);
   }
   else {
-    kv->add((char *) &si, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
+    kv->add((char *) si, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
     PRINT_REDUCE2(si, rout);
 
-    kv->add((char *) &sj, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
+    kv->add((char *) sj, sizeof(ZONE), (char *) &rout, sizeof(REDUCE2VALUE));
     PRINT_REDUCE2(sj, rout);
   }
 }
@@ -909,25 +922,18 @@ void reduce4(char *key, int keybytes, char *multivalue,
   // Best state has min zone.
   REDUCE3VALUE *r = (REDUCE3VALUE *) multivalue;
   ZONE best;
+  int n;
 
   best = r->zone;
   r++;  // Processed 0th entry already.  Move on.
-  for (int n = 1; n < nvalues; n++, r++) 
+  for (n = 1; n < nvalues; n++, r++) 
     if (r->zone < best) 
       best = r->zone;
 
   // Emit edges with updated state for vertex key.
-  r = (REDUCE3VALUE *) multivalue;
-  map<pair<int,int>,int> ehash;
-
-  for (int n = 0; n < nvalues; n++, r++) {
-    // Emit for unique edges -- no duplicates.  
-    // KDD:  Replace this map with a true hash table for better performance.
-    if (ehash.find(make_pair(r->e.vi, r->e.vj)) == ehash.end()) {
-      ehash.insert(make_pair(make_pair(r->e.vi, r->e.vj),0));
-      kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(ZONE));
-      PRINT_REDUCE4(*((VERTEX *) key), r->e, best);
-    }
+  for (n = 0, r = (REDUCE3VALUE *) multivalue; n < nvalues; n++, r++) {
+    kv->add((char *) &(r->e), sizeof(EDGE), (char *) &best, sizeof(ZONE));
+    PRINT_REDUCE4(*((VERTEX *) key), r->e, best);
   }
 }
 
