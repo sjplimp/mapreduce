@@ -24,7 +24,7 @@ Collate 1
 Reduce 1
   input: one KMV pair per vertex Vi
   output: emit KV for each edge in MV, where initial Si = (Vi,0)
-  Key = Eij or Eji, Val = Si
+  Key = Eij, Val = Si
 
 Loop:
 
@@ -90,9 +90,6 @@ Done:
   each zone is now a connected component
   Si for each vertex identifies zone Zi it is in, and its distance from Zi
 
-
-
-
 -------------------------------------------------------------------------
 Version of Cohen algorithm that does only CC, not distances
 
@@ -117,7 +114,7 @@ Collate 1
 Reduce 1
   input: one KMV pair per vertex Vi
   output: emit KV for each edge in MV, with initial zone Zi = Vi
-  Key = Eij or Eji, Val = Zi
+  Key = Eij, Val = Zi
 
 Loop:
 
@@ -127,7 +124,7 @@ Collate 2
   Key = Eij, MVal = Zi, Zj
 Reduce 2
   input: one KMV pair per edge
-  output: emit several KV pairs based on Zi,Zj values of vertices in edge
+  output: emit 1 or 2 KV pairs based on Zi,Zj values of vertices in edge
   if Zi = Zj: emit 1 KV pair
     Key = Zi, Val = Eij, Zi
   if Zi != Zj: emit 2 KV pairs (Zi = winner, Zj = loser)

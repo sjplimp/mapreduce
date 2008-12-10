@@ -14,6 +14,9 @@ OBJS = 		$(SRC:.cpp=.o)
 
 all:	concomp matvec pagerank gs
 
+ccnd:	test_ccnd.o random_mars.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_ccnd.o random_mars.o $(USRLIB) $(SYSLIB) -o ccnd
+
 concomp:	test_cc.o random_mars.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_cc.o random_mars.o $(USRLIB) $(SYSLIB) -o concomp
 
@@ -28,7 +31,7 @@ matvec:	test_matvec.o $(OBJS) $(LIB)
 
 clean:
 	rm *.o
-	rm concomp matvec pagerank gs
+	rm ccnd concomp matvec pagerank gs
 
 # Rules
 

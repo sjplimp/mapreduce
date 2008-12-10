@@ -250,7 +250,7 @@ int main(int narg, char **args)
     while (nremain) {
       cc.ngenerate = nremain/nprocs;
       if (me < nremain % nprocs) cc.ngenerate++;
-      mr->verbosity = 2;
+      mr->verbosity = 1;
       mr->map(nprocs,&rmat_generate,&cc,1);
       int nunique = mr->collate(NULL);
       if (nunique == ntotal) break;
