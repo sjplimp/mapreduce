@@ -838,10 +838,10 @@ void reduce2(char *key, int keybytes, char *multivalue,
 /* ----------------------------------------------------------------------
    reduce3 function
    input KMV = all edges in zone
-   one value in multi-value = Eij, Si, Sj
-     Eij = (Vi,Vj), Si = (Zi), Sj = (Zj)
+   one value in multi-value = Eij, Zi
+     Eij = (Vi,Vj)
    output KV = vertices with updated state
-     key = Vi, value = (Eij,Si)
+     key = Vi, value = (Eij,Zi)
 ------------------------------------------------------------------------- */
 #ifdef NOISY
 #define PRINT_REDUCE3(key, value) \
