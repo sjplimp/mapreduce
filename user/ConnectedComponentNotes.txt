@@ -91,6 +91,7 @@ Done:
   Si for each vertex identifies zone Zi it is in, and its distance from Zi
 
 -------------------------------------------------------------------------
+-------------------------------------------------------------------------
 Version of Cohen algorithm that does only CC, not distances
 
 Nv = number of vertices in entire graph
@@ -165,4 +166,102 @@ Done:
   each zone is now a connected component
   each vertex is tagged with the zone Zi it is in
 
+----------------------------------------------------------------------------
+----------------------------------------------------------------------------
 
+version of Cohen algorithm that does only CC, not distances
+added 2-pass min finder to limit size of any component
+  and load-balance it perfectly
+
+P = # of procs running the problem
+Nv = number of vertices in entire graph
+Ne = number of edges in entire graph
+Nz = number of zones = current number of connected components
+Vi = vertex = unique ID = 1 int
+Eij = edge = two vertex IDs = 2 ints
+Zi = root vertex of Vi = zone ID = 1 int
+Ri,Ci = random numbers from 0 to P-1 inclusive
+
+Pre-processing:
+
+Map 1
+  input: read list of Ne edges
+  output: emit 2 KV per edge
+  Key = Vi, Val = Eij
+  Key = Vj, Val = Eij
+Collate 1
+  input: 2*Ne KV pairs
+  output: Nv KMV pairs
+  Key = Vi, MVal = Eij Eik Eim ... (all edges of Vi)
+Reduce 1
+  input: one KMV pair per vertex Vi
+  output: emit KV for each edge in MV, with initial zone Zi = Vi
+  Key = Eij, Val = Zi
+
+Loop:
+
+Collate 2
+  input: 2*Ne KV pairs, Vol = 6*Ne ints
+  output: Ne KMV pairs
+  Key = Eij, MVal = Zi Zj
+Reduce 2
+  input: one KMV pair per edge
+  output: emit 1 or 2 KV pairs based on Zi,Zj values of vertices in edge
+  if Zi = Zj: emit 1 KV pair
+    Key = Zi Ri, Val = Eij Zi Ci (Ri,Ci generated randomly on each iteration;
+                                  0 <= Ri, Ci < P)
+  if Zi != Zj: emit 2 KV pairs (Zi = winner, Zj = loser)
+    Key = Zi Ri, Val = Eij Zi Ci
+    Key = Zj Ri, Val = Eij Zi Ci
+
+Collate 3a
+  input: one or two KV pairs per edge, 6*Ne ints <= Vol <= 12*Ne ints
+  hash to processors based on Ri
+  output: Nz*P KMV pairs
+  Key = Zi Ri, MVal = (Eij Z C) (Eij Z C), ...
+    (1/P fraction of all edges of all vertices in zone)
+Reduce 3a
+  input: one KMV pair per row of zone
+  output: one KV pair for each edge in MV
+  set flag = 0 for each proc
+  loop over edges in MV:
+    find winning edge Z* out of all Z values (min Z value)
+  loop over edges in MV:
+    emit Key = Zi Ci, Val = Eij Z* (no Ri, discard it)
+    set flag = 1 if any edge's Zone was changed
+
+Collate 3b
+  input: one or two KV pair per edge, 5*Ne ints <= Vol <= 10*Ne ints
+  hash to processors based on Ci
+  output: Nz*P KMV pairs
+  Key = Zi Ci, MVal = (Eij Z) (Eij Z) ...
+    (1/P fraction of all edges of all vertices in zone)
+Reduce 3b
+  input: one KMV pair per column of zone
+  output: emit two KV pairs for each edge in MV
+  loop over edges in MV:
+    find winning edge Z* out of all Z values (min Z value)
+  loop over edges in MV:
+    emit 2 KV per edge in MV:
+      Key = Vi, Val = Eij Z*
+      Key = Vj, Val = Eij Z*
+      set flag = 1 if any edge's Zi was changed
+  if flag on all procs still = 0, exit loop
+
+Collate 4
+  input: 2*Ne to 4*Ne KV pairs, 8*Ne ints <= Vol <= 16*Ne ints
+  output: Nv KMV pairs
+  Key = Vi, MVal = (Eij,Zi), (Eik,Zi), (Eim,Zi), ... (all edges of Vi)
+                    May include duplicate edges with possibly different Z.
+Reduce 4
+  input: one KMV pair per vertex
+  output: emit one KV pair for each edge in MV
+  compute best Z* from all values in MV, best = min Z
+  for each Eij in MV, emit 1 KV pair
+    Key = Eij, Val = Z*
+
+End of Loop (return to Collate 2)
+
+Done:
+  each zone is now a connected component
+  each vertex is tagged with the zone Zi it is in
