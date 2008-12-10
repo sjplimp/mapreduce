@@ -132,7 +132,7 @@ Reduce 2
     Key = Zj, Val = Eij, Zi
 
 Collate 3
-  input: one KV pair per edge
+  input: one or two KV pairs per edge
   output: Nz KMV pairs
   Key = Zi, MVal = (Eij, Z), (Eij, Z), ... (all edges of all vertices in zone)
 Reduce 3
