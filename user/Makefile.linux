@@ -7,36 +7,4 @@ LINKFLAGS =	-g
 USRLIB =	-L../src -lmrmpi
 SYSLIB =	-lmpich -lpthread
 
-SRC = 		mrvector.cpp mrmatrix.cpp 
-OBJS = 		$(SRC:.cpp=.o)
-
-# Targets
-
-all:	concomp matvec pagerank gs
-
-ccnd:	test_ccnd.o random_mars.o $(LIB)
-	$(LINK) $(LINKFLAGS) test_ccnd.o random_mars.o $(USRLIB) $(SYSLIB) -o ccnd
-
-concomp:	test_cc.o random_mars.o $(LIB)
-	$(LINK) $(LINKFLAGS) test_cc.o random_mars.o $(USRLIB) $(SYSLIB) -o concomp
-
-gs:	test_gs.o mrglobalsum.o $(LIB)
-	$(LINK) $(LINKFLAGS) test_gs.o mrglobalsum.o $(USRLIB) $(SYSLIB) -o gs
-
-pagerank:	test_pagerank.o $(OBJS) $(LIB)
-	$(LINK) $(LINKFLAGS) test_pagerank.o $(OBJS) $(USRLIB) $(SYSLIB) -o pagerank
-
-matvec:	test_matvec.o $(OBJS) $(LIB)
-	$(LINK) $(LINKFLAGS) test_matvec.o $(OBJS) $(USRLIB) $(SYSLIB) -o matvec
-
-clean:
-	rm *.o
-	rm ccnd concomp matvec pagerank gs
-
-# Rules
-
-%.o:%.cpp
-	$(CC) $(CCFLAGS) -c $<
-
-%.o:%.c
-	$(CC) $(CCFLAGS) -c $<
+include Makefile.common

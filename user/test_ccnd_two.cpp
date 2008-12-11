@@ -486,18 +486,18 @@ void reduce2(char *key, int keybytes, char *multivalue,
     rkey.zone = *si;
     kv->add((char *) &rkey, sizeof(REDUCE2KEY), 
             (char *) &rval, sizeof(REDUCE2VALUE));
-    PRINT_REDUCE2(si, rval);
+    PRINT_REDUCE2(rkey, rval);
   }
   else {
     rkey.zone = *si;
     kv->add((char *) &rkey, sizeof(REDUCE2KEY), 
             (char *) &rval, sizeof(REDUCE2VALUE));
-    PRINT_REDUCE2(si, rval);
+    PRINT_REDUCE2(rkey, rval);
 
     rkey.zone = *sj;
     kv->add((char *) &rkey, sizeof(REDUCE2KEY), 
             (char *) &rval, sizeof(REDUCE2VALUE));
-    PRINT_REDUCE2(sj, rval);
+    PRINT_REDUCE2(rkey, rval);
   }
 }
 
@@ -513,7 +513,7 @@ void reduce2(char *key, int keybytes, char *multivalue,
 #define PRINT_REDUCE3A(key, value) \
     printf("reduce3a:  Key (%d %d) Value [Edge (%d %d) Zone %d]\n", \
            key.zone, key.col, value.e.vi, value.e.vj, value.zone)
-#define HELLO_REDUCE3(key, nvalues) \
+#define HELLO_REDUCE3A(key, nvalues) \
    printf("HELLO REDUCE3A  (%d %d) nvalues %d\n", key->zone, key->row,  nvalues)
 #else
 #define PRINT_REDUCE3A(key, value) 
@@ -567,7 +567,7 @@ void reduce3a(char *key, int keybytes, char *multivalue,
 #define PRINT_REDUCE3B(key, value) \
     printf("reduce3b:  Key %d  Value [Edge (%d %d) Zone %d]\n", \
            key, value.e.vi, value.e.vj, value.zone)
-#define HELLO_REDUCEB(key, nvalues) \
+#define HELLO_REDUCE3B(key, nvalues) \
    printf("HELLO REDUCE3B  (%d %d) nvalues %d\n", key->zone, key->col,  nvalues)
 #else
 #define PRINT_REDUCE3B(key, value) 
