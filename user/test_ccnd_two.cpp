@@ -43,6 +43,8 @@ void reduce4(char *, int, char *, int, int *, KeyValue *, void *);
 void output_vtxstats(char *, int, char *, int, int *, KeyValue *, void *);
 void output_vtxdetail(char *, int, char *, int, int *, KeyValue *, void *);
 void output_zonestats(char *, int, char *, int, int *, KeyValue *, void *);
+int reduce2_hash(char *, int);
+int reduce3a_hash(char *, int);
 
 /* ---------------------------------------------------------------------- */
 
@@ -65,7 +67,6 @@ typedef struct {
 typedef struct {
   EDGE e;
   ZONE zone;
-  int col;
 } REDUCE3AVALUE;
 
 typedef struct {
@@ -255,7 +256,7 @@ KDD2r += (MPI_Wtime() - KDDtmp);
 KDDtmp = MPI_Wtime();
 #endif
 
-    nCC = mr->collate(NULL);   // KDDKDD TODO:  Want to hash on row here.
+    nCC = mr->collate(reduce2_hash);   //  Want to hash on row here.
 
 #ifdef KDDTIME
 KDD3c += (MPI_Wtime() - KDDtmp);
@@ -274,7 +275,7 @@ KDD3r += (MPI_Wtime() - KDDtmp);
 KDDtmp = MPI_Wtime();
 #endif
 
-    nCC = mr->collate(NULL);   // KDDKDD TODO:  Want to hash on col here.
+    nCC = mr->collate(reduce3a_hash);   //  Want to hash on col here.
 
 #ifdef KDDTIME
 KDD3c += (MPI_Wtime() - KDDtmp);
@@ -723,3 +724,26 @@ void output_zonestats(char *key, int keybytes, char *multivalue,
   cc->sizeStats.histo[bin]++;
 }
 
+/* ----------------------------------------------------------------------
+   reduce2_hash function
+   Function used to collate keys coming out of reduce2.
+   Assign tasks to processor based on their row.
+------------------------------------------------------------------------- */
+
+int reduce2_hash(char *key, int keybytes)
+{
+  REDUCE2KEY *rkey = (REDUCE2KEY *) key;
+  return rkey->row;
+}
+
+/* ----------------------------------------------------------------------
+   reduce3a_hash function
+   Function used to collate keys coming out of reduce3a.
+   Assign tasks to processor based on their col.
+------------------------------------------------------------------------- */
+
+int reduce3a_hash(char *key, int keybytes)
+{
+  REDUCE3AKEY *rkey = (REDUCE3AKEY *) key;
+  return rkey->col;
+}
