@@ -410,7 +410,6 @@ if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)
 void reduce1(char *key, int keybytes, char *multivalue,
               int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  struct edge *eptr;
   VERTEX *v = (VERTEX *) key;
   EDGE *e = (EDGE *) multivalue;
   ZONE zone;
@@ -549,8 +548,8 @@ void reduce3a(char *key, int keybytes, char *multivalue,
   for (i = 0, value = (REDUCE2VALUE*)multivalue; i < nvalues; i++, value++) {
     rkey3.col = value->col;
     value3.e = value->e;
-    kv->add((char *) &rkey3,sizeof(VERTEX), 
-            (char *) &value3,sizeof(REDUCE3AVALUE));
+    kv->add((char *) &rkey3, sizeof(REDUCE3AKEY), 
+            (char *) &value3, sizeof(REDUCE3AVALUE));
     PRINT_REDUCE3A(rkey3, value3);
   }
 }

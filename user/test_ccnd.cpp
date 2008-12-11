@@ -380,7 +380,6 @@ if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)
 void reduce1(char *key, int keybytes, char *multivalue,
               int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  struct edge *eptr;
   VERTEX *v = (VERTEX *) key;
   EDGE *e = (EDGE *) multivalue;
   ZONE zone;

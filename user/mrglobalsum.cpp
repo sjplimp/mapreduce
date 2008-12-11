@@ -34,7 +34,7 @@ int MRGlobalSum(
 
   mr->scrunch(1, (char *) &me, sizeof(me));
 
-  int nnp = mr->reduce(&scrunch_sum_int, &gsum);
+  mr->reduce(&scrunch_sum_int, &gsum);
 
   // Currently, MapReduce does not have a broadcast, so we'll cheat.
   MPI_Bcast(&gsum, 1, MPI_INT, 0, mr->communicator());

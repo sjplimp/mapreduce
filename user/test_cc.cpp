@@ -381,7 +381,6 @@ int main(int narg, char **args)
 void reduce1(char *key, int keybytes, char *multivalue,
               int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  struct edge *eptr;
   VERTEX *v = (VERTEX *) key;
   EDGE *e = (EDGE *) multivalue;
   STATE s;
@@ -600,10 +599,8 @@ void reduce3(char *key, int keybytes, char *multivalue,
   REDUCE2VALUE *ivalue,*jvalue;
 
   for (int i = 0; i < nvalues-1; i++) {
-    REDUCE2VALUE *ivalue = 
-      (REDUCE2VALUE *) &multivalue[offsets[order[i]]];
-    REDUCE2VALUE *jvalue = 
-      (REDUCE2VALUE *) &multivalue[offsets[order[i+1]]];
+    ivalue = (REDUCE2VALUE *) &multivalue[offsets[order[i]]];
+    jvalue = (REDUCE2VALUE *) &multivalue[offsets[order[i+1]]];
     if (ivalue->sortdist > jvalue->sortdist) {
       int izone = *((int *) key);
       char str[32];
@@ -844,7 +841,7 @@ void output_testdistance(char *key, int keybytes, char *multivalue,
   // check against what distance should be based on vertex ID
   // know correct answer for ring, grid2d, grid3d
 
-  int id,dist,correct;
+  int id,correct;
   STATE *s = (STATE *) multivalue;
 
   cc->badflag = 0;

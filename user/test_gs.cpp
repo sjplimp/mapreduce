@@ -33,7 +33,6 @@ int main(int narg, char **args)
   MPI_Comm_size(MPI_COMM_WORLD,&np);
 
   MPI_Barrier(MPI_COMM_WORLD);
-  double tstart = MPI_Wtime();
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;

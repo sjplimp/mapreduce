@@ -65,8 +65,8 @@ MRMatrix::MRMatrix(
 
   if (storage != BY_FILE) {
     // Read matrix-market files; emit values with row number as index.
-    int nnz = mr->map(mr->num_procs(), 1, &filename, '\n', 40,
-                      &initialize_matrix, (void *)this, 0);
+    mr->map(mr->num_procs(), 1, &filename, '\n', 40,
+            &initialize_matrix, (void *)this, 0);
     // Gather rows to processors.
     mr->collate(NULL);
     // Store matrix by rows on processors.
@@ -80,8 +80,8 @@ MRMatrix::MRMatrix(
   else {
     // storage = BY_FILE
     // Read matrix-market files; store it in the proc that reads it.
-    int nnz = mr->map(mr->num_procs(), 1, &filename, '\n', 40, 
-                      &store_matrix_directly, (void *)this, 0);
+    mr->map(mr->num_procs(), 1, &filename, '\n', 40, 
+            &store_matrix_directly, (void *)this, 0);
   }
 }
 
@@ -110,7 +110,6 @@ void MRMatrix::MatVec(
   bool storage_aware // Use storage-aware algorithm if possible.
 )
 {
-  int me = mr->my_proc();
   int np = mr->num_procs();
 
   transposeFlag = transpose;
@@ -134,13 +133,13 @@ KDDstart = MPI_Wtime();
     } tmp;
     tmp.A = this;
     tmp.x = x;
-    int nterms = mr->map(np, &local_terms, &tmp, 0);
+    mr->map(np, &local_terms, &tmp, 0);
   }
   else {
     // Data is not stored the way we want to use it for matvec.
     // Need to reorganize.
     // Emit matrix values.
-    int nnz = mr->map(np, &emit_matvec_matrix, (void *)this, 0);
+    mr->map(np, &emit_matvec_matrix, (void *)this, 0);
 
     // Emit vector values.
     mr->map(np, &emit_matvec_vector, (void *)x, 1);
@@ -149,7 +148,7 @@ KDDstart = MPI_Wtime();
     mr->collate(NULL);
 
     // Compute terms x_j * A_ij.
-    int nterms = mr->reduce(&terms, NULL);
+    mr->reduce(&terms, NULL);
   }
 
   // Even if A is sparse, want resulting product vector to be dense.
@@ -176,11 +175,11 @@ KDDstart = MPI_Wtime();
 
   // Compute sum of terms over rows.
   if (y) y->MakeEmpty();
-  int nrow = mr->reduce(&rowsum, y);
+  mr->reduce(&rowsum, y);
 
 #ifdef KDDTIME
 KDDFINISH = MPI_Wtime() - KDDstart;
-printf("%d KDDKDDKDDKDD  0.00000 %f  %f  %f\n", me, KDDMAT, KDDCOLLATE, KDDFINISH);
+printf("%d KDDKDDKDDKDD  0.00000 %f  %f  %f\n", mr->my_proc(), KDDMAT, KDDCOLLATE, KDDFINISH);
 #endif //KDDTIME
 }
 
@@ -299,7 +298,6 @@ void store_matrix_by_map(char *key, int keylen, char *multivalue, int nvalues,
                          int *mvlen, KeyValue *kv, void *ptr)
 {
   MRMatrix *A = (MRMatrix *) ptr;
-  int row = *((int *)key);
   MatrixEntry *nz = (MatrixEntry *)multivalue;
 
   for (int k = 0; k < nvalues; k++, nz++) 
