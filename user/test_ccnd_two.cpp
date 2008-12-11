@@ -263,7 +263,8 @@ KDDtmp = MPI_Wtime();
 #endif
 
     iter++;
-    if (me == 0) printf("Iteration %d Number of Components = %d\n", iter, nCC);
+    if (me == 0) 
+      printf("Iteration %d Number of Parts of Components = %d\n", iter, nCC);
 
     cc.doneflag = 1;
     mr->reduce(&reduce3a,&cc);
@@ -360,7 +361,6 @@ if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)
   gCCSize.cnt += numSingletons;
   gCCSize.histo[0] += numSingletons;
 
-  assert(gCCSize.cnt == nCC+numSingletons);
   assert(gCCSize.max <= nVtx);
 
   if (me == 0) {

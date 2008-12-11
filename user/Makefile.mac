@@ -2,7 +2,7 @@
 
 CC =		mpic++ -m64
 CCFLAGS =	-g -I../src -Wall
-CCFLAGS +=	-DNOISY 
+#CCFLAGS +=	-DNOISY 
 #CCFLAGS +=	-DKDDTIME 
 LINK =		mpic++ -m64
 LINKFLAGS =	-g
