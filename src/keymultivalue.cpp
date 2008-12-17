@@ -21,7 +21,7 @@ using namespace MAPREDUCE_NS;
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
-#define KEYCHUNK 1000000
+#define KEYCHUNK 25000000
 #define BUCKETDEPTH 2
 
 /* ---------------------------------------------------------------------- */

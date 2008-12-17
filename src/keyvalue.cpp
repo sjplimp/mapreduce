@@ -15,8 +15,8 @@
 
 using namespace MAPREDUCE_NS;
 
-#define KEYCHUNK 1000000
-#define BUFCHUNK 4000000
+#define KEYCHUNK 25000000
+#define BUFCHUNK 25000000
 
 /* ---------------------------------------------------------------------- */
 
