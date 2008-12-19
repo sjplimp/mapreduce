@@ -324,15 +324,14 @@ if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)
 
   mr->collate(NULL);  // Collate wasn't done after reduce3 when alldone.
   mr->reduce(&output_vtxstats, &cc);
-  mr->collate(NULL);
 
   // Write all vertices with state info to a file.
   // This operation requires all vertices to be on one processor.  
   // Don't do this for big data!
 
   if (cc.outfile) {
-    mr->reduce(&output_vtxdetail, &cc);
     mr->collate(NULL);
+    mr->reduce(&output_vtxdetail, &cc);
   }
 
   // Compute min/max/avg connected-component size.
@@ -343,6 +342,7 @@ if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)
   cc.sizeStats.cnt = 0;
   for (int i = 0; i < 10; i++) cc.sizeStats.histo[i] = 0;
 
+  mr->collate(NULL);
   mr->reduce(&output_zonestats, &cc);
 
   STATS gCCSize;    // global CC stats
@@ -659,7 +659,7 @@ void reduce4(char *key, int keybytes, char *multivalue,
            to v_i.
    Output: Two options:  
            if (cc.outfile) Emit (0, state_i) to allow printing of vertex info
-           else Emit (zone, state_i) to allow collecting zone stats.
+           else Emit (zone, NULL) to allow collecting zone stats.
 ------------------------------------------------------------------------- */
 
 void output_vtxstats(char *key, int keybytes, char *multivalue,
@@ -685,7 +685,7 @@ void output_vtxstats(char *key, int keybytes, char *multivalue,
 /* ----------------------------------------------------------------------
    output_vtxdetail function
    Input:  One KMV; key = 0; MV is state_i for all vertices v_i.
-   Output: Emit (zone, state_i) to allow collecting zone stats.
+   Output: Emit (zone, NULL) to allow collecting zone stats.
 ------------------------------------------------------------------------- */
 
 void output_vtxdetail(char *key, int keybytes, char *multivalue,
@@ -705,7 +705,7 @@ void output_vtxdetail(char *key, int keybytes, char *multivalue,
 
 /* ----------------------------------------------------------------------
    output_zonestats function
-   Input:  One KMV per zone; MV is (state_i) for all vertices v_i in zone.
+   Input:  One KMV per zone; MV is NULL; the data we want is nvalues.
    Output: None yet.
 ------------------------------------------------------------------------- */
 
