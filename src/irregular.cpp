@@ -137,17 +137,25 @@ void Irregular::pattern(int n, int *proclist)
     }
   }
 
-  // tell receivers how many datums I'm sending, not including self
+  // post all receives for datum counts
+
+  for (int i = 0; i < nrecv; i++)
+    MPI_Irecv(&recvcount[i],1,MPI_INT,MPI_ANY_SOURCE,0,comm,&request[i]);
+
+  // barrier to insure receives are posted
+
+  MPI_Barrier(comm);
+
+  // send each datum count, packing buf with needed datums
 
   for (int i = 0; i < nsend; i++)
     MPI_Send(&sendcount[i],1,MPI_INT,sendproc[i],0,comm);
 
-  // receive sizes and sources of incoming data, not including self
+  // insure all MPI_ANY_SOURCE messages are received
+  // set recvproc
 
-  for (int i = 0; i < nrecv; i++) {
-    MPI_Recv(&recvcount[i],1,MPI_INT,MPI_ANY_SOURCE,0,comm,status);
-    recvproc[i] = status->MPI_SOURCE;
-  }
+  if (nrecv) MPI_Waitall(nrecv,request,status);
+  for (int i = 0; i < nrecv; i++) recvproc[i] = status[i].MPI_SOURCE;
 
   // ndatumrecv = total datums received, including self
 
@@ -155,10 +163,6 @@ void Irregular::pattern(int n, int *proclist)
   for (int i = 0; i < nrecv; i++)
     ndatumrecv += recvcount[i];
   if (self) ndatumrecv += sendcount[nsend];
-
-  // insure all MPI_ANY_SOURCE messages are received
-
-  MPI_Barrier(comm);
 
   // setup sendindices, including self
   // counts = offset into sendindices for each proc I send to
@@ -289,6 +293,10 @@ void Irregular::exchange_same(char *sendbuf, char *recvbuf)
 
   char *buf = (char *) memory->smalloc(nsendmax,"buf");
 
+  // barrier to insure receives are posted
+
+  MPI_Barrier(comm);
+
   // send each message, packing buf with needed datums
 
   int m = 0;
@@ -339,6 +347,10 @@ void Irregular::exchange_varying(char *sendbuf, char *recvbuf)
   // malloc buf for largest send
 
   char *buf = (char *) memory->smalloc(nsendmax,"buf");
+
+  // barrier to insure receives are posted
+
+  MPI_Barrier(comm);
 
   // send each message, packing buf with needed datums
 
