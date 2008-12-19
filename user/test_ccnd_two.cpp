@@ -532,7 +532,7 @@ void reduce3a(char *key, int keybytes, char *multivalue,
   
   // Find smallest zone among all vertices in edges in this (zone.
   REDUCE2VALUE *value;
-  int minzone = cc->nvtx + 1;
+  int minzone = IBIGVAL;
   for (i = 0, value = (REDUCE2VALUE*)multivalue; i < nvalues; i++, value++) {
     if (value->zone < minzone) minzone = value->zone;
   }
@@ -585,7 +585,7 @@ void reduce3b(char *key, int keybytes, char *multivalue,
   
   // Find smallest zone among all vertices in edges in this zone.
   REDUCE3AVALUE *value;
-  int minzone = cc->nvtx + 1;
+  int minzone = IBIGVAL;
   for (i = 0, value = (REDUCE3AVALUE*)multivalue; i < nvalues; i++, value++) {
     if (value->zone < minzone) minzone = value->zone;
   }
