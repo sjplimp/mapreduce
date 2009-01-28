@@ -181,9 +181,6 @@ int main(int narg, char **args)
 
   // find connected components via MapReduce
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  double tstart = MPI_Wtime();
-
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
 
@@ -217,51 +214,23 @@ int main(int narg, char **args)
 
   // need to mark root vertex if specified, relabel with ID = 0 ??
 
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tstart = MPI_Wtime();
+
   nVtx = mr->collate(NULL);
   int numSingletons = cc.nvtx - nVtx;  // Num vertices with degree zero.
 
-#ifdef KDDTIME
-double KDDtmp = MPI_Wtime();
-#endif
-
   mr->reduce(&reduce1,&cc);
-
-#ifdef KDDTIME
-double KDD1 = MPI_Wtime() - KDDtmp;
-double KDD2c = 0, KDD2r = 0;
-double KDD3c = 0, KDD3r = 0;
-double KDD4c = 0, KDD4r = 0;
-#endif
-
 
   int iter = 0;
 
   while (1) {
 
-#ifdef KDDTIME
-KDDtmp = MPI_Wtime();
-#endif
-
     mr->collate(NULL);
-
-#ifdef KDDTIME
-KDD2c += (MPI_Wtime() - KDDtmp);
-KDDtmp = MPI_Wtime();
-#endif
 
     mr->reduce(&reduce2,&cc);
 
-#ifdef KDDTIME
-KDD2r += (MPI_Wtime() - KDDtmp);
-KDDtmp = MPI_Wtime();
-#endif
-
     nCC = mr->collate(reduce2_hash);   //  Want to hash on row here.
-
-#ifdef KDDTIME
-KDD3c += (MPI_Wtime() - KDDtmp);
-KDDtmp = MPI_Wtime();
-#endif
 
     iter++;
     if (me == 0) 
@@ -270,51 +239,18 @@ KDDtmp = MPI_Wtime();
     cc.doneflag = 1;
     mr->reduce(&reduce3a,&cc);
 
-#ifdef KDDTIME
-KDD3r += (MPI_Wtime() - KDDtmp);
-KDDtmp = MPI_Wtime();
-#endif
-
     nCC = mr->collate(reduce3a_hash);   //  Want to hash on col here.
 
-#ifdef KDDTIME
-KDD3c += (MPI_Wtime() - KDDtmp);
-KDDtmp = MPI_Wtime();
-#endif
-
     mr->reduce(&reduce3b,&cc);
-
-#ifdef KDDTIME
-KDD3r += (MPI_Wtime() - KDDtmp);
-#endif
-
 
     int alldone;
     MPI_Allreduce(&cc.doneflag,&alldone,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
     if (alldone) break;
 
-#ifdef KDDTIME
-KDDtmp = MPI_Wtime();
-#endif
-
     mr->collate(NULL);
 
-#ifdef KDDTIME
-KDD4c += (MPI_Wtime() - KDDtmp);
-KDDtmp = MPI_Wtime();
-#endif
-
     mr->reduce(&reduce4,&cc);
-#ifdef KDDTIME
-KDD4r += (MPI_Wtime() - KDDtmp);
-if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)\n", iter, KDD1, KDD2c, KDD2r, KDD3c, KDD3r, KDD4c, KDD4r);
-#endif
-
   }
-#ifdef KDDTIME
-if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)\n", iter, KDD1, KDD2c, KDD2r, KDD3c, KDD3r, KDD4c, KDD4r);
-#endif
-
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
