@@ -318,6 +318,8 @@ if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
+  if (me == 0) printf("Number of iterations = %d\n", iter);
+
   // Output some results.
   // Data in mr currently is keyed by vertex v
   // multivalue includes every edge containing v, as well as v's state.
@@ -365,7 +367,6 @@ if (me == 0) printf("KDDTIME %d ONE %f  TWO (%f %f)  THREE (%f %f)  FOUR (%f %f)
   assert(gCCSize.max <= nVtx);
 
   if (me == 0) {
-    printf("Number of iterations = %d\n", iter);
     printf("Number of vertices = %d\n", cc.nvtx);
     printf("Number of Connected Components = %d\n", gCCSize.cnt);
     printf("Number of Singleton Vertices = %d\n", numSingletons);
