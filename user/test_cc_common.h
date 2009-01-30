@@ -71,6 +71,11 @@ typedef struct {         // edge = 2 vertices
   VERTEX vi,vj;
 } EDGE;
 
+typedef struct {
+  EDGE e;
+  ZONE zone;
+} EDGEZONE;
+
 struct STATS {
   int min;
   int max;
@@ -90,7 +95,8 @@ struct CC {
   int nvtx;
   int permute;
   int badflag;
-
+  int twophase;   // Flag indicating whether to use one-phase or two-phase
+                  // reduce3 in ccnd algorithm.
   double a,b,c,d,fraction;
   int nlevels,nnonzero,seed;
   int ngenerate;

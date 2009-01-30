@@ -3,15 +3,16 @@ OBJS = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank gs concomp ccnd ccndtwo
+all:	matvec pagerank gs concomp ccnd ccndtwo ccndboth
+
+ccndboth:   random_mars.o test_cc_nodist.o test_cc_common.o ccnd.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_cc_nodist.o test_cc_common.o \
+                ccnd.o random_mars.o \
+		$(USRLIB) $(SYSLIB) -o ccndboth
 
 ccndtwo:   random_mars.o test_ccnd_two.o test_cc_common.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_ccnd_two.o test_cc_common.o random_mars.o \
 		$(USRLIB) $(SYSLIB) -o ccndtwo
-
-#ccnd:   random_mars.o test_ccnd.o test_cc_common.o $(LIB)
-#	$(LINK) $(LINKFLAGS) test_ccnd.o test_cc_common.o random_mars.o \
-#		$(USRLIB) $(SYSLIB) -o ccnd
 
 ccnd:   random_mars.o test_ccnd.o test_cc_common.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_ccnd.o test_cc_common.o random_mars.o \
