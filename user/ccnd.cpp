@@ -16,6 +16,7 @@
 #include "keyvalue.h"
 #include "random_mars.h"
 #include "assert.h"
+#include "limits.h"
 
 #include "test_cc_common.h"
 
@@ -83,9 +84,7 @@ void ConnectedComponentsNoDistances(
   int nCC;
   *numSingletons = cc->nvtx - nVtx;  // Num vertices with degree zero.
 
-int kdd =
   mr->reduce(&reduce1,&cc);
-if (me == 0) printf("REDUCE1 %d\n", kdd);
 
   int iter = 0;
 
@@ -94,9 +93,7 @@ if (me == 0) printf("REDUCE1 %d\n", kdd);
     mr->collate(NULL);
 
     if (twophase) {
-int kdd = 
       mr->reduce(&reduce2a,cc);
-if (me == 0) printf("REDUCE2 %d\n", kdd);
       nCC = mr->collate(reduce2a_hash);   //  Want to hash on row here.
     }
     else {
@@ -109,13 +106,9 @@ if (me == 0) printf("REDUCE2 %d\n", kdd);
 
     cc->doneflag = 1;
     if (twophase) {
-int kdd =
       mr->reduce(&reduce3a,cc);
-if (me == 0) printf("REDUCE3A %d\n", kdd);
       nCC = mr->collate(reduce3a_hash);   //  Want to hash on col here.
-kdd=
       mr->reduce(&reduce3b,cc);
-if (me == 0) printf("REDUCE3B %d\n", kdd);
     }
     else  // !twophase
       mr->reduce(&reduce3,cc);
@@ -124,13 +117,9 @@ if (me == 0) printf("REDUCE3B %d\n", kdd);
     MPI_Allreduce(&cc->doneflag,&alldone,1,MPI_INT,MPI_MIN,MPI_COMM_WORLD);
     if (alldone) break;
 
-kdd =
     mr->collate(NULL);
-if (me == 0) printf("COLLATE4 %d\n", kdd);
 
-kdd=
     mr->reduce(&reduce4,cc);
-if (me == 0) printf("REDUCE4 %d\n", kdd);
   }
 
   if (me == 0) printf("Number of iterations = %d\n", iter);
@@ -312,11 +301,11 @@ static void reduce3(char *key, int keybytes, char *multivalue,
   int i;
   ZONE thiszone = *((ZONE *) key);
 
-  HELLO_REDUCE3(*key, nvalues);
+  HELLO_REDUCE3(thiszone, nvalues);
   
   // Find smallest zone among all vertices in edges in this zone.
   REDUCE2VALUE *value;
-  int minzone = cc->nvtx + 1;
+  int minzone = INT_MAX;
   for (i = 0, value = (REDUCE2VALUE*)multivalue; i < nvalues; i++, value++) {
     if (value->zone < minzone) minzone = value->zone;
   }
