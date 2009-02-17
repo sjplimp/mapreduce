@@ -1,5 +1,6 @@
 SRC = 		mrvector.cpp mrmatrix.cpp 
 OBJS = 		$(SRC:.cpp=.o)
+INCS =          mrvector.h mrmatrix.h mrall.h
 
 # Targets
 
@@ -26,7 +27,7 @@ gs:	test_gs.o mrglobalsum.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_gs.o mrglobalsum.o \
 		$(USRLIB) $(SYSLIB) -o gs
 
-pagerank:	test_pagerank.o $(OBJS) $(LIB)
+pagerank:	test_pagerank.o $(OBJS) $(LIB) $(INCS)
 	$(LINK) $(LINKFLAGS) test_pagerank.o $(OBJS) \
 		$(USRLIB) $(SYSLIB) -o pagerank
 

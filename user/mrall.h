@@ -33,6 +33,7 @@
 
 #include <iostream>
 #include <list>
+#include <stdint.h>
 #include "mpi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
@@ -49,11 +50,30 @@ typedef int COMPAREFUNCTION(char *, int, char *, int);
 
 
 /////////////////////////////////////////////////////////////////////////////
+//  Data type for matrix and vector row/column indices.  
+//  For small problems, use int32_t; for more than 2^31 rows, use int64_t.  
+//  Change MPI_IDTYPE appropriately:  MPI_INT or MPI_LONG.
+//  Change routine for conversion from string appropriately:  atoi or atol.
+
+#undef KDD32BIT
+#ifdef KDD32BIT
+typedef int32_t IDTYPE;
+#define MPI_IDTYPE MPI_INT 
+#define ATOID atoi
+#define IDFORMAT "%I"
+#else
+typedef int64_t IDTYPE;
+#define MPI_IDTYPE MPI_LONG
+#define ATOID atol
+#define IDFORMAT "%ld"
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
 //  Data type for values emitted.
 #define XVECVALUE -1
 class INTDOUBLE {
 public:
-  int i;         // When INTDOUBLE is used as a nonzero A_ij in the matrix,
+  IDTYPE i;      // When INTDOUBLE is used as a nonzero A_ij in the matrix,
                  // i is the row index of the nonzero.
                  // When INTDOUBLE is used as an entry of vector x, i < 0;
                  // this flag is needed to allow x_j and column j values to

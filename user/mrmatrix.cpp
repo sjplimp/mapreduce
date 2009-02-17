@@ -51,8 +51,8 @@ bool sort_by_col(const MatrixEntry &lhs, const MatrixEntry &rhs)
 // Does not emit anything, but uses Map to read the files.
 MRMatrix::MRMatrix(
   MapReduce *mr,
-  int n,          // Number of matrix rows 
-  int m,          // Number of matrix columns 
+  IDTYPE n,       // Number of matrix rows 
+  IDTYPE m,       // Number of matrix columns 
   char *filename, // Base filename; NULL if want to re-use existing Amat.
   int storage,    // Flag indicating whether to remap data by rows or cols
                   // before storing on processors.  
@@ -151,6 +151,23 @@ KDDstart = MPI_Wtime();
     mr->reduce(&terms, NULL);
   }
 
+  // KDDKDD 2/17/09
+  // Eventually, we need to re-work emit_matvec_empty_terms
+  // to require no more than INT_MAX tasks (i.e., no more than INT_MAX 
+  // vertices).  In the revision, each task can be responsible for a 
+  // subset of the vertices.
+  // But for this week's stunt, we'll limit the number of vertices to be
+  // no more than INT_MAX.
+  if (NumRows() > INT_MAX) {
+    if (mr->my_proc() == 0) {
+      cout << "ERROR:  Number of rows (vertices) " << NumRows()
+           << " must be no more than " << INT_MAX << endl;
+      cout << "Revisions to map functions are needed." << endl;
+      cout << "See comments near " << __FILE__ << ":" << __LINE__ << endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+
   // Even if A is sparse, want resulting product vector to be dense.
   // Emit some dummies to make the product vector dense.
   // These are dummy terms in the rowsum that will cause product
@@ -234,8 +251,8 @@ void emit_matvec_matrix(int itask, KeyValue *kv, void *ptr)
 void emit_matvec_empty_terms(int itask, KeyValue *kv, void *ptr)
 {
   double zero = 0.;
-  int row = itask+1;  // Matrix-market is one-based.
-// printf("  kDDkDD emit_matvec_empty_terms %d %f\n", row, zero);
+  IDTYPE row = itask+1;  // Matrix-market is one-based.
+// cout << "  kDDkDD emit_matvec_empty_terms " << row << " " << zero << endl;;
   kv->add((char *)&row, sizeof(row), (char *) &zero, sizeof(zero));
 }
 
@@ -254,7 +271,7 @@ void initialize_matrix(int itask, char *bytes, int nbytes, KeyValue *kv,
 
   A->MakeEmpty();
 
-  int i, j;
+  IDTYPE i, j;
   double nzv;
   char line[81];
   // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
@@ -264,7 +281,7 @@ void initialize_matrix(int itask, char *bytes, int nbytes, KeyValue *kv,
     if (bytes[k] == '\n') {
       if (line[0] != '%') {  // i.e., not a comment line.
         line[linecnt] = '\0';
-        sscanf(line, "%d %d %lf", &i, &j, &nzv);
+        sscanf(line, IDFORMAT IDFORMAT "%lf", &i, &j, &nzv);
         if (nzv <= 1.) {
           // Valid matrix entry for pagerank problem have nzv <= 1.
           // Not general for all problems!!!!
@@ -318,7 +335,7 @@ void store_matrix_directly(int itask, char *bytes, int nbytes, KeyValue *kv,
 
   A->MakeEmpty();
 
-  int i, j;
+  IDTYPE i, j;
   double nzv;
   char line[81];
   // Read matrix market file.  Emit (key, value) = (j, [A_ij,i]).
@@ -328,7 +345,7 @@ void store_matrix_directly(int itask, char *bytes, int nbytes, KeyValue *kv,
     if (bytes[k] == '\n') {
       if (line[0] != '%') {  // i.e., not a comment line.
         line[linecnt] = '\0';
-        sscanf(line, "%d %d %lf", &i, &j, &nzv);
+        sscanf(line, IDFORMAT IDFORMAT "%lf", &i, &j, &nzv);
         if (nzv <= 1.) {
           // Valid matrix entry for pagerank problem have nzv <= 1.
           // Not general for all problems!!!!
@@ -428,14 +445,14 @@ void rowsum(char *key, int keylen, char *multivalue, int nvalues, int *mvlen,
             KeyValue *kv, void *ptr)
 {
   double sum = 0;
-  int row = *(int*) key;
+  IDTYPE row = *(IDTYPE*) key;
   double *dptr = (double *) multivalue;
   MRVector *y = (MRVector *) ptr;
   for (int k = 0; k < nvalues; k++) 
     sum += dptr[k];
 
+//  cout << "  kDDkDD rowsum "<< row << " " << sum << " " << nvalues<< endl;
   if (y) {
-// printf("  kDDkDD rowsum %d %f\n", row, sum);
     y->AddEntry(row, sum);
   }
   else

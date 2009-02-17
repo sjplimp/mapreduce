@@ -56,8 +56,8 @@ class MRVector;
 
 class MatrixEntry {
 public:
-  int i;            // row index
-  int j;            // column index
+  IDTYPE i;            // row index
+  IDTYPE j;            // column index
   double nzv;       // non-zero value.
   MatrixEntry() {};
   ~MatrixEntry() {};
@@ -65,12 +65,12 @@ public:
 
 class MRMatrix {
   public:  
-    MRMatrix(MapReduce *, int, int, char *, int storage=0, bool storage_aware=0);
+    MRMatrix(MapReduce *,IDTYPE,IDTYPE,char *,int storage=0, bool storage_aware=0);
     ~MRMatrix() {Amat.clear();}
 
-    int NumRows() { return N; }
-    int NumCols() { return M; }
-    void AddNonzero(int i, int j, double nzv) {
+    IDTYPE NumRows() { return N; }
+    IDTYPE NumCols() { return M; }
+    void AddNonzero(IDTYPE i, IDTYPE j, double nzv) {
       struct MatrixEntry nz;
       nz.i = i;
       nz.j = j;
@@ -87,8 +87,8 @@ class MRMatrix {
     list<MatrixEntry> Amat;  // Non-zeros; probably should make private later.
     int StorageFormat() {return storageFormat;}
   private:
-    int N;  // Number of rows
-    int M;  // Number of cols
+    IDTYPE N;  // Number of rows
+    IDTYPE M;  // Number of cols
     bool transposeFlag;  // State variable; indicates whether to use 
                          // A or A^T in current operation.
     int  storageFormat; // How to store nonzeros in persistent memory:

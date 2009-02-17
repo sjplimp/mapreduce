@@ -62,7 +62,7 @@ COMPAREFUNCTION compare;
 void detect_allzero_rows(
   MapReduce *mr,
   MRMatrix *A,
-  list<int> *allzero   // Output:  Indices of allzero rows in A.
+  list<IDTYPE> *allzero   // Output:  Indices of allzero rows in A.
 )
 {
   // Emit nonzeros of matrix.
@@ -83,10 +83,10 @@ void collect_allzero_rows(char *key, int keylen, char *multivalue,
                           int nvalues, int *mvlen,
                           KeyValue *kv, void *ptr)
 {
-  list<int> *allzero = (list<int> *) ptr;
+  list<IDTYPE> *allzero = (list<IDTYPE> *) ptr;
   if (nvalues == 1) {
     // only the identity vector entry existed for this key -- no a_ij values!
-    int row = *((int*) key);
+    IDTYPE row = *((IDTYPE*) key);
     allzero->push_front(row);
   }
 }
@@ -96,7 +96,7 @@ void collect_allzero_rows(char *key, int keylen, char *multivalue,
 double compute_local_allzero_adj(
   MapReduce *mr,
   MRVector *x,
-  list<int> *allzero,
+  list<IDTYPE> *allzero,
   double alpha,
   bool storage_aware
 )
@@ -116,8 +116,8 @@ double compute_local_allzero_adj(
 // Emit (i, 0) for allzero row i.
 void emit_allzero_rows(int itask, KeyValue *kv, void *ptr)
 {
-  list<int> *allzero = (list<int> *) ptr;
-  list<int>::iterator i;
+  list<IDTYPE> *allzero = (list<IDTYPE> *) ptr;
+  list<IDTYPE>::iterator i;
   double zero = 0.;
   for (i = allzero->begin(); i != allzero->end(); i++)
     kv->add((char *) &(*i), sizeof(*i), (char *) &zero, sizeof(zero));
@@ -165,7 +165,7 @@ MRVector *pagerank(
 
   // Do all-zero row detection.
   if (me == 0) {cout << "Detecting allzero rows..." << endl; flush(cout);}
-  list<int> allzero;
+  list<IDTYPE> allzero;
   detect_allzero_rows(mr, A, &allzero);
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -342,23 +342,23 @@ void simple_stats(MapReduce *mr, MRMatrix *A, MRVector *x)
 {
 int me = mr->my_proc();
 int np;  MPI_Comm_size(MPI_COMM_WORLD, &np);
-int lnentry, maxnentry, minnentry, sumnentry;
+IDTYPE lnentry, maxnentry, minnentry, sumnentry;
 
   lnentry = A->Amat.size();
-  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_IDTYPE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_IDTYPE, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_IDTYPE, MPI_SUM, MPI_COMM_WORLD);
   if (me == 0) 
-    printf("Matrix Stats:  nonzeros/proc (max, min, avg):  %d %d %d\n", 
-           maxnentry, minnentry, sumnentry/np);
+    cout << "Matrix Stats:  nonzeros/proc (max, min, avg):  "
+         << maxnentry << " " << minnentry << " " <<  sumnentry/np << endl;
 
   lnentry = x->vec.size();
-  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_IDTYPE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_IDTYPE, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_IDTYPE, MPI_SUM, MPI_COMM_WORLD);
   if (me == 0) 
-    printf("Vector Stats:  entries/proc (max, min, avg):  %d %d %d\n", 
-           maxnentry, minnentry, sumnentry/np);
+    cout << "Vector Stats:  entries/proc (max, min, avg):  "
+         << maxnentry << " " <<  minnentry << " " <<  sumnentry/np << endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -434,7 +434,7 @@ int main(int narg, char **args)
            << "[-n NumberOfPageranks] file.mtx N" << endl;
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
-  int N = atoi(args[optind+1]);  // Number of rows in matrix.
+  IDTYPE N = ATOID(args[optind+1]);  // Number of rows in matrix.
   int storage_format = (store_by_map ? BY_ROW : BY_FILE);  // Best to store by
                                                            // row for pagerank
   if (!store_by_map && storage_aware) {
@@ -496,7 +496,7 @@ void output(char *key, int keylen, char *multivalue, int nvalues, int *mvlen,
 {
   assert(nvalues == 1);
   double *dptr = (double *) multivalue;
-  cout << *(int*) key <<  "    " << dptr[0] << endl;
+  cout << *(IDTYPE*) key <<  "    " << dptr[0] << endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -505,8 +505,8 @@ void output(char *key, int keylen, char *multivalue, int nvalues, int *mvlen,
 // respectively.
 int compare(char *a, int lena, char *b, int lenb)
 {
-int ia = *(int*)a;
-int ib = *(int*)b;
+IDTYPE ia = *(IDTYPE*)a;
+IDTYPE ib = *(IDTYPE*)b;
   if (ia < ib) return -1;
   if (ia > ib) return  1;
   return 0;

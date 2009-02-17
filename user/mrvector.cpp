@@ -30,7 +30,7 @@ REDUCEFUNCTION store_vec_by_map;
 // Initializes vector uniformly to 1/n.
 MRVector::MRVector(
   MapReduce *mr,
-  int n,                   // Total number of vector entries 
+  IDTYPE n,                   // Total number of vector entries 
   int store_by_map        // Flag indicating whether to redistribute the
                            // entries to processors before storing them
                            // (to try to reduce communication and data 
@@ -43,6 +43,23 @@ MRVector::MRVector(
   }
   global_len = n;
   storeByMap = store_by_map;
+
+  // KDDKDD 2/17/09
+  // Eventually, we need to re-work initialize_vec and store_vec_directly
+  // to require no more than INT_MAX tasks (i.e., no more than INT_MAX 
+  // vertices).  In the revision, each task can be responsible for a 
+  // subset of the vertices.
+  // But for this week's stunt, we'll limit the number of vertices to be
+  // no more than INT_MAX.
+  if (n > INT_MAX) {
+    if (mr->my_proc() == 0) {
+      cout << "ERROR:  Number of rows (vertices) " << n 
+           << " must be no more than " << INT_MAX << endl;
+      cout << "Revisions to map functions are needed." << endl;
+      cout << "See comments near " << __FILE__ << ":" << __LINE__ << endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
 
   if (store_by_map) {
     // Emit vector values
@@ -93,7 +110,7 @@ void initialize_vec(int itask, KeyValue *kv, void *ptr)
 void store_vec_by_map(char *key, int keylen, char *multivalue, int nvalues,
                       int *mvlen, KeyValue *kv, void *ptr)
 {
-  int i = *((int *)key);
+  IDTYPE i = *((IDTYPE *)key);
   double val = *((double*)multivalue);
   MRVector *x = (MRVector *) ptr;
   x->AddEntry(i, val); 
@@ -102,7 +119,7 @@ void store_vec_by_map(char *key, int keylen, char *multivalue, int nvalues,
 /////////////////////////////////////////////////////////////////////////////
 // Add an entry to a vector.
 void MRVector::AddEntry(
-  int i,        // Entry index
+  IDTYPE i,        // Entry index
   double d      // Entry value
 )
 {
@@ -127,7 +144,7 @@ void MRVector::Print()
 {
   list<INTDOUBLE>::iterator v;
   for (v=vec.begin(); v!=vec.end(); v++)
-    printf("[%d  %f]\n", (*v).i, (*v).d);
+    cout << "[" << (*v).i << "  " << (*v).d << endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
