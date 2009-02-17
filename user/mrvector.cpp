@@ -98,7 +98,7 @@ void store_vec_directly(int itask, KeyValue *kv, void *ptr)
 void initialize_vec(int itask, KeyValue *kv, void *ptr)
 {
   double zero = 0.;
-  int i = itask+1;  // Matrix-market is one-based.
+  IDTYPE i = itask+1;  // Matrix-market is one-based.
   kv->add((char *) &i, sizeof(i), (char *)&zero, sizeof(zero));
 }
 
