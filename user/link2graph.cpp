@@ -221,8 +221,8 @@ void vertex_label(char *key, int keybytes, char *multivalue,
 		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   LABEL *label = (LABEL *) ptr;
-  int id = label->nthresh + label->count;
   label->count++;
+  int id = label->nthresh + label->count;
   kv->add(key,keybytes,(char *) &id,sizeof(int));
 }
 
@@ -266,10 +266,8 @@ void edge_label2(char *key, int keybytes, char *multivalue,
   // id = negative int in mvalue list
 
   int *vertex = (int *) multivalue;
-  for (i = 0; i < nvalues; i++) {
-    printf("AAA %d %d %d %d\n",i,nvalues,valuebytes[i],vertex[i]);
+  for (i = 0; i < nvalues; i++)
     if (vertex[i] > 0) break;
-  }
   int id = vertex[i];
 
   for (i = 0; i < nvalues; i++) {
