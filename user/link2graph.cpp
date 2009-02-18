@@ -16,7 +16,18 @@
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
-void cull(char *, int, char *, int, int *, KeyValue *, void *);
+void vertex_emit(char *, int, char *, int, int *, KeyValue *, void *);
+void vertex_unique(char *, int, char *, int, int *, KeyValue *, void *);
+void edge_unique(char *, int, char *, int, int *, KeyValue *, void *);
+void vertex_label(char *, int, char *, int, int *, KeyValue *, void *);
+void edge_label1(char *, int, char *, int, int *, KeyValue *, void *);
+void edge_label2(char *, int, char *, int, int *, KeyValue *, void *);
+void matrix_write(char *, int, char *, int, int *, KeyValue *, void *);
+
+typedef struct {
+  int nthresh;
+  int count;
+} LABEL;
 
 #define VERTEXSIZE 8
 #define RECORDSIZE 32
@@ -40,42 +51,77 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  MapReduce *mrmaster = new MapReduce(MPI_COMM_WORLD);
-  mrmaster->verbosity = 2;
+  // mrraw = all edges in file data
 
-  int nrecords = mrmaster->map(narg-1,&fileread,&args[1]);
-  int nverts = mrmaster->collate(NULL);
-  int nedges = mrmaster->reduce(&cull,NULL);
+  MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
+  mrraw->verbosity = 2;
+  int nrawedges = mrraw->map(narg-1,&fileread,&args[1]);
 
+  // mrvert = unique non-zero vertices
 
+  MapReduce *mrvert = new MapReduce(*mrraw);
+  mrvert->clone();
+  mrvert->reduce(&vertex_emit,NULL);
+  mrvert->collate(NULL);
+  int nverts = mrvert->reduce(&vertex_unique,NULL);
 
+  // mredge = unique I->J edges with I and J non-zero
+  // then no longer need mrraw
 
-  MapReduce *mr = new MapReduce(*mrmaster);
+  MapReduce *mredge = new MapReduce(*mrraw);
+  mredge->collate(NULL);
+  int nedges = mredge->reduce(&edge_unique,NULL);
+  delete mrraw;
 
-  //mr->gather(1);
-  //mr->sort_values(&ncompare);
-  //mr->clone();
+  // mrvertlabel = vertices with unique IDs 1-N
+  // label.nthresh = # of verts on procs < me
 
-  /*
-  FILE *fp = NULL;
+  LABEL label;
+  int nlocal = mrvert->kv->nkey;
+  MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+  label.nthresh -= nlocal;
+
+  MapReduce *mrvertlabel = new MapReduce(*mrvert);
+  mrvertlabel->clone();
+  int count = 0;
+  mrvertlabel->reduce(&vertex_label,&label);
+
+  // reset all vertices in mredge from 1 to N
+
+  mredge->kv->add(mrvertlabel->kv);
+  mredge->collate(NULL);
+  mredge->reduce(&edge_label1,NULL);
+  mredge->kv->add(mrvertlabel->kv);
+  mredge->collate(NULL);
+  mredge->reduce(&edge_label2,NULL);
+
+  // print out matrix edges in Matrix Market format
+
   if (me == 0) {
-    fp = fopen("tmp.out","w");
-    fprintf(fp,"# %d unique words\n",nunique);
+    FILE *fp = fopen("a.header","w");
+    fprintf(fp,"%d %d %d\n",nverts,nverts,nedges);
+    fclose(fp);
   }
-  mr->reduce(&output,fp);
-  if (me == 0) fclose(fp);
-  */
 
-  delete mr;
-  delete mrmaster;
+  char fname[16];
+  sprintf(fname,"a.%d",me);
+  FILE *fp = fopen(fname,"w");
+  mredge->clone();
+  mredge->reduce(&matrix_write,fp);
+  fclose(fp);
+
+  // clean up
+
+  delete mrvert;
+  delete mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
   if (me == 0) {
-    printf("Graph: %d original edges\n",nrecords/2);
-    printf("Graph: %d vertices\n",nverts);
-    printf("Graph: %d edges\n",nedges/2);
+    printf("Graph: %d original edges\n",nrawedges);
+    printf("Graph: %d unique vertices\n",nverts);
+    printf("Graph: %d unique edges\n",nedges);
   }
 
   MPI_Finalize();
@@ -83,8 +129,8 @@ int main(int narg, char **args)
 
 /* ----------------------------------------------------------------------
    fileread map() function
-   for each record in file, grab "from host" and "to host" fields
-   emit as two graph edges: I,J and J,I
+   for each record in file, Vi = "from host", Vj = "to host"
+   output KV: (Vi,Vj)
 ------------------------------------------------------------------------- */
 
 void fileread(int itask, KeyValue *kv, void *ptr)
@@ -99,7 +145,6 @@ void fileread(int itask, KeyValue *kv, void *ptr)
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
       kv->add(&ptr[0],8,&ptr[16],8);
-      kv->add(&ptr[16],8,&ptr[0],8);
       ptr += RECORDSIZE;
     }
     if (nrecords == 0) break;
@@ -109,14 +154,47 @@ void fileread(int itask, KeyValue *kv, void *ptr)
 }
 
 /* ----------------------------------------------------------------------
-   cull reduce() function
-   input KMV: key = unique vertex, values = all edges, including 0 and dups
-   output KV: key = unique vertex, values = unique non-zero edges
+   vertex_emit reduce() function
+   input KMV: (Vi,[Vj])
+   output KV: (Vi,NULL) (Vj,NULL)
+   omit any Vi = 0
 ------------------------------------------------------------------------- */
 
-void cull(char *key, int keybytes, char *multivalue,
-	  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+void vertex_emit(char *key, int keybytes, char *multivalue,
+		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  unsigned long *vi = (unsigned long *) key;
+  if (*vi != 0) kv->add((char *) vi,VERTEXSIZE,NULL,0);
+  unsigned long *vj = (unsigned long *) multivalue;
+  if (*vj != 0) kv->add((char *) vj,VERTEXSIZE,NULL,0);
+}
+
+/* ----------------------------------------------------------------------
+   vertex_unique reduce() function
+   input KMV: (Vi,[NULL NULL ...])
+   output KV: (Vi,NULL)
+------------------------------------------------------------------------- */
+
+void vertex_unique(char *key, int keybytes, char *multivalue,
+		   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  kv->add(key,keybytes,NULL,0);
+}
+
+/* ----------------------------------------------------------------------
+   edge_unique reduce() function
+   input KMV: (Vi,[Vj Vk ...])
+   output KV: (Vi,Vj) (Vi,Vk) ...
+   only non-zero Vi or Vj are emitted
+   only unique edges are emitted
+------------------------------------------------------------------------- */
+
+void edge_unique(char *key, int keybytes, char *multivalue,
+		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  unsigned long *vi = (unsigned long *) key;
+  if (*vi == 0) return;
+
   std::map<unsigned long,int> hash;
 
   unsigned long *vertex = (unsigned long *) multivalue;
@@ -126,4 +204,91 @@ void cull(char *key, int keybytes, char *multivalue,
     else continue;
     kv->add(key,keybytes,(char *) &vertex[i],VERTEXSIZE);
   }
+}
+
+/* ----------------------------------------------------------------------
+   vertex_label reduce() function
+   input KMV: (Vi,[])
+   output KV: (Vi,ID), where ID is a unique int from 1 to N
+------------------------------------------------------------------------- */
+
+void vertex_label(char *key, int keybytes, char *multivalue,
+		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  LABEL *label = (LABEL *) ptr;
+  int id = label->nthresh + label->count;
+  label->count++;
+  kv->add(key,keybytes,(char *) &id,sizeof(int));
+}
+
+/* ----------------------------------------------------------------------
+   edge_label1 reduce() function
+   input KMV: (Vi,[Vj Vk ...]), one of the mvalues is a 1-N int ID
+   output KV: (Vj,ID) (Vj,ID) ...
+------------------------------------------------------------------------- */
+
+void edge_label1(char *key, int keybytes, char *multivalue,
+		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  // id = int ID in mvalue list
+
+  int offset = 0;
+  for (int i = 0; i < nvalues; i++) {
+    if (valuebytes[i] == sizeof(int)) break;
+    offset += valuebytes[i];
+  }
+  int id = - *((int *) &multivalue[offset]);
+
+  offset = 0;
+  for (int i = 0; i < nvalues; i++) {
+    if (valuebytes[i] == VERTEXSIZE)
+      kv->add(&multivalue[offset],VERTEXSIZE,(char *) &id,sizeof(int));
+    offset += valuebytes[i];
+  }
+}
+
+/* ----------------------------------------------------------------------
+   edge_label2 reduce() function
+   input KMV: (Vi,[Vj Vk ...]), one of the mvalues is a positive int = ID
+   output KV: (Vj,ID) (Vj,ID) ...
+------------------------------------------------------------------------- */
+
+void edge_label2(char *key, int keybytes, char *multivalue,
+		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  int i,vi;
+
+  // id = negative int in mvalue list
+
+  int *vertex = (int *) multivalue;
+  for (i = 0; i < nvalues; i++)
+    if (vertex[i] > 0) break;
+  int id = vertex[i];
+
+  for (i = 0; i < nvalues; i++) {
+    if (vertex[i] < 0) {
+      vi = -vertex[i];
+      kv->add((char *) &vi,sizeof(int),(char *) &id,sizeof(int));
+    }
+  }
+}
+
+/* ----------------------------------------------------------------------
+   matrix_write reduce() function
+   input KMV: (Vi,[Vj])
+   write edge to file, create no new KV
+------------------------------------------------------------------------- */
+
+void matrix_write(char *key, int keybytes, char *multivalue,
+		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  FILE *fp = (FILE *) ptr;
+
+  //unsigned long *vi = ((unsigned long *) key);
+  //unsigned long *vj = ((unsigned long *) multivalue);
+  //fprintf(fp,"%lu %lu 0\n",*vi,*vj);
+
+  int vi = *((int *) key);
+  int vj = *((int *) multivalue);
+  fprintf(fp,"%d %d 0\n",vi,vj);
 }
