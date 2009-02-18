@@ -115,7 +115,7 @@ int main(int narg, char **args)
   }
 
   if (flag || iarg > narg) {
-    if (me == 0) printf("Syntax: link2graph file1 file2 ...\n");
+    if (me == 0) printf("Syntax: link2graph switch arg ... file1 file2 ...\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
