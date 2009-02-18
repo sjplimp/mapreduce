@@ -2,7 +2,19 @@
 // print stats on resulting graph
 // optionally output graph as Matrix Market file
 
-// Syntax: link2graph file1 file2 ...
+// Syntax: link2graph switch value ... file1 file2 ...
+//         -c
+//              convert hashed vertex IDs to integer vertex IDs (1 to N)
+//         -e1
+//              build graph from 1 value per edge in link file
+//         -e2
+//              build graph from 2 values per edge in link file
+//         -h histofile
+//              print vertex outdegree histogramming to histofile
+//         -m matrixfile
+//              print graph in Matrix Market format with 1/outdegree
+//         file1 file2 ...
+//              list of binary link files to read in
 
 #include "mpi.h"
 #include "stdio.h"
@@ -38,6 +50,8 @@ typedef struct {
 #define RECORDSIZE 32
 #define CHUNK 8192
 
+enum{ONE,TWO};
+
 /* ---------------------------------------------------------------------- */
 
 int main(int narg, char **args)
@@ -48,19 +62,84 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
-  if (narg <= 1) {
+  // parse command-line args
+
+  char *hfile = NULL;
+  char *mfile = NULL;
+  int convertflag = 0;
+  int edgeflag = ONE;
+
+  int flag = 0;
+  int iarg = 1;
+  while (iarg < narg) {
+    if (strcmp(args[iarg],"-h") == 0) {
+      if (iarg+2 > narg) {
+	flag = 1;
+	break;
+      }
+      int n = strlen(args[iarg+1]) + 1;
+      hfile = new char[n];
+      strcpy(hfile,args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg],"-m") == 0) {
+      if (iarg+2 > narg) {
+	flag = 1;
+	break;
+      }
+      int n = strlen(args[iarg+1]) + 1;
+      mfile = new char[n];
+      strcpy(mfile,args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg],"-c") == 0) {
+      if (iarg+1 > narg) {
+	flag = 1;
+	break;
+      }
+      convertflag = 1;
+      iarg += 1;
+    } else if (strcmp(args[iarg],"-e1") == 0) {
+      if (iarg+1 > narg) {
+	flag = 1;
+	break;
+      }
+      edgeflag = ONE;
+      iarg += 1;
+    } else if (strcmp(args[iarg],"-e2") == 0) {
+      if (iarg+1 > narg) {
+	flag = 1;
+	break;
+      }
+      edgeflag = TWO;
+      iarg += 1;
+    } else break;
+  }
+
+  if (flag || iarg > narg) {
     if (me == 0) printf("Syntax: link2graph file1 file2 ...\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
+
+  if (convertflag == 0 && mfile) {
+    if (me == 0) printf("Must convert vertex values if output matrix\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  if (edgeflag == TWO) {
+    if (me == 0) printf("Edge two not yet supported\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  // process the files and create a graph/matrix
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
   // mrraw = all edges in file data
+  // pass remaining list of filenames to map()
 
   MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
   mrraw->verbosity = 1;
-  int nrawedges = mrraw->map(narg-1,&fileread,&args[1]);
+  int nrawedges = mrraw->map(narg-iarg,&fileread,&args[iarg]);
 
   // mrvert = unique non-zero vertices
 
@@ -78,88 +157,119 @@ int main(int narg, char **args)
   int nedges = mredge->reduce(&edge_unique,NULL);
   delete mrraw;
 
-  // mrvertlabel = vertices with unique IDs 1-N
-  // label.nthresh = # of verts on procs < me
-  // no longer need mrvert
+  // convert vertex hash IDs in mredge to unique ints from 1-N
 
-  LABEL label;
-  label.count = 0;
-  int nlocal = mrvert->kv->nkey;
-  MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-  label.nthresh -= nlocal;
+  if (convertflag) {
 
-  MapReduce *mrvertlabel = new MapReduce(*mrvert);
-  mrvertlabel->clone();
-  int count = 0;
-  mrvertlabel->reduce(&vertex_label,&label);
+    // mrvertlabel = vertices with unique IDs 1-N
+    // label.nthresh = # of verts on procs < me
+    // no longer need mrvert
 
-  delete mrvert;
+    LABEL label;
+    label.count = 0;
+    int nlocal = mrvert->kv->nkey;
+    MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+    label.nthresh -= nlocal;
 
-  // reset all vertices in mredge from 1 to N
+    MapReduce *mrvertlabel = new MapReduce(*mrvert);
+    mrvertlabel->clone();
+    int count = 0;
+    mrvertlabel->reduce(&vertex_label,&label);
+    
+    delete mrvert;
 
-  mredge->kv->add(mrvertlabel->kv);
-  mredge->collate(NULL);
-  mredge->reduce(&edge_label1,NULL);
-  mredge->kv->add(mrvertlabel->kv);
-  mredge->collate(NULL);
-  mredge->reduce(&edge_label2,NULL);
+    // reset all vertices in mredge from 1 to N
 
-  // mrdegree = vertices with their out degree
-  // nvertdegree = # of verts with non-zero degree
+    mredge->kv->add(mrvertlabel->kv);
+    mredge->collate(NULL);
+    mredge->reduce(&edge_label1,NULL);
+    mredge->kv->add(mrvertlabel->kv);
+    mredge->collate(NULL);
+    mredge->reduce(&edge_label2,NULL);
+    
+    delete mrvertlabel;
+  }
+
+  // mrdegree = vertices with their out degree as negative value
+  // nsingleton = # of verts with 0 degree
 
   MapReduce *mrdegree = new MapReduce(*mredge);
   mrdegree->collate(NULL);
   int n = mrdegree->reduce(&edge_count,NULL);
   int nsingleton = nverts - n;
 
-  // mrhisto KV = (out degree, vert count)
+  // compute and output a histogram of out-degree
 
-  mrdegree->clone();
-  mrdegree->reduce(&edge_reverse,NULL);
-  mrdegree->collate(NULL);
-  mrdegree->reduce(&edge_histo,NULL);
+  if (hfile) {
 
-  // output sorted histogram of out degree
-  // add in inferred zero-degree as last entry
+    // mrhisto KV = (out degree, vert count)
+    
+    MapReduce *mrhisto = new MapReduce(*mrdegree);
+    mrhisto->clone();
+    mrhisto->reduce(&edge_reverse,NULL);
+    mrhisto->collate(NULL);
+    mrhisto->reduce(&edge_histo,NULL);
 
-  FILE *fp;
-  if (me == 0) {
-    fp = fopen("a.histo","w");
-    fprintf(fp,"Outdegree histogram\n");
-    fprintf(fp,"Degree vertex-count\n");
-  } else fp = NULL;
-      
-  mrdegree->gather(1);
-  mrdegree->sort_keys(&histo_sort);
-  mrdegree->clone();
-  mrdegree->reduce(&histo_write,fp);
-  delete mrdegree;
+    // output sorted histogram of out degree
+    // add in inferred zero-degree as last entry
 
-  if (me == 0) {
-    fprintf(fp,"%d %d\n",0,nsingleton);
-    fclose(fp);
+    FILE *fp;
+    if (me == 0) {
+      fp = fopen(hfile,"w");
+      fprintf(fp,"Outdegree histogram\n");
+      fprintf(fp,"Degree vertex-count\n");
+    } else fp = NULL;
+    
+    mrhisto->gather(1);
+    mrhisto->sort_keys(&histo_sort);
+    mrhisto->clone();
+    mrhisto->reduce(&histo_write,fp);
+
+    delete mrhisto;
+    
+    if (me == 0) {
+      fprintf(fp,"%d %d\n",0,nsingleton);
+      fclose(fp);
+    }
   }
 
-  // print out matrix edges in Matrix Market format
-  // this destroys mredge
+  // output a Matrix Market file
+  // one-line header + one chunk per proc
 
-  if (me == 0) {
-    fp = fopen("a.header","w");
-    fprintf(fp,"%d %d %d\n",nverts,nverts,nedges);
+  if (mfile) {
+
+    if (me == 0) {
+      char fname[128];
+      sprintf(fname,"%s.header",mfile);
+      FILE *fp = fopen(fname,"w");
+      fprintf(fp,"%d %d %d\n",nverts,nverts,nedges);
+      fclose(fp);
+    }
+    
+    char fname[128];
+    sprintf(fname,"%s.%d",mfile,me);
+    FILE *fp = fopen(fname,"w");
+
+    // mrout KV = (Vi,[Vj Vk ... Vz outdegree-of-Vi]
+    // print out matrix edges in Matrix Market format with 1/out-degree
+    // no longer need mrdegree
+    
+    MapReduce *mrout = new MapReduce(*mredge);
+    mrout->kv->add(mrdegree->kv);
+    mrout->convert();
+    mrout->reduce(&matrix_write,fp);
+
+    delete mrout;
+
     fclose(fp);
   }
-
-  char fname[16];
-  sprintf(fname,"a.%d",me);
-  fp = fopen(fname,"w");
-  mredge->clone();
-  mredge->reduce(&matrix_write,fp);
-  fclose(fp);
 
   // clean up
 
-  delete mrvertlabel;
+  delete [] hfile;
+  delete [] mfile;
   delete mredge;
+  delete mrdegree;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -169,6 +279,7 @@ int main(int narg, char **args)
     printf("Graph: %d unique vertices\n",nverts);
     printf("Graph: %d unique edges\n",nedges);
     printf("Graph: %d singleton vertices\n",nsingleton);
+    printf("Time:  %g secs\n",tstop-tstart);
   }
 
   MPI_Finalize();
@@ -323,13 +434,14 @@ void edge_label2(char *key, int keybytes, char *multivalue,
 /* ----------------------------------------------------------------------
    edge_count reduce() function
    input KMV: (Vi,[Vj Vk ...])
-   output KV: (Vj,degree)
+   output KV: (Vj,degree), degree as negative value
 ------------------------------------------------------------------------- */
 
 void edge_count(char *key, int keybytes, char *multivalue,
 		int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  kv->add(key,keybytes,(char *) &nvalues,sizeof(int));
+  int value = -nvalues;
+  kv->add(key,keybytes,(char *) &value,sizeof(int));
 }
 
 /* ----------------------------------------------------------------------
@@ -341,13 +453,14 @@ void edge_count(char *key, int keybytes, char *multivalue,
 void edge_reverse(char *key, int keybytes, char *multivalue,
 		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  kv->add(multivalue,sizeof(int),key,keybytes);
+  int value = - *((int *) multivalue);
+  kv->add((char *) &value,sizeof(int),key,keybytes);
 }
 
 /* ----------------------------------------------------------------------
    edge_histo reduce() function
    input KMV: (degree,[Vi Vj ...])
-   output KV: (degree,ncount)
+   output KV: (degree,ncount) where ncount = # of V in multivalue
 ------------------------------------------------------------------------- */
 
 void edge_histo(char *key, int keybytes, char *multivalue,
@@ -357,9 +470,8 @@ void edge_histo(char *key, int keybytes, char *multivalue,
 }
 
 /* ----------------------------------------------------------------------
-   edge_histo reduce() function
-   input KMV: (degree,[Vi Vj ...])
-   output KV: (degree,ncount)
+   histo_sort compare() function
+   sort degree values in reverse order
 ------------------------------------------------------------------------- */
 
 int histo_sort(char *value1, int len1, char *value2, int len2)
@@ -372,9 +484,9 @@ int histo_sort(char *value1, int len1, char *value2, int len2)
 }
 
 /* ----------------------------------------------------------------------
-   edge_histo reduce() function
-   input KMV: (degree,[Vi Vj ...])
-   output KV: (degree,ncount)
+   histo_write reduce() function
+   input KMV: (degree,count)
+   write pair to file, create no new KV
 ------------------------------------------------------------------------- */
 
 void histo_write(char *key, int keybytes, char *multivalue,
@@ -389,20 +501,30 @@ void histo_write(char *key, int keybytes, char *multivalue,
 
 /* ----------------------------------------------------------------------
    matrix_write reduce() function
-   input KMV: (Vi,[Vj])
-   write edge to file, create no new KV
+   input KMV: (Vi,[Vj Vk ...]), one of the mvalues is a negative int
+   negative int is degree of Vi
+   write each edge to file, create no new KV
 ------------------------------------------------------------------------- */
 
 void matrix_write(char *key, int keybytes, char *multivalue,
 		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  int i;
+
   FILE *fp = (FILE *) ptr;
 
   //unsigned long *vi = ((unsigned long *) key);
   //unsigned long *vj = ((unsigned long *) multivalue);
   //fprintf(fp,"%lu %lu 0\n",*vi,*vj);
 
+  int *vertex = (int *) multivalue;
+  for (i = 0; i < nvalues; i++)
+    if (vertex[i] < 0) break;
+  double inverse_outdegree = -1.0/vertex[i];
+
   int vi = *((int *) key);
-  int vj = *((int *) multivalue);
-  fprintf(fp,"%d %d 0\n",vi,vj);
+
+  for (i = 0; i < nvalues; i++)
+    if (vertex[i] > 0) 
+      fprintf(fp,"%d %d %g\n",vi,vertex[i],inverse_outdegree);
 }
