@@ -66,7 +66,7 @@ int main(int narg, char **args)
   int nverts = mrvert->reduce(&vertex_unique,NULL);
 
   // mredge = unique I->J edges with I and J non-zero
-  // then no longer need mrraw
+  // no longer need mrraw
 
   MapReduce *mredge = new MapReduce(*mrraw);
   mredge->collate(NULL);
@@ -75,6 +75,7 @@ int main(int narg, char **args)
 
   // mrvertlabel = vertices with unique IDs 1-N
   // label.nthresh = # of verts on procs < me
+  // no longer need mrvert
 
   LABEL label;
   int nlocal = mrvert->kv->nkey;
@@ -86,6 +87,8 @@ int main(int narg, char **args)
   int count = 0;
   mrvertlabel->reduce(&vertex_label,&label);
 
+  delete mrvert;
+
   // reset all vertices in mredge from 1 to N
 
   mredge->kv->add(mrvertlabel->kv);
@@ -96,6 +99,7 @@ int main(int narg, char **args)
   mredge->reduce(&edge_label2,NULL);
 
   // print out matrix edges in Matrix Market format
+  // this destroys mredge
 
   if (me == 0) {
     FILE *fp = fopen("a.header","w");
@@ -112,7 +116,7 @@ int main(int narg, char **args)
 
   // clean up
 
-  delete mrvert;
+  delete mrvertlabel;
   delete mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -261,8 +265,10 @@ void edge_label2(char *key, int keybytes, char *multivalue,
   // id = negative int in mvalue list
 
   int *vertex = (int *) multivalue;
-  for (i = 0; i < nvalues; i++)
+  for (i = 0; i < nvalues; i++) {
+    printf("AAA %d %d %d %d\n",i,nvalues,valuebytes[i],vertex[i]);
     if (vertex[i] > 0) break;
+  }
   int id = vertex[i];
 
   for (i = 0; i < nvalues; i++) {
