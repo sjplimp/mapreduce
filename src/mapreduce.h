@@ -19,6 +19,9 @@ class MapReduce {
   int mapstyle;     // 0 = chunks, 1 = strided, 2 = master/slave
   int verbosity;    // 0 = none, 1 = totals, 2 = proc histograms
 
+  class KeyValue *kv;              // single KV stored by MR
+  class KeyMultiValue *kmv;        // single KMV stored by MR
+
   static MapReduce *mrptr;
 
   // library API
@@ -73,9 +76,6 @@ class MapReduce {
   int me,nprocs;
   class Memory *memory;
   class Error *error;
-
-  class KeyValue *kv;              // single KV stored by MR
-  class KeyMultiValue *kmv;        // single KMV stored by MR
 
   typedef int (CompareFunc)(char *, int, char *, int);  // used by sorts
   CompareFunc *compare;
