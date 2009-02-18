@@ -35,6 +35,10 @@ matvec:	test_matvec.o $(OBJS) $(LIB)
 	$(LINK) $(LINKFLAGS) test_matvec.o $(OBJS) \
 		$(USRLIB) $(SYSLIB) -o matvec
 
+link2graph:	link2graph.o $(LIB)
+		$(LINK) $(LINKFLAGS) link2graph.o \
+			$(USRLIB) $(SYSLIB) -o link2graph
+
 clean:
 	rm *.o
 	rm matvec pagerank gs concomp ccnd ccndtwo
