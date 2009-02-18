@@ -32,6 +32,7 @@ class KeyMultiValue {
   int maxdepth;           // max depth of any one hash bucket
 
   KeyMultiValue(MPI_Comm);
+  KeyMultiValue(KeyMultiValue &);
   ~KeyMultiValue();
 
   void convert(class KeyValue *);
@@ -43,6 +44,7 @@ class KeyMultiValue {
   int match(char *, char *, int);
 
  private:
+  MPI_Comm comm;
   class Memory *memory;
 
   struct Unique {       // a unique key

@@ -21,6 +21,13 @@ void *MR_create(MPI_Comm comm)
   return (void *) mr;
 }
 
+void *MR_copy(void *MRptr)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapReduce *mr2 = new MapReduce(*mr);
+  return (void *) mr2;
+}
+
 void MR_destroy(void *MRptr)
 {
   MapReduce *mr = (MapReduce *) MRptr;
@@ -197,6 +204,13 @@ void MR_kv_add_multi_dynamic(void *KVptr, int n,
 {
   KeyValue *kv = (KeyValue *) KVptr;
   kv->add(n,key,keybytes,value,valuebytes);
+}
+
+void MR_kv_add_kv(void *KVptr, void *KVptr2)
+{
+  KeyValue *kv = (KeyValue *) KVptr;
+  KeyValue *kv2 = (KeyValue *) KVptr2;
+  kv->add(kv2);
 }
 
 void MR_kv_stats(void *MRptr, int level)

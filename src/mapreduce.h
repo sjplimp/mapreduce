@@ -24,6 +24,7 @@ class MapReduce {
   // library API
 
   MapReduce(MPI_Comm);
+  MapReduce(MapReduce &);
   ~MapReduce();
 
   int aggregate(int (*)(char *, int));

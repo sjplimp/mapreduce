@@ -22,7 +22,8 @@ using namespace MAPREDUCE_NS;
 
 KeyValue::KeyValue(MPI_Comm caller)
 {
-  memory = new Memory(caller);
+  comm = caller;
+  memory = new Memory(comm);
 
   nkey = maxkey = 0;
   keysize = maxkeysize = 0;
@@ -35,8 +36,32 @@ KeyValue::KeyValue(MPI_Comm caller)
 }
 
 /* ----------------------------------------------------------------------
-   free all memory
+   copy constructor
 ------------------------------------------------------------------------- */
+
+KeyValue::KeyValue(KeyValue &kv)
+{
+  memory = new Memory(kv.comm);
+
+  nkey = kv.nkey;
+  maxkey = kv.maxkey;
+  keysize = kv.keysize;
+  maxkeysize = kv.maxkeysize;
+  valuesize = kv.valuesize;
+  maxvaluesize = kv.maxvaluesize;
+
+  keys = (int *) memory->smalloc(maxkey*sizeof(int),"KV:keys");
+  values = (int *) memory->smalloc(maxkey*sizeof(int),"KV:values");
+  keydata = (char *) memory->smalloc(maxkeysize,"KV:keydata");
+  valuedata = (char *) memory->smalloc(maxvaluesize,"KV:valuedata");
+
+  memcpy(keys,kv.keys,(nkey+1)*sizeof(int));
+  memcpy(values,kv.values,(nkey+1)*sizeof(int));
+  memcpy(keydata,kv.keydata,keysize);
+  memcpy(valuedata,kv.valuedata,valuesize);
+}
+
+/* ---------------------------------------------------------------------- */
 
 KeyValue::~KeyValue()
 {
@@ -152,6 +177,50 @@ void KeyValue::add(int n, char *key, int *keybytes,
   memcpy(&keydata[keys[nkey]],key,keysize-keystart);
   memcpy(&valuedata[values[nkey]],value,valuesize-valuestart);
   nkey += n;
+}
+
+/* ----------------------------------------------------------------------
+   add key/value pairs from another KV to list
+   grow memory as needed
+------------------------------------------------------------------------- */
+
+void KeyValue::add(KeyValue *kv)
+{
+  // grow memory as needed
+  
+  if (nkey + kv->nkey + 1 >= maxkey) {
+    while (nkey+kv->nkey+1 >= maxkey) maxkey += KEYCHUNK;
+    keys = (int *) memory->srealloc(keys,maxkey*sizeof(int),"KV:keys");
+    values = (int *) memory->srealloc(values,maxkey*sizeof(int),"KV:values");
+  }
+  if (keysize + kv->keysize > maxkeysize) {
+    while (keysize+kv->keysize >= maxkeysize) maxkeysize += BUFCHUNK;
+    keydata = (char *) memory->srealloc(keydata,maxkeysize,"KV:keydata");
+  }
+  if (valuesize + kv->valuesize > maxvaluesize) {
+    while (valuesize+kv->valuesize >= maxvaluesize) maxvaluesize += BUFCHUNK;
+    valuedata = (char *) memory->srealloc(valuedata,maxvaluesize,
+					  "KV:valuedata");
+  }
+
+  // add other KV data to existing KV data
+
+  memcpy(&keys[nkey],kv->keys,(kv->nkey+1)*sizeof(int));
+  memcpy(&values[nkey],kv->values,(kv->nkey+1)*sizeof(int));
+  memcpy(&keydata[keysize],kv->keydata,kv->keysize);
+  memcpy(&valuedata[valuesize],kv->valuedata,kv->valuesize);
+
+  // add offset to new key/value indices
+
+  int nkey_new = nkey + kv->nkey;
+  for (int i = nkey; i <= nkey_new; i++) {
+    keys[i] += keysize;
+    values[i] += valuesize;
+  }
+
+  keysize += kv->keysize;
+  valuesize += kv->valuesize;
+  nkey += kv->nkey;
 }
 
 /* ----------------------------------------------------------------------

@@ -28,17 +28,20 @@ class KeyValue {
   int maxvaluesize;             // max size of valuedata
 
   KeyValue(MPI_Comm);
+  KeyValue(KeyValue &);
   ~KeyValue();
 
   void add(char *, int, char *, int);
   void add(int, char *, int, char *, int);
   void add(int, char *, int *, char *, int *);
+  void add(KeyValue *);
 
   int pack(char **);
   void unpack(char *);
   void complete();
 
  private:
+  MPI_Comm comm;
   class Memory *memory;
 };
 

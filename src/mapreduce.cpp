@@ -51,6 +51,29 @@ MapReduce::MapReduce(MPI_Comm caller)
   verbosity = 0;
 }
 
+/* ----------------------------------------------------------------------
+   copy constructor
+------------------------------------------------------------------------- */
+
+MapReduce::MapReduce(MapReduce &mr)
+{
+  comm = mr.comm;
+  MPI_Comm_rank(comm,&me);
+  MPI_Comm_size(comm,&nprocs);
+
+  memory = new Memory(comm);
+  error = new Error(comm);
+
+  kv = NULL;
+  kmv = NULL;
+
+  if (mr.kv) kv = new KeyValue(*mr.kv);
+  if (mr.kmv) kmv = new KeyMultiValue(*mr.kmv);
+
+  mapstyle = mr.mapstyle;
+  verbosity = mr.verbosity;
+}
+
 /* ---------------------------------------------------------------------- */
 
 MapReduce::~MapReduce()

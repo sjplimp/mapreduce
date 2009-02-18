@@ -28,7 +28,8 @@ using namespace MAPREDUCE_NS;
 
 KeyMultiValue::KeyMultiValue(MPI_Comm caller)
 {
-  memory = new Memory(caller);
+  comm = caller;
+  memory = new Memory(comm);
 
   nkey = 0;
   keysize = 0;
@@ -45,8 +46,38 @@ KeyMultiValue::KeyMultiValue(MPI_Comm caller)
 }
 
 /* ----------------------------------------------------------------------
-   free all memory
+   copy constructor
 ------------------------------------------------------------------------- */
+
+KeyMultiValue::KeyMultiValue(KeyMultiValue &kmv)
+{
+  comm = kmv.comm;
+  memory = new Memory(comm);
+
+  nkey = kmv.nkey;
+  keysize = kmv.keysize;
+  multivaluesize = kmv.multivaluesize;
+
+  keys = (int *) memory->smalloc((nkey+1)*sizeof(int),"KMV:keys");
+  multivalues = 
+    (int *) memory->smalloc((nkey+1)*sizeof(int),"KMV:multivalues");
+  nvalues = (int *) memory->smalloc((nkey+1)*sizeof(int),"KMV:nvalues");
+  valuesizes = (int *) memory->smalloc(nkey*sizeof(int),"KMV:valuesizes");
+  keydata = (char *) memory->smalloc(keysize,"KMV:keydata");
+  multivaluedata = 
+    (char *) memory->smalloc(multivaluesize,"KMV:multivaluedata");
+
+  memcpy(keys,kmv.keys,(nkey+1)*sizeof(int));
+  memcpy(multivalues,kmv.multivalues,(nkey+1)*sizeof(int));
+  memcpy(nvalues,kmv.nvalues,(nkey+1)*sizeof(int));
+  memcpy(valuesizes,kmv.valuesizes,nkey*sizeof(int));
+  memcpy(keydata,kmv.keydata,keysize);
+  memcpy(multivaluedata,kmv.multivaluedata,multivaluesize);
+
+  maxdepth = kmv.maxdepth;
+}
+
+/* ---------------------------------------------------------------------- */
 
 KeyMultiValue::~KeyMultiValue()
 {
