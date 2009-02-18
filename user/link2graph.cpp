@@ -12,7 +12,7 @@
 //         -h histofile
 //              print vertex outdegree histogramming to histofile
 //         -m matrixfile
-//              print graph in Matrix Market format with 1/outdegree
+//              print graph in Matrix Market format with 1/outdegree field
 //         file1 file2 ...
 //              list of binary link files to read in
 
@@ -25,6 +25,7 @@
 
 #include <map>
 
+using namespace std;
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
@@ -46,11 +47,10 @@ typedef struct {
   int count;
 } LABEL;
 
-#define VERTEXSIZE 8
 #define RECORDSIZE 32
 #define CHUNK 8192
 
-enum{ONE,TWO};
+static int vertexsize = 8;
 
 /* ---------------------------------------------------------------------- */
 
@@ -67,7 +67,6 @@ int main(int narg, char **args)
   char *hfile = NULL;
   char *mfile = NULL;
   int convertflag = 0;
-  int edgeflag = ONE;
 
   int flag = 0;
   int iarg = 1;
@@ -102,14 +101,14 @@ int main(int narg, char **args)
 	flag = 1;
 	break;
       }
-      edgeflag = ONE;
+      vertexsize = 8;
       iarg += 1;
     } else if (strcmp(args[iarg],"-e2") == 0) {
       if (iarg+1 > narg) {
 	flag = 1;
 	break;
       }
-      edgeflag = TWO;
+      vertexsize = 16;
       iarg += 1;
     } else break;
   }
@@ -121,11 +120,6 @@ int main(int narg, char **args)
 
   if (convertflag == 0 && mfile) {
     if (me == 0) printf("Must convert vertex values if output matrix\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
-  }
-
-  if (edgeflag == TWO) {
-    if (me == 0) printf("Edge two not yet supported\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
@@ -287,7 +281,9 @@ int main(int narg, char **args)
 
 /* ----------------------------------------------------------------------
    fileread map() function
-   for each record in file, Vi = "from host", Vj = "to host"
+   for each record in file:
+     vertexsize = 8: KV = 1st 8-byte field, 3rd 8-byte field
+     vertexsize = 16: KV = 1st 16-byte field, 2nd 16-byte field
    output KV: (Vi,Vj)
 ------------------------------------------------------------------------- */
 
@@ -302,7 +298,7 @@ void fileread(int itask, KeyValue *kv, void *ptr)
     int nrecords = fread(buf,RECORDSIZE,CHUNK,fp);
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
-      kv->add(&ptr[0],8,&ptr[16],8);
+      kv->add(&ptr[0],vertexsize,&ptr[16],vertexsize);
       ptr += RECORDSIZE;
     }
     if (nrecords == 0) break;
@@ -315,16 +311,16 @@ void fileread(int itask, KeyValue *kv, void *ptr)
    vertex_emit reduce() function
    input KMV: (Vi,[Vj])
    output KV: (Vi,NULL) (Vj,NULL)
-   omit any Vi = 0
+   omit any Vi if first 8 bytes is 0
 ------------------------------------------------------------------------- */
 
 void vertex_emit(char *key, int keybytes, char *multivalue,
 		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   unsigned long *vi = (unsigned long *) key;
-  if (*vi != 0) kv->add((char *) vi,VERTEXSIZE,NULL,0);
+  if (*vi != 0) kv->add((char *) vi,vertexsize,NULL,0);
   unsigned long *vj = (unsigned long *) multivalue;
-  if (*vj != 0) kv->add((char *) vj,VERTEXSIZE,NULL,0);
+  if (*vj != 0) kv->add((char *) vj,vertexsize,NULL,0);
 }
 
 /* ----------------------------------------------------------------------
@@ -343,7 +339,7 @@ void vertex_unique(char *key, int keybytes, char *multivalue,
    edge_unique reduce() function
    input KMV: (Vi,[Vj Vk ...])
    output KV: (Vi,Vj) (Vi,Vk) ...
-   only non-zero Vi or Vj are emitted
+   only an edge where first 8 bytes of Vi or Vj are both non-zero is emitted
    only unique edges are emitted
 ------------------------------------------------------------------------- */
 
@@ -353,14 +349,30 @@ void edge_unique(char *key, int keybytes, char *multivalue,
   unsigned long *vi = (unsigned long *) key;
   if (*vi == 0) return;
 
-  std::map<unsigned long,int> hash;
+  if (vertexsize == 16) {
+    std::map<std::pair<unsigned long, unsigned long>,int> hash;
 
-  unsigned long *vertex = (unsigned long *) multivalue;
-  for (int i = 0; i < nvalues; i++) {
-    if (vertex[i] == 0) continue;
-    if (hash.find(vertex[i]) == hash.end()) hash[vertex[i]] = 0;
-    else continue;
-    kv->add(key,keybytes,(char *) &vertex[i],VERTEXSIZE);
+    int offset = 0;
+    for (int i = 0; i < nvalues; i++) {
+      unsigned long *v1 = (unsigned long *) &multivalue[offset];
+      unsigned long *v2 = (unsigned long *) &multivalue[offset+8];
+      if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
+	hash[std::make_pair(*v1,*v2)] = 0;
+      else continue;
+      kv->add(key,keybytes,&multivalue[offset],vertexsize);
+      offset += valuebytes[i];
+    }
+
+  } else {
+    std::map<unsigned long,int> hash;
+
+    unsigned long *vertex = (unsigned long *) multivalue;
+    for (int i = 0; i < nvalues; i++) {
+      if (vertex[i] == 0) continue;
+      if (hash.find(vertex[i]) == hash.end()) hash[vertex[i]] = 0;
+      else continue;
+      kv->add(key,keybytes,(char *) &vertex[i],vertexsize);
+    }
   }
 }
 
@@ -399,8 +411,8 @@ void edge_label1(char *key, int keybytes, char *multivalue,
 
   offset = 0;
   for (int i = 0; i < nvalues; i++) {
-    if (valuebytes[i] == VERTEXSIZE)
-      kv->add(&multivalue[offset],VERTEXSIZE,(char *) &id,sizeof(int));
+    if (valuebytes[i] != sizeof(int))
+      kv->add(&multivalue[offset],valuebytes[i],(char *) &id,sizeof(int));
     offset += valuebytes[i];
   }
 }
@@ -512,10 +524,6 @@ void matrix_write(char *key, int keybytes, char *multivalue,
   int i;
 
   FILE *fp = (FILE *) ptr;
-
-  //unsigned long *vi = ((unsigned long *) key);
-  //unsigned long *vj = ((unsigned long *) multivalue);
-  //fprintf(fp,"%lu %lu 0\n",*vi,*vj);
 
   int *vertex = (int *) multivalue;
   for (i = 0; i < nvalues; i++)
