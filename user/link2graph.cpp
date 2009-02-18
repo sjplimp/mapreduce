@@ -78,6 +78,7 @@ int main(int narg, char **args)
   // no longer need mrvert
 
   LABEL label;
+  label.count = 0;
   int nlocal = mrvert->kv->nkey;
   MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
   label.nthresh -= nlocal;
