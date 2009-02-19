@@ -188,7 +188,6 @@ int main(int narg, char **args)
 
     MapReduce *mrvertlabel = new MapReduce(*mrvert);
     mrvertlabel->clone();
-    int count = 0;
     mrvertlabel->reduce(&vertex_label,&label);
     
     delete mrvert;
@@ -323,7 +322,7 @@ int main(int narg, char **args)
     
     MapReduce *mrout = new MapReduce(*mredge);
     mrout->kv->add(mrdegree->kv);
-    mrout->convert();
+    mrout->collate(NULL);
     mrout->reduce(&matrix_write,fp);
 
     delete mrdegree;
