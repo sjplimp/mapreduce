@@ -16,6 +16,7 @@ extern "C" {
 #endif
 
 void *MR_create(MPI_Comm comm);
+void *MR_copy(void *MRptr);
 void MR_destroy(void *MRptr);
 
 int MR_aggregate(void *MRptr, int (*myhash)(char *, int));
