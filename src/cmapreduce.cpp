@@ -102,6 +102,26 @@ int MR_map_add(void *MRptr, int nmap,
   return mr->map(nmap,appmap,APPptr,addflag);
 }
 
+int MR_map_file_list(void *MRptr, char *file,
+		     void (*mymap)(int, char *, void *, void *),
+		     void *APPptr)
+{
+  typedef void (MapFunc)(int, char *, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(file,appmap,APPptr);
+}
+
+int MR_map_file_list_add(void *MRptr, char *file,
+			 void (*mymap)(int, char *, void *, void *),
+			 void *APPptr, int addflag)
+{
+  typedef void (MapFunc)(int, char *, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(file,appmap,APPptr,addflag);
+}
+
 int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
 		     char sepchar, int delta,
 		     void (*mymap)(int, void *, void *),
@@ -113,10 +133,10 @@ int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
   return mr->map(nmap,nfiles,files,sepchar,delta,appmap,APPptr);
 }
 
-int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
-		     char sepchar, int delta,
-		     void (*mymap)(int, void *, void *),
-		     void *APPptr, int addflag)
+int MR_map_file_char_add(void *MRptr, int nmap, int nfiles, char **files,
+			 char sepchar, int delta,
+			 void (*mymap)(int, void *, void *),
+			 void *APPptr, int addflag)
 {
   typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
   MapReduce *mr = (MapReduce *) MRptr;
@@ -135,10 +155,10 @@ int MR_map_file_str(void *MRptr, int nmap, int nfiles, char **files,
   return mr->map(nmap,nfiles,files,sepstr,delta,appmap,APPptr);
 }
 
-int MR_map_file_str(void *MRptr, int nmap, int nfiles, char **files,
-		    char *sepstr, int delta,
-		    void (*mymap)(int, void *, void *),
-		    void *APPptr, int addflag)
+int MR_map_file_str_add(void *MRptr, int nmap, int nfiles, char **files,
+			char *sepstr, int delta,
+			void (*mymap)(int, void *, void *),
+			void *APPptr, int addflag)
 {
   typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
   MapReduce *mr = (MapReduce *) MRptr;

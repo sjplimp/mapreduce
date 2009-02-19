@@ -41,6 +41,8 @@ class MapReduce {
   int gather(int);
   int map(int, void (*)(int, class KeyValue *, void *),
 	  void *, int addflag = 0);
+  int map(char *, void (*)(int, char *, class KeyValue *, void *),
+	  void *, int addflag = 0);
   int map(int, int, char **, char, int, 
 	  void (*)(int, char *, int, class KeyValue *, void *),
 	  void *, int addflag = 0);

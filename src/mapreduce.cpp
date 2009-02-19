@@ -7,6 +7,7 @@
 ------------------------------------------------------------------------- */
 
 #include "mpi.h"
+#include "ctype.h"
 #include "string.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -32,6 +33,9 @@ MapReduce *MapReduce::mrptr;
 
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
+
+#define FILECHUNK 1
+#define MAXLINE 1024
 
 /* ---------------------------------------------------------------------- */
 
@@ -128,23 +132,23 @@ int MapReduce::aggregate(int (*hash)(char *, int))
 
   int nbytes = irregular->size(sizeof(int));
   kvnew->nkey = kvnew->maxkey = nbytes / sizeof(int);
-  kvnew->keys = (int *) memory->smalloc(nbytes,"keys");
+  kvnew->keys = (int *) memory->smalloc(nbytes,"MR:keys");
   irregular->exchange((char *) slength,(char *) kvnew->keys);
 
   nbytes = irregular->size(slength,kv->keys,kvnew->keys);
   kvnew->keysize = kvnew->maxkeysize = nbytes;
-  kvnew->keydata = (char *) memory->smalloc(nbytes,"keydata");
+  kvnew->keydata = (char *) memory->smalloc(nbytes,"MR:keydata");
   irregular->exchange(kv->keydata,kvnew->keydata);
 
   for (int i = 0; i < nkey; i++) slength[i] = values[i+1] - values[i];
 
   nbytes = irregular->size(sizeof(int));
-  kvnew->values = (int *) memory->smalloc(nbytes,"values");
+  kvnew->values = (int *) memory->smalloc(nbytes,"MR:values");
   irregular->exchange((char *) slength,(char *) kvnew->values);
 
   nbytes = irregular->size(slength,kv->values,kvnew->values);
   kvnew->valuesize = kvnew->maxvaluesize = nbytes;
-  kvnew->valuedata = (char *) memory->smalloc(nbytes,"valuedata");
+  kvnew->valuedata = (char *) memory->smalloc(nbytes,"MR:valuedata");
   irregular->exchange(kv->valuedata,kvnew->valuedata);
 
   delete [] slength;
@@ -404,7 +408,7 @@ int MapReduce::gather(int numprocs)
 /* ----------------------------------------------------------------------
    create a KV via a parallel map operation for nmap tasks
    make one call to appmap() for each task
-   mapstyle determines how tasks are partioned to processors
+   mapstyle determines how tasks are partitioned to processors
 ------------------------------------------------------------------------- */
 
 int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
@@ -424,16 +428,19 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
   // mapstyle 2 = master/slave assignment of tasks
 
   if (nprocs == 1) {
-    for (int itask = 0; itask < nmap; itask++) appmap(itask,kv,ptr);
+    for (int itask = 0; itask < nmap; itask++)
+      appmap(itask,kv,ptr);
 
   } else if (mapstyle == 0) {
     uint64_t nmap64 = nmap;
     int lo = me * nmap64 / nprocs;
     int hi = (me+1) * nmap64 / nprocs;
-    for (int itask = lo; itask < hi; itask++) appmap(itask,kv,ptr);
+    for (int itask = lo; itask < hi; itask++)
+      appmap(itask,kv,ptr);
 
   } else if (mapstyle == 1) {
-    for (int itask = me; itask < nmap; itask += nprocs) appmap(itask,kv,ptr);
+    for (int itask = me; itask < nmap; itask += nprocs)
+      appmap(itask,kv,ptr);
 
   } else if (mapstyle == 2) {
     if (me == 0) {
@@ -474,6 +481,144 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
     }
 
   } else error->all("Invalid mapstyle setting");
+
+  kv->complete();
+  stats("Map",0,verbosity);
+
+  int nkeyall;
+  MPI_Allreduce(&kv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
+   create a KV via a parallel map operation for list of files in file
+   make one call to appmap() for each file in file
+   mapstyle determines how tasks are partitioned to processors
+------------------------------------------------------------------------- */
+
+int MapReduce::map(char *file, void (*appmap)(int, char *, KeyValue *, void *),
+		   void *ptr, int addflag)
+{
+  int n;
+  char line[MAXLINE];
+  MPI_Status status;
+
+  if (addflag == 0) {
+    delete kv;
+    kv = new KeyValue(comm);
+  } else if (kv == NULL) 
+    kv = new KeyValue(comm);
+
+  // open file and extract filenames
+  // bcast each filename to all procs
+  // trim whitespace from beginning and end of filename
+
+  int nmap = 0;
+  int maxfiles = 0;
+  char **files = NULL;
+  FILE *fp;
+
+  if (me == 0) {
+    fp = fopen(file,"r");
+    if (fp == NULL) error->one("Could not open file of file names");
+  }
+
+  while (1) {
+    if (me == 0) {
+      if (fgets(line,MAXLINE,fp) == NULL) n = 0;
+      else n = strlen(line) + 1;
+    }
+    MPI_Bcast(&n,1,MPI_INT,0,comm);
+    if (n == 0) {
+      if (me == 0) fclose(fp);
+      break;
+    }
+
+    MPI_Bcast(line,n,MPI_CHAR,0,comm);
+
+    char *ptr = line;
+    while (isspace(*ptr)) ptr++;
+    if (strlen(ptr) == 0) error->all("Blank line in file of file names");
+    char *ptr2 = ptr + strlen(ptr) - 1;
+    while (isspace(*ptr2)) ptr2--;
+    ptr2++;
+    *ptr2 = '\0';
+
+    if (nmap == maxfiles) {
+      maxfiles += FILECHUNK;
+      files = (char **)
+	memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
+    }
+    n = strlen(ptr) + 1;
+    files[nmap] = new char[n];
+    strcpy(files[nmap],ptr);
+    nmap++;
+  }
+  
+  // nprocs = 1 = all tasks to single processor
+  // mapstyle 0 = chunk of tasks to each proc
+  // mapstyle 1 = strided tasks to each proc
+  // mapstyle 2 = master/slave assignment of tasks
+
+  if (nprocs == 1) {
+    for (int itask = 0; itask < nmap; itask++)
+      appmap(itask,files[itask],kv,ptr);
+
+  } else if (mapstyle == 0) {
+    uint64_t nmap64 = nmap;
+    int lo = me * nmap64 / nprocs;
+    int hi = (me+1) * nmap64 / nprocs;
+    for (int itask = lo; itask < hi; itask++)
+      appmap(itask,files[itask],kv,ptr);
+
+  } else if (mapstyle == 1) {
+    for (int itask = me; itask < nmap; itask += nprocs)
+      appmap(itask,files[itask],kv,ptr);
+
+  } else if (mapstyle == 2) {
+    if (me == 0) {
+      int doneflag = -1;
+      int ndone = 0;
+      int itask = 0;
+      for (int iproc = 1; iproc < nprocs; iproc++) {
+	if (itask < nmap) {
+	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
+	  itask++;
+	} else {
+	  MPI_Send(&doneflag,1,MPI_INT,iproc,0,comm);
+	  ndone++;
+	}
+      }
+      while (ndone < nprocs-1) {
+	int iproc,tmp;
+	MPI_Recv(&tmp,1,MPI_INT,MPI_ANY_SOURCE,0,comm,&status);
+	iproc = status.MPI_SOURCE;
+
+	if (itask < nmap) {
+	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
+	  itask++;
+	} else {
+	  MPI_Send(&doneflag,1,MPI_INT,iproc,0,comm);
+	  ndone++;
+	}
+      }
+
+    } else {
+      while (1) {
+	int itask;
+	MPI_Recv(&itask,1,MPI_INT,0,0,comm,&status);
+	if (itask < 0) break;
+	appmap(itask,files[itask],kv,ptr);
+	MPI_Send(&itask,1,MPI_INT,0,0,comm);
+      }
+    }
+
+  } else error->all("Invalid mapstyle setting");
+
+  // clean up file list
+
+  for (int i = 0; i < nmap; i++) delete files[i];
+  memory->sfree(files);
 
   kv->complete();
   stats("Map",0,verbosity);

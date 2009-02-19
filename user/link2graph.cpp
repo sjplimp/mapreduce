@@ -2,7 +2,7 @@
 // print stats on resulting graph
 // optionally output graph as Matrix Market file
 
-// Syntax: link2graph switch value ... file1 file2 ...
+// Syntax: link2graph switch arg(s) switch arg(s) ...
 //         -c
 //              convert hashed vertex IDs to integer vertex IDs (1 to N)
 //         -e1
@@ -15,8 +15,11 @@
 //              print vertex in-degree histogramming to histofile
 //         -m matrixfile
 //              print graph in Matrix Market format with 1/outdegree field
-//         file1 file2 ...
-//              list of binary link files to read in
+//         -ff file
+//              file with list of binary link files to read in (one per line)
+//         -f file1 file2 ...
+//              binary link files to read in
+//              if specified, this must be the last switch used
 
 #include "mpi.h"
 #include "stdio.h"
@@ -30,7 +33,8 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-void fileread(int, KeyValue *, void *);
+void fileread1(int, char *, KeyValue *, void *);
+void fileread2(int, KeyValue *, void *);
 void vertex_emit(char *, int, char *, int, int *, KeyValue *, void *);
 void vertex_unique(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_unique(char *, int, char *, int, int *, KeyValue *, void *);
@@ -70,6 +74,9 @@ int main(int narg, char **args)
   char *inhfile = NULL;
   char *mfile = NULL;
   int convertflag = 0;
+  char *onefile = NULL;
+  int nfiles = 0;
+  char **argfiles = NULL;
 
   int flag = 0;
   int iarg = 1;
@@ -122,11 +129,37 @@ int main(int narg, char **args)
       }
       vertexsize = 16;
       iarg += 1;
-    } else break;
+    } else if (strcmp(args[iarg],"-ff") == 0) {
+      if (iarg+2 > narg) {
+	flag = 1;
+	break;
+      }
+      int n = strlen(args[iarg+1]) + 1;
+      onefile = new char[n];
+      strcpy(onefile,args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg],"-f") == 0) {
+      if (iarg+2 > narg) {
+	flag = 1;
+	break;
+      }
+      nfiles = narg-1 - iarg; 
+      argfiles = &args[iarg+1];
+      iarg = narg;
+    } else {
+      flag = 1;
+      break;
+    }
   }
 
-  if (flag || iarg > narg) {
-    if (me == 0) printf("Syntax: link2graph switch arg ... file1 file2 ...\n");
+  if (flag) {
+    if (me == 0)
+      printf("Syntax: link2graph switch arg(s) switch arg(s) ...\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  if (onefile == NULL && argfiles == NULL) {
+    if (me == 0) printf("No input files specified");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
@@ -150,7 +183,9 @@ int main(int narg, char **args)
 
   MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
   mrraw->verbosity = 1;
-  int nrawedges = mrraw->map(narg-iarg,&fileread,&args[iarg]);
+  int nrawedges;
+  if (onefile) nrawedges = mrraw->map(onefile,&fileread1,NULL);
+  else nrawedges = mrraw->map(nfiles,&fileread2,argfiles);
 
   // mrvert = unique non-zero vertices
 
@@ -336,6 +371,8 @@ int main(int narg, char **args)
   delete [] outhfile;
   delete [] inhfile;
   delete [] mfile;
+  delete [] onefile;
+
   delete mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -353,19 +390,54 @@ int main(int narg, char **args)
 }
 
 /* ----------------------------------------------------------------------
-   fileread map() function
+   fileread1 map() function
    for each record in file:
      vertexsize = 8: KV = 1st 8-byte field, 3rd 8-byte field
      vertexsize = 16: KV = 1st 16-byte field, 2nd 16-byte field
    output KV: (Vi,Vj)
 ------------------------------------------------------------------------- */
 
-void fileread(int itask, KeyValue *kv, void *ptr)
+void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
+{
+  char buf[CHUNK*RECORDSIZE];
+
+  FILE *fp = fopen(filename,"rb");
+  if (fp == NULL) {
+    printf("Could not open link file\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  while (1) {
+    int nrecords = fread(buf,RECORDSIZE,CHUNK,fp);
+    char *ptr = buf;
+    for (int i = 0; i < nrecords; i++) {
+      kv->add(&ptr[0],vertexsize,&ptr[16],vertexsize);
+      ptr += RECORDSIZE;
+    }
+    if (nrecords == 0) break;
+  }
+
+  fclose(fp);
+}
+
+/* ----------------------------------------------------------------------
+   fileread2 map() function
+   for each record in file:
+     vertexsize = 8: KV = 1st 8-byte field, 3rd 8-byte field
+     vertexsize = 16: KV = 1st 16-byte field, 2nd 16-byte field
+   output KV: (Vi,Vj)
+------------------------------------------------------------------------- */
+
+void fileread2(int itask, KeyValue *kv, void *ptr)
 {
   char buf[CHUNK*RECORDSIZE];
 
   char **files = (char **) ptr;
   FILE *fp = fopen(files[itask],"rb");
+  if (fp == NULL) {
+    printf("Could not open link file\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
 
   while (1) {
     int nrecords = fread(buf,RECORDSIZE,CHUNK,fp);

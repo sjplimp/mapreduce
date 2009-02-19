@@ -34,6 +34,12 @@ int MR_map(void *MRptr, int nmap,
 int MR_map_add(void *MRptr, int nmap,
 	       void (*mymap)(int, void *KVptr, void *APPptr),
 	       void *APPptr, int addflag);
+int MR_file_list(void *MRptr, char *file,
+		 void (*mymap)(int, char *, void *KVptr, void *APPptr),
+		 void *APPptr);
+int MR_map_file_list_add(void *MRptr, char *file,
+			 void (*mymap)(int, char *, void *KVptr, void *APPptr),
+			 void *APPptr, int addflag);
 int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
 		     char sepchar, int delta,
 		     void (*mymap)(int, void *KVptr, void *APPptr),
