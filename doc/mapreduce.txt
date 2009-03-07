@@ -1,13 +1,13 @@
 MapReduce MPI Library :h2,c
 
-This document describes the 18 June 2008 version of the MapReduce MPI
+This document describes the 12 March 2009 version of the MapReduce MPI
 library that implements the "MapReduce operation"_wiki popularized by
 Google.  The library is designed for parallel execution on
 distributed-memory platforms, but will also operate on a single
 processor.  The library is written in C++, is callable from hi level
-langauges (C++, C, Fortran, scripting languages), and requires no
-additional software except linking with MPI (a message passing
-library) if you wish to perform MapReduces in parallel.
+langauges (C++, C, Fortran, Python, or other scripting languages), and
+requires no additional software except linking with MPI (a message
+passing library) if you wish to perform MapReduces in parallel.
 
 Similar to the original Google design, a user performs a MapReduce by
 writing a small program that invokes the library.  The user provides
@@ -30,11 +30,8 @@ code you write that calls the library is also licensed under the GPL.
 This means that if you distribute your (modified) code, you must
 provide source code.
 
-The distrubution includes this documentation and a few examples of
-simple programs that illustrate the use of MapReduce.  I also
-distribute the MapReduce MPI library with our parallel "LAMMPS"_LAMMPS
-molecular dynamics package, since it can be used to post-process
-simulation data.
+The distrubution includes a few examples of simple programs that
+illustrate the use of MapReduce.
 
 The author of this library is "Steve Plimpton"_sjp at Sandia National
 Laboratories who can be contacted via email (sjplimp at sandia.gov).
@@ -66,7 +63,8 @@ The remainder of this document is organized as follows:
   "MapReduce::kmv_stats()"_#kmvstats :l
   "KeyValue::add()"_#add :l
   "Settings and defaults"_#settings :l
-  "C interface"_#cinterface :l,ule
+  "C interface"_#cinterface :l
+  "Python interface"_#pyinterface :l,ule
 "Technical Details"_#tech :l
 "Examples"_#examples :l
   "Word frequency"_#word :ulb,l
@@ -125,17 +123,22 @@ C++ library using MPI for inter-processor communication.  This allows
 precise control over the memory allocated during a large-scale
 MapReduce. :ulb,l
 
-C++ and C interface provided.  The former means that one or more
-MapReduce objects can be instantiated and invoked by the user's
-program.  The latter means that the library can be called from C or
-other hi-level languages such as Fortran or a scripting language. :l
+C++ and C and Python interfaces provided.  A C++ interface means that
+one or more MapReduce objects can be instantiated and invoked by the
+user's program.  A C interface means that the library can be called
+from C or other hi-level languages such as Fortran.  A Python
+interface means the library can be called from a Python script,
+allowing you to write your serial map() and reduce() functions in
+Python.  If your machine can run Python in parallel, then you can run
+a parallel MapReduce in that manner. :l
 
 Small, portable.  The entire library is a few thousand lines of C++
 code in a handful of C++ files which can be built on any machine with
 a C++ compiler.  For parallel operation, you link with MPI, a standard
 message passing library available on any distributed memory machine.
 For serial operation, a dummy MPI library can be substituted, which is
-provided. :l,ule
+provided.  The Python wrappers should install on any machine with
+Python 2.5 or later.  :l,ule
 
 This library also has the following limitations, some of which may be
 overcome in future releases:
@@ -152,15 +155,7 @@ portable.  While these machines do have huge aggregate memory, it does
 mean the library is limited to processing data sets that will fit in
 that memory.  This can be a limitation, particularly when the
 intermediate data set (between the map and reduce operations) is
-large. :l
-
-No Python implementation.  I love Python for its concise syntax and
-ease of rapid implementation, which the "Tu, et al"_#Tu work argued is
-attractive when user's write their application-specific portion of the
-MapReduce operation.  However, our large parallel machines at Sandia
-don't have parallel Python installed, since operations like dynamic
-library loading aren't supported by light-weight operating
-systems. :l,ule
+large. :l,ule
 
 Finally, I call attention to "recent work"_#Gray by Alexander Gray and
 colleagues at Geargia Tech.  They show that various kinds of
@@ -246,9 +241,10 @@ application-specific.  The remaining portions (the collate function,
 assignment of map or reduce tasks to processors, and combining of the
 map/reduce output across processors) can be handled behind the scenes
 in an application-independent fashion.  That is the portion of the
-code that is handled by the MapReduce MPI library.  The user only need
-provide a small driving program to call the library and two serial
-functions for performing the desired map() and reduce() operations.
+code that is handled by the MapReduce MPI library.  The user only
+needs to provide a small driving program to call the library and two
+serial functions for performing the desired map() and reduce()
+operations.
 
 :line
 
@@ -268,6 +264,7 @@ LICENSE
 doc
 examples
 mpistubs
+python
 src
 user :ul
 
@@ -276,28 +273,35 @@ a few simple MapReduce programs which call the MapReduce MPI library.
 These are documented by a README file in that directory and are
 discussed below.  The mpistubs directory contains a dummy MPI library
 which can be used to build a MapReduce program on a serial machine.
-The src directory contains the files that comprise the MapReduce MPI
-library.  The user directory contains user-contributed MapReduce
-programs.  See the README in that directory for further details.
+The python contains the Python wrapper files needed to call the
+MapReduce MPI library from Python.  The src directory contains the
+files that comprise the MapReduce MPI library.  The user directory
+contains user-contributed MapReduce programs.  See the README in that
+directory for further details.
 
 The MapReduce MPI library is built by typing
 
 make -f Makefile.foo :pre
 
-from within the src directory where you should use a Makefile.foo
-appropriate for your machine.  Note that some versions of the Makefile
-build the library for a serial machine, using the dummy MPI library in
-mpistubs.  Others build it for parallel execution using an installed
-MPI library.  You may need to edit one of the Makefiles to be
-compatible with your compilers and MPI installation.  If you use the
-dummy MPI library, you will need to build it first by typing "make"
-from within mpistubs.  Again, you may need to edit mpistubs/Makefile
-for your machine.
+from within the src directory where you should create and use a
+Makefile.foo appropriate for your machine.  Note that some versions of
+the Makefile build the library for a serial machine, using the dummy
+MPI library in mpistubs.  Others build it for parallel execution using
+an installed MPI library.  You may need to edit one of the Makefiles
+to be compatible with your compilers and MPI installation.  If you use
+the dummy MPI library, you will need to build it first, by typing
+"make" from within mpistubs.  Again, you may need to edit
+mpistubs/Makefile for your machine.
 
 If you successfully build the MapReduce MPI library, you should
 produce the file "libmrmpi.a" which can be linked by other programs.
-Both a C++ and C interface are part of the library, as discussed
-below.
+As discussed below, both a C++ and C interface are part of the
+library, so the library should be usable from any hi-level language.
+
+To use the MapReduce library from Python, you actually don't need to
+build it from the src directory.  Instead, you build it from the
+python directory.  Instructions are given in the "Python
+interface"_#pyinterface section.
 
 The MapReduce programs in the examples directory can be built by
 typing
@@ -306,7 +310,8 @@ make -f Makefile.foo :pre
 
 from within the examples directory.  Again, one of the provided
 Makefiles may need to be modified for your platform.  One of the
-example programs (wordfreq) is provided both as a C++ and C program.
+example programs (wordfreq) is provided both as a C++ and C program
+and as a Python script.
 
 :line
 
@@ -320,27 +325,24 @@ two library header files and uses the MapReduce namespace:
 #include "keyvalue.h"
 using namespace MAPREDUCE_NS :pre
 
-In C, your program includes one library header file:
-
-#include "cmapreduce.h" :pre
+Follow these linkes for info on using the library thru a "C
+interface"_#cinterface or thru a "Python inteface"_#pyinterface.
 
 Arguments to the library's "map" and "reduce" methods include function
 pointers to serial "mymap" and "myreduce" functions in your code
 (named anything you wish), which will be "called back" from the
 library as it performs the parallel map and reduce operations.
 
-A typical MapReduce program involves these steps (in C++, see the end
-of the "Library Interface"_#lib section for more details on the C
-interface):
+A typical MapReduce program involves these steps:
 
-MapReduce *mr = new MapReduce(MPI_COMM_WORLD);   // instantiate a MR object
+MapReduce *mr = new MapReduce(MPI_COMM_WORLD);   // instantiate an MR object
 mr->map(nfiles,&mymap);                          // parallel map
 mr->collate()                                    // collate keys
 mr->reduce(&myreduce);                           // parallel reduce
 delete mr;                                       // delete the MR object :pre
 
-Often the main program you write is no more complicated than this.
-The API for the MapReduce MPI library is a handful of methods which are
+The main program you write may be no more complicated than this.  The
+API for the MapReduce MPI library is a handful of methods which are
 lo-level components of a MapReduce operation.  They can be combined in
 more complex sequences of calls than listed above.  For example, one
 map() may be followed by several reduce() operations to massage your
@@ -363,7 +365,7 @@ Library Interface :link(lib),h3
 This section discusses how to call the MapReduce MPI library from a
 C++ program and gives a description of all its methods and variable
 settings.  Use of the library from a C program (or other hi-level
-language) is discussed at the end of the section.
+language) or from Python is discussed at the end of the section.
 
 All the library methods operate on two basic data structures stored
 within the MapReduce object, a KeyValue object (KV) and a
@@ -412,18 +414,30 @@ processors) and no parallel comuunication.  The methods flagged as
 
 Instantiate a MapReduce object :link(construct),h4
 
-MapReduce::MapReduce(MPI_Comm comm) :pre
+MapReduce::MapReduce(MPI_Comm comm)
+MapReduce::MapReduce() :pre
 
-Either of these lines of code will create a MapReduce object:
+You can creata a MapReduce object with or without passing it an MPI
+communicator.
+
+In the former case, your program should initialize (and finalize) MPI,
+which creates the MPI_COMM_WORLD communicator (all the processors you
+are running on).  Normally this is what is passed to the MapReduce
+constructor, but you can pass a communicator for a subset of your
+processors if desired.  You can also instantiate multiple MapReduce
+objects, giving them each all the processors or a subset of
+processors.
+
+In the latter case, if you do not want or need your program to use MPI
+at all, you can have the MapReduce library initialize and finalize MPI
+for you.  In this case you can only instantiate one instance of a
+MapReduce object.
+
+As examples, any of these lines of code will create a MapReduce object:
 
 MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-MapReduce mr(MPI_COMM_WORLD); :pre
-
-One or more such objects can be created by your program.  Your program
-should initialize (and finalize) MPI, which creates the MPI_COMM_WORLD
-communicator (all the processors you are running on).  Normally this
-is what is passed to the MapReduce constructor, but you can pass a
-communicator for a subset of your processors if desired.
+MapReduce mr(MPI_COMM_WORLD);
+MapReduce mr(); :pre
 
 :line
 
@@ -1103,7 +1117,7 @@ delete mr2;
 mr1->reduce(&myreduce1,NULL); :pre
 
 would generate one set of key/value pairs from the initial map()
-operation, then make a copy of them which are then collated and
+operation, then make a copy of them, which are then collated and
 reduced to a new set of key/value pairs.  The new set of key/value
 pairs are added to the original set produced by the map() operation to
 form an augmented set of key/value pairs, which could be further
@@ -1160,9 +1174,14 @@ C interface :link(cinterface),h4
 
 The MapReduce MPI library can be called from a C program, using the
 interface defined in src/cmapreduce.h.  This is a C file which should
-be included in your C program to define API to the library.  The C
-interface can also be used to call the MapReduce MPI library from
-Fortran or another hi-level language such as a scripting language.
+be included in your C program to define the API to the library:
+
+#include "cmapreduce.h" :pre
+
+Note that the C interface should be usable to call the MapReduce MPI
+library from Fortran or other hi-level languages, including
+scripting languages.  See information on how to do this
+from Python below.
 
 The C interface consists of the following functions:
 
@@ -1186,27 +1205,34 @@ int MR_map(void *MRptr, int nmap,
 int MR_map_add(void *MRptr, int nmap,
 	       void (*mymap)(int, void *KVptr, void *APPptr),
 	       void *APPptr, int addflag);
+int MR_map_file_list(void *MRptr, char *file,
+	             void (*mymap)(int, char *, void *KVptr, void *APPptr),
+		     void *APPptr);
+int MR_map_file_list_add(void *MRptr, char *file,
+			 void (*mymap)(int, char *, void *KVptr, void *APPptr),
+			 void *APPptr, int addflag);
 int MR_map_file_char(void *MRptr, int nmap, int files, char **files,
 		     char sepchar, int delta,
-		     void (*mymap)(int, void *KVptr, void *APPptr),
+		     void (*mymap)(int, char *, int, void *KVptr, void *APPptr),
 		     void *APPptr);
 int MR_map_file_char_add(void *MRptr, int nmap, int files, char **files,
 			 char sepchar, int delta,
-			 void (*mymap)(int, void *KVptr, void *APPptr),
+			 void (*mymap)(int, char *, int, void *KVptr, void *APPptr),
 			 void *APPptr, int addflag);
 int MR_map_file_str(void *MRptr, int nmap, int files, char **files,
 		    char *sepstr, int delta,
-		    void (*mymap)(int, void *KVptr, void *APPptr),
+		    void (*mymap)(int, char *, int, void *KVptr, void *APPptr),
 		    void *APPptr);
 int MR_map_file_str_add(void *MRptr, int nmap, int files, char **files,
 			char *sepstr, int delta,
-			void (*mymap)(int, void *KVptr, void *APPptr),
+			void (*mymap)(int, char *, int, void *KVptr, void *APPptr),
 			void *APPptr, int addflag);
 int MR_reduce(void *MRptr,
 	      void (*myreduce)(char *, int, char *,
 			       int, int *, void *KVptr, void *APPptr),
 	      void *APPptr);
-int MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes);
+int MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes); :pre
+
 int MR_sort_keys(void *MRptr, 
 		 int (*mycompare)(char *, int, char *, int));
 int MR_sort_values(void *MRptr,
@@ -1222,7 +1248,8 @@ void MR_kv_add_multi_static(void *KVptr, int n,
 void MR_kv_add_multi_dynamic(void *KVptr, int n,
 			    char *key, int *keybytes,
 			    char *value, int *valuebytes);
-void MR_kv_add_kv(void *KVptr, void KVptr2); :pre
+void MR_kv_add_kv(void *KVptr, void *KVptr2);
+void MR_mr_add_mr(void *MRptr, void *MRptr2); :pre
 
 void MR_kv_stats(void *MRptr, int level);
 void MR_kmv_stats(void *MRptr, int level); :pre
@@ -1239,19 +1266,110 @@ interface to enable the corresponding library variables to be set.
 Note that when you call MR_create() or MR_copy() it returns MRptr
 which is a pointer to the MapReduce object created by the library.
 This pointer is used as the first argument of all the other MR calls.
-The remaining arguments are exactly the same as those used with the
-C++ methods.
+Note that this means a C program can
+effectively instantiate multiple instances of the library (multiple
+MapReduce objects) by simple keeping track of the pointers returned to
+it.
 
-The only exception are the MR_kv_add() functions which take a KVptr as
-their first argument.  This is a pointer to a KeyValue object.  These
-calls are made from your program's mymap(), myreduce(), and
-mycompress() functions to register key/value pairs with the MapReduce
-MPI library.  The KVptr is passed as an argument to your functions
-when they are called back from the MapReduce library.
+The remaining arguments of each function call are the same as those
+used with the C++ methods.  The only exceptions are the MR_kv_add()
+functions which take a KVptr as their first argument.  This is a
+pointer to a KeyValue object.  These calls are made from your
+program's mymap(), myreduce(), and mycompress() functions to register
+key/value pairs with the MapReduce MPI library.  The KVptr is passed
+as an argument to your functions when they are called back from the
+MapReduce library.
 
 See the examples/cwordfreq.c program as an example of how these
 calls are made from a C program.  It is conceptually identical to
 the C++ wordfreq.cpp program.
+
+:line
+
+Python interface :link(pyinterface),h4
+
+advantage of Python (see wordfreq.py) = simplicity
+disadvantage = speed
+
+question of running in serial or parallel
+  have to link MRMPR lib with MPI somehow
+question of do you want to make parallel MPI calls to Python
+  yourself or not (e.g. print out for debugging or an MPI_Allreduce)
+question of whether your machine will run parallel python
+
+can use Python objects for keys and values
+don't really need to pass ptrs back, but can do it if you want
+
+can callbacks be regular methods or class methods?
+
+python setup.py build
+python setup.py install :pre
+
+This should create an "mrmpi" module, which you can load into your
+Python by typing
+
+>>> import mrmpi :pre
+
+See the Python interface section below for more info on running Python
+in parallel, and what to do if the above installation procedure for
+the library fails.  For example, it will fail, if you don't
+have a shared library version of MPI on your machine, but tha
+should be easy to fix.
+
+The Python interface consists of an "mrmpi" class which
+creates a MapReduce MPI object, with a set of methods that
+can be invoked on that object.  These lines of code
+assume you have imported the "mrmpi" module at the
+top of your Python script as follows:
+
+import mrmpi as mrmpi :pre
+
+These are the operations you can do using the mrmpi module:
+
+mr = mrmpi()                # create an mrmpi object
+mr = mrmpi(mpi_comm)        # ditto, but within a specified MPI Comm
+
+import copy
+mr2 = copy.copy(mr)         # copy mr to create mr2
+mr2 = copy.deepcopy(mr)	    # ditto
+
+del mr                      # delete an mrmpi object explicitly
+
+mr.aggregate(myhash)        # myhash can be omitted or be a hash function
+			    # called as myhash(key)
+			    # myhash() should return an integer (proc ID)
+mr.clone()
+mr.collapse(key)
+mr.collate(myhash)          # myhash is same as with aggregate()
+mr.compress(mycommpress,ptr) # mycompress is a function
+                             # called as mycompress()
+			     # mycompress typically makes calls like
+			     #   mr->add(key,value)
+                             # ptr can be omitted or be somehting passed to mycompress()
+
+mr.convert()
+mr.gather(nprocs)
+mr.map(nmap,map,ptr,addflag)
+mr.map_file_list(file,map,ptr,addflag)
+mr.map_file_char(nmap,files,sepchar,delta,map,ptr,addflag)
+mr.map_file_str(nmap,files,sepstr,delta,map,ptr,addflag)
+mr.reduce(reduce,ptr)
+mr.scrunch(nprocs,key)
+
+mr.sort_keys(compare)      # compare is a
+mr.sort_values(compare)
+mr.sort_multivalues(compare):
+
+mr.kv_stats(level)
+mr.kmv_stats(level)
+
+mapstyle(self,value):
+verbosity(self,value):
+
+add(self,key,value):
+add_multi_static(self,keys,values):
+add_multi_dynamic(self,keys,values):
+mr.add_kv(mr2):
 
 :line
 
