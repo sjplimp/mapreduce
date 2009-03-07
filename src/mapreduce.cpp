@@ -53,10 +53,39 @@ MapReduce::MapReduce(MPI_Comm caller)
 
   mapstyle = 0;
   verbosity = 0;
+
+  mpiinitflag = 0;
 }
 
 /* ----------------------------------------------------------------------
-   copy constructor
+   construct without MPI communicator
+   perform MPI init here and finalize in destructor
+------------------------------------------------------------------------- */
+
+MapReduce::MapReduce()
+{
+  int argc = 0;
+  char **argv = NULL;
+  MPI_Init(&argc,&argv);
+
+  comm = MPI_COMM_WORLD;
+  MPI_Comm_rank(comm,&me);
+  MPI_Comm_size(comm,&nprocs);
+
+  memory = new Memory(comm);
+  error = new Error(comm);
+
+  kv = NULL;
+  kmv = NULL;
+
+  mapstyle = 0;
+  verbosity = 0;
+
+  mpiinitflag = 1;
+}
+
+/* ----------------------------------------------------------------------
+   copy constructor, perform a deep copy
 ------------------------------------------------------------------------- */
 
 MapReduce::MapReduce(MapReduce &mr)
@@ -86,6 +115,10 @@ MapReduce::~MapReduce()
   delete error;
   delete kv;
   delete kmv;
+
+  printf("AAA %d\n",me);
+  if (mpiinitflag) MPI_Finalize();
+  printf("BBB %d\n",me);
 }
 
 /* ----------------------------------------------------------------------

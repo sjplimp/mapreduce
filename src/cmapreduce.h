@@ -16,6 +16,7 @@ extern "C" {
 #endif
 
 void *MR_create(MPI_Comm comm);
+void *MR_create_nompi();
 void *MR_copy(void *MRptr);
 void MR_destroy(void *MRptr);
 
@@ -35,27 +36,31 @@ int MR_map(void *MRptr, int nmap,
 int MR_map_add(void *MRptr, int nmap,
 	       void (*mymap)(int, void *KVptr, void *APPptr),
 	       void *APPptr, int addflag);
-int MR_file_list(void *MRptr, char *file,
-		 void (*mymap)(int, char *, void *KVptr, void *APPptr),
-		 void *APPptr);
+int MR_map_file_list(void *MRptr, char *file,
+		     void (*mymap)(int, char *, void *KVptr, void *APPptr),
+		     void *APPptr);
 int MR_map_file_list_add(void *MRptr, char *file,
 			 void (*mymap)(int, char *, void *KVptr, void *APPptr),
 			 void *APPptr, int addflag);
 int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
 		     char sepchar, int delta,
-		     void (*mymap)(int, void *KVptr, void *APPptr),
+		     void (*mymap)(int, char *, int, 
+				   void *KVptr, void *APPptr),
 		     void *APPptr);
 int MR_map_file_char_add(void *MRptr, int nmap, int nfiles, char **files,
 			 char sepchar, int delta,
-			 void (*mymap)(int, void *KVptr, void *APPptr),
+			 void (*mymap)(int, char *, int, 
+				       void *KVptr, void *APPptr),
 			 void *APPptr, int addflag);
 int MR_map_file_str(void *MRptr, int nmap, int nfiles, char **files,
 		    char *sepstr, int delta,
-		    void (*mymap)(int, void *KVptr, void *APPptr),
+		    void (*mymap)(int, char *, int, 
+				  void *KVptr, void *APPptr),
 		    void *APPptr);
 int MR_map_file_str_add(void *MRptr, int nmap, int nfiles, char **files,
 			char *sepstr, int delta,
-			void (*mymap)(int, void *KVptr, void *APPptr),
+			void (*mymap)(int, char *, int, 
+				      void *KVptr, void *APPptr),
 			void *APPptr, int addflag);
 int MR_reduce(void *MRptr,
 	      void (*myreduce)(char *, int, char *,
@@ -77,6 +82,9 @@ void MR_kv_add_multi_static(void *KVptr, int n,
 void MR_kv_add_multi_dynamic(void *KVptr, int n,
 			     char *key, int *keybytes,
 			     char *value, int *valuebytes);
+void MR_kv_add_kv(void *KVptr, void *KVptr2);
+void MR_mr_add_mr(void *MRptr, void *MRptr2);
+
 void MR_kv_stats(void *MRptr, int level);
 void MR_kmv_stats(void *MRptr, int level);
 

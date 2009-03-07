@@ -27,6 +27,7 @@ class MapReduce {
   // library API
 
   MapReduce(MPI_Comm);
+  MapReduce();
   MapReduce(MapReduce &);
   ~MapReduce();
 
@@ -76,6 +77,7 @@ class MapReduce {
  private:
   MPI_Comm comm;
   int me,nprocs;
+  int mpiinitflag;
   class Memory *memory;
   class Error *error;
 

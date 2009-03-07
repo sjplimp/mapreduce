@@ -21,6 +21,12 @@ void *MR_create(MPI_Comm comm)
   return (void *) mr;
 }
 
+void *MR_create_nompi()
+{
+  MapReduce *mr = new MapReduce();
+  return (void *) mr;
+}
+
 void *MR_copy(void *MRptr)
 {
   MapReduce *mr = (MapReduce *) MRptr;
@@ -124,7 +130,7 @@ int MR_map_file_list_add(void *MRptr, char *file,
 
 int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
 		     char sepchar, int delta,
-		     void (*mymap)(int, void *, void *),
+		     void (*mymap)(int, char *, int, void *, void *),
 		     void *APPptr)
 {
   typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
@@ -135,7 +141,7 @@ int MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
 
 int MR_map_file_char_add(void *MRptr, int nmap, int nfiles, char **files,
 			 char sepchar, int delta,
-			 void (*mymap)(int, void *, void *),
+			 void (*mymap)(int, char *, int, void *, void *),
 			 void *APPptr, int addflag)
 {
   typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
@@ -146,7 +152,7 @@ int MR_map_file_char_add(void *MRptr, int nmap, int nfiles, char **files,
 
 int MR_map_file_str(void *MRptr, int nmap, int nfiles, char **files,
 		    char *sepstr, int delta,
-		    void (*mymap)(int, void *, void *),
+		    void (*mymap)(int, char *, int, void *, void *),
 		    void *APPptr)
 {
   typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
@@ -157,7 +163,7 @@ int MR_map_file_str(void *MRptr, int nmap, int nfiles, char **files,
 
 int MR_map_file_str_add(void *MRptr, int nmap, int nfiles, char **files,
 			char *sepstr, int delta,
-			void (*mymap)(int, void *, void *),
+			void (*mymap)(int, char *, int, void *, void *),
 			void *APPptr, int addflag)
 {
   typedef void (MapFunc)(int, char *, int, KeyValue *, void *);
@@ -230,6 +236,13 @@ void MR_kv_add_kv(void *KVptr, void *KVptr2)
 {
   KeyValue *kv = (KeyValue *) KVptr;
   KeyValue *kv2 = (KeyValue *) KVptr2;
+  kv->add(kv2);
+}
+
+void MR_mr_add_mr(void *MRptr, void *MRptr2)
+{
+  KeyValue *kv = ((MapReduce *) MRptr)->kv;
+  KeyValue *kv2 = ((MapReduce *) MRptr2)->kv;
   kv->add(kv2);
 }
 
