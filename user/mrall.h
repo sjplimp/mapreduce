@@ -55,12 +55,12 @@ typedef int COMPAREFUNCTION(char *, int, char *, int);
 //  Change MPI_IDTYPE appropriately:  MPI_INT or MPI_LONG.
 //  Change routine for conversion from string appropriately:  atoi or atol.
 
-#undef KDD32BIT
+#define KDD32BIT
 #ifdef KDD32BIT
 typedef int32_t IDTYPE;
 #define MPI_IDTYPE MPI_INT 
 #define ATOID atoi
-#define IDFORMAT "%I"
+#define IDFORMAT "%d"
 #else
 typedef int64_t IDTYPE;
 #define MPI_IDTYPE MPI_LONG
