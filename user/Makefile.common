@@ -4,7 +4,7 @@ INCS =          mrvector.h mrmatrix.h mrall.h
 
 # Targets
 
-all:	matvec pagerank gs concomp ccnd ccndtwo ccndboth
+all:	matvec pagerank gs concomp ccnd ccndtwo ccndboth link2graph
 
 ccndboth:   random_mars.o test_cc_nodist.o test_cc_common.o ccnd.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_cc_nodist.o test_cc_common.o \

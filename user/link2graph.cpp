@@ -82,6 +82,7 @@ int main(int narg, char **args)
   int iarg = 1;
   while (iarg < narg) {
     if (strcmp(args[iarg],"-out") == 0) {
+      // Generate an outdegree histogram.
       if (iarg+2 > narg) {
 	flag = 1;
 	break;
@@ -91,6 +92,7 @@ int main(int narg, char **args)
       strcpy(outhfile,args[iarg+1]);
       iarg += 2;
     } else if (strcmp(args[iarg],"-in") == 0) {
+      // Generate an indegree histogram.
       if (iarg+2 > narg) {
 	flag = 1;
 	break;
@@ -100,6 +102,7 @@ int main(int narg, char **args)
       strcpy(inhfile,args[iarg+1]);
       iarg += 2;
     } else if (strcmp(args[iarg],"-m") == 0) {
+      // Generate a matrix-market output file.
       if (iarg+2 > narg) {
 	flag = 1;
 	break;
@@ -109,6 +112,7 @@ int main(int narg, char **args)
       strcpy(mfile,args[iarg+1]);
       iarg += 2;
     } else if (strcmp(args[iarg],"-c") == 0) {
+      // Convert vertex IDs to range 1-N.
       if (iarg+1 > narg) {
 	flag = 1;
 	break;
@@ -116,6 +120,7 @@ int main(int narg, char **args)
       convertflag = 1;
       iarg += 1;
     } else if (strcmp(args[iarg],"-e1") == 0) {
+      // Use one 64-bit fields as a vertex ID.
       if (iarg+1 > narg) {
 	flag = 1;
 	break;
@@ -123,6 +128,7 @@ int main(int narg, char **args)
       vertexsize = 8;
       iarg += 1;
     } else if (strcmp(args[iarg],"-e2") == 0) {
+      // Use two 64-bit fields as a vertex ID.
       if (iarg+1 > narg) {
 	flag = 1;
 	break;
@@ -130,6 +136,7 @@ int main(int narg, char **args)
       vertexsize = 16;
       iarg += 1;
     } else if (strcmp(args[iarg],"-ff") == 0) {
+      // Use one file of data filenames.
       if (iarg+2 > narg) {
 	flag = 1;
 	break;
@@ -139,6 +146,7 @@ int main(int narg, char **args)
       strcpy(onefile,args[iarg+1]);
       iarg += 2;
     } else if (strcmp(args[iarg],"-f") == 0) {
+      // Use one or more data files listed here.
       if (iarg+2 > narg) {
 	flag = 1;
 	break;
@@ -244,7 +252,7 @@ int main(int narg, char **args)
   if (outhfile) {
 
     // mrdegree = vertices with their out degree as negative value
-    // nsingleton = # of verts with 0 degree
+    // nsingleton = # of verts with 0 outdegree
     
     MapReduce *mrdegree = new MapReduce(*mredge);
     mrdegree->collate(NULL);
@@ -287,7 +295,7 @@ int main(int narg, char **args)
   if (inhfile) {
 
     // mrdegree = vertices with their out degree as negative value
-    // nsingleton_in = # of verts with 0 degree
+    // nsingleton_in = # of verts with 0 indegree
     
     MapReduce *mrdegree = new MapReduce(*mredge);
     mrdegree->clone();
@@ -333,7 +341,7 @@ int main(int narg, char **args)
   if (mfile) {
 
     // mrdegree = vertices with their out degree as negative value
-    // nsingleton = # of verts with 0 degree
+    // nsingleton = # of verts with 0 out-degree
     
     MapReduce *mrdegree = new MapReduce(*mredge);
     mrdegree->collate(NULL);
@@ -382,7 +390,7 @@ int main(int narg, char **args)
     printf("Graph: %d original edges\n",nrawedges);
     printf("Graph: %d unique vertices\n",nverts);
     printf("Graph: %d unique edges\n",nedges);
-    printf("Graph: %d singleton vertices\n",nsingleton);
+    printf("Graph: %d vertices with zero out-degree\n",nsingleton);
     printf("Time:  %g secs\n",tstop-tstart);
   }
 
@@ -591,7 +599,7 @@ void edge_label2(char *key, int keybytes, char *multivalue,
 /* ----------------------------------------------------------------------
    edge_count reduce() function
    input KMV: (Vi,[Vj Vk ...])
-   output KV: (Vj,degree), degree as negative value
+   output KV: (Vi,degree), degree as negative value
 ------------------------------------------------------------------------- */
 
 void edge_count(char *key, int keybytes, char *multivalue,
