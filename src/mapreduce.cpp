@@ -64,9 +64,16 @@ MapReduce::MapReduce(MPI_Comm caller)
 
 MapReduce::MapReduce()
 {
-  int argc = 0;
-  char **argv = NULL;
-  MPI_Init(&argc,&argv);
+  int flag;
+  MPI_Initialized(&flag);
+
+  if (flag) mpiinitflag = 0;
+  else {
+    mpiinitflag = 1;
+    int argc = 0;
+    char **argv = NULL;
+    MPI_Init(&argc,&argv);
+  }
 
   comm = MPI_COMM_WORLD;
   MPI_Comm_rank(comm,&me);
@@ -80,8 +87,6 @@ MapReduce::MapReduce()
 
   mapstyle = 0;
   verbosity = 0;
-
-  mpiinitflag = 1;
 }
 
 /* ----------------------------------------------------------------------
@@ -105,6 +110,8 @@ MapReduce::MapReduce(MapReduce &mr)
 
   mapstyle = mr.mapstyle;
   verbosity = mr.verbosity;
+
+  mpiinitflag = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -116,9 +123,7 @@ MapReduce::~MapReduce()
   delete kv;
   delete kmv;
 
-  printf("AAA %d\n",me);
   if (mpiinitflag) MPI_Finalize();
-  printf("BBB %d\n",me);
 }
 
 /* ----------------------------------------------------------------------
