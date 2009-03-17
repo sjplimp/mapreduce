@@ -511,7 +511,10 @@ void edge_unique(char *key, int keybytes, char *multivalue,
       unsigned long *v2 = (unsigned long *) &multivalue[offset+8];
       if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
 	hash[std::make_pair(*v1,*v2)] = 0;
-      else continue;
+      else {
+        offset += valuebytes[i];
+        continue;
+      }
       kv->add(key,keybytes,&multivalue[offset],vertexsize);
       offset += valuebytes[i];
     }
