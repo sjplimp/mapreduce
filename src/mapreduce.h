@@ -22,7 +22,9 @@ class MapReduce {
   class KeyValue *kv;              // single KV stored by MR
   class KeyMultiValue *kmv;        // single KMV stored by MR
 
-  static MapReduce *mrptr;
+  static MapReduce *mrptr;         // holds a ptr to MR currently being used
+  static int instance_count;       // count # of instantiated MRs
+  static int mpi_initflag;         // 1 if MR library initialized MPI
 
   // library API
 
@@ -77,7 +79,6 @@ class MapReduce {
  private:
   MPI_Comm comm;
   int me,nprocs;
-  int mpiinitflag;
   class Memory *memory;
   class Error *error;
 
