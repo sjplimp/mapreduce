@@ -24,8 +24,13 @@
 
 using namespace MAPREDUCE_NS;
 
+// initialize static class variables
+
+MapReduce *MapReduce::mrptr = NULL;
 int MapReduce::instance_count = 0;
-int MapReduce::mpi_initflag = 0;
+int MapReduce::mpi_finalize_flag = 0;
+
+// prototypes for non-class functions
 
 void map_file_standalone(int nmap, KeyValue *ptr, void *data);
 int compare_keys_standalone(const void *, const void *);
@@ -40,7 +45,7 @@ int compare_multivalues_standalone(const void *, const void *);
 
 /* ----------------------------------------------------------------------
    construct using caller's MPI communicator
-   assume MPI has been initialized and will be finalized by caller
+   perform no MPI_init() and no MPI_Finalize()
 ------------------------------------------------------------------------- */
 
 MapReduce::MapReduce(MPI_Comm caller)
@@ -63,7 +68,8 @@ MapReduce::MapReduce(MPI_Comm caller)
 
 /* ----------------------------------------------------------------------
    construct without MPI communicator, use MPI_COMM_WORLD
-   if MPI has not been initialized, then initialize MPI
+   perform MPI_Init() if not already initialized
+   perform no MPI_Finalize()
 ------------------------------------------------------------------------- */
 
 MapReduce::MapReduce()
@@ -74,7 +80,40 @@ MapReduce::MapReduce()
   MPI_Initialized(&flag);
 
   if (!flag) {
-    mpi_initflag = 1;
+    int argc = 0;
+    char **argv = NULL;
+    MPI_Init(&argc,&argv);
+  }
+
+  comm = MPI_COMM_WORLD;
+  MPI_Comm_rank(comm,&me);
+  MPI_Comm_size(comm,&nprocs);
+
+  memory = new Memory(comm);
+  error = new Error(comm);
+
+  kv = NULL;
+  kmv = NULL;
+
+  mapstyle = 0;
+  verbosity = 0;
+}
+
+/* ----------------------------------------------------------------------
+   construct without MPI communicator, use MPI_COMM_WORLD
+   perform MPI_Init() if not already initialized
+   perform MPI_Finalize() if final instance is destructed
+------------------------------------------------------------------------- */
+
+MapReduce::MapReduce(double dummy)
+{
+  instance_count++;
+  mpi_finalize_flag = 1;
+
+  int flag;
+  MPI_Initialized(&flag);
+
+  if (!flag) {
     int argc = 0;
     char **argv = NULL;
     MPI_Init(&argc,&argv);
@@ -121,19 +160,18 @@ MapReduce::MapReduce(MapReduce &mr)
 
 /* ----------------------------------------------------------------------
    free all memory
-   if last instance and MR library initialized MPI, then finalize MPI
+   if finalize_flag is set and this is last instance, then finalize MPI
 ------------------------------------------------------------------------- */
 
 MapReduce::~MapReduce()
 {
-  instance_count--;
-
   delete memory;
   delete error;
   delete kv;
   delete kmv;
 
-  if (mpi_initflag && instance_count == 0) MPI_Finalize();
+  instance_count--;
+  if (mpi_finalize_flag && instance_count == 0) MPI_Finalize();
 }
 
 /* ----------------------------------------------------------------------

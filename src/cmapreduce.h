@@ -16,7 +16,8 @@ extern "C" {
 #endif
 
 void *MR_create(MPI_Comm comm);
-void *MR_create_nompi();
+void *MR_create_mpi();
+void *MR_create_mpi_finalize();
 void *MR_copy(void *MRptr);
 void MR_destroy(void *MRptr);
 

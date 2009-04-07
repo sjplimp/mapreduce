@@ -21,9 +21,15 @@ void *MR_create(MPI_Comm comm)
   return (void *) mr;
 }
 
-void *MR_create_nompi()
+void *MR_create_mpi()
 {
   MapReduce *mr = new MapReduce();
+  return (void *) mr;
+}
+
+void *MR_create_mpi_finalize()
+{
+  MapReduce *mr = new MapReduce(0.0);
   return (void *) mr;
 }
 

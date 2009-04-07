@@ -24,12 +24,13 @@ class MapReduce {
 
   static MapReduce *mrptr;         // holds a ptr to MR currently being used
   static int instance_count;       // count # of instantiated MRs
-  static int mpi_initflag;         // 1 if MR library initialized MPI
+  static int mpi_finalize_flag;    // 1 if MR library should finalize MPI
 
   // library API
 
   MapReduce(MPI_Comm);
   MapReduce();
+  MapReduce(double);
   MapReduce(MapReduce &);
   ~MapReduce();
 
