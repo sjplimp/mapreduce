@@ -4,9 +4,9 @@ MapReduce is the operation popularized by Google for computing on
 large distributed data sets.  See the Wikipedia entry on MapReduce for
 an overview of what a MapReduce is.
 
-The MapReduce MPI library is a simple, portable implementation of
-MapReduce that runs on any serial desktop machine or large parallel
-machine using MPI message passing.
+The MR-MPI library is a simple, portable implementation of MapReduce
+that runs on any serial desktop machine or large parallel machine
+using MPI message passing.
 
 As a user, you write a program which calls the MR-MPI library and you
 provide functions that operate on your data such as a map() and a
@@ -41,6 +41,7 @@ LICENSE			   the BSD License
 doc			   documentation
 examples		   simple example MapReduce programs
 mpistubs		   dummy MPI library
-src			   source files
+src			   library source files
+user			   MapReduce programs
 
 Point your browser at doc/mapreduce.html to get started.
