@@ -1,24 +1,23 @@
 #!/usr/local/bin/python
 
 """
-setup.py file for MapReduce MPI files which call system MPI library
+setup_serial.py file for MapReduce MPI files with dummy serial MPI library
 """
 
 from distutils.core import setup, Extension
 
 import os, glob
 path = os.path.dirname(os.getcwd())
-libfiles = glob.glob("%s/src/*.cpp" % path)
+libfiles = glob.glob("%s/src/*.cpp" % path) + \
+           glob.glob("%s/mpistubs/*.cpp" % path)
 
-mrmpi_library = Extension("_mrmpi",
+mrmpi_library = Extension("_mrmpi_serial",
                           sources = libfiles,
                           define_macros = [("MPICH_IGNORE_CXX_SEEK",1)],
-                          include_dirs = ["../src"],
-                          library_dirs = ["/usr/local/lib"],
-                          libraries = ["mpich","rt"],
+                          include_dirs = ["../src", "../mpistubs"],
                           )
 
-setup(name = "mrmpi",
+setup(name = "mrmpi_serial",
       version = "7Apr09",
       author = "Steve Plimpton",
       author_email = "sjplimp@sandia.gov",

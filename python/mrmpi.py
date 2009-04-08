@@ -1,11 +1,25 @@
-# wrapper on C++ library MapReduce MPI via ctypes
+# Python wrapper on MapReduce MPI library via ctypes
+# Steve Plimpton, sjplimp@sandia.gov, http://cs.sandia.gov/~sjplimp,
+# Sandia National Laboratories
+# This software is distributed under the lesser GNU Public License (LGPL)
+# See the README file in the top-level MapReduce directory for more info
 
+import types
 from ctypes import *
 from cPickle import dumps,loads
 
 class mrmpi:
   def __init__(self,comm=None):
-    self.lib = CDLL("/home/sjplimp/mapreduce/python/_mrmpi.so")
+
+    # attempt to load parallel library first, serial library next
+
+    try:
+      self.lib = CDLL("_mrmpi.so")
+    except:
+      try:
+        self.lib = CDLL("_mrmpi_serial.so")
+      except:
+        raise StandardError,"Could not load MR-MPI dynamic library"
 
     self.lib.MR_create.restype = c_void_p
     self.lib.MR_copy.restype = c_void_p
@@ -35,25 +49,25 @@ class mrmpi:
                            c_void_p,c_void_p)
     self.reduce_def = REDUCEFUNC(self.reduce_callback)
 
-    if comm: self.mr = self.lib.MR_create(comm)
-    else: self.mr = self.lib.MR_create_nompi()
+    if comm == None: self.mr = self.lib.MR_create_mpi()
+    elif type(comm) == types.IntType: self.mr = self.lib.MR_create(comm)
+    elif type(comm) == types.FloatType:
+      self.mr = self.lib.MR_create_mpi_finalize()
+    else: raise StandardError,"Could not create an MR library instance"
 
-  def __copy__(self):
+  def copy(self):
     cmr = self.lib.MR_copy(self.mr)
-    pymr = cmrmpi()
+    pymr = mrmpi()
     self.lib.MR_destroy(pymr.mr)
     pymr.mr = cmr
     return pymr
 
-  def __deepcopy__(self,dummy):
-    cmr = self.lib.MR_copy(self.mr)
-    pymr = cmrmpi()
-    self.lib.MR_destroy(pymr.mr)
-    pymr.mr = cmr
-    return pymr
-
-  def __del__(self):
+  def destroy(self):
     self.lib.MR_destroy(self.mr)
+    self.mr = None
+    
+  def __del__(self):
+    if self.mr: self.lib.MR_destroy(self.mr)
 
   def aggregate(self,hash=None):
     if hash:
