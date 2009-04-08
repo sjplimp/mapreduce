@@ -24,9 +24,9 @@
 
 using namespace MAPREDUCE_NS;
 
-// initialize static class variables
+// allocate space for and initialize static class variables
 
-MapReduce *MapReduce::mrptr = NULL;
+MapReduce *MapReduce::mrptr;
 int MapReduce::instance_count = 0;
 int MapReduce::mpi_finalize_flag = 0;
 
@@ -867,9 +867,9 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
   int verbosity_hold = verbosity;
   verbosity = 0;
 
-  mrptr = this;
   filemap.appmapfile = appmap;
-  map(nmap,&map_file_standalone,ptr,addflag);
+  filemap.ptr = ptr;
+  map(nmap,&map_file_standalone,this,addflag);
 
   verbosity = verbosity_hold;
   stats("Map",0,verbosity);
@@ -895,16 +895,16 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
      and cannot pass it a class method unless it were static,
      but then it couldn't access MR class data
    so non-file map() is passed standalone non-class method
-   it accesses static class member mrptr, set before call to non-file map()
    standalone calls back into class wrapper which calls user appmapfile()
 ------------------------------------------------------------------------- */
 
 void map_file_standalone(int imap, KeyValue *kv, void *ptr)
 {
-  MapReduce::mrptr->map_file_wrapper(imap,kv,ptr);
+  MapReduce *mr = (MapReduce *) ptr;
+  mr->map_file_wrapper(imap,kv);
 }
 
-void MapReduce::map_file_wrapper(int imap, KeyValue *kv, void *ptr)
+void MapReduce::map_file_wrapper(int imap, KeyValue *kv)
 {
   // readstart = position in file to start reading for this task
   // readsize = # of bytes to read including delta
@@ -963,10 +963,10 @@ void MapReduce::map_file_wrapper(int imap, KeyValue *kv, void *ptr)
     strstop = ptr-str;
   }
 
-  // call user appmapfile() function
+  // call user appmapfile() function with user data ptr
 
   int strsize = strstop - strstart + 1;
-  filemap.appmapfile(imap,&str[strstart],strsize,kv,ptr);
+  filemap.appmapfile(imap,&str[strstart],strsize,kv,filemap.ptr);
   delete [] str;
 }
 
@@ -1044,7 +1044,6 @@ int MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
   if (kv == NULL) error->all("Cannot sort_keys without KeyValue");
 
   compare = appcompare;
-  mrptr = this;
   sort_kv(0);
 
   stats("Sort_keys",0,verbosity);
@@ -1065,7 +1064,6 @@ int MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
   if (kv == NULL) error->all("Cannot sort_values without KeyValue");
 
   compare = appcompare;
-  mrptr = this;
   sort_kv(1);
 
   stats("Sort_values",0,verbosity);
@@ -1285,6 +1283,7 @@ void MapReduce::sort_kv(int flag)
   int *order = new int[nkey];
   for (int i = 0; i < nkey; i++) order[i] = i;
 
+  mrptr = this;
   if (flag == 0) qsort(order,nkey,sizeof(int),compare_keys_standalone);
   else qsort(order,nkey,sizeof(int),compare_values_standalone);
 

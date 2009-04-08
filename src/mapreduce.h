@@ -72,7 +72,7 @@ class MapReduce {
 
   // functions accessed thru non-class wrapper functions
 
-  void map_file_wrapper(int, class KeyValue *, void *);
+  void map_file_wrapper(int, class KeyValue *);
   int compare_keys_wrapper(int, int);
   int compare_values_wrapper(int, int);
   int compare_multivalues_wrapper(int, int);
@@ -100,7 +100,8 @@ class MapReduce {
     int *whichfile;           // which file each map task reads
     int *whichtask;           // which sub-task in file each map task is
     typedef void (MapFileFunc)(int, char *, int, class KeyValue *, void *);
-    MapFileFunc *appmapfile;
+    MapFileFunc *appmapfile;  // user map function
+    void *ptr;                // user data ptr
   };
   FileMap filemap;
 

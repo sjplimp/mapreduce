@@ -48,10 +48,11 @@ struct MPI_Status {
 
 void MPI_Init(int *argc, char ***argv);
 void MPI_Initialized(int *flag);
+void MPI_Finalize();
+
 void MPI_Comm_rank(MPI_Comm comm, int *me);
 void MPI_Comm_size(MPI_Comm comm, int *nprocs);
 void MPI_Abort(MPI_Comm comm, int errorcode);
-void MPI_Finalize();
 double MPI_Wtime();
 
 void MPI_Send(void *buf, int count, MPI_Datatype datatype,

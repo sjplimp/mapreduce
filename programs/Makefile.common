@@ -1,0 +1,52 @@
+SRC = 		mrvector.cpp mrmatrix.cpp 
+OBJS = 		$(SRC:.cpp=.o)
+INCS =          mrvector.h mrmatrix.h mrall.h
+
+# Targets
+
+all:	matvec pagerank gs concomp ccnd ccndtwo ccndboth link2graph
+
+ccndboth:   random_mars.o test_cc_nodist.o test_cc_common.o ccnd.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_cc_nodist.o test_cc_common.o \
+                ccnd.o random_mars.o \
+		$(USRLIB) $(SYSLIB) -o ccndboth
+
+ccndtwo:   random_mars.o test_ccnd_two.o test_cc_common.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_ccnd_two.o test_cc_common.o random_mars.o \
+		$(USRLIB) $(SYSLIB) -o ccndtwo
+
+ccnd:   random_mars.o test_ccnd.o test_cc_common.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_ccnd.o test_cc_common.o random_mars.o \
+		$(USRLIB) $(SYSLIB) -o ccnd
+
+concomp:   random_mars.o test_cc.o test_cc_common.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_cc.o test_cc_common.o random_mars.o \
+		$(USRLIB) $(SYSLIB) -o concomp 
+
+gs:	test_gs.o mrglobalsum.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_gs.o mrglobalsum.o \
+		$(USRLIB) $(SYSLIB) -o gs
+
+pagerank:	test_pagerank.o $(OBJS) $(LIB) $(INCS)
+	$(LINK) $(LINKFLAGS) test_pagerank.o $(OBJS) \
+		$(USRLIB) $(SYSLIB) -o pagerank
+
+matvec:	test_matvec.o $(OBJS) $(LIB)
+	$(LINK) $(LINKFLAGS) test_matvec.o $(OBJS) \
+		$(USRLIB) $(SYSLIB) -o matvec
+
+link2graph:	link2graph.o $(LIB)
+		$(LINK) $(LINKFLAGS) link2graph.o \
+			$(USRLIB) $(SYSLIB) -o link2graph
+
+clean:
+	rm *.o
+	rm matvec pagerank gs concomp ccnd ccndtwo
+
+# Rules
+
+%.o:%.cpp
+	$(CC) $(CCFLAGS) -c $<
+
+%.o:%.c
+	$(CC) $(CCFLAGS) -c $<
