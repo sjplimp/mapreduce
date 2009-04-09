@@ -1,0 +1,29 @@
+"MapReduce-MPI WWW Site"_mws :c
+:link(mws,../mapreduce.html)
+
+:line
+
+MapReduce-MPI Papers :h3
+
+As explained above, this MR-MPI library is licensed under the
+"Berkeley Software Distribution (BSD) License"_bsd.  This basically
+means it can be used by anyone for any purpose, including commercial
+ones.
+
+If you use the MR-MPI library for something interesting, we'd like to
+hear about it.
+
+If you write a MapReduce program which calls the library, that others
+would be interested in, you can send it and we'll include it in the
+distribution.
+
+If you enhance the MR-MPI library itself or have ideas for doing so,
+we can discuss including the improvements in future releases.
+
+You can send the authors email regarding any of these issues.
+
+"Steve Plimpton"_sjp
+sjplimp at sandia.gov :pre
+
+"Karen Devine"_kdd
+kddevin at sandia.gov :pre

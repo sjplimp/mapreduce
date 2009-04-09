@@ -1,0 +1,75 @@
+"MapReduce-MPI WWW Site"_mws :c
+:link(mws,../mapreduce.html)
+
+:line
+
+Open-Source Distribution :h3
+
+
+:line
+
+Open-source Philosophy :link(opensource),h4
+
+As explained above, this MR-MPI library is licensed under the
+"Berkeley Software Distribution (BSD) License"_bsd.  This basically
+means it can be used by anyone for any purpose, including commercial
+ones.
+
+If you use the MR-MPI library for something interesting, we'd like to
+hear about it.
+
+If you write a MapReduce program which calls the library, that others
+would be interested in, you can send it and we'll include it in the
+distribution.
+
+If you enhance the MR-MPI library itself or have ideas for doing so,
+we can discuss including the improvements in future releases.
+
+You can send the authors email regarding any of these issues.
+
+"Steve Plimpton"_sjp
+sjplimp at sandia.gov :pre
+
+"Karen Devine"_kdd
+kddevin at sandia.gov :pre
+
+The MapReduce-MPI (MR-MPI) library comes with no warranty of any kind.
+As each source file states in its header, it is a copyrighted code
+that is distributed free-of-charge, under the terms of the modified
+Berkeley Software Distribution (BSD) License.  This is often referred
+to as source distribution - see "www.gnu.org"_gnuorg or
+"www.opensource.org"_opensource.  The legal text of the BSD License is
+in the LICENSE file that is included in the MR-MPI distribution.
+
+:link(gnu,http://www.gnu.org/copyleft/gpl.html)
+:link(gnuorg,http://www.gnu.org)
+:link(opensource,http://www.opensource.org)
+
+:line
+
+In the spirit of an open-source code, these are various ways you can
+contribute to making ChemCell better.  You can send email to
+sjplimp at sandia.gov on any of these items.
+
+If you write/add a new feature to the code, let us know and we can
+include it in the general distribution.  :ulb,l
+
+If you find a bug, report it. :l
+
+If you perform an interesting calculation with ChemCell or write a
+paper using ChemCell results, let us know and we can include a brief
+description, image, movie on the "ChemCell WWW page"_cws. :l
+
+Send an email if you find an error or omission in the "ChemCell
+documentation"_doc/Manual.html, or have a suggestion for something to
+clarify or include. :l
+
+Point prospective users to the "ChemCell WWW Site"_cws or link to it
+from your WWW site. :l
+
+Cash.  Small denominations, unmarked bills preferred.  Leave in paper
+sack on desk.  "VISA"_email also accepted.  Chocolate chip cookies
+encouraged. :ule,l
+
+:link(pd,doc/Manual.html)
+:link(email,mailto:sjplimp@sandia.gov)

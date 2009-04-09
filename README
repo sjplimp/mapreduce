@@ -41,6 +41,7 @@ LICENSE			   the BSD License
 doc			   documentation
 examples		   simple example MapReduce programs
 mpistubs		   dummy MPI library
+python			   Python wrapper files
 src			   library source files
 user			   MapReduce programs
 

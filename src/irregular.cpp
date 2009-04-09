@@ -1,9 +1,14 @@
 /* ----------------------------------------------------------------------
-   MR = MapReduce library
-   Steve Plimpton, sjplimp@sandia.gov, http://cs.sandia.gov/~sjplimp,
-   Sandia National Laboratories
-   This software is distributed under the lesser GNU Public License (LGPL)
-   See the README file in the top-level MapReduce directory for more info
+   MR-MPI = MapReduce-MPI library
+   http://www.cs.sandia.gov/~sjplimp/mapreduce.html
+   Steve Plimpton, sjplimp@sandia.gov, Sandia National Laboratories
+
+   Copyright (2009) Sandia Corporation.  Under the terms of Contract
+   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+   certain rights in this software.  This software is distributed under 
+   the Berkeley Software Distribution (BSD) License.
+
+   See the README file in the top-level MapReduce directory.
 ------------------------------------------------------------------------- */
 
 #include "stdio.h"
