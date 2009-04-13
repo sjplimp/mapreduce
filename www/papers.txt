@@ -3,17 +3,19 @@
 
 :line
 
-Papers using the MapReduce-MPI library :h3
+MapReduce-MPI Papers :h3
 
 We're working on a couple of papers which implement MapReduce
-algorithms for informatics problems, which will use the MR-MPI
-library.  They'll be posted here when available.  Until then, please
-cite the "MR-MPI WWW page"_mws, if you use the library in a paper.
+algorithms for informatics problems, using the MR-MPI library.
+They'll be posted here when available.  Until then, please cite the
+"MapReduce-MPI WWW site"_mws, if you use the library in a paper.
 
 :line
 
 The authors of the library are "Steve Plimpton"_sjp (sjplimp at
 sandia.gov) and "Karen Devine"_kdd (kddevin at sandia.gov).
+
+You can send us email regarding any of these issues:
 
 If you use MR-MPI for something interesting, we'd like to hear about
 it. :ulb,l
@@ -24,5 +26,3 @@ distribution. :l
 
 If you enhance the library itself or have ideas for doing so, we can
 discuss including the improvements in future releases. :l,ule
-
-You can send us email regarding any of these issues.
