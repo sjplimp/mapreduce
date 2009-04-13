@@ -3,7 +3,7 @@
 
 :line
 
-New Features and Bug Fixes in the MapReduce-MPI (MR-MPI) Library :h3
+New Features and Bug Fixes in the MapReduce-MPI library :h3
 
 This page lists new features and bug fixes in the MR-MPI library since
 the current version was released.
