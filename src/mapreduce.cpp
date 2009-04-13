@@ -331,35 +331,12 @@ int MapReduce::collate(int (*hash)(char *, int))
   int verbosity_hold = verbosity;
   verbosity = 0;
 
-#ifdef KDDTIME
-MPI_Barrier(MPI_COMM_WORLD); 
-double KDDtmp = MPI_Wtime();
-#endif //KDDTIME
-
   aggregate(hash);
-
-#ifdef KDDTIME
-double KDDAGG = MPI_Wtime() - KDDtmp;
-MPI_Barrier(MPI_COMM_WORLD);
-KDDtmp = MPI_Wtime();
-#endif //KDDTIME
-
   convert();
-
-#ifdef KDDTIME
-double KDDCONVERT = MPI_Wtime() - KDDtmp;
-MPI_Barrier(MPI_COMM_WORLD);
-KDDtmp = MPI_Wtime();
-#endif //KDDTIME
 
   verbosity = verbosity_hold;
   stats("Collate",1,verbosity);
 
-#ifdef KDDTIME
-double KDDSTATS = MPI_Wtime() - KDDtmp;
-printf("%d KDDKDD AGG %f CONVERT %f STATS %f\n", me, KDDAGG, KDDCONVERT, KDDSTATS);
-#endif
- 
   int nkeyall;
   MPI_Allreduce(&kmv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
 

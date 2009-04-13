@@ -1,4 +1,4 @@
-# Linux Makefile for MapReduce library, g++, MPI
+# Tbird Makefile for MapReduce library, mpic++, MPI
 
 CC =		mpic++ 
 #CCFLAGS =	-O2 -DKDDTIME

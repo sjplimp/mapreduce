@@ -1,4 +1,4 @@
-# RedStorm (Cray XT3) Makefile, CC, native MPI
+# RedStorm (Cray XT3) Makefile, CC, MPI
 
 CC =		CC
 CCFLAGS =	-fastsse -DMPICH_IGNORE_CXX_SEEK
