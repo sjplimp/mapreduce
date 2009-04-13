@@ -6,7 +6,7 @@
    Copyright (2009) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
    certain rights in this software.  This software is distributed under 
-   the Berkeley Software Distribution (BSD) License.
+   the modified Berkeley Software Distribution (BSD) License.
 
    See the README file in the top-level MapReduce directory.
 ------------------------------------------------------------------------- */
@@ -15,7 +15,7 @@
 // Syntax: wordfreq file1 file2 ...
 // (1) reads all files, parses into words separated by whitespace
 // (2) counts occurrence of each word in all files
-// (3) writes word counts to tmp.out
+// (3) prints top 10 words
 
 #include "mpi.h"
 #include "stdio.h"
@@ -27,12 +27,15 @@
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
-void strread(int, char *, int, KeyValue *, void *);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
 void output(char *, int, char *, int, int *, KeyValue *, void *);
 
-#define FILESIZE 1000000
+struct Count {
+  int n,limit,flag;
+};
+
+#define FILESIZE 10000000                // should make this infinite
 
 /* ---------------------------------------------------------------------- */
 
@@ -49,37 +52,41 @@ int main(int narg, char **args)
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
+  MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->verbosity = 2;
-
   int nwords = mr->map(narg-1,&fileread,&args[1]);
-  //int nwords = mr->map(100,narg-1,&args[1],'\n',128,&strread,NULL);
-
   mr->collate(NULL);
   int nunique = mr->reduce(&sum,NULL);
-  mr->gather(1);
-  mr->sort_values(&ncompare);
-  mr->clone();
-
-  FILE *fp = NULL;
-  if (me == 0) {
-    fp = fopen("tmp.out","w");
-    fprintf(fp,"# %d unique words\n",nunique);
-  }
-  mr->reduce(&output,fp);
-  if (me == 0) fclose(fp);
-
-  delete mr;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
+  mr->sort_values(&ncompare);
+  mr->clone();
+
+  Count count;
+  count.n = 0;
+  count.limit = 10;
+  count.flag = 0;
+  mr->reduce(&output,&count);
+  
+  mr->gather(1);
+  mr->sort_values(&ncompare);
+  mr->clone();
+
+  count.n = 0;
+  count.limit = 10;
+  count.flag = 1;
+  mr->reduce(&output,&count);
+
+  delete mr;
+
   if (me == 0) {
     printf("%d total words, %d unique words\n",nwords,nunique);
-    printf("Time to wordcount %d files on %d procs = %g (secs)\n",
+    printf("Time to process %d files on %d procs = %g (secs)\n",
 	   narg-1,nprocs,tstop-tstart);
   }
 
@@ -112,21 +119,6 @@ void fileread(int itask, KeyValue *kv, void *ptr)
 }
 
 /* ----------------------------------------------------------------------
-   strread map() function
-   for each word in string, emit key = word, value = NULL
-------------------------------------------------------------------------- */
-
-void strread(int itask, char *str, int size, KeyValue *kv, void *ptr)
-{
-  char *whitespace = " \t\n\f\r";
-  char *word = strtok(str,whitespace);
-  while (word) {
-    kv->add(word,strlen(word)+1,NULL,0);
-    word = strtok(NULL,whitespace);
-  }
-}
-
-/* ----------------------------------------------------------------------
    sum reduce() function
    emit key = word, value = # of multi-values
 ------------------------------------------------------------------------- */
@@ -153,13 +145,17 @@ int ncompare(char *p1, int len1, char *p2, int len2)
 
 /* ----------------------------------------------------------------------
    output reduce() function
-   print count, word to file
+   depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
 
 void output(char *key, int keybytes, char *multivalue,
 	    int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
 {
-  FILE *fp = (FILE *) ptr;
+  Count *count = (Count *) ptr;
+  count->n++;
+  if (count->n > count->limit) return;
+
   int n = *(int *) multivalue;
-  fprintf(fp,"%d %s\n",n,key);
+  if (count->flag) printf("%d %s\n",n,key);
+  else kv->add(key,keybytes,(char *) &n,sizeof(int));
 }

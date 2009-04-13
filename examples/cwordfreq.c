@@ -6,7 +6,7 @@
    Copyright (2009) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
    certain rights in this software.  This software is distributed under 
-   the Berkeley Software Distribution (BSD) License.
+   the modified Berkeley Software Distribution (BSD) License.
 
    See the README file in the top-level MapReduce directory.
 ------------------------------------------------------------------------- */
@@ -16,11 +16,12 @@ MapReduce word frequency example in C
 Syntax: cwordfreq file1 file2 ...
 (1) reads all files, parses into words separated by whitespace
 (2) counts occurrence of each word in all files
-(3) writes word counts to tmp.out
+(3) prints top 10 words
 */
 
 #include "mpi.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "string.h"
 #include "cmapreduce.h"
 
@@ -29,7 +30,11 @@ void sum(char *, int, char *, int, int *, void *, void *);
 int ncompare(char *, int, char *, int);
 void output(char *, int, char *, int, int*, void *, void *);
 
-#define FILESIZE 1000000
+struct Count {
+  int n,limit,flag;
+};
+
+#define FILESIZE 10000000                // should make this infinite
 
 /* ---------------------------------------------------------------------- */
 
@@ -38,7 +43,7 @@ int main(int narg, char **args)
   int me,nprocs;
   int nwords,nunique;
   double tstart,tstop;
-  FILE *fp;
+  Count count;
 
   MPI_Init(&narg,&args);
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
@@ -49,31 +54,36 @@ int main(int narg, char **args)
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
+  void *mr = MR_create(MPI_COMM_WORLD);
+
   MPI_Barrier(MPI_COMM_WORLD);
   tstart = MPI_Wtime();
-
-  void *mr = MR_create(MPI_COMM_WORLD);
-  MR_set_verbosity(mr,2);
 
   nwords = MR_map(mr,narg-1,&fileread,&args[1]);
   MR_collate(mr,NULL);
   nunique = MR_reduce(mr,&sum,NULL);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  tstop = MPI_Wtime();
+
+  MR_sort_values(mr,&ncompare);
+  MR_clone(mr);
+
+  count.n = 0;
+  count.limit = 10;
+  count.flag = 0;
+  MR_reduce(mr,&output,&count);
+  
   MR_gather(mr,1);
   MR_sort_values(mr,&ncompare);
   MR_clone(mr);
 
-  fp = NULL;
-  if (me == 0) {
-    fp = fopen("tmp.out","w");
-    fprintf(fp,"# %d unique words\n",nunique);
-  }
-  MR_reduce(mr,&output,fp);
-  if (me == 0) fclose(fp);
+  count.n = 0;
+  count.limit = 10;
+  count.flag = 1;
+  MR_reduce(mr,&output,&count);
 
   MR_destroy(mr);
-
-  MPI_Barrier(MPI_COMM_WORLD);
-  tstop = MPI_Wtime();
 
   if (me == 0) {
     printf("%d total words, %d unique words\n",nwords,nunique);
@@ -134,13 +144,17 @@ int ncompare(char *p1, int len1, char *p2, int len2)
 
 /* ----------------------------------------------------------------------
    output reduce() function
-   print count, word to file
+   depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
 
 void output(char *key, int keybytes, char *multivalue,
 	    int nvalues, int *valuebytes, void *kv, void *ptr)
 {
-  FILE *fp = (FILE *) ptr;
+  Count *count = (Count *) ptr;
+  count->n++;
+  if (count->n > count->limit) return;
+
   int n = *(int *) multivalue;
-  fprintf(fp,"%d %s\n",n,key);
+  if (count->flag) printf("%d %s\n",n,key);
+  else MR_kv_add(kv,key,keybytes,(char *) &n,sizeof(int));
 }
