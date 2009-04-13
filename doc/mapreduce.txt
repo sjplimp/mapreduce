@@ -11,7 +11,7 @@
 
 MapReduce-MPI Library :h2,c
 
-This document describes the 9 April 2009 version of the MapReduce-MPI
+This document describes the 13 April 2009 version of the MapReduce-MPI
 (MR-MPI) library that implements the "MapReduce operation"_wiki
 popularized by Google.  The library is designed for parallel execution
 on distributed-memory platforms, but will also operate on a single

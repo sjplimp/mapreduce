@@ -13,11 +13,11 @@ current tarball from the "download page"_../download.html, which
 includes all the new features/fixes listed below, and rebuild the
 code.
 
-The current version of MR-MPI is 9 April 0209.
+The current version of MR-MPI is 13 April 0209.
 
 :line
 
-[9 Apr 2009]
+[13 Apr 2009]
 
 Initial public release of MR-MPI.  3786 lines of code in src dir.
 This version supercedes earlier distributed beta versions.

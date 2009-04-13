@@ -1,4 +1,4 @@
-This is the MapReduce-MPI (MR-MPI) library, version 10 April 2009.
+This is the MapReduce-MPI (MR-MPI) library, version 13 April 2009.
 
 MapReduce is the operation popularized by Google for computing on
 large distributed data sets.  See the Wikipedia entry on MapReduce for
@@ -33,8 +33,7 @@ The author of the library is Steve Plimpton at Sandia National
 Laboratories who can be contacted at sjplimp at sandia.gov.  Or see
 www.cs.sandia.gov/~sjplimp.
 
-This distribution of the MR-MPI library includes the following files
-and directories:
+This MR-MPI distribution includes the following files and directories:
 
 README			   this file
 LICENSE			   the BSD License
