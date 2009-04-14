@@ -34,7 +34,7 @@ run on any desktop or large parallel machine using MPI.  See the
 Background section for features and limitations of this
 implementation.
 
-Source codes for the library is freely available for download from the
+Source code for the library is freely available for download from the
 "MR-MPI web site"_mrmpi and is licensed under the modified "Berkeley
 Software Distribution (BSD) License"_bsd.  This basically means it can
 be used by anyone for any purpose.  See the LICENSE file provided with
