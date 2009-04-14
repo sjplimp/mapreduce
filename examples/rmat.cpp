@@ -14,10 +14,10 @@
 // MapReduce random RMAT matrix generation example in C++
 // Syntax: rmat N Nz a b c d frac seed {outfile}
 //   2^N = # of rows in RMAT matrix
-//   Nz = non-zeroes per row,
-//   a,b,c,d = RMAT params
+//   Nz = non-zeroes per row
+//   a,b,c,d = RMAT params (must sum to 1.0)
 //   frac = RMAT randomization param (frac < 1, 0 = no randomization)
-//   seed = RNG seed
+//   seed = RNG seed (positive int)
 //   outfile = output RMAT matrix to this filename (optional)
 
 #include "mpi.h"
@@ -79,7 +79,7 @@ int main(int narg, char **args)
   rmat.c = atof(args[5]); 
   rmat.d = atof(args[6]); 
   rmat.fraction = atof(args[7]); 
-  seed = atoi(args[8]);
+  int seed = atoi(args[8]);
   if (narg == 10) {
     int n = strlen(args[9]) + 1;
     rmat.outfile = new char[n];
@@ -130,10 +130,11 @@ int main(int narg, char **args)
     sprintf(fname,"%s.%d",rmat.outfile,me);
     rmat.fp = fopen(fname,"w");
     if (rmat.fp == NULL) {
-      printf("ERROR: Could not open filename %s\n",fname);
+      printf("ERROR: Could not open output file");
       MPI_Abort(MPI_COMM_WORLD,1);
     }
     MapReduce *mr2 = new MapReduce(*mr);
+    mr2->clone();
     mr2->reduce(&output,&rmat);
     fclose(rmat.fp);
     delete mr2;
@@ -147,6 +148,7 @@ int main(int narg, char **args)
     printf("%d nonzeroes in matrix\n",ntotal);
   }
 
+  mr->clone();
   mr->reduce(&nonzero,NULL);
   mr->collate(NULL);
   mr->reduce(&degree,NULL);

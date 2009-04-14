@@ -26,7 +26,7 @@ from mrmpi import mrmpi
 # read a file
 # for each word in file, emit key = word, value = NULL
 
-def fileread(itask,mr,dummy):
+def fileread(itask,mr):
   text = open(files[itask]).read()
   words = text.split()
   for word in words: mr.add(word,None)
