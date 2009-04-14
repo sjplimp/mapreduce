@@ -17,6 +17,16 @@ The current version of MR-MPI is 13 April 0209.
 
 :line
 
+[15 Apr 2009]
+
+The Python wrapper files got accidentally whacked in the 14Apr09
+upgrade due to a faulty script.  This upgrade restores them.
+
+This is the "list of changed files"_patches/files.15Apr09 from the 14
+Apr 2009 version.
+
+:line
+
 [14 Apr 2009]
 
 Added an error check to the gather() function if proc count < 1
