@@ -259,9 +259,11 @@ operations.
 
 Getting Started :link(start),h3
 
-Once you have "downloaded"_download.html the MapReduce MPI (MR-MPI)
-library, you should have the tarball mapreduce.tar.gz on your machine.
-Unpack it with the following commands:
+Once you have
+"downloaded"_http://www.sandia.gov/~sjplimp/download.html the
+MapReduce MPI (MR-MPI) library, you should have the tarball
+mapreduce.tar.gz on your machine.  Unpack it with the following
+commands:
 
 gunzip mapreduce.tar.gz
 tar xvf mapreduce.tar :pre
