@@ -17,6 +17,16 @@ The current version of MR-MPI is 13 April 0209.
 
 :line
 
+[14 Apr 2009]
+
+Added an error check to the gather() function if proc count < 1
+or proc count > actual procs.
+
+This is the "list of changed files"_patches/files.14Apr09 from the 13
+Apr 2009 version.
+
+:line
+
 [13 Apr 2009]
 
 Initial public release of MR-MPI.  3730 lines of code in src dir.
