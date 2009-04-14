@@ -49,10 +49,10 @@ def generate(itask,mr):
       
       delta /= 2
       if fraction > 0.0:
-	#a1 += a1*fraction * (drand48() - 0.5)
-	#b1 += b1*fraction * (drand48() - 0.5)
-	#c1 += c1*fraction * (drand48() - 0.5)
-	#d1 += d1*fraction * (drand48() - 0.5)
+	a1 += a1*fraction * (drand48() - 0.5)
+	b1 += b1*fraction * (drand48() - 0.5)
+	c1 += c1*fraction * (drand48() - 0.5)
+	d1 += d1*fraction * (drand48() - 0.5)
 	total = a1+b1+c1+d1
 	a1 /= total
 	b1 /= total
