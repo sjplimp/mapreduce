@@ -259,7 +259,7 @@ operations.
 
 Getting Started :link(start),h3
 
-Once you have "downloaded"_download the MapReduce MPI (MR-MPI)
+Once you have "downloaded"_download.html the MapReduce MPI (MR-MPI)
 library, you should have the tarball mapreduce.tar.gz on your machine.
 Unpack it with the following commands:
 
