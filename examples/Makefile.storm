@@ -26,8 +26,7 @@ crmat:	crmat.o $(LIB)
 	$(LINK) $(LINKFLAGS) crmat.o $(USRLIB) $(SYSLIB) -o crmat
 
 clean:
-	rm *.o
-	rm wordfreq cwordfreq rmat crmat
+	rm *.o wordfreq cwordfreq rmat crmat
 
 # Rules
 

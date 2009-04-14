@@ -23,7 +23,7 @@ import sys
 import pypar
 from mrmpi import mrmpi
 
-# fileread map() function
+# read a file
 # for each word in file, emit key = word, value = NULL
 
 def fileread(itask,mr,dummy):
@@ -31,13 +31,13 @@ def fileread(itask,mr,dummy):
   words = text.split()
   for word in words: mr.add(word,None)
 
-# sum reduce() function
+# count word occurrence 
 # emit key = word, value = # of multi-values
 
 def sum(key,mvalue,mr):
   mr.add(key,len(mvalue))
 
-# ncompare compare() function
+# compare two counts
 # order values by count, largest first
 
 def ncompare(key1,key2):
@@ -45,7 +45,7 @@ def ncompare(key1,key2):
   elif key1 > key2: return -1
   else: return 0
 
-# output reduce() function
+# process a word and its count
 # depending on flag, emit KV or print it, up to limit
 
 def output(key,mvalue,mr):

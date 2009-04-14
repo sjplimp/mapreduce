@@ -94,7 +94,7 @@ int main(int narg, char **args)
 }
 
 /* ----------------------------------------------------------------------
-   fileread map() function
+   read a file (less than FILESIZE bytes)
    for each word in file, emit key = word, value = NULL
 ------------------------------------------------------------------------- */
 
@@ -119,7 +119,7 @@ void fileread(int itask, KeyValue *kv, void *ptr)
 }
 
 /* ----------------------------------------------------------------------
-   sum reduce() function
+   count word occurrence
    emit key = word, value = # of multi-values
 ------------------------------------------------------------------------- */
 
@@ -130,7 +130,7 @@ void sum(char *key, int keybytes, char *multivalue,
 }
 
 /* ----------------------------------------------------------------------
-   ncompare compare() function
+   compare two counts
    order values by count, largest first
 ------------------------------------------------------------------------- */
 
@@ -144,7 +144,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
 }
 
 /* ----------------------------------------------------------------------
-   output reduce() function
+   process a word and its count
    depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
 
