@@ -11,7 +11,7 @@ the current version was released.
 To add these features/fixes to your version of MR-MPI, download the
 current tarball from the "download page"_../download.html, which
 includes all the new features/fixes listed below, and rebuild the
-code.
+codes.
 
 The current version of MR-MPI is 13 April 0209.
 
