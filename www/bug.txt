@@ -19,5 +19,5 @@ The current version of MR-MPI is 13 April 0209.
 
 [13 Apr 2009]
 
-Initial public release of MR-MPI.  3786 lines of code in src dir.
+Initial public release of MR-MPI.  3730 lines of code in src dir.
 This version supercedes earlier distributed beta versions.
