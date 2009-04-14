@@ -21,6 +21,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "sys/stat.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
 
@@ -34,8 +35,6 @@ void output(char *, int, char *, int, int *, KeyValue *, void *);
 struct Count {
   int n,limit,flag;
 };
-
-#define FILESIZE 10000000                // should make this infinite
 
 /* ---------------------------------------------------------------------- */
 
@@ -94,21 +93,31 @@ int main(int narg, char **args)
 }
 
 /* ----------------------------------------------------------------------
-   read a file (less than FILESIZE bytes)
+   read a file
    for each word in file, emit key = word, value = NULL
 ------------------------------------------------------------------------- */
 
 void fileread(int itask, KeyValue *kv, void *ptr)
 {
-  char *whitespace = " \t\n\f\r";
-  char *text = new char[FILESIZE];
+  // filesize = # of bytes in file
 
   char **files = (char **) ptr;
+
+  struct stat stbuf;
+  int flag = stat(files[itask],&stbuf);
+  if (flag < 0) {
+    printf("ERROR: Could not query file size\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+  int filesize = stbuf.st_size;
+
   FILE *fp = fopen(files[itask],"r");
-  int nchar = fread(text,1,FILESIZE,fp);
+  char *text = new char[filesize+1];
+  int nchar = fread(text,1,filesize,fp);
   text[nchar] = '\0';
   fclose(fp);
 
+  char *whitespace = " \t\n\f\r\0";
   char *word = strtok(text,whitespace);
   while (word) {
     kv->add(word,strlen(word)+1,NULL,0);
