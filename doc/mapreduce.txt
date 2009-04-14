@@ -1,8 +1,8 @@
 <HEAD>
-<TITLE>MapReduce-MPI Library Manual</TITLE>
-<META NAME="docnumber" CONTENT="MapReduce-MPI Library">
-<META NAME="author" CONTENT="http://www.cs.sandia.gov/~sjplimp/mapreduce.html - Sandia National Laboratories">
-<META NAME="copyright" CONTENT="Copyright (2009) Sandia Corporation.  This software and manual is distributed under the modified Berkeley Software Distribution (BSD) License.">
+<TITLE>MapReduce-MPI Library Users Manual</TITLE>
+<META NAME="docnumber" CONTENT="http://www.sandia.gov/~sjplimp/mapreduce.html">
+<META NAME="author" CONTENT="Sandia National Laboratories, Copyright (2009) Sandia Corporation">
+<META NAME="copyright" CONTENT="This software and manual is distributed under the modified Berkeley Software Distribution (BSD) License.">
 </HEAD>
 
 <BODY>
@@ -34,7 +34,7 @@ run on any desktop or large parallel machine using MPI.  See the
 Background section for features and limitations of this
 implementation.
 
-Source code for the library is freely available for download from the
+Source codes for the library is freely available for download from the
 "MR-MPI web site"_mrmpi and is licensed under the modified "Berkeley
 Software Distribution (BSD) License"_bsd.  This basically means it can
 be used by anyone for any purpose.  See the LICENSE file provided with
