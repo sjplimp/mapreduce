@@ -1,0 +1,6 @@
+16Apr09 version files changed by 17Apr09 upgrade:
+
+doc/mapreduce.html
+doc/mapreduce.txt
+examples/cwordfreq.c
+examples/wordfreq.cpp
