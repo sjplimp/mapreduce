@@ -421,8 +421,10 @@ int MapReduce::gather(int numprocs)
   MPI_Status status;
 
   if (kv == NULL) error->all("Cannot gather without KeyValue");
+  if (numprocs < 1 || numprocs > nprocs) 
+    error->all("Invalid proc count for gather");
 
-  if (nprocs == 1 || numprocs >= nprocs) {
+  if (nprocs == 1 || numprocs == nprocs) {
     int nkeyall;
     MPI_Allreduce(&kv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
     return nkeyall;
