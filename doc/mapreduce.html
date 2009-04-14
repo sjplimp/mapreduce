@@ -1741,17 +1741,17 @@ mr.sort_multivalues(mycompare) # compare is a function called back from the
 <PRE>mr.kv_stats(level)
 mr.kmv_stats(level) 
 </PRE>
-<PRE>mapstyle(self,value)       # set the mapstyle to value
-verbosity(self,value)      # set the verbosity to value 
+<PRE>mr.mapstyle(value)             # set the mapstyle to value
+mr.verbosity(value)            # set the verbosity to value 
 </PRE>
-<PRE>add(self,key,value)        # single key and value
-add_multi_static(self,keys,values) # list of keys and values
-				   # all keys are assumed to be same length
-				   # all values are assumed to be same length
-add_multi_dynamic(self,keys,values) # list of keys and values
-				    # each key may be different length
-				    # each value may be different length
-mr.add_kv(mr2)             # add the key/values in mr2 to those in mr 
+<PRE>mr.add(key,value)                 # add single key and value
+mr.add_multi_static(keys,values)  # add list of keys and values
+				  # all keys are assumed to be same length
+				  # all values are assumed to be same length
+mr.add_multi_dynamic(keys,values) # add list of keys and values
+				  # each key may be different length
+				  # each value may be different length
+mr.add_kv(mr2)                    # add key/values in mr2 to those in mr 
 </PRE>
 <P>These class methods correspond one-to-one with the C++ methods
 described above, except that for C++ methods with multiple interfaces
