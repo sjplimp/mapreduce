@@ -17,6 +17,16 @@ The current version of MR-MPI is 13 April 0209.
 
 :line
 
+[16 Apr 2009]
+
+Restored some commented-out code in the examples/rmat.py Python
+script.
+
+This is the "list of changed files"_patches/files.16Apr09 from the 15
+Apr 2009 version.
+
+:line
+
 [15 Apr 2009]
 
 The Python wrapper files got accidentally whacked in the 14Apr09
