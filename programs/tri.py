@@ -1,6 +1,7 @@
 #!/usr/local/bin/python
 
-# enumerate triangles in a graph
+# Jon Cohenn algorithm to enumerate triangles in a graph
+# implemented by Steve Plimpton, 15 Apr 2009
 # Syntax: try.py infile outfile
 #   infile = matrix market file of edges
 #   outfile = list of triangles, 3 vertices per line
@@ -112,7 +113,7 @@ infile = sys.argv[1]
 outfile = sys.argv[2]
 
 mr = mrmpi()
-mr.verbosity(1)
+#mr.verbosity(1)
 
 pypar.barrier()
 tstart = pypar.time()
