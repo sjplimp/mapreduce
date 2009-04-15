@@ -1,6 +1,6 @@
 #!/usr/local/bin/python
 
-# Jon Cohenn algorithm to enumerate triangles in a graph
+# Jon Cohen algorithm to enumerate triangles in a graph
 # implemented by Steve Plimpton, 15 Apr 2009
 # Syntax: try.py infile outfile
 #   infile = matrix market file of edges
