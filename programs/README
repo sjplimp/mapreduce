@@ -20,5 +20,6 @@ test_gs.cpp	     global sum
 test_matvec.cpp	     matrix-vector multiply of a sparse matrix
 test_pagerank.cpp    PageRank on a sparse matrix
 
+tri.py		     find and output triangles in a matrix market file
 
 See the examples dir for other MapReduce programs.
