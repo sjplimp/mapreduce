@@ -88,7 +88,7 @@ def nsq_angles(key,mvalue,mr):
 # if None exists in mvalue, emit other values as triangles
 # emit KV as ((vi,vj,vk),None)
 
-def emit_triangle(key,mvalue,mr):
+def emit_triangles(key,mvalue,mr):
   if None in mvalue:
     for value in mvalue:
       if value: mr.add((value,key[0],key[1]),None)
@@ -159,7 +159,7 @@ mr.collate()
 mr.reduce(nsq_angles)
 mr.add_kv(mrcopy)
 mr.collate()
-ntri = mr.reduce(emit_triangle)
+ntri = mr.reduce(emit_triangles)
 if me == 0: print ntri,"triangles"
 
 fp = open(outfile + "." + str(me),"w")
