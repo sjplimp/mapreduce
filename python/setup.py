@@ -15,7 +15,10 @@ mrmpi_library = Extension("_mrmpi",
                           define_macros = [("MPICH_IGNORE_CXX_SEEK",1)],
                           include_dirs = ["../src"],
                           library_dirs = ["/usr/local/lib"],
+                          # works with MPICH on Linux
                           libraries = ["mpich","rt"],
+                          # works on a Mac with default MPI
+                          # libraries = ["mpi"],
                           )
 
 setup(name = "mrmpi",
