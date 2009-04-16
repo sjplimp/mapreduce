@@ -1,12 +1,3 @@
-# Tbird Makefile for MapReduce library, mpic++, MPI
-
-CC =		mpic++ 
-#CCFLAGS =	-O2 -DKDDTIME
-CCFLAGS =	-O2 
-DEPFLAGS =	-M
-ARCHIVE =	ar
-ARFLAGS =	-rc
-
 # Settings
 
 OBJ =	mapreduce.o cmapreduce.o keyvalue.o keymultivalue.o irregular.o \
@@ -19,7 +10,7 @@ lib:	$(OBJ)
 	$(ARCHIVE) $(ARFLAGS) $(EXE) $(OBJ)
 
 clean:
-	rm *.o *.a
+	rm *.o *.d *.a
 
 # Rules
 
