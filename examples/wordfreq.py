@@ -20,8 +20,11 @@
 # (3) prints top 10 words
 
 import sys
-import pypar
 from mrmpi import mrmpi
+try:
+  import pypar
+except:
+  import pypar_serial as pypar
 
 # read a file
 # for each word in file, emit key = word, value = NULL

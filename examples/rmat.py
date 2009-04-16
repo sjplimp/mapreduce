@@ -14,7 +14,7 @@
 # -------------------------------------------------------------------------
 
 # MapReduce random RMAT matrix generation example in C++
-# Syntax: rmat N Nz a b c d frac seed {outfile}
+# Syntax: rmat.py N Nz a b c d frac seed {outfile}
 #   2^N = # of rows in RMAT matrix
 #   Nz = non-zeroes per row
 #   a,b,c,d = RMAT params (must sum to 1.0)
@@ -23,8 +23,11 @@
 #   outfile = output RMAT matrix to this filename (optional)
 
 import sys, random
-import pypar
 from mrmpi import mrmpi
+try:
+  import pypar
+except:
+  import pypar_serial as pypar
 
 # generate RMAT matrix entries
 # emit one KV per edge: key = edge, value = NULL
