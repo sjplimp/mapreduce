@@ -4,8 +4,8 @@ CC =		gcc
 CPP =		g++
 CCFLAGS =	-g -O -I../src -I../mpistubs
 LINK =		g++
-LINKFLAGS =	-g -O -L../src -L../mpistubs
-USRLIB =	-lmrmpi -lmpi
+LINKFLAGS =	-g -O
+USRLIB =	-l../src/libmrmpi.a -l../mpistubs/libmpi.a
 SYSLIB =
 
 LIB =		../src/libmrmpi.a
