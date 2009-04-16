@@ -1,26 +1,20 @@
-/* -----------------------------------------------------------------------
-   LAMMPS 2003 (July 31) - Molecular Dynamics Simulator
-   Sandia National Laboratories, www.cs.sandia.gov/~sjplimp/lammps.html
-   Steve Plimpton, sjplimp@sandia.gov
+/* ----------------------------------------------------------------------
+   MR-MPI = MapReduce-MPI library
+   http://www.cs.sandia.gov/~sjplimp/mapreduce.html
+   Steve Plimpton, sjplimp@sandia.gov, Sandia National Laboratories
 
-   Copyright (2003) Sandia Corporation.  Under the terms of Contract
+   Copyright (2009) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
    certain rights in this software.  This software is distributed under 
-   the GNU General Public License.
+   the modified Berkeley Software Distribution (BSD) License.
 
-   See the README file in the top-level LAMMPS directory.
------------------------------------------------------------------------- */
-
-#ifdef __cplusplus
-/* if C++, define the rest of this header file as extern C */
-extern "C" {
-#endif
-
+   See the README file in the top-level MapReduce directory.
+------------------------------------------------------------------------- */
 
 #ifndef MPI_STUBS
 #define MPI_STUBS
 
-/* Dummy defs for MPI stubs */
+/* dummy defs for MPI stubs */
 
 #define MPI_COMM_WORLD 0
 
@@ -43,6 +37,10 @@ extern "C" {
 #define MPI_Request int
 #define MPI_Datatype int
 #define MPI_Op int
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* MPI data structs */
 
@@ -113,6 +111,6 @@ void MPI_Gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
 #endif
 
 #ifdef __cplusplus
-} /* closing bracket for extern "C" */
+}
 #endif
 
