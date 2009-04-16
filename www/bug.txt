@@ -17,6 +17,17 @@ The current version of MR-MPI is 13 April 0209.
 
 :line
 
+[18 Apr 2009]
+
+Added a dummy serial Pypar file to the examples dir, so that
+the Python script examples can be run (in serial) even if
+you don't have Pypar (Python wrapper on MPI) installed.
+
+This is the "list of changed files"_patches/files.18Apr09 from the 17
+Apr 2009 version.
+
+:line
+
 [17 Apr 2009]
 
 Enhanced the C++ and C word-frequency example programs to
