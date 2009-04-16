@@ -31,9 +31,9 @@ void sum(char *, int, char *, int, int *, void *, void *);
 int ncompare(char *, int, char *, int);
 void output(char *, int, char *, int, int*, void *, void *);
 
-struct Count {
+typedef struct {
   int n,limit,flag;
-};
+} Count;
 
 /* ---------------------------------------------------------------------- */
 

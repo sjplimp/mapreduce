@@ -38,14 +38,14 @@ void histo(char *, int, char *, int, int *, void *, void *);
 int ncompare(char *, int, char *, int);
 void stats(char *, int, char *, int, int *, void *, void *);
 
-struct RMAT {            // RMAT params
+typedef struct {            // RMAT params
   int nlevels,order;
   int nnonzero;
   int ngenerate;
   double a,b,c,d,fraction;
   char *outfile;
   FILE *fp;
-};
+} RMAT;
 
 typedef int VERTEX;      // vertex ID
 
@@ -81,7 +81,7 @@ int main(int narg, char **args)
   int seed = atoi(args[8]);
   if (narg == 10) {
     int n = strlen(args[9]) + 1;
-    rmat.outfile = new char[n];
+    rmat.outfile = malloc(n*sizeof(char));
     strcpy(rmat.outfile,args[9]);
   } else rmat.outfile = NULL;
 
@@ -167,7 +167,7 @@ int main(int narg, char **args)
   // clean up
 
   MR_destroy(mr);
-  delete [] rmat.outfile;
+  free(rmat.outfile);
   MPI_Finalize();
 }
 
@@ -189,11 +189,11 @@ void generate(int itask, void *kv, void *ptr)
   double d = rmat->d;
   double fraction = rmat->fraction;
 
-  int i,j,ilevel,delta;
+  int i,j,ilevel,delta,m;
   double a1,b1,c1,d1,total,rn;
   EDGE edge;
 
-  for (int m = 0; m < ngenerate; m++) {
+  for (m = 0; m < ngenerate; m++) {
     delta = order >> 1;
     a1 = a; b1 = b; c1 = c; d1 = d;
     i = j = 0;

@@ -11,6 +11,12 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------ */
 
+#ifdef __cplusplus
+/* if C++, define the rest of this header file as extern C */
+extern "C" {
+#endif
+
+
 #ifndef MPI_STUBS
 #define MPI_STUBS
 
@@ -40,9 +46,9 @@
 
 /* MPI data structs */
 
-struct MPI_Status {
+typedef struct {
   int MPI_SOURCE;
-};
+} MPI_Status;
 
 /* Function prototypes for MPI stubs */
 
@@ -105,3 +111,8 @@ void MPI_Gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
 		int root, MPI_Comm comm);
 
 #endif
+
+#ifdef __cplusplus
+} /* closing bracket for extern "C" */
+#endif
+

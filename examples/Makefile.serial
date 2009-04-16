@@ -1,6 +1,7 @@
 # Serial Makefile for MapReduce examples, g++, no MPI
 
-CC =		g++
+CC =		gcc
+CPP =		g++
 CCFLAGS =	-g -O -I../src -I../mpistubs
 LINK =		g++
 LINKFLAGS =	-g -O -L../src -L../mpistubs
@@ -31,7 +32,7 @@ clean:
 # Rules
 
 %.o:%.cpp
-	$(CC) $(CCFLAGS) -c $<
+	$(CPP) $(CCFLAGS) -c $<
 
 %.o:%.c
 	$(CC) $(CCFLAGS) -c $<
