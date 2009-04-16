@@ -81,7 +81,7 @@ int main(int narg, char **args)
   int seed = atoi(args[8]);
   if (narg == 10) {
     int n = strlen(args[9]) + 1;
-    rmat.outfile = malloc(n*sizeof(char));
+    rmat.outfile = (char *) malloc(n*sizeof(char));
     strcpy(rmat.outfile,args[9]);
   } else rmat.outfile = NULL;
 
