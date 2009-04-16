@@ -72,8 +72,8 @@ email: sjplimp at sandia.gov, kddevin at sandia.gov.
   "MapReduce::kmv_stats()"_#kmvstats :l
   "KeyValue::add()"_#add :l
   "Settings and defaults"_#settings :l,ule
-"C interface to the Library"_#cinterface :l
-"Python interface to the Library"_#pyinterface :l
+"C Interface to the Library"_#cinterface :l
+"Python Interface to the Library"_#pyinterface :l
 "Technical Details"_#tech :l
 "Examples"_#examples :l
   "Word frequency"_#word :ulb,l
@@ -1206,7 +1206,7 @@ The default value for {verbosity} is 0.
 
 :line
 
-C interface to the Library :link(cinterface),h4
+C Interface to the Library :link(cinterface),h4
 
 The MR-MPI library can be called from a C program, using the interface
 defined in src/cmapreduce.h.  This is a C file which should be
@@ -1325,7 +1325,7 @@ the C++ programs in the same directory.
 
 :line
 
-Python interface to the Library :link(pyinterface),h4
+Python Interface to the Library :link(pyinterface),h4
 
 A Python wrapper for the MR-MPI library is included in the
 distribution.  The advantage of using Python is how concise the
@@ -1456,7 +1456,12 @@ which will require MPI to be installed on your system.  This means it
 must find both the header file mpi.h and a shared library file,
 e.g. libmpich.so if the MPICH version of MPI is installed.  See the
 preceding section for how to create a build MPI as a shared library if
-it does not exist.
+it does not exist.  If the setup.py build gives an error about finding
+your MPI files (mpi.h or the shared libraries), then you may need to
+add a directory to the "include_dirs" setting, or change the
+"libraries" setting to refer to the MPI files on your machine.  The
+provided setup.py includes a setting that works for MPICH installed on
+a Linux box and the MPI that is installed by default on current Macs.
 
 The first "install" command will put the needed files in your Python's
 site-packages sub-directory, so that Python can load them.  For
