@@ -29,6 +29,15 @@ typedef struct {         // edge = 2 vertices
   VERTEX vi,vj;
 } EDGE;
 
+typedef struct {         // tri = 3 vertices
+  VERTEX vi,vj,vk;
+} TRI;
+
+typedef struct {         // degree of 2 edge vertices
+  int di,dj;
+} DEGREE;
+
+
 /* ---------------------------------------------------------------------- */
 
 int main(int narg, char **args)
@@ -50,9 +59,9 @@ int main(int narg, char **args)
   int n = strlen(args[1]) + 1;
   infile = new char[n];
   strcpy(infile,args[1]);
-  n = strlen(args[1]) + 1;
+  n = strlen(args[2]) + 1;
   outfile = new char[n];
-  strcpy(outfile,args[1]);
+  strcpy(outfile,args[2]);
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
 
@@ -139,16 +148,20 @@ int main(int narg, char **args)
 // 1st proc trims header line
 // emit one KV per edge: key = (vi,vj), value = None
 
-void fileread(int itask, char *str, int size, KeyValue *kv, void *ptr)
+void fileread(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 {
-  /*
-  lines = str.split("\n")
-  lines.pop()
-  if itask == 0: lines.pop(0)
-  for line in lines:
-    words = line.split()
-    mr.add((int(words[0]),int(words[1])),None)
-  */
+  EDGE edge;
+
+  char *line = strtok(bytes,"\n");
+  if (itask == 0) line = strtok(NULL,"\n");
+
+  while (line) {
+    if (strlen(line)) {
+      sscanf(line,"%d %d",&edge.vi,&edge.vj);
+      kv->add((char *) &edge,sizeof(EDGE),NULL,0);
+    }
+    line = strtok(NULL,"\n");
+  }
 }
 
 // invert edges so all have vi < vj
@@ -157,10 +170,14 @@ void fileread(int itask, char *str, int size, KeyValue *kv, void *ptr)
 void invert_edges(char *key, int keybytes, char *multivalue,
 		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  /*
-  if key[0] < key[1]: mr.add((key[0],key[1]),None)
-  elif key[1] < key[0]: mr.add((key[1],key[0]),None)
-  */
+  EDGE *edge = (EDGE *) key;
+  if (edge->vi < edge->vj) kv->add((char *) edge,sizeof(EDGE),NULL,0);
+  else if (edge->vj < edge->vi) {
+    EDGE edgeflip;
+    edgeflip.vi = edge->vj;
+    edgeflip.vj = edge->vi;
+    kv->add((char *) &edgeflip,sizeof(EDGE),NULL,0);
+  }
 }
 
 // remove duplicate edges
@@ -169,7 +186,7 @@ void invert_edges(char *key, int keybytes, char *multivalue,
 void remove_duplicates(char *key, int keybytes, char *multivalue,
 		       int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  //  mr.add(key,None)
+  kv->add(key,keybytes,NULL,0);
 }
 
 // convert edge key to vertex keys
@@ -178,8 +195,9 @@ void remove_duplicates(char *key, int keybytes, char *multivalue,
 void emit_vertices(char *key, int keybytes, char *multivalue,
 		   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  //mr.add(key[0],key[1])
-  //mr.add(key[1],key[0])
+  EDGE *edge = (EDGE *) key;
+  kv->add((char *) &edge->vi,sizeof(VERTEX),(char *) &edge->vj,sizeof(VERTEX));
+  kv->add((char *) &edge->vj,sizeof(VERTEX),(char *) &edge->vi,sizeof(VERTEX));
 }
 
 // assign degree of 1st vertex
@@ -189,12 +207,29 @@ void emit_vertices(char *key, int keybytes, char *multivalue,
 void first_degree(char *key, int keybytes, char *multivalue,
 		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  /*
-  degree = len(mvalue)
-  for value in mvalue:
-    if key < value: mr.add((key,value),(degree,0))
-    else: mr.add((value,key),(0,degree))
-  */
+  VERTEX vi,vj;
+  EDGE edge;
+  DEGREE degree;
+
+  vi = *((VERTEX *) key);
+  int offset = 0;
+  for (int i = 0; i < nvalues; i++) {
+    vj = *((VERTEX *) &multivalue[offset]);
+    offset += valuebytes[i];
+    if (vi < vj) {
+      edge.vi = vi;
+      edge.vj = vj;
+      degree.di = nvalues;
+      degree.dj = 0;
+      kv->add((char *) &edge,sizeof(EDGE),(char *) &degree,sizeof(DEGREE));
+    } else {
+      edge.vi = vj;
+      edge.vj = vi;
+      degree.di = 0;
+      degree.dj = nvalues;
+      kv->add((char *) &edge,sizeof(EDGE),(char *) &degree,sizeof(DEGREE));
+    }
+  }
 }
 
 // assign degree of 2nd vertex
@@ -204,8 +239,19 @@ void first_degree(char *key, int keybytes, char *multivalue,
 void second_degree(char *key, int keybytes, char *multivalue,
 		   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  //  if mvalue[0][0] != 0: mr.add(key,(mvalue[0][0],mvalue[1][1]))
-  //else: mr.add(key,(mvalue[1][0],mvalue[0][1]))
+  DEGREE *one = (DEGREE *) multivalue;
+  DEGREE *two = (DEGREE *) &multivalue[valuebytes[0]];
+  DEGREE degree;
+
+  if (one->di) {
+    degree.di = one->di;
+    degree.dj = two->dj;
+    kv->add(key,keybytes,(char *) &degree,sizeof(DEGREE));
+  } else {
+    degree.di = two->di;
+    degree.dj = one->dj;
+    kv->add(key,keybytes,(char *) &degree,sizeof(DEGREE));
+  }
 }
 
 // low-degree vertex emits (vi,vj)
@@ -214,12 +260,21 @@ void second_degree(char *key, int keybytes, char *multivalue,
 void low_degree(char *key, int keybytes, char *multivalue,
 		int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  //  di = mvalue[0][0]
-  //dj = mvalue[0][1]
-  //if di < dj: mr.add(key[0],key[1])
-  //elif dj < di: mr.add(key[1],key[0])
-  //elif key[0] < key[1]: mr.add(key[0],key[1])
-  //else: mr.add(key[1],key[0])
+  EDGE *edge = (EDGE *) key;
+  DEGREE *degree = (DEGREE *) multivalue;
+
+  if (degree->di < degree->dj)
+    kv->add((char *) &edge->vi,sizeof(VERTEX),
+	    (char *) &edge->vj,sizeof(VERTEX));
+  else if (degree->dj < degree->di)
+    kv->add((char *) &edge->vj,sizeof(VERTEX),
+	    (char *) &edge->vi,sizeof(VERTEX));
+  else if (edge->vi < edge->vj)
+    kv->add((char *) &edge->vi,sizeof(VERTEX),
+	    (char *) &edge->vj,sizeof(VERTEX));
+  else
+    kv->add((char *) &edge->vj,sizeof(VERTEX),
+	    (char *) &edge->vi,sizeof(VERTEX));
 }
 
 // emit Nsq angles associated with each central vertex vi
@@ -228,24 +283,49 @@ void low_degree(char *key, int keybytes, char *multivalue,
 void nsq_angles(char *key, int keybytes, char *multivalue,
 		int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  /*
-  n = len(mvalue)
-  for i in range(n-1):
-    for j in range(i+1,n):
-      if mvalue[i] < mvalue[j]: mr.add((mvalue[i],mvalue[j]),key)
-      else: mr.add((mvalue[j],mvalue[i]),key)
-  */
+  VERTEX vj,vk;
+  EDGE edge;
+
+  for (int j = 0; j < nvalues-1; j++) {
+    vj = *((VERTEX *) &multivalue[j*sizeof(VERTEX)]);
+    for (int k = j+1; k < nvalues; k++) {
+      vk = *((VERTEX *) &multivalue[k*sizeof(VERTEX)]);
+      if (vj < vk) {
+	edge.vi = vj;
+	edge.vj = vk;
+	kv->add((char *) &edge,sizeof(EDGE),key,sizeof(VERTEX));
+      } else {
+	edge.vi = vk;
+	edge.vj = vj;
+	kv->add((char *) &edge,sizeof(EDGE),key,sizeof(VERTEX));
+      }
+    }
+  }
 }
 
-// if None exists in mvalue, emit other values as triangles
+// if NULL exists in mvalue, emit other values as triangles
 // emit KV as ((vi,vj,vk),None)
 
 void emit_triangles(char *key, int keybytes, char *multivalue,
 		    int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  //  if None in mvalue:
-  //  for value in mvalue:
-  //    if value: mr.add((value,key[0],key[1]),None)
+  int i;
+  for (i = 0; i < nvalues; i++)
+    if (valuebytes[i] == 0) break;
+  if (i == nvalues) return;
+
+  TRI tri;
+  EDGE *edge = (EDGE *) key;
+  tri.vj = edge->vi;
+  tri.vk = edge->vj;
+
+  int offset = 0;
+  for (int i = 0; i < nvalues; i++)
+    if (valuebytes[i]) {
+      tri.vi = *((VERTEX *) &multivalue[offset]);
+      kv->add((char *) &tri,sizeof(TRI),NULL,0);
+      offset += valuebytes[i];
+    }
 }
 
 // print triangles to local file
@@ -253,5 +333,7 @@ void emit_triangles(char *key, int keybytes, char *multivalue,
 void output_triangle(char *key, int keybytes, char *multivalue,
 		     int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
 {
-  //  print >>fp,key[0],key[1],key[2]
+  FILE *fp = (FILE *) ptr;
+  TRI *tri = (TRI *) key;
+  fprintf(fp,"%d %d %d\n",tri->vi,tri->vj,tri->vk);
 }
