@@ -67,7 +67,7 @@ int main(int narg, char **args)
   // parse command-line args
 
   if (narg != 9 && narg != 10) {
-    if (me == 0) printf("Syntax: N Nz a b c d frac seed {outfile}\n");
+    if (me == 0) printf("Syntax: rmat N Nz a b c d frac seed {outfile}\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 

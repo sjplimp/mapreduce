@@ -39,9 +39,12 @@ link2graph:	link2graph.o $(LIB)
 		$(LINK) $(LINKFLAGS) link2graph.o \
 			$(USRLIB) $(SYSLIB) -o link2graph
 
+tri:	tri.o $(LIB)
+	$(LINK) $(LINKFLAGS) tri.o $(USRLIB) $(SYSLIB) -o tri
+
 clean:
 	rm *.o
-	rm matvec pagerank gs concomp ccnd ccndtwo
+	rm matvec pagerank gs concomp ccnd ccndtwo link2graph tri
 
 # Rules
 
