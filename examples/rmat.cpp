@@ -37,7 +37,8 @@ void nonzero(char *, int, char *, int, int *, KeyValue *, void *);
 void degree(char *, int, char *, int, int *, KeyValue *, void *);
 void histo(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
-void stats(char *, int, char *, int, int *, KeyValue *, void *);
+//void stats(char *, int, char *, int, int *, KeyValue *, void *);
+void stats(int, char *, int, char *, int, KeyValue *, void *);
 
 struct RMAT {            // RMAT params
   int nlevels,order;
@@ -154,9 +155,10 @@ int main(int narg, char **args)
   mr->reduce(&histo,NULL);
   mr->gather(1);
   mr->sort_keys(&ncompare);
-  mr->clone();
+  //mr->clone();
   int total = 0;
-  mr->reduce(&stats,&total);
+  //mr->reduce(&stats,&total);
+  mr->map(mr->kv,&stats,&total);
   if (me == 0) printf("%d rows with 0 nonzeroes\n",rmat.order-total);
 
   if (me == 0)
@@ -308,12 +310,12 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    print # of rows with a specific # of nonzeroes
 ------------------------------------------------------------------------- */
 
-void stats(char *key, int keybytes, char *multivalue,
-	   int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
+void stats(int itask, char *key, int keybytes, char *value,
+	   int valuebytes, KeyValue *kv, void *ptr)
 {
   int *total = (int *) ptr;
   int nnz = *(int *) key;
-  int ncount = *(int *) multivalue;
+  int ncount = *(int *) value;
   *total += ncount;
   printf("%d rows with %d nonzeroes\n",ncount,nnz);
 }

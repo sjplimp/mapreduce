@@ -107,11 +107,10 @@ def ncompare(one,two):
 
 # print # of rows with a specific # of nonzeroes
 
-def stats(key,mvalue,mr):
+def stats(itask,key,value,mr):
   global total
-  ncount = mvalue[0]
-  total += ncount;
-  print "%d rows with %d nonzeroes" % (ncount,key)
+  total += value;
+  print "%d rows with %d nonzeroes" % (value,key)
 
 # main program
 
@@ -193,9 +192,8 @@ mr.collate()
 mr.reduce(histo)
 mr.gather(1)
 mr.sort_keys(ncompare)
-mr.clone()
 total = 0
-mr.reduce(stats)
+mr.map_kv(mr,stats)
 if me == 0: print order-total,"rows with 0 nonzeroes"
 
 if me == 0:

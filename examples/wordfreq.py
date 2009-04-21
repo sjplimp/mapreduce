@@ -51,11 +51,11 @@ def ncompare(key1,key2):
 # process a word and its count
 # depending on flag, emit KV or print it, up to limit
 
-def output(key,mvalue,mr):
+def output(itask,key,value,mr):
   count[0] += 1
   if count[0] > count[1]: return
-  if count[2]: print mvalue[0],key
-  else: mr.add(key,mvalue[0])
+  if count[2]: print value,key
+  else: mr.add(key,value)
 
 # main program
 
@@ -80,15 +80,13 @@ pypar.barrier()
 tstop = pypar.time()
 
 mr.sort_values(ncompare)
-mr.clone()
 count = [0,10,0]
-mr.reduce(output)
+mr.map_kv(mr,output)
 
 mr.gather(1)
 mr.sort_values(ncompare)
-mr.clone()
 count = [0,10,1]
-mr.reduce(output)
+mr.map_kv(mr,output)
 
 mr.destroy()
 

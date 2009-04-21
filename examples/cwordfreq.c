@@ -29,7 +29,7 @@ Syntax: cwordfreq file1 file2 ...
 void fileread(int, void *, void *);
 void sum(char *, int, char *, int, int *, void *, void *);
 int ncompare(char *, int, char *, int);
-void output(char *, int, char *, int, int*, void *, void *);
+void output(int, char *, int, char *, int, void *, void *);
 
 typedef struct {
   int n,limit,flag;
@@ -66,21 +66,19 @@ int main(int narg, char **args)
   tstop = MPI_Wtime();
 
   MR_sort_values(mr,&ncompare);
-  MR_clone(mr);
 
   count.n = 0;
   count.limit = 10;
   count.flag = 0;
-  MR_reduce(mr,&output,&count);
+  MR_map_kv(mr,&output,&count);
   
   MR_gather(mr,1);
   MR_sort_values(mr,&ncompare);
-  MR_clone(mr);
 
   count.n = 0;
   count.limit = 10;
   count.flag = 1;
-  MR_reduce(mr,&output,&count);
+  MR_map_kv(mr,&output,&count);
 
   MR_destroy(mr);
 
@@ -156,14 +154,14 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
 
-void output(char *key, int keybytes, char *multivalue,
-	    int nvalues, int *valuebytes, void *kv, void *ptr)
+void output(int itask, char *key, int keybytes, char *value,
+	    int valuebytes, void *kv, void *ptr)
 {
   Count *count = (Count *) ptr;
   count->n++;
   if (count->n > count->limit) return;
 
-  int n = *(int *) multivalue;
+  int n = *(int *) value;
   if (count->flag) printf("%d %s\n",n,key);
   else MR_kv_add(kv,key,keybytes,(char *) &n,sizeof(int));
 }

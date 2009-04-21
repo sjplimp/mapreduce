@@ -30,7 +30,7 @@ using namespace MAPREDUCE_NS;
 void fileread(int, KeyValue *, void *);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
-void output(char *, int, char *, int, int *, KeyValue *, void *);
+void output(int, char *, int, char *, int, KeyValue *, void *);
 
 struct Count {
   int n,limit,flag;
@@ -64,22 +64,20 @@ int main(int narg, char **args)
   double tstop = MPI_Wtime();
 
   mr->sort_values(&ncompare);
-  mr->clone();
 
   Count count;
   count.n = 0;
   count.limit = 10;
   count.flag = 0;
-  mr->reduce(&output,&count);
+  mr->map(mr->kv,&output,&count);
   
   mr->gather(1);
   mr->sort_values(&ncompare);
-  mr->clone();
 
   count.n = 0;
   count.limit = 10;
   count.flag = 1;
-  mr->reduce(&output,&count);
+  mr->map(mr->kv,&output,&count);
 
   delete mr;
 
@@ -157,14 +155,14 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
 
-void output(char *key, int keybytes, char *multivalue,
-	    int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
+void output(int itask, char *key, int keybytes, char *value,
+	    int valuebytes, KeyValue *kv, void *ptr)
 {
   Count *count = (Count *) ptr;
   count->n++;
   if (count->n > count->limit) return;
 
-  int n = *(int *) multivalue;
+  int n = *(int *) value;
   if (count->flag) printf("%d %s\n",n,key);
   else kv->add(key,keybytes,(char *) &n,sizeof(int));
 }
