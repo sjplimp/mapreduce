@@ -220,6 +220,36 @@ int MR_sort_multivalues(void *MRptr, int (*mycompare)(char *, int,
   return mr->sort_multivalues(mycompare);
 }
 
+void MR_kv_stats(void *MRptr, int level)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->kv_stats(level);
+}
+
+void MR_kmv_stats(void *MRptr, int level)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->kmv_stats(level);
+}
+
+void MR_set_mapstyle(void *MRptr, int value)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->mapstyle = value;
+}
+
+void MR_set_verbosity(void *MRptr, int value)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->verbosity = value;
+}
+
+void MR_set_timer(void *MRptr, int value)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->timer = value;
+}
+
 void MR_kv_add(void *KVptr, char *key, int keybytes,
 	       char *value, int valuebytes)
 {
@@ -255,28 +285,4 @@ void MR_mr_add_mr(void *MRptr, void *MRptr2)
   KeyValue *kv = ((MapReduce *) MRptr)->kv;
   KeyValue *kv2 = ((MapReduce *) MRptr2)->kv;
   kv->add(kv2);
-}
-
-void MR_kv_stats(void *MRptr, int level)
-{
-  MapReduce *mr = (MapReduce *) MRptr;
-  mr->kv_stats(level);
-}
-
-void MR_kmv_stats(void *MRptr, int level)
-{
-  MapReduce *mr = (MapReduce *) MRptr;
-  mr->kmv_stats(level);
-}
-
-void MR_set_mapstyle(void *MRptr, int value)
-{
-  MapReduce *mr = (MapReduce *) MRptr;
-  mr->mapstyle = value;
-}
-
-void MR_set_verbosity(void *MRptr, int value)
-{
-  MapReduce *mr = (MapReduce *) MRptr;
-  mr->verbosity = value;
 }

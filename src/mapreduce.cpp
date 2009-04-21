@@ -69,6 +69,7 @@ MapReduce::MapReduce(MPI_Comm caller)
 
   mapstyle = 0;
   verbosity = 0;
+  timer = 0;
 }
 
 /* ----------------------------------------------------------------------
@@ -102,6 +103,7 @@ MapReduce::MapReduce()
 
   mapstyle = 0;
   verbosity = 0;
+  timer = 0;
 }
 
 /* ----------------------------------------------------------------------
@@ -136,6 +138,7 @@ MapReduce::MapReduce(double dummy)
 
   mapstyle = 0;
   verbosity = 0;
+  timer = 0;
 }
 
 /* ----------------------------------------------------------------------
@@ -161,6 +164,7 @@ MapReduce::MapReduce(MapReduce &mr)
 
   mapstyle = mr.mapstyle;
   verbosity = mr.verbosity;
+  timer = mr.timer;
 }
 
 /* ----------------------------------------------------------------------
@@ -191,7 +195,12 @@ MapReduce::~MapReduce()
 int MapReduce::aggregate(int (*hash)(char *, int))
 {
   if (kv == NULL) error->all("Cannot aggregate without KeyValue");
-  if (nprocs == 1) return kv->nkey;
+  if (timer) start_timer();
+
+  if (nprocs == 1) {
+    stats("Aggregate",0,verbosity);
+    return kv->nkey;
+  }
 
   KeyValue *kvnew = new KeyValue(comm);
   Irregular *irregular = new Irregular(comm);
@@ -284,10 +293,12 @@ int MapReduce::aggregate(int (*hash)(char *, int))
 int MapReduce::clone()
 {
   if (kv == NULL) error->all("Cannot clone without KeyValue");
+  if (timer) start_timer();
 
-  delete kmv;
   kmv = new KeyMultiValue(comm);
   kmv->clone(kv);
+  delete kv;
+  kv = NULL;
 
   stats("Clone",1,verbosity);
 
@@ -306,10 +317,12 @@ int MapReduce::clone()
 int MapReduce::collapse(char *key, int keybytes)
 {
   if (kv == NULL) error->all("Cannot collapse without KeyValue");
+  if (timer) start_timer();
 
-  delete kmv;
   kmv = new KeyMultiValue(comm);
   kmv->collapse(key,keybytes,kv);
+  delete kv;
+  kv = NULL;
 
   stats("Collapse",1,verbosity);
 
@@ -327,19 +340,21 @@ int MapReduce::collapse(char *key, int keybytes)
 int MapReduce::collate(int (*hash)(char *, int))
 {
   if (kv == NULL) error->all("Cannot collate without KeyValue");
+  if (timer) start_timer();
 
   int verbosity_hold = verbosity;
-  verbosity = 0;
+  int timer_hold = timer;
+  verbosity = timer = 0;
 
   aggregate(hash);
   convert();
 
   verbosity = verbosity_hold;
+  timer = timer_hold;
   stats("Collate",1,verbosity);
 
   int nkeyall;
   MPI_Allreduce(&kmv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
-
   return nkeyall;
 }
 
@@ -357,11 +372,10 @@ int MapReduce::compress(void (*appcompress)(char *, int, char *,
 			void *ptr)
 {
   if (kv == NULL) error->all("Cannot compress without KeyValue");
+  if (timer) start_timer();
 
   KeyMultiValue *kmvtmp = new KeyMultiValue(comm);
   kmvtmp->convert(kv);
-
-  delete kv;
   kv = new KeyValue(comm);
 
   int ncompress = kmvtmp->nkey;
@@ -379,8 +393,8 @@ int MapReduce::compress(void (*appcompress)(char *, int, char *,
 		kv,ptr);
 
   delete kmvtmp;
-
   kv->complete();
+
   stats("Compress",0,verbosity);
 
   int nkeyall;
@@ -399,10 +413,12 @@ int MapReduce::compress(void (*appcompress)(char *, int, char *,
 int MapReduce::convert()
 {
   if (kv == NULL) error->all("Cannot convert without KeyValue");
+  if (timer) start_timer();
 
-  delete kmv;
   kmv = new KeyMultiValue(comm);
   kmv->convert(kv);
+  delete kv;
+  kv = NULL;
 
   stats("Convert",1,verbosity);
 
@@ -418,13 +434,13 @@ int MapReduce::convert()
 
 int MapReduce::gather(int numprocs)
 {
-  MPI_Status status;
-
   if (kv == NULL) error->all("Cannot gather without KeyValue");
   if (numprocs < 1 || numprocs > nprocs) 
     error->all("Invalid proc count for gather");
+  if (timer) start_timer();
 
   if (nprocs == 1 || numprocs == nprocs) {
+    stats("Gather",0,verbosity);
     int nkeyall;
     MPI_Allreduce(&kv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
     return nkeyall;
@@ -435,6 +451,7 @@ int MapReduce::gather(int numprocs)
   // lo procs recv from set of hi procs with same (ID % numprocs)
 
   int flag,size;
+  MPI_Status status;
 
   if (me < numprocs) {
     char *buf = NULL;
@@ -485,6 +502,11 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
 		   void *ptr, int addflag)
 {
   MPI_Status status;
+
+  if (timer) start_timer();
+
+  delete kmv;
+  kmv = NULL;
 
   if (addflag == 0) {
     delete kv;
@@ -572,6 +594,11 @@ int MapReduce::map(char *file, void (*appmap)(int, char *, KeyValue *, void *),
   int n;
   char line[MAXLINE];
   MPI_Status status;
+
+  if (timer) start_timer();
+
+  delete kmv;
+  kmv = NULL;
 
   if (addflag == 0) {
     delete kv;
@@ -749,6 +776,10 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
 			void *ptr, int addflag)
 {
   if (nfiles > nmap) error->all("Cannot map with more files than tasks");
+  if (timer) start_timer();
+
+  delete kmv;
+  kmv = NULL;
 
   // copy filenames into FileMap
 
@@ -849,13 +880,15 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
   // it calls map_file_standalone once for each task
 
   int verbosity_hold = verbosity;
-  verbosity = 0;
+  int timer_hold = timer;
+  verbosity = timer = 0;
 
   filemap.appmapfile = appmap;
   filemap.ptr = ptr;
   map(nmap,&map_file_standalone,this,addflag);
 
   verbosity = verbosity_hold;
+  timer = timer_hold;
   stats("Map",0,verbosity);
 
   // destroy FileMap
@@ -965,8 +998,8 @@ int MapReduce::reduce(void (*appreduce)(char *, int, char *,
 		      void *ptr)
 {
   if (kmv == NULL) error->all("Cannot reduce without KeyMultiValue");
+  if (timer) start_timer();
 
-  delete kv;
   kv = new KeyValue(comm);
 
   int nreduce = kmv->nkey;
@@ -984,6 +1017,9 @@ int MapReduce::reduce(void (*appreduce)(char *, int, char *,
 	      kv,ptr);
 
   kv->complete();
+  delete kmv;
+  kmv = NULL;
+
   stats("Reduce",0,verbosity);
 
   int nkeyall;
@@ -1002,14 +1038,17 @@ int MapReduce::reduce(void (*appreduce)(char *, int, char *,
 int MapReduce::scrunch(int numprocs, char *key, int keybytes)
 {
   if (kv == NULL) error->all("Cannot scrunch without KeyValue");
+  if (timer) start_timer();
 
   int verbosity_hold = verbosity;
-  verbosity = 0;
+  int timer_hold = timer;
+  verbosity = timer = 0;
 
   gather(numprocs);
   collapse(key,keybytes);
 
   verbosity = verbosity_hold;
+  timer = timer_hold;
   stats("Scrunch",1,verbosity);
 
   int nkeyall;
@@ -1026,6 +1065,7 @@ int MapReduce::scrunch(int numprocs, char *key, int keybytes)
 int MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
 {
   if (kv == NULL) error->all("Cannot sort_keys without KeyValue");
+  if (timer) start_timer();
 
   compare = appcompare;
   sort_kv(0);
@@ -1046,6 +1086,7 @@ int MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
 int MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
 {
   if (kv == NULL) error->all("Cannot sort_values without KeyValue");
+  if (timer) start_timer();
 
   compare = appcompare;
   sort_kv(1);
@@ -1066,6 +1107,7 @@ int MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
 int MapReduce::sort_multivalues(int (*appcompare)(char *, int, char *, int))
 {
   if (kmv == NULL) error->all("Cannot sort_multivalues without KeyMultiValue");
+  if (timer) start_timer();
 
   int nkey = kmv->nkey;
   int *multivalues = kmv->multivalues;
@@ -1251,9 +1293,6 @@ void MapReduce::kmv_stats(int level)
 
 void MapReduce::sort_kv(int flag)
 {
-  delete kmv;
-  kmv = NULL;
-
   int nkey = kv->nkey;
   int *keys = kv->keys;
   int *values = kv->values;
@@ -1335,6 +1374,26 @@ int MapReduce::compare_multivalues_wrapper(int i, int j)
 
 void MapReduce::stats(char *heading, int which, int level)
 {
+  if (timer) {
+    if (timer == 1) {
+      MPI_Barrier(comm);
+      time_stop = MPI_Wtime();
+      if (me == 0) printf("%s time (secs) = %g\n",heading,time_stop-time_start);
+    } else if (timer == 2) {
+      time_stop = MPI_Wtime();
+      int histo[10],histotmp[10];
+      double ave,max,min;
+      double tmp = time_stop-time_start;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("%s time (secs) = %g ave %g max %g min\n",heading,ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+    }
+  }
+
   if (level == 0) return;
   if (me == 0) printf("%s: ",heading);
   if (which == 0) kv_stats(level);
@@ -1379,4 +1438,12 @@ void MapReduce::histogram(int n, double *data,
 
   MPI_Allreduce(histo,histotmp,nhisto,MPI_INT,MPI_SUM,comm);
   for (int i = 0; i < nhisto; i++) histo[i] = histotmp[i];
+}
+
+/* ---------------------------------------------------------------------- */
+
+void MapReduce::start_timer()
+{
+  if (timer == 1) MPI_Barrier(comm);
+  time_start = MPI_Wtime();
 }

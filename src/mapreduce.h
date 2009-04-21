@@ -23,6 +23,7 @@ class MapReduce {
  public:
   int mapstyle;     // 0 = chunks, 1 = strided, 2 = master/slave
   int verbosity;    // 0 = none, 1 = totals, 2 = proc histograms
+  int timer;        // 0 = none, 1 = summary, 2 = proc histograms
 
   class KeyValue *kv;              // single KV stored by MR
   class KeyMultiValue *kmv;        // single KMV stored by MR
@@ -85,6 +86,7 @@ class MapReduce {
  private:
   MPI_Comm comm;
   int me,nprocs;
+  double time_start,time_stop;
   class Memory *memory;
   class Error *error;
 
@@ -117,6 +119,7 @@ class MapReduce {
   void stats(char *, int, int);
   void histogram(int, double *, double &, double &, double &,
 		 int, int *, int *);
+  void start_timer();
 };
 
 }

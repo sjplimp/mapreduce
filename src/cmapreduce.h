@@ -80,6 +80,13 @@ int MR_sort_values(void *MRptr,
 int MR_sort_multivalues(void *MRptr,
 			int (*mycompare)(char *, int, char *, int));
 
+void MR_kv_stats(void *MRptr, int level);
+void MR_kmv_stats(void *MRptr, int level);
+
+void MR_set_mapstyle(void *MRptr, int value);
+void MR_set_verbosity(void *MRptr, int value);
+void MR_set_timer(void *MRptr, int value);
+
 void MR_kv_add(void *KVptr, char *key, int keybytes, 
 	       char *value, int valuebytes);
 void MR_kv_add_multi_static(void *KVptr, int n,
@@ -90,12 +97,6 @@ void MR_kv_add_multi_dynamic(void *KVptr, int n,
 			     char *value, int *valuebytes);
 void MR_kv_add_kv(void *KVptr, void *KVptr2);
 void MR_mr_add_mr(void *MRptr, void *MRptr2);
-
-void MR_kv_stats(void *MRptr, int level);
-void MR_kmv_stats(void *MRptr, int level);
-
-void MR_set_mapstyle(void *MRptr, int value);
-void MR_set_verbosity(void *MRptr, int value);
 
 #ifdef __cplusplus
 }
