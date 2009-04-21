@@ -1735,7 +1735,7 @@ mr.map_file_str(nmap,files,sepstr,delta,mymap)
 			     # mymap is a function called back from the
 			     #   library as mymap(itask,str,mr,ptr)
 			     # as above, ptr and addflag are optional args
-mr.map_kv(mr2,nmap,mymap)    # pass key/values in mr2 to mymap
+mr.map_kv(mr2,mymap)         # pass key/values in mr2 to mymap
                              # mymap is a function called back from the
 			     #   library as mymap(itask,key,value,mr,ptr)
 			     # as above, ptr and addflag are optional args :pre
