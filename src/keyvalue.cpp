@@ -17,6 +17,7 @@
 #include "string.h"
 #include "keyvalue.h"
 #include "memory.h"
+#include "error.h"
 
 using namespace MAPREDUCE_NS;
 
@@ -29,6 +30,7 @@ KeyValue::KeyValue(MPI_Comm caller)
 {
   comm = caller;
   memory = new Memory(comm);
+  error = new Error(comm);
 
   nkey = maxkey = 0;
   keysize = maxkeysize = 0;
@@ -71,6 +73,7 @@ KeyValue::KeyValue(KeyValue &kv)
 KeyValue::~KeyValue()
 {
   delete memory;
+  delete error;
   memory->sfree(keys);
   memory->sfree(values);
   memory->sfree(keydata);
@@ -191,6 +194,8 @@ void KeyValue::add(int n, char *key, int *keybytes,
 
 void KeyValue::add(KeyValue *kv)
 {
+  if (kv == NULL) error->all("Cannot add a KeyValue that does not exist");
+
   // grow memory as needed
   
   if (nkey + kv->nkey + 1 >= maxkey) {

@@ -183,6 +183,28 @@ int MR_map_file_str_add(void *MRptr, int nmap, int nfiles, char **files,
   return mr->map(nmap,nfiles,files,sepstr,delta,appmap,APPptr,addflag);
 }
 
+int MR_map_kv(void *MRptr, void *MRptr2,
+	      void (*mymap)(int, char *, int, char *, int, void *, void *),
+	      void *APPptr)
+{
+  typedef void (MapFunc)(int, char *, int, char *, int, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  KeyValue *kv = ((MapReduce *) MRptr2)->kv;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(kv,appmap,APPptr);
+}
+
+int MR_map_kv_add(void *MRptr, void *MRptr2,
+	      void (*mymap)(int, char *, int, char *, int, void *, void *),
+	      void *APPptr, int addflag)
+{
+  typedef void (MapFunc)(int, char *, int, char *, int, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  KeyValue *kv = ((MapReduce *) MRptr2)->kv;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(kv,appmap,APPptr,addflag);
+}
+
 int MR_reduce(void *MRptr,
 	      void (*myreduce)(char *, int, char *,
 			       int, int *, void *, void *),
@@ -273,14 +295,7 @@ void MR_kv_add_multi_dynamic(void *KVptr, int n,
   kv->add(n,key,keybytes,value,valuebytes);
 }
 
-void MR_kv_add_kv(void *KVptr, void *KVptr2)
-{
-  KeyValue *kv = (KeyValue *) KVptr;
-  KeyValue *kv2 = (KeyValue *) KVptr2;
-  kv->add(kv2);
-}
-
-void MR_mr_add_mr(void *MRptr, void *MRptr2)
+void MR_kv_add_kv(void *MRptr, void *MRptr2)
 {
   KeyValue *kv = ((MapReduce *) MRptr)->kv;
   KeyValue *kv2 = ((MapReduce *) MRptr2)->kv;

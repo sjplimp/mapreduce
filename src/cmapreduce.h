@@ -36,6 +36,7 @@ int MR_compress(void *MRptr,
 		void *APPptr);
 int MR_convert(void *MRptr);
 int MR_gather(void *MRptr, int numprocs);
+
 int MR_map(void *MRptr, int nmap,
 	   void (*mymap)(int, void *KVptr, void *APPptr),
 	   void *APPptr);
@@ -68,6 +69,15 @@ int MR_map_file_str_add(void *MRptr, int nmap, int nfiles, char **files,
 			void (*mymap)(int, char *, int, 
 				      void *KVptr, void *APPptr),
 			void *APPptr, int addflag);
+int MR_map_kv(void *MRptr, void *MRptr2,
+	      void (*mymap)(int, char *, int, char *, int, 
+			    void *KVptr, void *APPptr),
+	      void *APPptr);
+int MR_map_kv_add(void *MRptr, void *MRptr2,
+		  void (*mymap)(int, char *, int, char *, int, 
+				void *KVptr, void *APPptr),
+		  void *APPptr, int addflag);
+
 int MR_reduce(void *MRptr,
 	      void (*myreduce)(char *, int, char *,
 			       int, int *, void *KVptr, void *APPptr),
@@ -95,8 +105,7 @@ void MR_kv_add_multi_static(void *KVptr, int n,
 void MR_kv_add_multi_dynamic(void *KVptr, int n,
 			     char *key, int *keybytes,
 			     char *value, int *valuebytes);
-void MR_kv_add_kv(void *KVptr, void *KVptr2);
-void MR_mr_add_mr(void *MRptr, void *MRptr2);
+void MR_kv_add_kv(void *MRptr, void *MRptr2);
 
 #ifdef __cplusplus
 }

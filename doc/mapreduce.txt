@@ -1313,7 +1313,13 @@ int MR_map_file_str(void *MRptr, int nmap, int files, char **files,
 int MR_map_file_str_add(void *MRptr, int nmap, int files, char **files,
 			char *sepstr, int delta,
 			void (*mymap)(int, char *, int, void *KVptr, void *APPptr),
-			void *APPptr, int addflag); :pre
+			void *APPptr, int addflag);
+int MR_map_kv(void *MRptr, void *MRptr2,
+	      void (*mymap)(int, char *, int, char *, int *, void *KVptr, void *APPptr),
+	      void *APPptr);
+int MR_map_kv_add(void *MRptr, void *MRptr2,
+		  void (*mymap)(int, char *, int, char *, int *, void *KVptr, void *APPptr),
+		  void *APPptr, int addflag); :pre
 
 int MR_reduce(void *MRptr,
 	      void (*myreduce)(char *, int, char *,
@@ -1343,8 +1349,7 @@ void MR_kv_add_multi_static(void *KVptr, int n,
 void MR_kv_add_multi_dynamic(void *KVptr, int n,
 			    char *key, int *keybytes,
 			    char *value, int *valuebytes);
-void MR_kv_add_kv(void *KVptr, void *KVptr2);
-void MR_mr_add_mr(void *MRptr, void *MRptr2); :pre
+void MR_kv_add_kv(void *MRptr, void *MRptr2); :pre
 
 These functions correspond one-to-one with the C++ methods described
 above, except that for C++ methods with multiple interfaces
@@ -1360,13 +1365,13 @@ MapReduce objects by simply keeping track of the pointers returned to
 it.
 
 The remaining arguments of each function call are the same as those
-used with the C++ methods.  The only exceptions are the MR_kv_add()
-functions which take a KVptr as their first argument.  This is a
-pointer to a KeyValue object.  These calls are made from your
-program's mymap(), myreduce(), and mycompress() functions to register
-key/value pairs with the MR-MPI library.  The KVptr is passed as an
-argument to your functions when they are called back from the MR-MPI
-library.
+used with the C++ methods.  The only exceptions are several of the
+MR_kv_add() functions which take a KVptr as their first argument.
+This is a pointer to a KeyValue object.  These calls are made from
+your program's mymap(), myreduce(), and mycompress() functions to
+register key/value pairs with the MR-MPI library.  The KVptr is passed
+as an argument to your functions when they are called back from the
+MR-MPI library.
 
 See the C programs in the examples directory for examples of how these
 calls are made from a C program.  They are conceptually identical to
@@ -1715,7 +1720,7 @@ mr.map(nmap,mymap,ptr)      # if specified, ptr is any Python datum
 mr.map(nmap,mymap,ptr,addflag) # if addflag is specfied as a non-zero int,
 			       #   new key/value pairs will be added to the
 			       #   existing key/value pairs :pre
- 
+
 mr.map_file_list(file,mymap) # file is a file containing a list of filenames
 			     # mymap is a function called back from the
 			     #   library as mymap(itask,filename,mr,ptr)
@@ -1729,6 +1734,10 @@ mr.map_file_str(nmap,files,sepstr,delta,mymap)
                              # files is a list of filenames
 			     # mymap is a function called back from the
 			     #   library as mymap(itask,str,mr,ptr)
+			     # as above, ptr and addflag are optional args
+mr.map_kv(mr2,nmap,mymap)    # pass key/values in mr2 to mymap
+                             # mymap is a function called back from the
+			     #   library as mymap(itask,key,value,mr,ptr)
 			     # as above, ptr and addflag are optional args :pre
 
 mr.reduce(myreduce)         # myreduce is a function called back from the

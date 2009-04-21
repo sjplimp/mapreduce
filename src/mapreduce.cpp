@@ -988,6 +988,64 @@ void MapReduce::map_file_wrapper(int imap, KeyValue *kv)
 }
 
 /* ----------------------------------------------------------------------
+   create a KV via a parallel map operation from an existing kv_src
+   make one call to appmap() for each key/value pair in kv_src
+   each proc operates on key/value pairs it owns
+------------------------------------------------------------------------- */
+
+int MapReduce::map(KeyValue *kv_src, 
+		   void (*appmap)(int, char *, int, char *, int, 
+				  KeyValue *, void *), void *ptr, int addflag)
+{
+  if (kv_src == NULL) error->all("Cannot map a KeyValue that does not exist");
+  if (timer) start_timer();
+
+  delete kmv;
+  kmv = NULL;
+
+  // kv_dest = KeyValue object where new KV will go
+  // be careful if kv and kv_src are the same
+
+  KeyValue *kv_dest;
+
+  if (kv == kv_src) {
+    if (addflag) kv_dest = kv;
+    else kv_dest = new KeyValue(comm);
+  } else {
+    if (addflag) {
+      if (kv == NULL) kv_dest = new KeyValue(comm);
+      else kv_dest = kv;
+    } else {
+      delete kv;
+      kv_dest = new KeyValue(comm);
+    }
+  }
+
+  int nkey = kv_src->nkey;
+  int *keys = kv_src->keys;
+  int *values = kv_src->values;
+  char *keydata = kv_src->keydata;
+  char *valuedata = kv_src->valuedata;
+
+  for (int i = 0; i < nkey; i++) {
+    char *key = &keydata[keys[i]];
+    int keybytes = keys[i+1] - keys[i];
+    char *value = &valuedata[values[i]];
+    int valuebytes = values[i+1] - values[i];
+    appmap(i,key,keybytes,value,valuebytes,kv_dest,ptr);
+  }
+  
+  if (kv == kv_src && addflag == 0) delete kv;
+  kv = kv_dest;
+  kv->complete();
+  stats("Map",0,verbosity);
+
+  int nkeyall;
+  MPI_Allreduce(&kv->nkey,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
    create a KV from a KMV via a parallel reduce operation for nmap tasks
    make one call to appreduce() for each KMV pair
    each proc processes its owned KMV pairs

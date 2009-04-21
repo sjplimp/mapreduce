@@ -48,6 +48,7 @@ class KeyValue {
  private:
   MPI_Comm comm;
   class Memory *memory;
+  class Error *error;
 };
 
 }

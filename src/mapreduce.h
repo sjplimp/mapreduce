@@ -49,6 +49,7 @@ class MapReduce {
 	       void *);
   int convert();
   int gather(int);
+
   int map(int, void (*)(int, class KeyValue *, void *),
 	  void *, int addflag = 0);
   int map(char *, void (*)(int, char *, class KeyValue *, void *),
@@ -59,6 +60,10 @@ class MapReduce {
   int map(int, int, char **, char *, int, 
 	  void (*)(int, char *, int, class KeyValue *, void *),
 	  void *, int addflag = 0);
+  int map(class KeyValue *, void (*)(int, char *, int, char *, int, 
+				     class KeyValue *, void *),
+	  void *, int addflag = 0);
+
   int reduce(void (*)(char *, int, char *,
 		      int, int *, class KeyValue *, void *),
 	     void *);

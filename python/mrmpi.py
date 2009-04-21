@@ -52,6 +52,9 @@ class mrmpi:
     MAP_FILE_STR_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
                                  c_void_p,c_void_p)
     self.map_file_str_def = MAP_FILE_STR_FUNC(self.map_file_str_callback)
+    MAP_KV_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
+                            POINTER(c_char),c_int,c_void_p,c_void_p)
+    self.map_kv_def = MAP_KV_FUNC(self.map_kv_callback)
 
     REDUCEFUNC = CFUNCTYPE(c_void_p,POINTER(c_char),c_int,
                            POINTER(c_char),c_int,POINTER(c_int),
@@ -205,6 +208,23 @@ class mrmpi:
     if self.map_argcount == 3: self.map_caller(itask,str,self)
     else: self.map_caller(itask,str,self,self.map_ptr)
     
+  def map_kv(self,mr,map,ptr=None,addflag=0):
+    self.map_caller = map
+    self.map_argcount = map.func_code.co_argcount
+    self.map_ptr = ptr
+    if not addflag:
+      n = self.lib.MR_map_kv(self.mr,mr.mr,self.map_kv_def,None)
+    else:
+      n = self.lib.MR_map_kv_add(self.mr,mr.mr,self.map_kv_def,None,addflag)
+    return n
+
+  def map_kv_callback(self,itask,ckey,keybytes,cvalue,valuebytes,kv,dummy):
+    self.kv = kv
+    key = loads(ckey[:keybytes])
+    value = loads(cvalue[:valuebytes])
+    if self.map_argcount == 4: self.map_caller(itask,key,value,self)
+    else: self.map_caller(itask,key,value,self,self.map_ptr)
+    
   def reduce(self,reduce,ptr=None):
     self.reduce_caller = reduce
     self.reduce_argcount = reduce.func_code.co_argcount
@@ -262,6 +282,9 @@ class mrmpi:
 
   def verbosity(self,value):
     self.lib.MR_set_verbosity(self.mr,value)
+
+  def timer(self,value):
+    self.lib.MR_set_timer(self.mr,value)
 
   def add(self,key,value):
     ckey = dumps(key,1)
