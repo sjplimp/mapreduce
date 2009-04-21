@@ -133,7 +133,6 @@ int main(int narg, char **args)
       MPI_Abort(MPI_COMM_WORLD,1);
     }
     void *mr2 = MR_copy(mr);
-    MR_clone(mr2);
     MR_reduce(mr2,&output,&rmat);
     fclose(rmat.fp);
     MR_destroy(mr2);
@@ -147,7 +146,6 @@ int main(int narg, char **args)
     printf("%d nonzeroes in matrix\n",ntotal);
   }
 
-  MR_clone(mr);
   MR_reduce(mr,&nonzero,NULL);
   MR_collate(mr,NULL);
   MR_reduce(mr,&degree,NULL);

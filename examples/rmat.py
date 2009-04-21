@@ -175,7 +175,6 @@ if outfile:
     print "ERROR: Could not open output file"
     sys.exit()
   mr2 = mr.copy()
-  mr2.clone()
   mr2.reduce(output)
   fp.close()
   mr2.destroy()
@@ -187,7 +186,6 @@ if me == 0:
   print order,"rows in matrix"
   print ntotal,"nonzeroes in matrix"
 
-mr.clone()
 mr.reduce(nonzero)
 mr.collate()
 mr.reduce(degree)

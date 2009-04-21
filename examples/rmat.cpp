@@ -134,7 +134,6 @@ int main(int narg, char **args)
       MPI_Abort(MPI_COMM_WORLD,1);
     }
     MapReduce *mr2 = new MapReduce(*mr);
-    mr2->clone();
     mr2->reduce(&output,&rmat);
     fclose(rmat.fp);
     delete mr2;
@@ -148,7 +147,6 @@ int main(int narg, char **args)
     printf("%d nonzeroes in matrix\n",ntotal);
   }
 
-  mr->clone();
   mr->reduce(&nonzero,NULL);
   mr->collate(NULL);
   mr->reduce(&degree,NULL);
