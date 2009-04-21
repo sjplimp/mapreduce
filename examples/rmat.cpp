@@ -37,7 +37,6 @@ void nonzero(char *, int, char *, int, int *, KeyValue *, void *);
 void degree(char *, int, char *, int, int *, KeyValue *, void *);
 void histo(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
-//void stats(char *, int, char *, int, int *, KeyValue *, void *);
 void stats(int, char *, int, char *, int, KeyValue *, void *);
 
 struct RMAT {            // RMAT params
@@ -155,9 +154,7 @@ int main(int narg, char **args)
   mr->reduce(&histo,NULL);
   mr->gather(1);
   mr->sort_keys(&ncompare);
-  //mr->clone();
   int total = 0;
-  //mr->reduce(&stats,&total);
   mr->map(mr->kv,&stats,&total);
   if (me == 0) printf("%d rows with 0 nonzeroes\n",rmat.order-total);
 
