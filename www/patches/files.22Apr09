@@ -1,0 +1,18 @@
+19Apr09 version files changed by 22Apr09 upgrade:
+
+doc/mapreduce.html
+doc/mapreduce.txt
+examples/Makefile.linux
+examples/crmat.c
+examples/cwordfreq.c
+examples/rmat.cpp
+examples/rmat.py
+examples/wordfreq.cpp
+examples/wordfreq.py
+python/mrmpi.py
+src/cmapreduce.cpp
+src/cmapreduce.h
+src/keyvalue.cpp
+src/keyvalue.h
+src/mapreduce.cpp
+src/mapreduce.h
