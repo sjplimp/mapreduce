@@ -49,6 +49,7 @@ KeyValue::KeyValue(MPI_Comm caller)
 KeyValue::KeyValue(KeyValue &kv)
 {
   memory = new Memory(kv.comm);
+  error = new Error(kv.comm);
 
   nkey = kv.nkey;
   maxkey = kv.maxkey;

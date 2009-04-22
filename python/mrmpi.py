@@ -322,4 +322,4 @@ class mrmpi:
                                      ckeys,keybytes,cvalues,valuebytes)
 
   def add_kv(self,mr):
-    self.lib.MR_mr_add_mr(self.mr,mr.mr)
+    self.lib.MR_kv_add_kv(self.mr,mr.mr)
