@@ -126,7 +126,6 @@ if me == 0: print nedges,"edges in input file"
 # eliminate duplicate edges = both I,J and J,I exist
 # results in ((vi,vj),None) with all vi < vj
 
-#mr.clone()
 mr.map_kv(mr,invert_edges)
 mr.collate()
 nedges = mr.reduce(remove_duplicates)
@@ -139,7 +138,6 @@ mrcopy = mr.copy()
 # augment edges with degree of each vertex
 # results in ((vi,vj),(deg(vi),deg(vj)) with all vi < vj
 
-#mr.clone()
 mr.map_kv(mr,emit_vertices)
 mr.collate()
 mr.reduce(first_degree)
@@ -152,7 +150,6 @@ if me == 0: print nedges,"edges augmented by vertex degrees"
 # this enables finding completed triangles in emit_triangles()
 # results in ((vi,vj,vk),None)
 
-#mr.clone()
 mr.map_kv(mr,low_degree)
 mr.collate()
 mr.reduce(nsq_angles)
@@ -165,7 +162,6 @@ fp = open(outfile + "." + str(me),"w")
 if not fp:
   print "ERROR: Could not open output file"
   sys.exit()
-#mr.clone()
 mr.map_kv(mr,output_triangle)
 fp.close()
 
