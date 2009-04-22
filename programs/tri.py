@@ -28,7 +28,7 @@ def fileread(itask,str,mr):
 # invert edges so all have vi < vj
 # drop edges where vi = vj
 
-def invert_edges(key,mvalue,mr):
+def invert_edges(itask,key,value,mr):
   if key[0] < key[1]: mr.add((key[0],key[1]),None)
   elif key[1] < key[0]: mr.add((key[1],key[0]),None)
 
@@ -41,7 +41,7 @@ def remove_duplicates(key,mvalue,mr):
 # convert edge key to vertex keys
 # emit two KV per edge: (vi,vj) and (vj,vi)
 
-def emit_vertices(key,mvalue,mr):
+def emit_vertices(itask,key,value,mr):
   mr.add(key[0],key[1])
   mr.add(key[1],key[0])
 
@@ -66,9 +66,9 @@ def second_degree(key,mvalue,mr):
 # low-degree vertex emits (vi,vj)
 # break tie with low-index vertex
 
-def low_degree(key,mvalue,mr):
-  di = mvalue[0][0]
-  dj = mvalue[0][1]
+def low_degree(itask,key,value,mr):
+  di = value[0]
+  dj = value[1]
   if di < dj: mr.add(key[0],key[1])
   elif dj < di: mr.add(key[1],key[0])
   elif key[0] < key[1]: mr.add(key[0],key[1])
@@ -94,7 +94,7 @@ def emit_triangles(key,mvalue,mr):
 
 # print triangles to local file
 
-def output_triangle(key,mvalue,mr):
+def output_triangle(itask,key,value,mr):
   print >>fp,key[0],key[1],key[2]
 
 # ----------------------------------------------------------------------
@@ -126,8 +126,8 @@ if me == 0: print nedges,"edges in input file"
 # eliminate duplicate edges = both I,J and J,I exist
 # results in ((vi,vj),None) with all vi < vj
 
-mr.clone()
-mr.reduce(invert_edges)
+#mr.clone()
+mr.map_kv(mr,invert_edges)
 mr.collate()
 nedges = mr.reduce(remove_duplicates)
 if me == 0: print nedges,"edges after duplicates removed"
@@ -139,8 +139,8 @@ mrcopy = mr.copy()
 # augment edges with degree of each vertex
 # results in ((vi,vj),(deg(vi),deg(vj)) with all vi < vj
 
-mr.clone()
-mr.reduce(emit_vertices)
+#mr.clone()
+mr.map_kv(mr,emit_vertices)
 mr.collate()
 mr.reduce(first_degree)
 mr.collate()
@@ -152,8 +152,8 @@ if me == 0: print nedges,"edges augmented by vertex degrees"
 # this enables finding completed triangles in emit_triangles()
 # results in ((vi,vj,vk),None)
 
-mr.clone()
-mr.reduce(low_degree)
+#mr.clone()
+mr.map_kv(mr,low_degree)
 mr.collate()
 mr.reduce(nsq_angles)
 mr.add_kv(mrcopy)
@@ -165,8 +165,8 @@ fp = open(outfile + "." + str(me),"w")
 if not fp:
   print "ERROR: Could not open output file"
   sys.exit()
-mr.clone()
-mr.reduce(output_triangle)
+#mr.clone()
+mr.map_kv(mr,output_triangle)
 fp.close()
 
 # timing data

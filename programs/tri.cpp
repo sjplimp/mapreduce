@@ -13,15 +13,15 @@
 using namespace MAPREDUCE_NS;
 
 void fileread(int, char *, int, KeyValue *, void *);
-void invert_edges(char *, int, char *, int, int *, KeyValue *, void *);
+void invert_edges(int, char *, int, char *, int, KeyValue *, void *);
 void remove_duplicates(char *, int, char *, int, int *, KeyValue *, void *);
-void emit_vertices(char *, int, char *, int, int *, KeyValue *, void *);
+void emit_vertices(int, char *, int, char *, int, KeyValue *, void *);
 void first_degree(char *, int, char *, int, int *, KeyValue *, void *);
 void second_degree(char *, int, char *, int, int *, KeyValue *, void *);
-void low_degree(char *, int, char *, int, int *, KeyValue *, void *);
+void low_degree(int, char *, int, char *, int, KeyValue *, void *);
 void nsq_angles(char *, int, char *, int, int *, KeyValue *, void *);
 void emit_triangles(char *, int, char *, int, int *, KeyValue *, void *);
-void output_triangle(char *, int, char *, int, int *, KeyValue *, void *);
+void output_triangle(int, char *, int, char *, int, KeyValue *, void *);
 
 typedef int VERTEX;      // vertex ID
 
@@ -77,8 +77,7 @@ int main(int narg, char **args)
   // eliminate duplicate edges = both I,J and J,I exist
   // results in ((vi,vj),None) with all vi < vj
 
-  mr->clone();
-  mr->reduce(&invert_edges,NULL);
+  mr->map(mr->kv,&invert_edges,NULL);
   mr->collate(NULL);
   nedges = mr->reduce(&remove_duplicates,NULL);
   if (me == 0) printf("%d edges after duplicates removed\n",nedges);
@@ -90,8 +89,7 @@ int main(int narg, char **args)
   // augment edges with degree of each vertex
   // results in ((vi,vj),(deg(vi),deg(vj)) with all vi < vj
 
-  mr->clone();
-  mr->reduce(&emit_vertices,NULL);
+  mr->map(mr->kv,&emit_vertices,NULL);
   mr->collate(NULL);
   mr->reduce(&first_degree,NULL);
   mr->collate(NULL);
@@ -103,8 +101,7 @@ int main(int narg, char **args)
   // this enables finding completed triangles in emit_triangles()
   // results in ((vi,vj,vk),None)
 
-  mr->clone();
-  mr->reduce(&low_degree,NULL);
+  mr->map(mr->kv,&low_degree,NULL);
   mr->collate(NULL);
   mr->reduce(&nsq_angles,NULL);
   mr->kv->add(mrcopy->kv);
@@ -119,8 +116,7 @@ int main(int narg, char **args)
     printf("ERROR: Could not open output file");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
-  mr->clone();
-  mr->reduce(&output_triangle,fp);
+  mr->map(mr->kv,&output_triangle,fp);
   fclose(fp);
 
   // timing data
@@ -167,8 +163,8 @@ void fileread(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 // invert edges so all have vi < vj
 // drop edges where vi = vj
 
-void invert_edges(char *key, int keybytes, char *multivalue,
-		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+void invert_edges(int itask, char *key, int keybytes, char *value,
+		  int valuebytes, KeyValue *kv, void *ptr) 
 {
   EDGE *edge = (EDGE *) key;
   if (edge->vi < edge->vj) kv->add((char *) edge,sizeof(EDGE),NULL,0);
@@ -192,8 +188,8 @@ void remove_duplicates(char *key, int keybytes, char *multivalue,
 // convert edge key to vertex keys
 // emit two KV per edge: (vi,vj) and (vj,vi)
 
-void emit_vertices(char *key, int keybytes, char *multivalue,
-		   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+void emit_vertices(int itask, char *key, int keybytes, char *value,
+		   int valuebytes, KeyValue *kv, void *ptr) 
 {
   EDGE *edge = (EDGE *) key;
   kv->add((char *) &edge->vi,sizeof(VERTEX),(char *) &edge->vj,sizeof(VERTEX));
@@ -257,11 +253,11 @@ void second_degree(char *key, int keybytes, char *multivalue,
 // low-degree vertex emits (vi,vj)
 // break tie with low-index vertex
 
-void low_degree(char *key, int keybytes, char *multivalue,
-		int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+void low_degree(int itask, char *key, int keybytes, char *value,
+		int valuebytes, KeyValue *kv, void *ptr) 
 {
   EDGE *edge = (EDGE *) key;
-  DEGREE *degree = (DEGREE *) multivalue;
+  DEGREE *degree = (DEGREE *) value;
 
   if (degree->di < degree->dj)
     kv->add((char *) &edge->vi,sizeof(VERTEX),
@@ -330,8 +326,8 @@ void emit_triangles(char *key, int keybytes, char *multivalue,
 
 // print triangles to local file
 
-void output_triangle(char *key, int keybytes, char *multivalue,
-		     int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
+void output_triangle(int itask, char *key, int keybytes, char *value,
+		     int valuebytes, KeyValue *kv, void *ptr)
 {
   FILE *fp = (FILE *) ptr;
   TRI *tri = (TRI *) key;
