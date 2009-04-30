@@ -1,0 +1,57 @@
+Luby's alg for maximal indenpendent sets in MapReduce
+SJP, 30 Apr 09
+
+notation:
+  Vi = ID of vertex I
+  Eij = I,J edge = Vi Vj
+  Ri = random value (float) assigned to Vi
+  F = flag assigned to a vertex = W (winner) or L (loser) or U (unknown)
+
+initialize:
+  store graph with edges as keys
+  eliminate Vi = Vj edges
+  eliminate double-counted edges where both Eij and Eji exist
+  assign Ri to each vertex
+  key = Eij, value = Ri Rj where Vi < Vj
+  clone()
+
+while any edges remain:
+  reduce1()
+    operate on each edge Eij
+    if any of multivalues is L by itself, skip this edge altogether
+    input key = Eij, value = Ri Rj where Vi < Vj
+    play the Luby game:
+      assign W to vertex with largest R
+      assign L to vertex with smallest R
+      break ties with vertex ID
+    emit 2 KV pairs:
+      key Vw, value = W Rw Vl Rl
+      key Vl, value = L Rl Vw Rw
+  collate()
+  reduce2()
+    operate on each vertex I
+    input key = Vi, one value per edge = F Ri Vj Rj
+    if all F = W:
+      emit self as 1 KV pair:
+        key = Vi, value = W
+      emit 1 KV pair per edge:
+        key = Vj, value = L Rj Vi Ri
+    else:
+      emit 1 KV pair per edge:
+        key = Vj, value = U Rj Vi Ri
+  collate()
+  reduce3()
+    operate on each vertex J
+    input key = Vi, one value per edge = F Ri Vj Rj plus extra for W
+    if any F = W by itself:
+      add Vi to independent set
+      eliminate this vertex and its edges from graph by just returning
+      edges into this vertex will be marked L (see next section)
+    if any F = L:
+      eliminate this vertex and its edges from graph (on next iter) by L emit
+      emit 1 KV pair per edge:
+        key = Eij, value = L where Vi < Vj
+    else:      
+      emit 1 KV pair per edge:
+        key = Eij, value = Ri Rj where Vi < Vj
+  collate()
