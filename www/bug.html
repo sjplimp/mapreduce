@@ -27,10 +27,10 @@ code.
 library call.
 </P>
 <P>2) A new map() option to pass in an existing set of key/value pairs,
-operate on by the user's map function (one key/value at a time),
+operate on them via the user's map function (one key/value at a time),
 producing a new set of key/value pairs.  This is an alternative to
-using the clone() method as much to turn the key/value pairs into
-key/multivalue pairs and perform a reduce() on them.
+using the clone() method to turn the key/value pairs into
+key/multivalue pairs and then perform a reduce() on them.
 </P>
 <P>3) Some clean-up inside the library of KeyValue and KeyMultiValue
 objects when various calls transform data from one to the other.  This
