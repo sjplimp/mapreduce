@@ -2074,6 +2074,8 @@ described above in <A HREF = "#whatis">this section</A>.  The wordfreq programs 
 run by giving a list of text files as arguments, e.g.
 </P>
 <PRE>wordfreq ~/mydir/*.cpp
+mpirun -np 8 wordfreq ~/mydir/*.cpp
+cwordfreq ~/mydir/*.cpp
 mpirun -np 8 cwordfreq ~/mydir/*.cpp
 python wordfreq.py ~/mydir/*.cpp
 mpirun -np 8 python wordfreq.py ~/mydir/*.cpp 
@@ -2097,6 +2099,8 @@ representing a network of computers or WWW page links.
 <P>The rmat programs are run by specifying a few parameters, e.g.
 </P>
 <PRE>rmat N Nz a b c d frac outfile
+mpirun -np 8 rmat N Nz a b c d frac outfile
+crmat N Nz a b c d frac outfile
 mpirun -np 8 crmat N Nz a b c d frac outfile
 python rmat.py N Nz a b c d frac outfile
 mpirun -np 8 python rmat.py N Nz a b c d frac outfile 
