@@ -1,10 +1,12 @@
-// MatVec via MapReduce
+// Connected Components via MapReduce
 // Karen Devine and Steve Plimpton, Sandia Natl Labs
 // Nov 2008
 //
 // Identify connected components in a graph via MapReduce
 // algorithm due to Jonathan Cohen.
 // The algorithm treats all edges as undirected edges.
+// The algorithm also computes distances from the root vertex of every 
+// component.
 // 
 // Syntax: concomp switch args switch args ...
 // switches:

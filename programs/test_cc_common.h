@@ -1,24 +1,11 @@
-// MatVec via MapReduce
+// Connected Components via MapReduce
 // Karen Devine and Steve Plimpton, Sandia Natl Labs
 // Dec 2008
 //
-// Identify connected components in a graph via MapReduce
-// algorithm due to Jonathan Cohen.
-// The algorithm treats all edges as undirected edges.
-// 
-// Syntax: concomp switch args switch args ...
-// switches:
-//   -r N = define N as root vertex, compute all distances from it
-//   -o file = output to this file, else no output except screen summary
-//   -t style params = input from a test problem
-//      style params = ring N = 1d ring with N vertices
-//      style params = 2d Nx Ny = 2d grid with Nx by Ny vertices
-//      style params = 3d Nx Ny Nz = 3d grid with Nx by Ny by Nz vertices
-//      style params = rmat N Nz a b c d frac seed
-//        generate an RMAT matrix with 2^N rows, Nz non-zeroes per row,
-//        a,b,c,d = RMAT params, frac = RMAT randomize param, seed = RNG seed
-//   -f file1 file2 ... = input from list of files containing sparse matrix
-//   -p 0/1 = turn random permutation of input data off/on (default = off)
+//
+// Shared parts of all our connected components MapReduce codes.
+// Includes test-problem generation and file reading.
+
 
 #ifndef __TEST_CC_COMMON_H
 #define __TEST_CC_COMMON_H

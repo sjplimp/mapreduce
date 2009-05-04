@@ -1,4 +1,4 @@
-// MatVec via MapReduce
+// Connected Components via MapReduce
 // Karen Devine and Steve Plimpton, Sandia Natl Labs
 // Nov 2008
 //
