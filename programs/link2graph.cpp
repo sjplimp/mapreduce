@@ -15,6 +15,9 @@
 //              print vertex in-degree histogramming to histofile
 //         -m matrixfile
 //              print graph in Matrix Market format with 1/outdegree field
+//         -h hashfile
+//              print graph edges as (i,j) pairs using original hashvalues
+//              from input file (not converted to [1:N]).  Works for -e1 or -e2.
 //         -ff file
 //              file with list of binary link files to read in (one per line)
 //         -f file1 file2 ...
@@ -46,6 +49,7 @@ void edge_reverse(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_histo(char *, int, char *, int, int *, KeyValue *, void *);
 int histo_sort(char *, int, char *, int);
 void histo_write(char *, int, char *, int, int *, KeyValue *, void *);
+void hfile_write(char *, int, char *, int, int *, KeyValue *, void *);
 void matrix_write(char *, int, char *, int, int *, KeyValue *, void *);
 
 typedef struct {
@@ -73,6 +77,7 @@ int main(int narg, char **args)
   char *outhfile = NULL;
   char *inhfile = NULL;
   char *mfile = NULL;
+  char *hfile = NULL;
   int convertflag = 0;
   char *onefile = NULL;
   int nfiles = 0;
@@ -110,6 +115,16 @@ int main(int narg, char **args)
       int n = strlen(args[iarg+1]) + 1;
       mfile = new char[n];
       strcpy(mfile,args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg],"-h") == 0) {
+      // Generate a output file of edges using hashvalues from input file.
+      if (iarg+2 > narg) {
+	flag = 1;
+	break;
+      }
+      int n = strlen(args[iarg+1]) + 1;
+      hfile = new char[n];
+      strcpy(hfile,args[iarg+1]);
       iarg += 2;
     } else if (strcmp(args[iarg],"-c") == 0) {
       // Convert vertex IDs to range 1-N.
@@ -214,6 +229,35 @@ int main(int narg, char **args)
   // set nsingleton to -1 in case never compute it via options
 
   int nsingleton = -1;
+
+  // output a hash-key file of unique edges I->J.
+  // No header information; one chunk per proc.
+  // Must do this before the convert, as convert re-writes mredges.
+  if (hfile) {
+
+    if (me == 0) {
+      char fname[128];
+      sprintf(fname,"%s.header",hfile);
+      FILE *fp = fopen(fname,"w");
+      fprintf(fp,"%d %d %d\n",nverts,nverts,nedges);
+      fclose(fp);
+    }
+    
+    char fname[128];
+    sprintf(fname,"%s.%d",hfile,me);
+    FILE *fp = fopen(fname,"w");
+
+    // mrout KV = (Vi,[Vj Vk ... Vz ])
+    // print out edges in using hashvalues from input file.
+    
+    MapReduce *mrout = new MapReduce(*mredge);
+    mrout->collate(NULL);
+    mrout->reduce(&hfile_write,fp);
+
+    delete mrout;
+
+    fclose(fp);
+  }
 
   // update mredge so its vertices are unique ints from 1-N, not hash values
 
@@ -411,7 +455,7 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
 
   FILE *fp = fopen(filename,"rb");
   if (fp == NULL) {
-    printf("Could not open link file\n");
+    printf("Could not open link file %s\n", filename);
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
@@ -665,6 +709,37 @@ void histo_write(char *key, int keybytes, char *multivalue,
   int *degree = (int *) key;
   int *count = (int *) multivalue;
   fprintf(fp,"%d %d\n",*degree,*count);
+}
+
+/* ----------------------------------------------------------------------
+   hfile_write reduce() function
+   input KMV: (Vi,[Vj Vk ...])
+   write each edge to file, create no new KV
+------------------------------------------------------------------------- */
+
+void hfile_write(char *key, int keybytes, char *multivalue,
+		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  int i;
+  FILE *fp = (FILE *) ptr;
+
+  uint64_t *vertex = (uint64_t *) multivalue;
+  uint64_t *vi = (uint64_t *) key;
+
+  if (keybytes == 16) {
+    // Two 64-bit ints per vertex
+    for (i = 0; i < nvalues; i++)
+      fprintf(fp,"%lld %lld    %lld %lld\n",
+                  vi[0], vi[1] ,vertex[i*2], vertex[i*2+1]);
+  }
+  else if (keybytes == 8) {
+    // One 64-bit int per vertex
+    for (i = 0; i < nvalues; i++)
+      fprintf(fp,"%lld   %lld\n", *vi, vertex[i]);
+  }
+  else {
+    fprintf(fp, "Invalid vertex size %d\n", keybytes);
+  }
 }
 
 /* ----------------------------------------------------------------------
