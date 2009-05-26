@@ -1465,7 +1465,7 @@ int MapReduce::sort_multivalues(int (*appcompare)(char *, int, char *, int))
   if (timer) start_timer();
 
   char *page;
-  int npage = kv->request_info(&page);
+  int npage = kmv->request_info(&page);
 
   int maxn = 0;
   int *order = NULL;
