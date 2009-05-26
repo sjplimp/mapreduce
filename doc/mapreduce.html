@@ -740,7 +740,7 @@ The char *multivalue argument is a pointer to the beginning of the
 multi-value which contains all nvalues, packed one after the other.
 The int *valuebytes argument is an array which stores the length of
 each value in bytes.  If needed, it can be used by your function to
-compute an offset into char *values for where each individual value
+compute an offset into char *multivalue to where each individual value
 begins.  Your function is also passed a kv pointer to a new KeyValue
 object created and stored internally by the MapReduce object.
 </P>
@@ -1861,7 +1861,7 @@ able to decode it.
 or floating point values they include.  For example, it is usually a
 bad idea to store an 8-byte double in memory such that it is
 mis-aligned with respect to 8-byte boundaries.  The reason is that
-accessing a mis-aligned double for computaion may be slower.
+accessing a mis-aligned double for computation may be slower.
 </P>
 <P>As an example, say your "value" is a 4-byte integer followed by an
 8-byte double.  You might think it can be stored and registered as 12
@@ -1893,7 +1893,7 @@ memcpy() function) that has the proper alignment.  E.g. in the collapse
 example above, these lines of code:
 </P>
 <PRE>int myvalue;
-memcpy(&myvalue,&values<B>offsets<B>i</B></B>,sizeof(int)); 
+memcpy(&myvalue,&values[offsets[i]],sizeof(int)); 
 </PRE>
 <P>would load the 4 bytes of the Ith value in the multi-value into the
 local integer "myvalue", where it can safely be used for computation.
