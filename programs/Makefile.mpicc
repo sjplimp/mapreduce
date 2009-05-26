@@ -1,0 +1,13 @@
+# Mac/MPI Makefile for MapReduce programs
+
+CC =		mpic++ 
+CCFLAGS =	-g -I../src -Wall
+LINK =		mpic++ 
+LINKFLAGS =	-g
+USRLIB =	-L../src -lmrmpi
+SYSLIB =	
+LIB =		../src/libmrmpi.a
+
+
+include Makefile.common
+
