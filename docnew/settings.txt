@@ -13,8 +13,8 @@ mapstyle = 0 (chunk) or 1 (stride) or 2 (master/slave)
 verbosity = 0 (none) or 1 (summary) or 2 (histogrammed)
 timer = 0 (none) or 1 (summary) or 2 (histogrammed)
 memsize = N = number of Mbytes of memory
-keyalign = N = byte-alignement of keys
-valuealign = N = byte-alignement of values :pre
+keyalign = N = byte-alignment of keys
+valuealign = N = byte-alignment of values :pre
 
 They are set in the following manner from C++:
 
