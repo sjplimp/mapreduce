@@ -1,0 +1,245 @@
+Todo:
+
+ask Cindy if better way to estimate size of intermediate spooled
+  files for unseen keys - tallying doesn't really work
+
+OOC own docs:
+  write up notes on how all funky stuff works
+  what happens in add() if different alignment
+  doc why talign is max of (kalign,valign,4)
+    4 is in case kalign = talign = 1
+    must compute size via roundup() on int someplace (not ROUNDUP on ptr)
+  need a doc write-up of 3/4 pass complicated alg for OOC convert
+
+OOC examples:
+  make sure all programs in 3 langs all work
+  could make wordfreq work on a dict to gen arbitrary size data
+
+OOC copy:
+  b/c now return a ptr, can't make a copy which is a non-pointer?
+
+OOC minutia:
+  why isnt rmat_new getting exact same answer as older rmat?
+  use debug output to see if writing of intermediate files is
+    writing lots of tiny stuff or not
+  if a spooled partition ends up empty should I still keep it?
+    might be hard to delete a partition once it has been setup
+  need to check if sort bits run out - shouldn't happen in practice
+  do I really need extra iset field in Partition, or can info
+    be stored elsewhere
+  do I need to seek in KMV read/write file
+    maybe I do for sort_multivalues()
+  change all #defines to reasonable values once debugged
+  allow user control of spoolsize memory? with a setting?
+  is new/src speed equiv when fits in memory?
+  early KMV pages are the giant KMV ones for wordcount - guess this is natural?
+  remove all internal errors once debugged?
+  print more stats on collate (partitions, sets, file write/read, etc)
+  limit memsize to 4096 so 1 Gbytes write/read and totalsize always int > 0
+  need to do memset on chunks in keymultivalue?
+    or on big block
+    might slow things down, but throws errors in file write due
+      to ALIGNSIZE write
+    test with valgrind with no memset()
+  take away -g switches in Make?
+  change all MR lib interface quantities to u64 ints or longs?
+  does posix_align not work on some boxes?
+  allow file prefix for OOC files?
+  have KV and KMV stats print file chunks & size data
+  call to memset() is not sufficient b/c nbytes is only unsigned int
+  do I want a SPOOLCHUNK setting in MR
+
+OOC sort_kv:
+  last merge could write to KV directly instead of last spool file?
+
+OOC: python
+  memsize and kv/align
+  does change to add() and copy() work as in C, C++
+  any changes?
+  hardwire kalign,valign = 1 ?
+
+OOC alignment:
+  ROUNDUP - if ptr is 32 bit - casting to (unsigned long) will not work?
+  I am assuming buf passed to KV::add(n,buf) is already aligned to 
+    kvalign - else the size counting will be bad?
+    comes from aggregate() malloc so should be OK unless kvalign is huge?
+
+OOC aggregate comm:
+  need to do it in a fixed-size mem block?
+    Karen says do it in 2 passes (or P passes if required
+    within page loop
+    if workspace is 50% bigger than one page, will be minor cost
+  better irregular for very large P?
+    should allow for MPI_All2allv()
+    will require extra memory to setup all2all data structs
+  might be able to modify Irregular, to where it flips
+    over to only comm with some procs if anyone overflows
+    so each would send full amount to some other procs
+    receiver tells those procs it is ready to receive full amount
+    then calls back to MR to process the stuff before doing more
+    might all be called from aggregate() driver
+
+OOC convert:
+  insure in-memory convert runs just as fast as before with little overhead
+
+OOC collate:
+  print stats on file sizes or read/write sizes when verb=2
+    for this and convert
+  need to allow for single KMV to overflow page
+  KMV would store 2 kinds of pages (regular and overflow)
+  or two kinds of KMVs (regular and overflow)
+  in overflow case would just be additional set of valuelens and values
+  reduce, compress would have to give them to app in different way
+    some kind of "iterator" than allows app to request one chunk
+    of values at a time
+  KMV itself needs to be flagged if it contains any overflow KMVs
+    b/c user will need to pass different reduce to the app?
+    or could it somehow be same reduce with different callback?
+    special flag sent to reduce to indicate it is an overflow KMV
+    
+add link to WWW page:
+  http://blog.doughellmann.com/2009/04/implementing-mapreduce-with.html
+
+-------------------------
+
+allow user compare function to be NULL
+  use strncmp() in that case
+  should work for strings and ints, not doubles
+
+a map or a reduce might want to emit a KV to a second MR
+  e.g. independent set vertices that are slowly accumulated in luby.cpp
+  so need some way to setup than MR to allow for kv->add calls
+  like an open-ended map_open()
+  do iterations
+  a final map_close()
+
+parallel Python error on my Mac
+  for wordfreq example on 2 procs
+  does not seem to call gather() in lib, so prints out 2 sets of results
+
+add timer setting so can tell where MR spends time
+  timer = 1 = 1-line summary with barriers
+  timer = 2 = no barriers, histogram of times across procs
+
+add a new map fn that just returns KV to a user map function which  
+  can then re-emit them
+  gets rid of need to do clone()
+  mr->map(mymap,ptr,addflag)
+  mymap(key,keybytes,value,valuebytes,kv,ptr)
+  do I want an itask arg?
+
+add print_keys, print_values, print_mvalues, print_kv, print_kmv  
+  funcs to lib
+  pass in C format string
+  pass in N = # of values to print, or could be looping args
+  do printing from inside in round-robin fashion across procs
+  could pass callback fn so myprint(key,keybytes,value,valuebytes)  
+    does the printing
+  way to do file or screen?
+    no way Python can pass in one of its file pointers
+
+change lib to delete KMV after KV is reduced, etc
+   check if would then get error in rmat w/out 2 clone calls
+
+break doc page into many pages
+
+can I get MPI_Comm_World form Pypar
+  if not ask the developer to expose this
+
+better all2all when working on very large # of procs
+  or use MPI_All2all()
+
+is hashing done inside MR efficient
+  or is it turning everything into NlogN
+  look at way memory is allocated
+
+need way to open a huge # of files
+  have user provide list of files in another file (one per line)
+  map inside MR opens it up and reads that file
+  passes back filename to user map function
+
+be more pro-active in deleting KV and KMV when out-of-date
+  or when other one has been created
+  so that MR only stores one at a time
+  would be better for memory and when copy it to new MR
+  would need to throw error or warn
+    if invoke a MR func when no KV or KMV exists
+
+more map variants?
+  e.g. file of filenames + char sep or string sep
+  one problem is lots of variants in user map function arg lists
+  could have one arg list (with no args)
+    have user callback to MR lib to get a filename or task ID or
+    ptr to chunk of bytes, etc
+
+work on Python wrapping of MR - see python dir
+
+decide on GPL/LGPL vs BSD, doc it
+provide Makefiles for Tbird
+doc wordfreq.py in examples
+
+new KMV:
+  do I really want/need to store length of each individual value in KMV
+    can't think of anyway to sort_multivalue unless I do
+    if don't then don't need to pass all lengths back to calling app
+
+irregular:
+  won't work on more than 2048 procs of RedStrom due to post recv issue
+  solution is to do irregular comm in 2 phases like Bruce suggested
+  have param for max # of post receives = rmax
+  then can run on rmax*rmax procs with 2-stage irregular
+
+myhash:
+  should it include a call-back data ptr for app?
+
+reduce()
+  master/slave load-balance
+    hard for reduce since KMV data is already distributed
+  could send multivalues to user appreduce() as iterator rather than list
+
+headers:
+  make sure CHUNK values are set to good values
+
+test:
+  have a test problem that calls all API funcs
+
+callbacks:
+  like Dean paper, could have a child map and reduce class
+    library has virtual parent
+  this might mess up C interface
+
+examples:
+  provide one that converts LAMMPS dump into plain trajectory files
+    entire trajectory per atom (binary or text?)
+  provide Makefiles for various platforms
+  FFT, Matvec ?
+  write a LAMMPS MSD and graph example
+  wordfreq:
+    make filesize grow as needed
+    check if strtok is as fast as what is in original MR paper
+  include Karen's matvec and pagerank in user dir
+
+Aidan has 2 problems:
+  produce 1000 plots of temp profile binning for each snapshot (map only)
+  Joann cluster analysis for ReaxFF, cluster finding is expensive
+
+Lee Ward says on RedStorm (Lustre scratch disk) can create a dir
+  with settings to allow big writes to happen efficiently, e.g. 100 Mb
+
+MapReduce is like a scatter/gather
+Hadoup is open-source MapReduce for clusters
+  being used at LANL for some data management
+  CMU does something with it
+Bill says Benner and Sears did MapReduce 20 years ago
+
+could I write a Pizza.py tool for doing MapReduce
+  don't think so, since needs Python/MPI
+  but if MapReduce lib was Python, then user map() and reduce()
+    could import dump to read a file, emit keys with it (Python yield?)
+  use dump tool to read one snapshot
+  write a single serial map function
+  write a single serial reduce function
+  tool provides the parallel operations (or serial)
+
+Matthew Knopley says FMM or k-means is like a MapReduce
+  ping Alex Gray at Ga Tech - it's his idea
