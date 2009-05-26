@@ -1,0 +1,61 @@
+"MapReduce-MPI WWW Site"_mws - "MapReduce-MPI Documentation"_md :c
+
+:link(mws,http://www.cs.sandia.gov/~sjplimp/mapreduce.html)
+:link(md,Manual.html)
+
+:line
+
+C++ Interface to the MapReduce-MPI Library :h3
+
+This section discusses how to call the MR-MPI library from a C++
+program and gives a description of all its methods and variable
+settings.  Use of the library from a "C program"_interface_c.html (or
+other hi-level language) or from "Python"_interface_python.html is
+discussed in other sections of the manual.
+
+All the library methods operate on two basic data structures stored
+within the MapReduce object, a KeyValue object (KV) and a
+KeyMultiValue object (KMV).  When running in parallel, these objects
+are stored in a distributed fashion across multiple processors.
+
+A KV is a collection of key/value pairs.  The same key may appear many
+times in the collection, associated with values which may or may not
+be the same.
+
+A KMV is also a collection of key/value pairs.  But each key in the
+KMV is unique, meaning it appears exactly once (see the clone() method
+for a possible exception).  The value associated with a KMV key is a
+concatenated list (a multi-value) of all the values associated with
+the same key in the original KV.
+
+More details about how KV and KMV objects are stored are given in the
+"Technical Details"_technical.html section.
+
+Here is an overview of how the various library methods operate on KV
+and KMV objects.  This is useful to understand, since this determines
+how the various operations can be chained together in your program:
+
+add(), KV -> KV, add pairs from one KV to another, serial
+aggregate(), KV -> KV, pairs are aggregated onto procs, parallel
+clone(), KV -> KMV, each KV pair becomes a KMV pair, serial
+collapse(), KV -> KMV, all KV pairs become one KMV pair, serial
+collate(), KV -> KMV, aggregate + convert, parallel
+compress(), KV -> KV, calls back to user program to compress duplicate keys, serial
+convert(), KV -> KMV, duplicate KV keys become one KMV key, serial
+gather(), KV -> KV, collect pairs on many procs to few procs, parallel
+map(), create or add to a KV, calls back to user program to generate pairs, serial
+reduce(), KMV -> KV, calls back to user program to process KMV pairs, serial
+scrunch(), KV -> KMV, gather + collapse, parallel
+sort_keys(), KV -> KV, calls back to user program to sort pairs by key, serial
+sort_values(), KV -> KV, calls back to user program to sort pairs by value, serial
+sort_multivalues(), KMV -> KMV, calls back to user program to sort multi-values within each pair, serial :tb()
+
+If a method creates a new KV or KMV object, the old one is deleted, if
+it existed.  The KV object is also deleted if a KMV object is
+produced, and vice versa.
+
+The methods flagged as "serial" perform their operation on
+the portion of a KV or KMV owned by an individual processor.  They
+involve only local computation (performed simultaneously on all
+processors) and no parallel comuunication.  The methods flagged as
+"parallel" involve communication between processors.

@@ -1,0 +1,172 @@
+<HTML>
+<CENTER><A HREF = "http://www.cs.sandia.gov/~sjplimp/mapreduce.html">MapReduce-MPI WWW Site</A> - <A HREF = "Manual.html">MapReduce-MPI Documentation</A> 
+</CENTER>
+
+
+
+
+<HR>
+
+<H3>Settings and defaults 
+</H3>
+<P>These are internal library variables that can be set by your program:
+</P>
+<PRE>mapstyle = 0 (chunk) or 1 (stride) or 2 (master/slave)
+verbosity = 0 (none) or 1 (summary) or 2 (histogrammed)
+timer = 0 (none) or 1 (summary) or 2 (histogrammed)
+memsize = N = number of Mbytes of memory
+keyalign = N = byte-alignement of keys
+valuealign = N = byte-alignement of values 
+</PRE>
+<P>They are set in the following manner from C++:
+</P>
+<PRE>MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+mr->verbosity = 1; 
+</PRE>
+<P>See the <A HREF = "interface_c.html">C interface</A> and <A HREF = "interface_python.html">Python
+interface</A> doc pages for how to set them from C
+and Python.
+</P>
+<P>As documented below, some of these settings can be changed at any
+time.  Others only have effect if they are changed before the
+MapReduce object begins to operate on KeyValue and KeyMultiValue
+objects.
+</P>
+<HR>
+
+<P>The <I>mapstyle</I> setting determines how the N map tasks are assigned to
+the P processors by the <A HREF = "method">map()</A>.
+</P>
+<P>A value of 0 means split the tasks into "chunks" so that processor 0
+is given tasks from 0 to N/P, proc 1 is given tasks from N/P to 2N/P,
+etc.  Proc P-1 is given tasks from N - N/P to N.
+</P>
+<P>A value of 1 means "strided" assignment, so proc 0 is given tasks
+0,P,2P,etc and proc 1 is given tasks 1,P+1,2P+1,etc and so forth.
+</P>
+<P>A value of 2 uses a "master/slave" paradigm for assigning tasks.  Proc
+0 becomes the "master"; the remaining processors are "slaves".  Each
+is given an initial task by the master and reports back when it is
+finished.  It is then assigned the next available task which continues
+until all tasks are completed.  This is a good choice if the CPU time
+required by various mapping tasks varies greatly, since it will tend
+to load-balance the work across processors.  Note however that proc 0
+performs no mapping tasks.
+</P>
+<P>This setting can be changed at any time.
+</P>
+<P>The default value for <I>mapstyle</I> is 0.
+</P>
+<HR>
+
+<P>The <I>verbosity</I> setting determines how much diagnostic output each
+library call prints to the screen.  A value of 0 means "none".  A
+value of 1 means a "summary" of the results across all processors is
+printed, typically a count of total key/value pairs and the memory
+required to store them.  A value of 2 prints the summary results and
+also a "histogram" of these quantities by processor, so that you can
+detect memory usage imbalance.
+</P>
+<P>This setting can be changed at any time.
+</P>
+<P>The default value for <I>verbosity</I> is 0.
+</P>
+<HR>
+
+<P>The <I>timer</I> setting prints out timing information for each call to the
+library.  A value of 0 means "none".  A value of 1 invokes an
+MPI_Barrier() at the beginning and end of the operation and prints the
+elapsed time, which will be the same on all processors.  A value of 2
+invokes no MPI_Barrier() calls and prints a one-line summary of timing
+results across all processors and also a "histogram" of the time on
+each processor, so that you can detect computational imbalance.
+</P>
+<P>This setting can be changed at any time.
+</P>
+<P>The default value for <I>timer</I> is 0.
+</P>
+<HR>
+
+<P>The <I>memsize</I> setting determines how much memory (in Mbytes) is used
+by the MapReduce object to perform its various operations.  It is a
+per-processor setting.  The minimium setting is 1 Mbytes; the maximum
+as 4096 = 4 Gbytes.  If the data owned by a processor exceeds this
+limit, then it writes its portion of the data to a file and reads it
+back in for subsequent operations.  These intermediate files are
+created on a per-processor basis and are deleted when the MapReduce
+object is deleted, e.g. at the end of the user program.
+</P>
+<P>The specificed chunk of memory is split into 4 pieces so that one or
+more copies of KeyValue and KeyMultiValue objects can exist at the
+same time as various operations are performed.  Thus if the default
+setting of 100 Mbytes is used, a KeyValue object will be created and
+written to a file in 25 Mbyte chunks, when a <A HREF = "map.html">map()</A> method
+is invoked.
+</P>
+<P>If you make this setting small, then processing a large data set will
+induce many small reads and writes to disk.  If you make it large,
+then the reads and writes will happen in large chunks, which generally
+yields better I/O performance.  However, past a few MBytes in size,
+there may be little gain in I/O performance.  the intermediate files
+are created in the directory from which you invoke your MapReduce
+program.  Depending on a parallel machine's disk system, this may mean
+many processors write/read simultaneously to the same directory.
+</P>
+<P>You should ensure this setting is no larger than the physical memory
+available to a processor, else memory allocations may fail or occur in
+slow virtual memory.  On a machine where many processors share the
+same memory, e.g a multicore node, you should insure the sum of the
+memory chunks for all processors does not exceed physical memory.
+Note that the <I>memsize</I> setting is a rough lower bound of the memory
+that will be used by various MapReduce operations.  You should
+probably be conservative by a factor of 2x to insure other smaller
+memory allocations do not exceed available memory.  See the <A HREF = "technical.html">Technical
+Details</A> for more discussion of this topic.
+</P>
+<P>This setting can only be changed before the first KeyValue or
+KeyMultiValue object is created by the MapReduce object.  If changed
+after that, it will have no effect.
+</P>
+<P>The default value for <I>memsize</I> is 100, meaning 100 Mbytes.
+</P>
+<HR>
+
+<P>The <I>keyalign</I> and <I>valuealign</I> settings determine the byte alignment
+of keys and values generated by the user program when they are stored
+inside the library and passed back to the user program.  A setting of
+N means N-byte alignment.  N must always be a power of two.
+</P>
+<P>As explained in <A HREF = "program.html">this section</A>, keys and values are
+variable-length strings of bytes.  The MR-MPI library knows nothing of
+their contents and simply treats them as contiguous chunks of bytes.
+<A HREF = "technical.html#align">This section</A> explains why it may be important
+to insure proper alignment of numeric data such as integers and
+floating point values.
+</P>
+<P>Because they are stored following integer lengths, keys are always at
+least 4-byte aligned.  A larger alignment value can be specified if
+desired.
+</P>
+<P>Because they follow keys, which may be arbitrary length (e.g. a
+string), values can be 1-byte aligned.  Note that if all keys are
+integers, then values will also be 4-byte aligned.  A larger alignment
+value can be specified if desired.
+</P>
+<P>When a multi-value is returned to the user program, e.g. by the
+callback of a <A HREF = "reduce.html">reduce()</A> method, only the first value in
+the multi-value is aligned to the <I>valuealign</I> setting.  Subsequent
+values are packed one after the other.  If all values are the same
+data-type, e.g. integers, then they will all have the same alignment.
+However if the values are mixed data types (strings and integers),
+then you may need to insure each value is aligned properly before
+using it in your myreduce() function.  See the <A HREF = "technical.html#align">Technical
+Details</A> for more discussion of data alignment.
+</P>
+<P>These settings can only be changed before the first KeyValue or
+KeyMultiValue object is created by the MapReduce object.  If changed
+after that, they will have no effect.
+</P>
+<P>The default value for <I>keyalign</I> and <I>valuealign</I> is 4, meaning 4-byte
+alignment of keys and values.
+</P>
+</HTML>

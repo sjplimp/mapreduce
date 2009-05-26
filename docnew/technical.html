@@ -1,0 +1,329 @@
+<HTML>
+<CENTER><A HREF = "http://www.cs.sandia.gov/~sjplimp/mapreduce.html">MapReduce-MPI WWW Site</A> - <A HREF = "Manual.html">MapReduce-MPI Documentation</A> 
+</CENTER>
+
+
+
+
+<HR>
+
+<H3>Technical Details 
+</H3>
+<P>This section provides additional details about using the MapReduce
+library and how it is implemented.  These topics are covered:
+</P>
+<UL><LI><A HREF = "#align">Length and byte-alignment of keys and values</A>
+<LI><A HREF = "#memory">Memory requirements for KeyValue and KeyMultiValue objects</A>
+<LI><A HREF = "#ooc">Out-of-core operation</A>
+<LI><A HREF = "#hash">Hash functions</A>
+<LI><A HREF = "#callback">Callback functions</A>
+<LI><A HREF = "#python">Python overhead</A>
+<LI><A HREF = "#error">Error messages</A> 
+</UL>
+<HR>
+
+<HR>
+
+<A NAME = "align"></A><H4>Length and byte-alignment of keys and values 
+</H4>
+<P>As explained in <A HREF = "program.html">this section</A>, keys and values are
+variable-length strings of bytes.  The MR-MPI library knows nothing of
+their contents and simply treats them as contiguous chunks of bytes.
+</P>
+<P>When you register a key and value in your <A HREF = "map.html">mymap()</A> or
+<A HREF = "compress.html">mycompress()</A> or <A HREF = "reduce.html">myreduce()</A> function via
+the KeyValue <A HREF = "kv_add.html">add()</A> method, you specify their lengths in
+bytes.  Keys and values are typically returned to your program for
+further processing or output, e.g. as arguments passed to your
+myreduce() function by the <A HREF = "reduce.html">reduce()</A> operation, as are
+their lengths.
+</P>
+<P>Keys and values are passed as character pointers to your functions
+where you may need to convert the pointer to an appropriate data type
+and then correctly interpret the byte string.  For example, either of
+these lines could be used:
+</P>
+<PRE>int *iptr = (int *) key;
+int myvalue = *((int *) key); 
+</PRE>
+<P>If the key or value is a variable-length text string, you may want to
+terminate it with a "0", and include the trailing "0" in the byte
+count, so that C-library-style string functions can later be invoked
+on it.  If a key or value is a complex data structure, your function
+must be able to decode it.
+</P>
+<P>A related issue with keys and values is the byte-alignment of integer
+or floating point values they include.  For example, it is usually a
+bad idea to store an 8-byte double such that it is mis-aligned with
+respect to an 8-byte boundary in memory.  The reason is that using a
+mis-aligned double in a computation may be slow.
+</P>
+<P>If your keys or values are homogeneous (e.g. all integers), you can
+use the <I>keyalign</I> and <I>valuealign</I> settings, discussed
+<A HREF = "settings.html">here</A>, to insure alignment of keys and values to
+desired byte boundaries.  Since this may incur extra memory costs, you
+should typically not make these settings larger than needed.
+</P>
+<P>Special care may need to be taken if your values are heterogeneous.
+This is because the MR-MPI library packs values one after the other
+into one long byte string when it is returned to your program as a
+multi-value, e.g. as an argument to the callback of a "reduce()"
+method.  Only the first value in the multi-value is aligned to the
+<I>valuealign</I> <A HREF = "settings.html">setting</A>.  Similarly, the
+<A HREF = "collapse.html">collapse()</A> method creates a multi-value that is
+sequence of key,value,key,value,etc from a KV.  If the keys are
+variable-length text strings and the values are integers, then the
+values will not be aligned on 4-byte boundaries.
+</P>
+<P>Here are two ideas that can be used to insure alignment of heterogeneous data:
+</P>
+<P>(a) Say your "value" is a 4-byte integer followed by an 8-byte double.
+You might think it can be stored and registered as 12 contiguous
+bytes.  However, this would likely mean the double is mis-aligned.
+One solution is to convert the integer to a double before storing both
+quantities in a 16-byte value string.  Another solution is to create a
+struct to store the integer and double and use the sizeof() function
+to determine the length of the struct and use that as the length of
+your "value".  The compiler should then guarantee proper alignment of
+each structure member.
+</P>
+<P>(b) Your callback function can always copy the bytes of a key or value
+into a local data structure with the proper alignment, e.g. using the
+C memcpy() function.  E.g. in the collapse example above, these lines
+of code:
+</P>
+<PRE>int myvalue;
+memcpy(&myvalue,&multivalue[offset],sizeof(int)); 
+</PRE>
+<P>would load the 4 bytes of a particular value (at location offset) in
+the multi-value into the local integer "myvalue", where it can then be
+used for computation.
+</P>
+<HR>
+
+<A NAME = "memory"></A><H4>Memory requirements for KeyValue and KeyMultiValue objects 
+</H4>
+<P>KeyValue and KeyMultiValue objects are described in <A HREF = "interface_c++.html">this
+section</A>.  A MapReduce object contains a single
+KeyValue object (KV) or a single KeyMultiValue object (KMV), depending
+on which methods you have invoked.
+</P>
+<P>The memory cost for storing key/value pairs in a KV is as follows.
+The key and value each have a byte length.  Two integers are also
+stored for the key and value length.  There may also be additional
+bytes added to align the key and value on byte boundaries in memory;
+see the <I>keyalign</I> and <I>valuealign</I> settings, discussed in <A HREF = "settings.html">this
+section</A>.  Thus the total size of a KV is the memory for
+the key/value datums plus 2 integers per pair plus any extra alignment
+bytes.
+</P>
+<P>Recall that a KMV contains key/multi-value pairs where the number of
+pairs is typically the number of unique keys in the original KV.  The
+memory cost for storing key/multi-value pairs in a KMV is as follows.
+The key and multi-value each have a byte length.  For the multi-value,
+this is the sum of individual value lengths.  Again, there may also be
+additional bytes added to align the key and multi-value on byte
+boundaries in memory; see the <I>keyalign</I> and <I>valuealign</I> settings,
+discussed in <A HREF = "settings.html">this section</A>.  Three integers are also
+stored: the key and multi-value length, and the number of values N in
+the multi-value.  An N-length integer array is also stored for the
+length of each value in the multi-value.  Thus the total size of a KMV
+is the memory for the key/multi-value datums plus 3 integers per pair
+plus 1 integer per value in the multi-value plus any extra alignment
+bytes.
+</P>
+<P>Note that memory for key data in a KMV is typically less than in the
+original KV, since the KMV only stores unique keys.  The memory for
+multi-value data is the same as the value data in the original KV,
+since all the KV values are contained in the multi-values.
+</P>
+<P>Note that in parallel, for a KV or KMV, each processor stores the
+above data only for the fraction of key/value pairs it generated
+during a <A HREF = "map.html">map()</A> operation or acquired during other
+operations, like a <A HREF = "collate.html">collate()</A>.  If this is imbalanced,
+one processor may own and process datums more than other processors.
+</P>
+<P>If KV or KMV data on a processor exceeds the <I>memsize</I> setting,
+discussed <A HREF = "settings.html">here</A>, then data is written to temporary disk
+files, on a per-processor basis.
+</P>
+<HR>
+
+<A NAME = "ooc"></A><H4>Out-of-core operation 
+</H4>
+<P>All the MR-MPI methods can be invoked on data sets larger than fit in
+the aggregate memory of the processors being used.  When the data on
+any single processor exceeds its local memory limit, as set by the
+<I>memsize</I> <A HREF = "settings.html">setting</A>, that processor will write data to a
+temporary disk file, and later read it back in.
+</P>
+<P>For many data sets and MapReduce operations, the out-of-core
+capability of the MR-MPI library means you can effectively process
+arbitrarily large data sets.  To first order, you can think of the
+<I>memsize</I> setting as a hard limit on the amount of memory a processor
+will use during any MR-MPI operation.  However, there are 4 caveats.
+The first 3 may be overcome in future versions of the MR-MPI library.
+</P>
+<P>(1) The <A HREF = "convert.html">convert()</A> portion of a <A HREF = "collate.html">collate()</A>
+operation performs an on-processor reorganization of the data in a KV
+to produce a KMV.  For large data sets this requires breaking up a
+disk file of data into smaller files, so that each holds data that
+will contribute to one chunk of the eventual KMV file.  Each smaller
+file requires an in-memory buffer to store data that is written/read
+to/from the file.  Since it is hard to predict how many smaller files
+will be needed, the allocation of these buffers is done on-the-fly,
+using extra memory beyond the <I>memsize</I> allocation.  If a large number
+of small files is needed, it's possible these extra buffers will
+exceed available memory, which will generate an error.
+</P>
+<P>(2) The <A HREF = "aggregate.html">aggregate()</A> portion of a
+<A HREF = "collate.html">collate()</A> operation migrates data between processors.
+The MPI_Send() and MPI_Recv() functions from the MPI library that do
+this, use additional memory behind the scenes for message buffering.
+Since the MR-MPI library pre-posts receives for large messages, this
+additional memory overhead should generally be small.  One exception
+is the case where one (or a few) processors will end up holding the
+majority of KV data at the end of the <A HREF = "aggregate.html">aggregate()</A>
+operation.  The processor needs to pre-allocate a large buffer to
+receive all the incoming data.  Once received, the data will be
+written to disk and the memory de-allocated.  But if the temporary
+receive buffer cannot be allocated out of the <I>memsize</I> chunk, it
+requires an extra allocation.  If this exceeds available memory, an
+error is generated.
+</P>
+<P>Note that if the data aggregation is so imbalanced that this memory
+issue arises, then even if the <A HREF = "aggregate.html">aggregate()</A> completes,
+it may mean subsequent MapReduce operations, such as a
+<A HREF = "reduce.html">reduce()</A>, will likely by load-imbalanced and perform
+poorly in a parallel sense.  So you may want to rethink how your
+key/value data is organized and partitioned across processors.
+</P>
+<P>(3) As discussed <A HREF = "settings.html">here</A>, a <I>memsize</I> setting of N Mbytes
+means that KV or KMV files are written in N/4 size chunks.  Currently,
+this requires that a single key/value or key/multi-value pair within a
+KV or KMV must fit in one chunk.  This is typically not an issue for
+key/value pairs, but may be for key/multi-value pairs.  For example,
+if <I>memsize</I> is the default 100 Mbytes, then a single key/multi-value
+pair cannot be larger than 25 Mbytes.  This includes the unique key
+and all its values, as well as the integer array of value lengths.
+Thus, in this example, even if values were of length 0, there could be
+no more than about 6.25 million of them associated with a single key
+(6.25 million integers for the length array).  If this limit is
+exceeded, an error is generated.
+</P>
+<P>(4) There are numerous additional small allocations of memory made by
+the MR-MPI library.  E.g. the out-of-core disk files are stored as
+"pages" of data.  Each page requires some in-memory bookkeeping so it
+can be written and read.  Thus if a file grows to 1000s of pages, the
+corresponding in-memory bookkeeping structure will also become larger.
+For normal <I>memsize</I> settings, e.g. the 100 Mbyte default, these
+additional in-memory allocations should be small compared to the
+<I>memsize</I> allocation.
+</P>
+<HR>
+
+<A NAME = "hash"></A><H4>Hash functions 
+</H4>
+<P>The <A HREF = "convert.html">convert()</A> and <A HREF = "collate.html">collate()</A> methods use
+a hash function to organize keys and find duplicates.  The MR-MPI
+library uses the hashlittle() function from lookup3.c, written by Bob
+Jenkins and available freely on the WWW.  It operates on
+arbitrary-length byte strings (a key) and produces a 32-bit integer
+hash value, a portion of which is used as a bucket index into a hash
+table.
+</P>
+<HR>
+
+<A NAME = "callback"></A><H4>Callback functions 
+</H4>
+<P>Several of the library methods take a callback function as an
+argument, meaning that function is called back to from the library
+when the method is invoked.  These functions are part of your
+MapReduce program and can perform any operation you wish on your data
+(or on no data), so long as they produce the appropriate information.
+E.g. they generate key/value pairs in the case of <A HREF = "map.html">map()</A> or
+<A HREF = "compress.html">compress()</A> or <A HREF = "reduce.html">reduce()</A>, or they hash a
+key to a processor in the case of <A HREF = "aggregate.html">aggregate()</A> or
+<A HREF = "collate.html">collate()</A>, or they compare two keys or values in the
+case of <A HREF = "sort_key.html">sort_keys()</A> or
+<A HREF = "sort_values.html">sort_values()</A>.
+</P>
+<P>The mymap() and myreduce() functions can perform simple operations or
+very complex, compute-intensive operations.  For example, if your
+parallel machine supports it, they could invoke another program or
+script to read/parse an input file or calculate some result.
+</P>
+<P>Note that in your program, a callback function CANNOT be a class
+method unless it is declared to be "static".  It can also be a
+non-class method, i.e. just a stand-alone function.  In either case,
+such a function cannot access class data.
+</P>
+<P>One way to get around this restriction is to define global variables
+that allow your function to access information it needs.
+</P>
+<P>Another way around this restriction is to use the feature provided by
+several of the library methods with callback function arguments which
+allow you to pass in a pointer to whatever data you wish.  This
+pointer is returned as an argument when the callback is made.  This
+pointer should be cast to (void *) when passed in, and your callback
+function can later cast it back to the appropriate data type.  For
+example, a class could set the pointer to an array or an internal data
+structure or the class itself as "(void *) this".  Specify a NULL if
+your function doesn't need the pointer.
+</P>
+<HR>
+
+<A NAME = "python"></A><H4>Python overhead 
+</H4>
+<P>Using the MR-MPI library from Python incurs two not-so-obvious
+overheads beyond the usual slowdown due to using an interpreted
+language.  First, Python objects used as keys and values are "pickled"
+and "unpickled" using the cPickle Python library when passed into and
+out of the C++ library.  This is because the library stores them as
+byte strings.  The pickling process serializes a Python object
+(e.g. an integer, a string, a tuple, or a list) into a byte stream in
+a way that it can be unpickled into the same Python object.
+</P>
+<P>The second overhead is due to the complexity of making a double
+callbacks between the library and your Python script.  I.e. the
+library calls back once to the user program which then calls back into
+the library.  Consider what happens during a map() operation when the
+library is called from a C++ program.
+</P>
+<UL><LI>the program calls the library map() method
+<LI>the library map() calls back to the user map() callback function
+<LI>the user map() calls the library add() method to register a key/value pair 
+</UL>
+<P>When doing this from Python there are 3 additional layers between the
+Python program and the library, the Python mrmpi class, an invisible C
+layer (created by ctypes), and the C interface on the C++ library
+itself.  Thus the callback operation proceeds as follows:
+</P>
+<UL><LI>the program calls the mrmpi class map() method
+<LI>the mrmpi class map() calls the invisible C map() function
+<LI>the invisible map() calls the C interface map() function
+<LI>the C interface map() calls the library map() method
+<LI>the library map() calls back to the invisible C callback function
+<LI>the invisible callback calls the mrmpi class callback method
+<LI>the mrmpi callback calls the user map() callback function
+<LI>the user map() calls the mrmpi class add() method to register a key/value pair
+<LI>the mrmpi class add() calls the invisible C add() function
+<LI>the invisible add() calls the C interface add() function
+<LI>the C interface add() calls the library add() method 
+</UL>
+<P>Thus 3 calls have become 11 due to the 3 additional layers data must
+pass through.  Some of these pass throughs are very simple, but others
+require massaging and copying of data, like the pickling/unpickling
+described above, which occurs in the mrmpi class methods.  I was
+somewhat surprised this double-callback sequence works as well and as
+transparently as it does - Python ctypes is amazing!
+</P>
+<HR>
+
+<A NAME = "error"></A><H4>Error messages 
+</H4>
+<P>The error messages printed out by the MR-MPI library are hopefully
+self-explanatory.  At some point they will be listed in these doc
+pages.
+</P>
+</HTML>

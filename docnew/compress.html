@@ -1,0 +1,74 @@
+<HTML>
+<CENTER><A HREF = "http://www.cs.sandia.gov/~sjplimp/mapreduce.html">MapReduce-MPI WWW Site</A> - <A HREF = "Manual.html">MapReduce-MPI Documentation</A> 
+</CENTER>
+
+
+
+
+<HR>
+
+<H3>MapReduce compress() method 
+</H3>
+<PRE>int MapReduce::compress(void (*mycompress)(char *, int, char *, int, int *, KeyValue *, void *), void *ptr) 
+</PRE>
+<P>This calls the compress() method of a MapReduce object, which
+compresses a KeyValue object with duplicate keys into a new KeyValue
+object, where each key appears once (on that processor) and has a
+single new value.  The new value is a combination of the values
+associated with that key in the original KeyValue object.  The
+mycompress() function you provide generates the new value.  The method
+returns the total number of key/value pairs in the new KeyValue
+object.
+</P>
+<P>This method is used to compress a large set of key/value pairs
+produced by the <A HREF = "map.html">map()</A> method into a smaller set before
+proceeding with the rest of a MapReduce operation, e.g. with a
+<A HREF = "collate.html">collate()</A> and <A HREF = "reduce.html">reduce()</A>.
+</P>
+<P>You can give this method a pointer (void *ptr) which will be returned
+to your mycompress() function.  See the <A HREF = "technical.html">Technical
+Details</A> section for why this can be useful.  Just
+specify a NULL if you don't need this.
+</P>
+<P>In this example the user function is called mycompress() and it must
+have the following interface, which is the same as that used by the
+<A HREF = "reduce.html">reduce()</A> method:
+</P>
+<PRE>void mycompress(char *key, int keybytes, char *multivalue, int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+</PRE>
+<P>A single key/multi-value pair is passed to your function from a
+temporary KeyMultiValue object created by the library.  That object
+creates a multi-value for each unique key in the KeyValue object which
+contains a list of the nvalues associated with that key.  Note that
+this is only the values on this processor, not across all processors.
+The char *multivalue argument is a pointer to the beginning of the
+multi-value which contains all nvalues, packed one after the other.
+The int *valuebytes argument is an array which stores the length of
+each value in bytes.  If needed, it can be used by your function to
+compute an offset into char *multivalue to where each individual value
+begins.  Your function is also passed a kv pointer to a new KeyValue
+object created and stored internally by the MapReduce object.
+</P>
+<P>Your mycompress() function should typicaly produce a single key/value
+pair which it registers with the MapReduce object by calling the
+<A HREF = "kv_add.html">add()</A> method of the KeyValue object.  The syntax for
+this call is described on the doc page for the KeyValue
+<A HREF = "kv_add.html">add()</A> methd.  For example, if the set of nvalues were
+integers, the compressed value might be the sum of those integers.
+</P>
+<P>See the <A HREF = "technical.html">Technical Details</A> section for details ont the
+byte-alignment of keys and values that are passed to your mycompress()
+function and on how to byte-align keys and values you register with
+the KeyValue <A HREF = "kv_add.html">add()</A> method.
+</P>
+<P>This method is an on-processor operation, requiring no communication.
+When run in parallel, each processor operates only on the key/value
+pairs it stores.  Thus you are NOT compressing all values associated
+with a particular key across all processors, but only those currently
+owned by one processor.
+</P>
+<HR>
+
+<P><B>Related methods</B>: <A HREF = "collate.html">collate()</A>
+</P>
+</HTML>
