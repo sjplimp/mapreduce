@@ -269,7 +269,11 @@ int main(int narg, char **args)
 
     LABEL label;
     label.count = 0;
+#ifdef NEW_OUT_OF_CORE
+    int nlocal = mrvert->kv->nkv;
+#else
     int nlocal = mrvert->kv->nkey;
+#endif
     MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
     label.nthresh -= nlocal;
 

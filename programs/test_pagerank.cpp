@@ -4,7 +4,7 @@
 //
 // Performs PageRank on a square matrix A using MapReduce library.
 //
-// Syntax: pagerank basefilename N [store_by_map 0/1]
+// Syntax: pagerank basefilename N
 //
 // Assumes matrix file format as follows:
 //     row_i  col_j  nonzero_value    (one line for each local nonzero)
@@ -372,16 +372,19 @@ int main(int narg, char **args)
   if (me == 0) {cout << "Here we go..." << endl; flush(cout);}
 
   // Default parameters
-  bool storage_aware = 0;
-  bool store_by_map = 0;
+  bool storage_aware = 1;
+  bool store_by_map = 1;
   double alpha = 0.8;
   double tolerance = 0.00001;
   int NumberOfPageranks = 1;
+#ifdef NEW_OUT_OF_CORE
+  int memsize = 100;
+#endif
 
   // Parse the command line.
   int ch;
   opterr = 0;
-  char *optstring = "a:t:n:g:s:";
+  char *optstring = "a:t:m:n:g:s:";
 
   while ((ch = getopt(narg, args, optstring)) != -1) {
     switch (ch) {
@@ -396,6 +399,16 @@ int main(int narg, char **args)
     case 'n':
       // Number of times to do pagerank
       NumberOfPageranks = atoi(optarg);
+      break;
+    case 'm':
+#ifdef NEW_OUT_OF_CORE
+      // Memsize value for out-of-core MapReduce.
+      memsize = atoi(optarg);
+#else
+      if (me == 0)
+        cout << "Invalid option -m for in-core MapReduce." << endl
+             << "Option -m will be ignored." << endl;
+#endif
       break;
     case 'g':
       // Algorithm to use:  pure_mapreduce or storage_aware
@@ -444,8 +457,11 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->verbosity = 0;
+  mr->verbosity = 2;
   mr->mapstyle = 1;  // mapstyle == 0 does not work for this code.
+#ifdef NEW_OUT_OF_CORE
+  mr->memsize = memsize;
+#endif
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
