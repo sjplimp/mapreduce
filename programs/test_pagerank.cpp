@@ -457,7 +457,7 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->verbosity = 2;
+  mr->verbosity = 1;
   mr->mapstyle = 1;  // mapstyle == 0 does not work for this code.
 #ifdef NEW_OUT_OF_CORE
   mr->memsize = memsize;
@@ -493,6 +493,7 @@ int main(int narg, char **args)
       cout << "      Avg Value:  " << xavg << endl;
     }
     simple_stats(mr, &A, x);
+    delete x;
   }
 
   // Clean up.
