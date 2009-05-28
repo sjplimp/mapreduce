@@ -388,7 +388,7 @@ void KeyValue::add(int n, char *buf,
 
     ptr = ptr_start;
     chunksize = ptr - ptr_begin;
-    if (chunksize == 0)
+    if (alignsize == 0 && chunksize == 0)
       error->one("Single KV pair exceeds KeyValue page size");
 
     memcpy(&page[alignsize],ptr_begin,chunksize);
