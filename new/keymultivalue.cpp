@@ -783,6 +783,7 @@ void KeyMultiValue::unseen2spools(int nnew, int nbits, int sortbit)
   }
 
   delete [] spools;
+  delete [] ksize;
 }
 
 /* ----------------------------------------------------------------------
