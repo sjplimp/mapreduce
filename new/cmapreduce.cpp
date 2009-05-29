@@ -230,6 +230,19 @@ int MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes)
   return mr->scrunch(numprocs,key,keybytes);
 }
 
+int MR_multivalue_blocks(void *MRptr)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->multivalue_blocks();
+}
+
+int MR_multivalue_block(void *MRptr, int iblock,
+			char **ptr_multivalue, int **ptr_valuesizes)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->multivalue_block(iblock,ptr_multivalue,ptr_valuesizes);
+}
+
 int MR_sort_keys(void *MRptr, int (*mycompare)(char *, int, char *, int))
 {
   MapReduce *mr = (MapReduce *) MRptr;

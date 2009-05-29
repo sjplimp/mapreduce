@@ -85,6 +85,11 @@ int MR_reduce(void *MRptr,
 			       int, int *, void *KVptr, void *APPptr),
 	      void *APPptr);
 int MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes);
+
+int MR_multivalue_blocks(void *MRptr);
+int MR_multivalue_block(void *MRptr, int iblock,
+			char **ptr_multivalue, int **ptr_valuesizes);
+
 int MR_sort_keys(void *MRptr, 
 		 int (*mycompare)(char *, int, char *, int));
 int MR_sort_values(void *MRptr,
