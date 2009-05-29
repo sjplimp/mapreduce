@@ -62,20 +62,22 @@ mis-aligned double in a computation may be slow.
 use the <I>keyalign</I> and <I>valuealign</I> settings, discussed
 <A HREF = "settings.html">here</A>, to insure alignment of keys and values to
 desired byte boundaries.  Since this may incur extra memory costs, you
-should typically not make these settings larger than needed.
+should not typically make these settings larger than needed.
 </P>
-<P>Special care may need to be taken if your values are heterogeneous.
-This is because the MR-MPI library packs values one after the other
-into one long byte string when it is returned to your program as a
-multi-value, e.g. as an argument to the callback of a "reduce()"
-method.  Only the first value in the multi-value is aligned to the
-<I>valuealign</I> <A HREF = "settings.html">setting</A>.  Similarly, the
-<A HREF = "collapse.html">collapse()</A> method creates a multi-value that is
-sequence of key,value,key,value,etc from a KV.  If the keys are
-variable-length text strings and the values are integers, then the
-values will not be aligned on 4-byte boundaries.
+<P>Special care may need to be taken if your values are heterogeneous,
+e.g. a mixture of strings and integers.  This is because the MR-MPI
+library packs values one after the other into one long byte string
+when it is returned to your program as a multi-value, e.g. as an
+argument to the callback of a <A HREF = "reduce.html">reduce()</A> method.  Only the
+first value in the multi-value is aligned to the <I>valuealign</I>
+<A HREF = "settings.html">setting</A>.  Similarly, the <A HREF = "collapse.html">collapse()</A>
+method creates a multi-value that is sequence of
+key,value,key,value,etc from a KV.  If the keys are variable-length
+text strings and the values are integers, then the values will not be
+aligned on 4-byte boundaries.
 </P>
-<P>Here are two ideas that can be used to insure alignment of heterogeneous data:
+<P>Here are two ideas that can be used to insure alignment of
+heterogeneous data:
 </P>
 <P>(a) Say your "value" is a 4-byte integer followed by an 8-byte double.
 You might think it can be stored and registered as 12 contiguous

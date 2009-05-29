@@ -75,10 +75,14 @@ email: sjplimp at sandia.gov, kddevin at sandia.gov.
   "MapReduce::collapse()"_collapse.html :l
   "MapReduce::collate()"_collate.html :l
   "MapReduce::compress()"_compress.html :l
+    "MapReduce::multivalue_blocks()"_reduce.html#reduce.html :ulb,l
+    "MapReduce::multivalue_block()"_reduce.html#reduce.html :l,ule
   "MapReduce::convert()"_convert.html :l
   "MapReduce::gather()"_gather.html :l
   "MapReduce::map()"_map.html :l
   "MapReduce::reduce()"_reduce.html :l
+    "MapReduce::multivalue_blocks()"_reduce.html#reduce.html :ulb,l
+    "MapReduce::multivalue_block()"_reduce.html#reduce.html :l,ule
   "MapReduce::scrunch()"_scrunch.html :l
   "MapReduce::sort_keys()"_sort_keys.html :l
   "MapReduce::sort_values()"_sort_values.html :l

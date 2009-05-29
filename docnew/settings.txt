@@ -141,11 +141,11 @@ their contents and simply treats them as contiguous chunks of bytes.
 to insure proper alignment of numeric data such as integers and
 floating point values.
 
-Because they are stored following integer lengths, keys are always at
+Because keys are stored following integer lengths, keys are always at
 least 4-byte aligned.  A larger alignment value can be specified if
 desired.
 
-Because they follow keys, which may be arbitrary length (e.g. a
+Because they follow keys, which may be of arbitrary length (e.g. a
 string), values can be 1-byte aligned.  Note that if all keys are
 integers, then values will also be 4-byte aligned.  A larger alignment
 value can be specified if desired.
@@ -155,9 +155,9 @@ callback of a "reduce()"_reduce.html method, only the first value in
 the multi-value is aligned to the {valuealign} setting.  Subsequent
 values are packed one after the other.  If all values are the same
 data-type, e.g. integers, then they will all have the same alignment.
-However if the values are mixed data types (strings and integers),
-then you may need to insure each value is aligned properly before
-using it in your myreduce() function.  See the "Technical
+However, if the values are mixed data types (e.g. strings and
+integers), then you may need to insure each value is aligned properly
+before using it in your myreduce() function.  See the "Technical
 Details"_technical.html#align for more discussion of data alignment.
 
 These settings can only be changed before the first KeyValue or

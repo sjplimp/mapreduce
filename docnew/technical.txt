@@ -59,20 +59,22 @@ If your keys or values are homogeneous (e.g. all integers), you can
 use the {keyalign} and {valuealign} settings, discussed
 "here"_settings.html, to insure alignment of keys and values to
 desired byte boundaries.  Since this may incur extra memory costs, you
-should typically not make these settings larger than needed.
+should not typically make these settings larger than needed.
 
-Special care may need to be taken if your values are heterogeneous.
-This is because the MR-MPI library packs values one after the other
-into one long byte string when it is returned to your program as a
-multi-value, e.g. as an argument to the callback of a "reduce()"
-method.  Only the first value in the multi-value is aligned to the
-{valuealign} "setting"_settings.html.  Similarly, the
-"collapse()"_collapse.html method creates a multi-value that is
-sequence of key,value,key,value,etc from a KV.  If the keys are
-variable-length text strings and the values are integers, then the
-values will not be aligned on 4-byte boundaries.
+Special care may need to be taken if your values are heterogeneous,
+e.g. a mixture of strings and integers.  This is because the MR-MPI
+library packs values one after the other into one long byte string
+when it is returned to your program as a multi-value, e.g. as an
+argument to the callback of a "reduce()"_reduce.html method.  Only the
+first value in the multi-value is aligned to the {valuealign}
+"setting"_settings.html.  Similarly, the "collapse()"_collapse.html
+method creates a multi-value that is sequence of
+key,value,key,value,etc from a KV.  If the keys are variable-length
+text strings and the values are integers, then the values will not be
+aligned on 4-byte boundaries.
 
-Here are two ideas that can be used to insure alignment of heterogeneous data:
+Here are two ideas that can be used to insure alignment of
+heterogeneous data:
 
 (a) Say your "value" is a 4-byte integer followed by an 8-byte double.
 You might think it can be stored and registered as 12 contiguous

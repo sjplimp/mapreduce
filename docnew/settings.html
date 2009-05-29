@@ -15,8 +15,8 @@
 verbosity = 0 (none) or 1 (summary) or 2 (histogrammed)
 timer = 0 (none) or 1 (summary) or 2 (histogrammed)
 memsize = N = number of Mbytes of memory
-keyalign = N = byte-alignement of keys
-valuealign = N = byte-alignement of values 
+keyalign = N = byte-alignment of keys
+valuealign = N = byte-alignment of values 
 </PRE>
 <P>They are set in the following manner from C++:
 </P>
@@ -143,11 +143,11 @@ their contents and simply treats them as contiguous chunks of bytes.
 to insure proper alignment of numeric data such as integers and
 floating point values.
 </P>
-<P>Because they are stored following integer lengths, keys are always at
+<P>Because keys are stored following integer lengths, keys are always at
 least 4-byte aligned.  A larger alignment value can be specified if
 desired.
 </P>
-<P>Because they follow keys, which may be arbitrary length (e.g. a
+<P>Because they follow keys, which may be of arbitrary length (e.g. a
 string), values can be 1-byte aligned.  Note that if all keys are
 integers, then values will also be 4-byte aligned.  A larger alignment
 value can be specified if desired.
@@ -157,9 +157,9 @@ callback of a <A HREF = "reduce.html">reduce()</A> method, only the first value 
 the multi-value is aligned to the <I>valuealign</I> setting.  Subsequent
 values are packed one after the other.  If all values are the same
 data-type, e.g. integers, then they will all have the same alignment.
-However if the values are mixed data types (strings and integers),
-then you may need to insure each value is aligned properly before
-using it in your myreduce() function.  See the <A HREF = "technical.html#align">Technical
+However, if the values are mixed data types (e.g. strings and
+integers), then you may need to insure each value is aligned properly
+before using it in your myreduce() function.  See the <A HREF = "technical.html#align">Technical
 Details</A> for more discussion of data alignment.
 </P>
 <P>These settings can only be changed before the first KeyValue or
