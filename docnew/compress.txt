@@ -13,7 +13,7 @@ int MapReduce::compress(void (*mycompress)(char *, int, char *, int, int *, KeyV
 
 int MapReduce::multivalue_blocks() :pre
 
-int MapReduce::multivalue_block(int iblock, char **pmultivalue, int **pvaluesizes) :pre
+int MapReduce::multivalue_block(int iblock, char **ptr_multivalue, int **ptr_valuesizes) :pre
 
 This calls the compress() method of a MapReduce object, which
 compresses a KeyValue object with duplicate keys into a new KeyValue
@@ -83,9 +83,11 @@ The call to multivalue_blocks() returns the number of blocks of values
 in the multi-value.  Each call to multivalue_block() retrieves one
 block of values.  The number of values in the block (nv in this case)
 is returned.  The multivalue and valuebytes arguments are pointers to
-a char * and int *, which will be set to point to the block of values
-and their lengths respectively, just as in the mycompress() callback
-itself when the values do not exceed available memory.
+a char * and int * (i.e. a char ** and int **), which will be set to
+point to the block of values and their lengths respectively, so they
+can then be used just as the multivalue and valuebytes arguments in
+the mycompress() callback itself (when the values do not exceed
+available memory).
 
 Note that in this example we are re-using (and thus overwriting) the
 original multivalue and valuebytes arguments as local variables.

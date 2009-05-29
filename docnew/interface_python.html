@@ -399,7 +399,8 @@ mr.kmv_stats(level)
 </PRE>
 <PRE>mr.mapstyle(value)             # set the mapstyle to value
 mr.verbosity(value)            # set the verbosity to value
-mr.timer(value)                # set the timer to value 
+mr.timer(value)                # set the timer to value
+mr.memsize(value)              # set the memsize to value 
 </PRE>
 <PRE>mr.add(key,value)                 # add single key and value
 mr.add_multi_static(keys,values)  # add list of keys and values
@@ -414,6 +415,11 @@ described <A HREF = "interface_c++.html">here</A>, except that for C++ methods w
 multiple interfaces (e.g. <A HREF = "map.html">map()</A>), there are multiple Python
 methods with slightly different names, similar to the <A HREF = "interface_c.html">C
 interface</A>.
+</P>
+<P>There is no set function the the <I>keyalign</I> and <I>valuealign</I>
+<A HREF = "settings.html">settings</A>.  These are hard-wired to 1 for
+the Python interface, since no other values make sense, due to
+the pickling/unpickling that is performed in key and value data.
 </P>
 <P>See the Python scripts in the examples directory for
 <A HREF = "examples.html">examples</A> of how these calls are made from a Python

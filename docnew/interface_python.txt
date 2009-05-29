@@ -396,7 +396,8 @@ mr.kmv_stats(level) :pre
 
 mr.mapstyle(value)             # set the mapstyle to value
 mr.verbosity(value)            # set the verbosity to value
-mr.timer(value)                # set the timer to value :pre
+mr.timer(value)                # set the timer to value
+mr.memsize(value)              # set the memsize to value :pre
 
 mr.add(key,value)                 # add single key and value
 mr.add_multi_static(keys,values)  # add list of keys and values
@@ -411,6 +412,11 @@ described "here"_interface_c++.html, except that for C++ methods with
 multiple interfaces (e.g. "map()"_map.html), there are multiple Python
 methods with slightly different names, similar to the "C
 interface"_interface_c.html.
+
+There is no set function the the {keyalign} and {valuealign}
+"settings"_settings.html.  These are hard-wired to 1 for
+the Python interface, since no other values make sense, due to
+the pickling/unpickling that is performed in key and value data.
 
 See the Python scripts in the examples directory for
 "examples"_examples.html of how these calls are made from a Python

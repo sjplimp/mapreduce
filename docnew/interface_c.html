@@ -83,6 +83,10 @@ int MR_map_mr_add(void *MRptr, void *MRptr2,
 	      void *APPptr);
 int MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes); 
 </PRE>
+<PRE>int MR_multivalue_blocks(void *MRptr);
+int MR_multivalue_block(void *MRptr, int iblock,
+			char **ptr_multivalue, int **ptr_valuesizes); 
+</PRE>
 <PRE>int MR_sort_keys(void *MRptr, 
 		 int (*mycompare)(char *, int, char *, int));
 int MR_sort_values(void *MRptr,
@@ -95,7 +99,10 @@ void MR_kmv_stats(void *MRptr, int level);
 </PRE>
 <PRE>void MR_set_mapstyle(void *MRptr, int value);
 void MR_set_verbosity(void *MRptr, int value);
-void MR_set_timer(void *MRptr, int value); 
+void MR_set_timer(void *MRptr, int value);
+void MR_set_memsize(void *MRptr, int value);
+void MR_set_keyalign(void *MRptr, int value);
+void MR_set_valuealign(void *MRptr, int value); 
 </PRE>
 <PRE>void MR_kv_add(void *KVptr, char *key, int keybytes, 
 	       char *value, int valuebytes);
