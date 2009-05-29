@@ -220,8 +220,10 @@ void KeyValue::add(char *key, int keybytes, char *value, int valuebytes)
   // page is full, write to disk
 
   if (alignsize + kvbytes > pagesize) {
-    if (alignsize == 0)
-      error->one("Single KV pair exceeds KeyValue page size");
+    if (alignsize == 0) {
+      printf("KeyValue pair size/limit: %d %d\n",kvbytes,pagesize);
+      error->one("Single KeyValue pair exceeds page size");
+    }
 
     create_page();
     write_page();
@@ -353,8 +355,8 @@ void KeyValue::add(int n, char *buf)
 void KeyValue::add(int n, char *buf,
 		   int keysize_buf, int valuesize_buf, int alignsize_buf)
 {
-  int keybytes,valuebytes;
-  int nkeychunk,keychunk,valuechunk,chunksize;
+  int keybytes,valuebytes,kvbytes,chunksize;
+  int nkeychunk,keychunk,valuechunk;
   char *ptr,*ptr_begin,*ptr_end,*ptr_start;
 
   // break data into chunks that fit into current and successive pages
@@ -378,6 +380,7 @@ void KeyValue::add(int n, char *buf,
       ptr = ROUNDUP(ptr,valignm1);
       ptr += valuebytes;
       ptr = ROUNDUP(ptr,talignm1);
+      kvbytes = ptr - ptr_start;
 
       if (ptr > ptr_end) break;
 
@@ -386,11 +389,13 @@ void KeyValue::add(int n, char *buf,
       valuechunk += valuebytes;
     }
 
+    if (kvbytes > pagesize) {
+      printf("KeyValue pair size/limit: %d %d\n",kvbytes,pagesize);
+      error->one("Single KeyValue pair exceeds page size");
+    }
+
     ptr = ptr_start;
     chunksize = ptr - ptr_begin;
-    if (alignsize == 0 && chunksize == 0)
-      error->one("Single KV pair exceeds KeyValue page size");
-
     memcpy(&page[alignsize],ptr_begin,chunksize);
 
     nkey += nkeychunk;

@@ -75,7 +75,9 @@ MapReduce::MapReduce(MPI_Comm caller)
   timer = 0;
   memsize = MBYTES;
   keyalign = valuealign = ALIGNKV;
+
   twolenbytes = 2*sizeof(int);
+  blockvalid = 0;
 
   allocated = 0;
   memblock = NULL;
@@ -116,6 +118,9 @@ MapReduce::MapReduce()
   memsize = MBYTES;
   keyalign = valuealign = ALIGNKV;
 
+  twolenbytes = 2*sizeof(int);
+  blockvalid = 0;
+
   allocated = 0;
   memblock = NULL;
   kv = NULL;
@@ -155,6 +160,9 @@ MapReduce::MapReduce(double dummy)
   timer = 0;
   memsize = MBYTES;
   keyalign = valuealign = ALIGNKV;
+
+  twolenbytes = 2*sizeof(int);
+  blockvalid = 0;
 
   allocated = 0;
   memblock = NULL;
@@ -582,18 +590,32 @@ int MapReduce::compress(void (*appcompress)(char *, int, char *,
       nvalues = *((int *) ptr);
       ptr += sizeof(int);
 
-      valuesizes = (int *) ptr;
-      ptr += nvalues*sizeof(int);
+      if (nvalues > 0) {
+	valuesizes = (int *) ptr;
+	ptr += nvalues*sizeof(int);
 
-      ptr = ROUNDUP(ptr,kalignm1);
-      key = ptr;
-      ptr += keybytes;
-      ptr = ROUNDUP(ptr,valignm1);
-      multivalue = ptr;
-      ptr += mvaluebytes;
-      ptr = ROUNDUP(ptr,talignm1);
+	ptr = ROUNDUP(ptr,kalignm1);
+	key = ptr;
+	ptr += keybytes;
+	ptr = ROUNDUP(ptr,valignm1);
+	multivalue = ptr;
+	ptr += mvaluebytes;
+	ptr = ROUNDUP(ptr,talignm1);
+	
+	appcompress(key,keybytes,multivalue,nvalues,valuesizes,kv,appptr);
 
-      appcompress(key,keybytes,multivalue,nvalues,valuesizes,kv,appptr);
+      } else {
+	nblock_kmv = -nvalues;
+	
+	ptr = ROUNDUP(ptr,kalignm1);
+	key = ptr;
+
+	block_header_page = ipage;
+	blockvalid = 1;
+	appcompress(key,keybytes,NULL,nvalues,(int *) this,kv,appptr);
+	blockvalid = 0;
+	ipage += nblock_kmv;
+      }
     }
   }
 
@@ -1353,18 +1375,32 @@ int MapReduce::reduce(void (*appreduce)(char *, int, char *,
       nvalues = *((int *) ptr);
       ptr += sizeof(int);
 
-      valuesizes = (int *) ptr;
-      ptr += nvalues*sizeof(int);
+      if (nvalues > 0) {
+	valuesizes = (int *) ptr;
+	ptr += nvalues*sizeof(int);
+	
+	ptr = ROUNDUP(ptr,kalignm1);
+	key = ptr;
+	ptr += keybytes;
+	ptr = ROUNDUP(ptr,valignm1);
+	multivalue = ptr;
+	ptr += mvaluebytes;
+	ptr = ROUNDUP(ptr,talignm1);
+	
+	appreduce(key,keybytes,multivalue,nvalues,valuesizes,kv,appptr);
 
-      ptr = ROUNDUP(ptr,kalignm1);
-      key = ptr;
-      ptr += keybytes;
-      ptr = ROUNDUP(ptr,valignm1);
-      multivalue = ptr;
-      ptr += mvaluebytes;
-      ptr = ROUNDUP(ptr,talignm1);
+      } else {
+	nblock_kmv = -nvalues;
+	
+	ptr = ROUNDUP(ptr,kalignm1);
+	key = ptr;
 
-      appreduce(key,keybytes,multivalue,nvalues,valuesizes,kv,appptr);
+	block_header_page = ipage;
+	blockvalid = 1;
+	appreduce(key,keybytes,NULL,nvalues,(int *) this,kv,appptr);
+	blockvalid = 0;
+	ipage += nblock_kmv;
+      }
     }
   }
 
@@ -1406,6 +1442,43 @@ int MapReduce::scrunch(int numprocs, char *key, int keybytes)
   int nkeyall;
   MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
   return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
+   query # of blocks in a single KMV that spans multiple pages
+   called from user myreduce() or mycompress() function
+------------------------------------------------------------------------- */
+
+int MapReduce::multivalue_blocks()
+{
+  if (!blockvalid) error->one("Invalid call to multivalue_block()");
+  return nblock_kmv;
+}
+
+/* ----------------------------------------------------------------------
+   query info for 1 block of a single KMV that spans multiple pages
+   called from user myreduce() or mycompress() function
+------------------------------------------------------------------------- */
+
+int MapReduce::multivalue_block(int iblock, 
+				char **pmultivalue, int **pvaluesizes)
+{
+  if (!blockvalid) error->one("Invalid call to multivalue_blocks()");
+  if (iblock < 0 || iblock >= nblock_kmv)
+    error->one("Invalid call to multivalue_blocks()");
+
+  char *page;
+  kmv->request_info(&page);
+  kmv->request_page(block_header_page+iblock+1,0);
+
+  int nvalue = *((int *) page);
+  *pvaluesizes = (int *) &page[sizeof(int)];
+
+  char *ptr = &page[(nvalue+1)*sizeof(int)];
+  ptr = ROUNDUP(ptr,valignm1);
+  *pmultivalue = ptr;
+
+  return nvalue;
 }
 
 /* ----------------------------------------------------------------------
@@ -1490,6 +1563,10 @@ int MapReduce::sort_multivalues(int (*appcompare)(char *, int, char *, int))
       ptr += sizeof(int);
       nvalues = *((int *) ptr);
       ptr += sizeof(int);
+
+      if (nvalues < 0)
+	error->one("Cannot yet sort multivalues for a "
+		   "multiple block KeyMultiValue");
 
       valuesizes = (int *) ptr;
       ptr += nvalues*sizeof(int);

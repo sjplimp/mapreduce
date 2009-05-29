@@ -73,6 +73,10 @@ class MapReduce {
 		      int, int *, class KeyValue *, void *),
 	     void *);
   int scrunch(int, char *, int);
+
+  int multivalue_blocks();
+  int multivalue_block(int, char **, int **);
+
   int sort_keys(int (*)(char *, int, char *, int));
   int sort_values(int (*)(char *, int, char *, int));
   int sort_multivalues(int (*)(char *, int, char *, int));
@@ -114,13 +118,17 @@ class MapReduce {
   int talign;                      // alignment of entire KV or KMV pair
   int kalignm1,valignm1,talignm1;  // alignments-1 for masking
 
-  typedef int (CompareFunc)(char *, int, char *, int);  // used by sorts
+  // sorting
+
+  typedef int (CompareFunc)(char *, int, char *, int);
   CompareFunc *compare;
 
-  char *sptr;              // used by sorts
+  char *sptr;
   int *soffset,*slength;
 
-  struct FileMap {       // used by file map()
+  // file map()
+
+  struct FileMap {
     int sepwhich;
     char sepchar;
     char *sepstr;
@@ -136,6 +144,12 @@ class MapReduce {
   };
   FileMap filemap;
 
+  // reduce(), compress() of multi-block KMVs
+
+  int blockvalid;
+  int nblock_kmv;
+  int block_header_page;
+  
   // private functions
 
   void copy_kv(KeyValue *);

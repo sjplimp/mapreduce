@@ -212,9 +212,11 @@ void KeyMultiValue::add(char *key, int keybytes, char *value, int valuebytes)
   // page is full, write to disk
   
   if (alignsize + kmvbytes > pagesize) {
-    if (alignsize == 0)
-      error->one("Single KMV pair exceeds KeyMultiValue page size");
-    
+    if (alignsize == 0) {
+      printf("KeyMultiValue pair size/limit: %d %d\n",kmvbytes,pagesize);
+      error->one("Single KeyValue pair exceeds KeyMultiValue page size");
+    }
+
     create_page();
     write_page();
     npage++;
@@ -300,9 +302,11 @@ void KeyMultiValue::collapse(char *key, int keybytes, KeyValue *kv)
   totalsize += ksize_kv + vsize_kv;
   totalsize = roundup(totalsize,talign);
 
-  if (totalsize > pagesize) 
-    error->one("Single KMV pair exceeds KeyMultiValue page size");
-    
+  if (totalsize > pagesize) {
+    printf("KeyMultiValue pair size/limit: %d %d\n",totalsize,pagesize);
+    error->one("Single KeyMultiValue pair exceeds KeyMultiValue page size");
+  }
+
   // create memory layout for one large KMV
 
   int *intptr = (int *) page;
@@ -372,7 +376,7 @@ void KeyMultiValue::collapse(char *key, int keybytes, KeyValue *kv)
 
 void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 {
-  int i,ichunk,spoolflag,spooled,fcount,nnew,nbits;
+  int i,ichunk,spoolflag,spooled,nnew,nbits;
   char sfile[32];
 
   maxpartition = PARTITIONCHUNK;
@@ -386,7 +390,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
   chunks = NULL;
   nchunk = 0;
 
-  fcount = 0;
+  int fcount = 0;
 
   // partition memunique to hold unique keys
   // each unique key requires:
@@ -541,20 +545,24 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
     // multiple sets induce further splitting of partition to sub-spool files
 
     nset = 1;
-    sets[0].first = 0;
-    sets[0].last = nunique-1;
     sets[0].kv = partitions[ipartition].kv;
     sets[0].sp = partitions[ipartition].sp;
 
     for (int iset = 0; iset < nset; iset++) {
 
-      // loop over set of unique keys to structure a KMV page
-      // for iset = 0, unique2kmv may reset nset if multiple pages triggered
+      // loop over set of unique keys to structure a single KMV page
+      // if iset = 0, loop over all unique keys and create sets
+      // if set is an extended KMV pair, structure just its header page
+      // if iset > 0 and not extended:
+      //   loop over just its unique keys to structure single KMV page
 
-      spooled = unique2kmv(iset);
+      spooled = 0;
+      if (iset == 0) spooled = unique2kmv_all();
+      if (sets[iset].extended) unique2kmv_extended(iset);
+      else if (iset > 0) unique2kmv_set(iset);
 
       // multiple KMV pages induced by scan of 1st set = all uniques
-      // split partition KVs into sub-spools, one per set = KMV page
+      // unique2spools splits KV partition into one sub-spool per set
 
       if (spooled) {
 	chunk_allocate(nset+1);
@@ -573,10 +581,12 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 	delete partitions[ipartition].sp;
       }
 
-      // scan KV pairs in a set to populate one KMV page with KV values
-
+      // scan KV pairs in a set to populate KMV page(s) with KV values
+      // it set is an extended KMV pair, multiple pages will be output
+      
       if (sets[iset].sp) sets[iset].sp->assign(chunks[0]);
-      kv2kmv(iset);
+      if (!sets[iset].extended) kv2kmv(iset);
+      else kv2kmv_extended(iset);
       delete sets[iset].sp;
 
       // write KMV page to disk unless very last one
@@ -668,6 +678,10 @@ int KeyMultiValue::kv2unique(int ipartition, int spoolflag)
       if (ikey < 0) {
 	if (spooled || 
 	    nunique == maxunique || ukeyoffset+keybytes > maxukeys) {
+	  if (nunique == 0) {
+	    printf("Key size/limit: %d %d\n",keybytes,maxukeys);
+	    error->one("Single key exceeds KeyMultiValue hash page");
+	  }
 	  if (spoolflag == 0) error->one("Internal error in kv2unique");
 	  spooled = 1;
 	  unseen->add(ptr-ptr_start,ptr_start);
@@ -787,35 +801,34 @@ void KeyMultiValue::unseen2spools(int nnew, int nbits, int sortbit)
 }
 
 /* ----------------------------------------------------------------------
-   scan subset of unique keys to structure a single KMV page
-   scan of set 0 is over entire list of unique keys
-   if mapping exceeds one KMV page:
-     only structure the first page
-     nset = # of pages, redo first/last bounds
+   scan all unique keys to identify subsets to spool
+   nset = # of subsets, each with first/last bounds
+   if one KMV pair exceeds single page:
+     flag its set as extended pair even if it is the only set
+   also structure the first KMV page for iset 0 unless it is extended
    return 1 if multiple pages induced, else 0
 ------------------------------------------------------------------------- */
 
-int KeyMultiValue::unique2kmv(int iset)
+int KeyMultiValue::unique2kmv_all()
 {
+  int onesize;
   char *iptr,*nvptr,*kptr,*vptr;
   int *intptr;
 
-  int spooled = 0;
-
-  // counts for current KMV page
+  // counts for first KMV page for iset 0
 
   nkey = nvalue = keysize = valuesize = 0;
 
-  // loop over subset of unique keys
-  // when spooling, store index of spool file in uniques[].nvalue
-  // this works b/c uniques[].nvalue = 0 for 1st page
+  // loop over all unique keys
+  // when forced to spool, store index of spool file in uniques[].iset
+
+  sets[nset-1].first = 0;
+  sets[nset-1].extended = 0;
 
   char *ptr = page;
-  int first = sets[iset].first;
-  int last = sets[iset].last;
   int totalsize = 0;
 
-  for (int i = first; i <= last; i++) {
+  for (int i = 0; i < nunique; i++) {
     iptr = ptr;
     nvptr = iptr + threelenbytes;
     kptr = nvptr + uniques[i].nvalue*sizeof(int);
@@ -824,33 +837,82 @@ int KeyMultiValue::unique2kmv(int iset)
     vptr = ROUNDUP(vptr,valignm1);
     ptr = vptr + uniques[i].mvbytes;
     ptr = ROUNDUP(ptr,talignm1);
-    totalsize += ptr - iptr;
-    
-    if (totalsize > pagesize) {
-      spooled = 1;
-      if (iset) error->one("Internal error in unique2kmv");
-      if (nset == 1) alignsize = totalsize - (ptr-iptr);
-      totalsize = ptr - iptr;
-      if (totalsize > pagesize) {
-	printf("KMV size: %d %d %d\n",
-	       uniques[i].keybytes,uniques[i].mvbytes,uniques[i].nvalue);
-	error->one("Single KMV pair exceeds KeyMultiValue page size");
+    onesize = ptr - iptr;
+
+    // single pair exceeds page size
+    // if current set is just this pair, close it as extended set
+    // else close it as regular set, add new set as extended set
+    // finish with opening new set if more pairs exist
+
+    if (onesize > pagesize) {
+      if (i == sets[nset-1].first) {
+	sets[nset-1].last = i;
+	sets[nset-1].extended = 1;
+	uniques[i].iset = nset-1;
+
+      } else {
+	sets[nset-1].last = i-1;
+
+	if (nset == maxset) {
+	  maxset += SETCHUNK;
+	  sets = (Set *) memory->srealloc(sets,maxset*sizeof(Set),"KMV:sets");
+	}
+	nset++;
+
+	sets[nset-1].first = i;
+	sets[nset-1].last = i;
+	sets[nset-1].extended = 1;
+	uniques[i].iset = nset-1;
       }
 
+      if (i < nunique-1) {
+	if (nset == maxset) {
+	  maxset += SETCHUNK;
+	  sets = (Set *) memory->srealloc(sets,maxset*sizeof(Set),"KMV:sets");
+	}
+	nset++;
+
+	sets[nset-1].first = i+1;
+	sets[nset-1].extended = 0;
+      }
+
+      totalsize = 0;
+      continue;
+    }
+
+    // this pair makes totalsize exceed pagesize
+    // close set as regular set, add new set with this pair as first one
+
+    totalsize += onesize;
+    
+    if (totalsize > pagesize) {
       sets[nset-1].last = i-1;
+
       if (nset == maxset) {
 	maxset += SETCHUNK;
 	sets = (Set *) memory->srealloc(sets,maxset*sizeof(Set),"KMV:sets");
       }
-      sets[nset++].first = i;
+      nset++;
+
+      sets[nset-1].first = i;
+      sets[nset-1].extended = 0;
       uniques[i].iset = nset-1;
 
-    } else if (spooled == 0) {
+      totalsize = onesize;
+      continue;
+    }
+
+    // this pair can be added to current set
+    // if first page, induce structure and modify unique settings accordingly
+    // else just flag unique with set ID
+
+    if (nset == 1) {
       nkey++;
       nvalue += uniques[i].nvalue;
       keysize += uniques[i].keybytes;
       valuesize += uniques[i].mvbytes;
-      
+      alignsize = totalsize;
+
       intptr = (int *) iptr;
       *(intptr++) = uniques[i].keybytes;
       *(intptr++) = uniques[i].mvbytes;
@@ -867,10 +929,95 @@ int KeyMultiValue::unique2kmv(int iset)
     } else uniques[i].iset = nset-1;
   }
 
-  if (spooled == 0) alignsize = totalsize;
   sets[nset-1].last = nunique-1;
 
-  return spooled;
+  if (nset == 1) return 0;
+  return 1;
+}
+
+/* ----------------------------------------------------------------------
+   structure a KMV page from a set with a single extended KMV pair
+   only header page is created here, content pages will be created in kv2kmv()
+------------------------------------------------------------------------- */
+
+void KeyMultiValue::unique2kmv_extended(int iset)
+{
+  char *iptr,*nvptr,*kptr,*vptr;
+  int *intptr;
+
+  int index = sets[iset].first;
+
+  char *ptr = page;
+
+  iptr = ptr;
+  nvptr = iptr + threelenbytes;
+  kptr = ROUNDUP(nvptr,kalignm1);
+  ptr = kptr + uniques[index].keybytes;
+
+  intptr = (int *) iptr;
+  *(intptr++) = uniques[index].keybytes;
+  *(intptr++) = uniques[index].mvbytes;
+  *(intptr++) = 0;
+
+  memcpy(kptr,&ukeys[uniques[index].keyoffset],uniques[index].keybytes);
+
+  nkey = 1;
+  nvalue = uniques[index].nvalue;
+  keysize = uniques[index].keybytes;
+  valuesize = uniques[index].mvbytes;
+  alignsize = ptr - iptr;
+}
+
+/* ----------------------------------------------------------------------
+   scan subset of unique keys to structure a single KMV page
+------------------------------------------------------------------------- */
+
+void KeyMultiValue::unique2kmv_set(int iset)
+{
+  char *iptr,*nvptr,*kptr,*vptr;
+  int *intptr;
+
+  // counts for current KMV page
+
+  nkey = nvalue = keysize = valuesize = 0;
+
+  // loop over subset of unique keys
+
+  char *ptr = page;
+  int first = sets[iset].first;
+  int last = sets[iset].last;
+  int totalsize = 0;
+
+  for (int i = first; i <= last; i++) {
+    iptr = ptr;
+    nvptr = iptr + threelenbytes;
+    kptr = nvptr + uniques[i].nvalue*sizeof(int);
+    kptr = ROUNDUP(kptr,kalignm1);
+    vptr = kptr + uniques[i].keybytes;
+    vptr = ROUNDUP(vptr,valignm1);
+    ptr = vptr + uniques[i].mvbytes;
+    ptr = ROUNDUP(ptr,talignm1);
+    totalsize += ptr - iptr;
+
+    intptr = (int *) iptr;
+    *(intptr++) = uniques[i].keybytes;
+    *(intptr++) = uniques[i].mvbytes;
+    *(intptr++) = uniques[i].nvalue;
+    
+    memcpy(kptr,&ukeys[uniques[i].keyoffset],uniques[i].keybytes);
+
+    nkey++;
+    nvalue += uniques[i].nvalue;
+    keysize += uniques[i].keybytes;
+    valuesize += uniques[i].mvbytes;
+
+    uniques[i].soffset = nvptr - page;
+    uniques[i].voffset = vptr - page;
+    uniques[i].nvalue = 0;
+    uniques[i].mvbytes = 0;
+  }
+
+  alignsize = totalsize;
 }
 
 /* ----------------------------------------------------------------------
@@ -985,6 +1132,136 @@ void KeyMultiValue::kv2kmv(int iset)
 }
 
 /* ----------------------------------------------------------------------
+   scan all KV in single extended KMV pair to populate multiple KMV pages
+   first write out header page created by unique2kmv_extended()
+   write out all content pages except last one which caller will write
+   when done, must rewrite nblock value in header page
+------------------------------------------------------------------------- */
+
+void KeyMultiValue::kv2kmv_extended(int iset)
+{
+  int i,nkey_kv,keybytes,valuebytes;
+  int kdummy,vdummy,adummy;
+  char *ptr,*key,*value;
+
+  // write out header page
+
+  create_page();
+  write_page();
+  npage++;
+
+  // zero counters for content pages
+
+  nkey = 0;
+  nvalue = 0;
+  keysize = 0;
+  valuesize = 0;
+
+  // split KMV page in two for valuesizes and values
+  // maxvalue = max # of values the first half can hold
+  // halfsize = byte size of second half
+  // leave leading int in first half for blocksize
+
+  int halfsize = pagesize/2;
+  int maxvalue = halfsize/sizeof(int) - 1;
+  int *valuesizes = (int *) &page[sizeof(int)];
+  char *multivalue = &page[halfsize];
+
+  // loop over KV pairs
+  // add them to two half pages one block at a time
+  // write out 2 blocks when either is full
+  // no need to hash keys since all are same ikey in uniques
+
+  int ikey = sets[iset].first;
+  int nblock = 0;
+  int ncount = 0;
+  int voffset = 0;
+
+  KeyValue *kv = sets[iset].kv;
+  Spool *sp = sets[iset].sp;
+
+  int npage_kv;
+  char *page_kv;
+  if (kv) npage_kv = kv->request_info(&page_kv);
+  else npage_kv = sp->request_info(&page_kv);
+
+  for (int ipage = 0; ipage < npage_kv; ipage++) {
+    if (kv) nkey_kv = kv->request_page(ipage,kdummy,vdummy,adummy);
+    else nkey_kv = sp->request_page(ipage);
+    
+    ptr = page_kv;
+	
+    for (i = 0; i < nkey_kv; i++) {
+      keybytes = *((int *) ptr);
+      valuebytes = *((int *) (ptr+sizeof(int)));;
+	  
+      ptr += twolenbytes;
+      ptr = ROUNDUP(ptr,kalignm1);
+      key = ptr;
+      ptr += keybytes;
+      ptr = ROUNDUP(ptr,valignm1);
+      value = ptr;
+      ptr += valuebytes;
+      ptr = ROUNDUP(ptr,talignm1);
+
+      // block limit exceeded, write out 2 pages
+
+      if (ncount == maxvalue || voffset + valuebytes > halfsize) {
+	if (ncount == 0) {
+	  printf("Value size/limit: %d %d\n",valuebytes,halfsize);
+	  error->one("Single value exceeds KeyMultiValue page size");
+	}
+
+	*((int *) page) = ncount;
+	alignsize = (ncount+1)*sizeof(int);
+	create_page();
+	write_page();
+	npage++;
+
+	alignsize = voffset;
+	multivalue = page;
+	create_page();
+	write_page();
+	npage++;
+	page = multivalue;
+
+	nblock++;
+	ncount = 0;
+	voffset = 0;
+      }
+
+      memcpy(&multivalue[voffset],value,valuebytes);
+      voffset += valuebytes;
+      valuesizes[ncount++] = valuebytes;
+    }
+  }
+
+  // write out 2 pages for last partially filled block
+
+  *((int *) page) = ncount;
+  alignsize = (ncount+1)*sizeof(int);
+  create_page();
+  write_page();
+  npage++;
+    
+  alignsize = voffset;
+  multivalue = page;
+  create_page();
+  write_page();
+  npage++;
+  page = multivalue;
+  
+  nblock++;
+
+  // rewrite nblock count into header page
+
+  int ipage = npage - 2*nblock;
+  long fileoffset = pages[ipage].fileoffset + twolenbytes;
+  fseek(fp,fileoffset,SEEK_SET);
+  fwrite(&nblock,sizeof(int),1,fp);
+}
+
+/* ----------------------------------------------------------------------
    allocate chunks of memory for Spool files
 ------------------------------------------------------------------------- */
 
@@ -1003,7 +1280,8 @@ void KeyMultiValue::chunk_allocate(int n)
    find a Unique in ibucket that matches key
    return index of Unique
    if cannot find key, return -1
-   also set last = -1 if bucket was empty, last = if not found, also update bucket and next ptrs for key to be added
+   if bucket was empty, set last = -1
+   else set last = index of last key in the bucket
 ------------------------------------------------------------------------- */
 
 int KeyMultiValue::find(int ibucket, char *key, int keybytes, int &last)
@@ -1076,7 +1354,7 @@ void KeyMultiValue::create_page()
 
 /* ----------------------------------------------------------------------
    write in-memory page to disk
-   do a seek since may be overwriting a previous partial page
+   do a seek since may be overwriting a previous page for extended KMV
 ------------------------------------------------------------------------- */
 
 void KeyMultiValue::write_page()
@@ -1095,7 +1373,7 @@ void KeyMultiValue::write_page()
 
 /* ----------------------------------------------------------------------
    read ipage from disk
-   do a seek since may be reading last page
+   do a seek since may be reading arbitrary page for extended KMV
 ------------------------------------------------------------------------- */
 
 void KeyMultiValue::read_page(int ipage, int writeflag)

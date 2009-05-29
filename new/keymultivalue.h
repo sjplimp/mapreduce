@@ -129,6 +129,7 @@ class KeyMultiValue {
 
   struct Set {
     int first,last;
+    int extended;
     class KeyValue *kv;
     class Spool *sp;
   };
@@ -148,9 +149,12 @@ class KeyMultiValue {
 
   int kv2unique(int, int);
   void unseen2spools(int, int, int);
-  int unique2kmv(int);
+  int unique2kmv_all();
+  void unique2kmv_extended(int);
+  void unique2kmv_set(int);
   void unique2spools(int);
   void kv2kmv(int);
+  void kv2kmv_extended(int);
   void chunk_allocate(int);
 
   int hash(char *, int);

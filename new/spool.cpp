@@ -126,7 +126,7 @@ void Spool::add(int nbytes, char *entry)
     nentry = size = 0;
 
     if (nbytes > pagesize) {
-      printf("Spool size: %d %d\n",nbytes,pagesize);
+      printf("Spool size/limit: %d %d\n",nbytes,pagesize);
       error->one("Single entry exceeds Spool page size");
     }
   }
