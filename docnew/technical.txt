@@ -161,7 +161,7 @@ capability of the MR-MPI library means you can effectively process
 arbitrarily large data sets.  To first order, you can think of the
 {memsize} setting as a hard limit on the amount of memory a processor
 will use during any MR-MPI operation.  However, there are 4 caveats.
-The first 3 may be overcome in future versions of the MR-MPI library.
+The first 2 may be overcome in future versions of the MR-MPI library.
 
 (1) The "convert()"_convert.html portion of a "collate()"_collate.html
 operation performs an on-processor reorganization of the data in a KV
@@ -198,17 +198,8 @@ poorly in a parallel sense.  So you may want to rethink how your
 key/value data is organized and partitioned across processors.
 
 (3) As discussed "here"_settings.html, a {memsize} setting of N Mbytes
-means that KV or KMV files are written in N/4 size chunks.  Currently,
-this requires that a single key/value or key/multi-value pair within a
-KV or KMV must fit in one chunk.  This is typically not an issue for
-key/value pairs, but may be for key/multi-value pairs.  For example,
-if {memsize} is the default 100 Mbytes, then a single key/multi-value
-pair cannot be larger than 25 Mbytes.  This includes the unique key
-and all its values, as well as the integer array of value lengths.
-Thus, in this example, even if values were of length 0, there could be
-no more than about 6.25 million of them associated with a single key
-(6.25 million integers for the length array).  If this limit is
-exceeded, an error is generated.
+means that KV or KMV files are written in N/4 size chunks.  A single
+key/value pair must fit in a chunk.
 
 (4) There are numerous additional small allocations of memory made by
 the MR-MPI library.  E.g. the out-of-core disk files are stored as
