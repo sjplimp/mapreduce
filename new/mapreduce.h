@@ -104,12 +104,6 @@ class MapReduce {
   class Memory *memory;
   class Error *error;
 
-  // storage for reduce/compress of multi-block KMVs
-
-  int blockvalid;
-  int nblock_kmv;
-  int block_header_page;
-
   // memory partitions
 
   char *memblock;        // memsize block of memory for KVs and KMVs
@@ -133,7 +127,15 @@ class MapReduce {
   char *sptr;
   int *soffset,*slength;
 
+  // storage for reduce/compress of multi-block KMVs
+
+  int blockvalid;
+  int nblock_kmv;
+  int block_header_page;
+
   // file map()
+
+  typedef void (MapFileFunc)(int, char *, int, class KeyValue *, void *);
 
   struct FileMap {
     int sepwhich;
@@ -145,7 +147,6 @@ class MapReduce {
     int *tasksperfile;        // # of map tasks for each file
     int *whichfile;           // which file each map task reads
     int *whichtask;           // which sub-task in file each map task is
-    typedef void (MapFileFunc)(int, char *, int, class KeyValue *, void *);
     MapFileFunc *appmapfile;  // user map function
     void *appptr;             // user data ptr
   };
