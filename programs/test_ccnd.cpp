@@ -65,6 +65,7 @@ int main(int narg, char **args)
   // parse command-line args
 
   cc.root = -1;
+  cc.maxmem = 100;
   cc.input = NOINPUT;
   cc.nfiles = 0;
   cc.permute = 0;
@@ -141,6 +142,10 @@ int main(int narg, char **args)
       if (iarg+2 > narg) error(me,"Bad arguments");
       cc.permute = atoi(args[iarg+1]);
       iarg += 2;
+    } else if (strcmp(args[iarg],"-m") == 0) {
+      if (iarg+2 > narg) error(me,"Bad arguments");
+      cc.maxmem = atoi(args[iarg+1]);
+      iarg += 2;
     } else if (strcmp(args[iarg],"-z") == 0) {
       if (iarg+2 > narg) error(me,"Bad arguments");
       cc.twophase = atoi(args[iarg+1]);
@@ -155,6 +160,10 @@ int main(int narg, char **args)
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
+#ifdef NEW_OUT_OF_CORE
+  mr->memsize = cc.maxmem;
+#endif
+
 
   if (cc.input == FILES) {
     mr->map(nprocs,cc.nfiles,cc.infiles,'\n',80,&file_map1,&cc);

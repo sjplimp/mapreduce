@@ -84,6 +84,7 @@ struct CC {
   int badflag;
   int twophase;   // Flag indicating whether to use one-phase or two-phase
                   // reduce3 in ccnd algorithm.
+  int maxmem;     // max mem size for pages in out-of-core mapreduce.
   double a,b,c,d,fraction;
   int nlevels,nnonzero,seed;
   int ngenerate;
