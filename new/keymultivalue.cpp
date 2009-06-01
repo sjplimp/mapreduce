@@ -1223,7 +1223,7 @@ void KeyMultiValue::kv2kmv_extended(int iset)
       ptr = ROUNDUP(ptr,talignm1);
 
       // block limit exceeded, pack two data sets together, write page
-      // use memmove() since target may overlap src
+      // use memmove() since target may overlap source
 
       if (ncount == maxvalue || voffset + valuebytes > halfsize) {
 	if (ncount == 0) {
@@ -1236,7 +1236,6 @@ void KeyMultiValue::kv2kmv_extended(int iset)
 	vptr = ROUNDUP(vptr,valignm1);
 	memmove(vptr,multivalue,voffset);
 	vptr += voffset;
-	vptr = ROUNDUP(vptr,talignm1);
 	alignsize = vptr - page;
 
 	create_page();
@@ -1262,14 +1261,13 @@ void KeyMultiValue::kv2kmv_extended(int iset)
   vptr = ROUNDUP(vptr,valignm1);
   memmove(vptr,multivalue,voffset);
   vptr += voffset;
-  vptr = ROUNDUP(vptr,talignm1);
   alignsize = vptr - page;
 
   nblock++;
 
   // rewrite nblock count into header page
 
-  int ipage = npage - nblock - 1;
+  int ipage = npage - nblock;
   uint64_t fileoffset = pages[ipage].fileoffset + 4*sizeof(int);
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(&nblock,sizeof(int),1,fp);

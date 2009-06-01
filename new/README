@@ -6,14 +6,15 @@ tri for RMAT 15 seems to generate a zillion partitions in convert
 ask Cindy if better way to estimate size of intermediate spooled
   files for unseen keys - tallying doesn't really work
 
-sort_keys appears broken for OOC
-  corpus doesn't give same answer as old on 1 proc
+wordfreq_new on big corpus (1-5) is crashing on big reduce pages somehow
+  valgrind doesn't tell much
 
 valgrind error on 1 proc for rmat 15, right at start for blockvalid
 
 need to test if multivalue_block(s) calls work
 
 rmat src and new give slightly different answers
+  may be fixed now?
 
 for calc of "halfsize" in KMV - could do better job of estimating
   two halves, based on ave value size
@@ -27,9 +28,6 @@ OOC own docs:
   need a doc write-up of 3/4 pass complicated alg for OOC convert
 
 OOC: stats
-  search for long or LONG
-  ptr (unsigned) and counters and MPI AllReduce
-  how to insure long is really 8 bytes?
   need to print out read/write with stats correctly for all operations
   rsize and wsize accumulated in KV,KMV,spool or in top-level MR ?
   what if call kv_stats() from user program - what to use for rsize,wsize?
@@ -126,6 +124,11 @@ add link to WWW page:
   http://blog.doughellmann.com/2009/04/implementing-mapreduce-with.html
 
 -------------------------
+
+add a kv_dump or kmv_dump function for debugging?
+  have it staged by proc ID ?
+  just spit key/values to screen
+  have to pass formatting string?
 
 allow user compare function to be NULL
   use strncmp() in that case

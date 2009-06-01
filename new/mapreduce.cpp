@@ -1414,9 +1414,6 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 
-	printf("BIGBLOCK %d %d %d %s %d\n",
-	       nvalues,nblock_kmv,keybytes,key,ipage);
-
 	block_header_page = ipage;
 	blockvalid = 1;
 	appreduce(key,keybytes,NULL,nvalues,(int *) this,kv,appptr);

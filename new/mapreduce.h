@@ -104,6 +104,12 @@ class MapReduce {
   class Memory *memory;
   class Error *error;
 
+  // storage for reduce/compress of multi-block KMVs
+
+  int blockvalid;
+  int nblock_kmv;
+  int block_header_page;
+
   // memory partitions
 
   char *memblock;        // memsize block of memory for KVs and KMVs
@@ -145,12 +151,6 @@ class MapReduce {
   };
   FileMap filemap;
 
-  // reduce(), compress() of multi-block KMVs
-
-  int blockvalid;
-  int nblock_kmv;
-  int block_header_page;
-  
   // private functions
 
   void defaults();
