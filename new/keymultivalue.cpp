@@ -212,7 +212,7 @@ void KeyMultiValue::overwrite_page(int ipage)
 
 void KeyMultiValue::close_page()
 {
-  if (fileflag) {
+  if (fp) {
     fclose(fp);
     fp = NULL;
   }
