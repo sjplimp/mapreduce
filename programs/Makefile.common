@@ -44,6 +44,9 @@ link2graph:	link2graph.o $(LIB)
 tri:	tri.o $(LIB)
 	$(LINK) $(LINKFLAGS) tri.o $(USRLIB) $(SYSLIB) -o tri
 
+tri_new:	tri_new.o $(LIB)
+	$(LINK) $(LINKFLAGS) tri_new.o $(USRLIB) $(SYSLIB) -o tri_new
+
 clean:
 	rm *.o
 	rm matvec pagerank gs ccd ccnd link2graph tri
