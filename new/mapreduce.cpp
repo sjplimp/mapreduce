@@ -1976,9 +1976,9 @@ void MapReduce::kv_stats(int level)
   if (me == 0) {
     printf("%u KV pairs, %.3g Mb keys, %.3g Mb values",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
-    if (readsizeall || writesizeall)
-      printf(", %.3g/%.3g Mb read/write",
-	     readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
+    //if (readsizeall || writesizeall)
+    //  printf(", %.3g/%.3g Mb read/write",
+    //	     readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
     printf("\n");
   }
 
@@ -2031,9 +2031,9 @@ void MapReduce::kmv_stats(int level)
   if (me == 0) {
     printf("%u KMV pairs, %.3g Mb keys, %.3g Mb values",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
-    if (readsizeall || writesizeall)
-      printf(", %.3g/%.3g Mb read/write",
-	     readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
+    //if (readsizeall || writesizeall)
+    //  printf(", %.3g/%.3g Mb read/write",
+    //	     readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
     printf("\n");
   }
 
