@@ -698,13 +698,15 @@ int KeyMultiValue::kv2unique(int ipartition, int spoolflag)
 	  spooled = 1;
 	  unseen->add(ptr-ptr_start,ptr_start);
 	  unseen_ksize += keybytes;
-
+	  
 	} else {
 	  if (last < 0) buckets[ibucket] = nunique;
 	  else uniques[last].next = nunique;
 
-	  if (spoolflag) seen->add(ptr-ptr_start,ptr_start);
-	  seen_ksize += keybytes;
+	  if (spoolflag) {
+	    seen->add(ptr-ptr_start,ptr_start);
+	    seen_ksize += keybytes;
+	  }
 
 	  uniques[nunique].keyoffset = ukeyoffset;
 	  memcpy(&ukeys[ukeyoffset],key,keybytes);
@@ -718,8 +720,10 @@ int KeyMultiValue::kv2unique(int ipartition, int spoolflag)
 	}
 
       } else {
-	if (spoolflag) seen->add(ptr-ptr_start,ptr_start);
-	seen_ksize += keybytes;
+	if (spoolflag) {
+	  seen->add(ptr-ptr_start,ptr_start);
+	  seen_ksize += keybytes;
+	}
 
 	uniques[ikey].nvalue++;
 	uniques[ikey].mvbytes += valuebytes;
@@ -1308,7 +1312,7 @@ int KeyMultiValue::find(int ibucket, char *key, int keybytes, int &last)
   while (ikey >= 0) {
     offset = uniques[ikey].keyoffset;
     if (keybytes == uniques[ikey].keybytes && 
-	strncmp(key,&ukeys[offset],keybytes) == 0) return ikey;
+	memcmp(key,&ukeys[offset],keybytes) == 0) return ikey;
     last = ikey;
     ikey = uniques[ikey].next;
   }
