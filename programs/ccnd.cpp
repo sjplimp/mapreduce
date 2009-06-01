@@ -421,15 +421,15 @@ static void reduce2a(char *key, int keybytes, char *multivalue,
    output KV = edges from (zone, row) with updated best zone
      key = (zone, col), value = (Eij,Z_best_in_row)
 ------------------------------------------------------------------------- */
-#ifdef NOISY
+#ifndef NOISY
 #define PRINT_REDUCE3A(key, value) \
     printf("reduce3a:  Key (%d %d) Value [Edge (%d %d) Zone %d]\n", \
            key.zone, key.col, value.e.vi, value.e.vj, value.zone)
-#define HELLO_REDUCE3A(key, nvalues) \
-   printf("HELLO REDUCE3A  (%d %d) nvalues %d\n", key->zone, key->row,  nvalues)
+#define HELLO_REDUCE3A(key, nvalues, mv) \
+   printf("HELLO REDUCE3A  (%d %d) nvalues %d multivalues %x\n", key->zone, key->row,  nvalues, mv)
 #else
 #define PRINT_REDUCE3A(key, value) 
-#define HELLO_REDUCE3A(key, nvalues) 
+#define HELLO_REDUCE3A(key, nvalues, mv) 
 #endif
 
 
@@ -438,16 +438,44 @@ static void reduce3a(char *key, int keybytes, char *multivalue,
 {
   CC *cc = (CC *) ptr;
   int i;
+
+  int nv = nvalues;
+  REDUCE2AVALUE *multiv = (REDUCE2AVALUE *) multivalue;
+
   REDUCE2AKEY *rkey = (REDUCE2AKEY *) key;
 
-  HELLO_REDUCE3A(rkey, nvalues);
+  HELLO_REDUCE3A(rkey, nvalues, multivalue);
   
-  // Find smallest zone among all vertices in edges in this (zone.
+  // Find smallest zone among all vertices in edges in this zone.
   REDUCE2AVALUE *value;
   int minzone = IBIGVAL;
-  for (i = 0, value = (REDUCE2AVALUE*)multivalue; i < nvalues; i++, value++) {
-    if (value->zone < minzone) minzone = value->zone;
+
+printf("KDDKDD INSANITY CHECK ONE  minzone %d  zone %d \n", minzone, rkey->zone);
+  // Chunking of data for out-of-core; make work for in-core as well.
+  int nblocks = 1;
+#ifdef NEW_OUT_OF_CORE
+  MapReduce *mr = NULL;
+  if (multivalue == NULL) {
+    mr = (MapReduce *) valuebytes;
+    nblocks = mr->multivalue_blocks();
   }
+#endif
+
+printf("KDDKDD INSANITY CHECK TWO  minzone %d  zone %d \n", minzone, rkey->zone);
+  int kdd = 0;
+  for (int iblock = 0; iblock < nblocks; iblock++) {
+#ifdef NEW_OUT_OF_CORE
+    if (multivalue == NULL) {  // Get block
+      int *tmpvb = NULL;
+      nv = mr->multivalue_block(iblock, (char **) &multiv, &tmpvb);
+    }
+#endif
+    for (i = 0, value = multiv; i < nv; i++, value++) {
+      kdd++;
+      if (value->zone < minzone) minzone = value->zone;
+    }
+  }
+printf("KDDKDD INSANITY CHECK THREE  minzone %d  zone %d \n", minzone, rkey->zone);
 
   if (rkey->zone != minzone) cc->doneflag = 0;
 
@@ -458,13 +486,25 @@ static void reduce3a(char *key, int keybytes, char *multivalue,
   REDUCE3AKEY rkey3;
   rkey3.zone = rkey->zone;
 
-  for (i = 0, value = (REDUCE2AVALUE*)multivalue; i < nvalues; i++, value++) {
-    rkey3.col = value->col;
-    value3.e = value->e;
-    kv->add((char *) &rkey3, sizeof(REDUCE3AKEY), 
-            (char *) &value3, sizeof(REDUCE3AVALUE));
-    PRINT_REDUCE3A(rkey3, value3);
+printf("KDDKDD PROCESSED A1 %d mvs  minzone %d  zone %d %d\n", kdd, minzone, rkey->zone, rkey3.zone);
+  kdd = 0;
+  for (int iblock = 0; iblock < nblocks; iblock++) {
+#ifdef NEW_OUT_OF_CORE
+    if (multivalue == NULL) {  // Get block
+      int *tmpvb = NULL;
+      nv = mr->multivalue_block(iblock, (char **) &multiv, &tmpvb);
+    }
+#endif
+    for (i = 0, value = multiv; i < nv; i++, value++) {
+kdd++;
+      rkey3.col = value->col;
+      value3.e = value->e;
+      kv->add((char *) &rkey3, sizeof(REDUCE3AKEY), 
+              (char *) &value3, sizeof(REDUCE3AVALUE));
+//    PRINT_REDUCE3A(rkey3, value3);
+    }
   }
+printf("KDDKDD PROCESSED A2 %d mvs\n", kdd);
 }
 
 /* ----------------------------------------------------------------------
@@ -475,7 +515,7 @@ static void reduce3a(char *key, int keybytes, char *multivalue,
    output KV = vertices with updated state
      key = Vi, value = (Eij,Zi)
 ------------------------------------------------------------------------- */
-#ifdef NOISY
+#ifndef NOISY
 #define PRINT_REDUCE3B(key, value) \
     printf("reduce3b:  Key %d  Value [Edge (%d %d) Zone %d]\n", \
            key, value.e.vi, value.e.vj, value.zone)
@@ -493,13 +533,34 @@ static void reduce3b(char *key, int keybytes, char *multivalue,
   int i;
   REDUCE3AKEY *rkey = (REDUCE3AKEY *) key;
 
+  int nv = nvalues;
+  REDUCE3AVALUE *multiv = (REDUCE3AVALUE *) multivalue;
+
   HELLO_REDUCE3B(rkey, nvalues);
+
+  // Chunking of data for out-of-core; make work for in-core as well.
+  int nblocks = 1;
+#ifdef NEW_OUT_OF_CORE
+  MapReduce *mr = NULL;
+  if (multivalue == NULL) {
+    mr = (MapReduce *) valuebytes;
+    nblocks = mr->multivalue_blocks();
+  }
+#endif
   
   // Find smallest zone among all vertices in edges in this zone.
   REDUCE3AVALUE *value;
   int minzone = IBIGVAL;
-  for (i = 0, value = (REDUCE3AVALUE*)multivalue; i < nvalues; i++, value++) {
-    if (value->zone < minzone) minzone = value->zone;
+  for (int iblock = 0; iblock < nblocks; iblock++) {
+#ifdef NEW_OUT_OF_CORE
+    if (multivalue == NULL) {  // Get block
+      int *tmpvb = NULL;
+      nv = mr->multivalue_block(iblock, (char **) &multiv, &tmpvb);
+    }
+#endif
+    for (i = 0, value = multiv; i < nv; i++, value++) {
+      if (value->zone < minzone) minzone = value->zone;
+    }
   }
 
   if (rkey->zone != minzone) cc->doneflag = 0;
@@ -508,18 +569,26 @@ static void reduce3b(char *key, int keybytes, char *multivalue,
   REDUCE3BVALUE value3;
   value3.zone = minzone;
 
-  for (i = 0, value = (REDUCE3AVALUE*)multivalue; i < nvalues; i++, value++) {
+  for (int iblock = 0; iblock < nblocks; iblock++) {
+#ifdef NEW_OUT_OF_CORE
+    if (multivalue == NULL) {  // Get block
+      int *tmpvb = NULL;
+      nv = mr->multivalue_block(iblock, (char **) &multiv, &tmpvb);
+    }
+#endif
+    for (i = 0, value = multiv; i < nv; i++, value++) {
 
-    VERTEX vi = value->e.vi;
-    VERTEX vj = value->e.vj;
-    value3.e = value->e;
-    kv->add((char *) &vi,sizeof(VERTEX), 
-            (char *) &value3,sizeof(REDUCE3BVALUE));
-    PRINT_REDUCE3B(vi, value3);
+      VERTEX vi = value->e.vi;
+      VERTEX vj = value->e.vj;
+      value3.e = value->e;
+      kv->add((char *) &vi,sizeof(VERTEX), 
+              (char *) &value3,sizeof(REDUCE3BVALUE));
+//      PRINT_REDUCE3B(vi, value3);
 
-    kv->add((char *) &vj,sizeof(VERTEX), 
-            (char *) &value3,sizeof(REDUCE3BVALUE));
-    PRINT_REDUCE3B(vj, value3);
+      kv->add((char *) &vj,sizeof(VERTEX), 
+              (char *) &value3,sizeof(REDUCE3BVALUE));
+//      PRINT_REDUCE3B(vj, value3);
+    }
   }
 }
 
