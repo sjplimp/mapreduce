@@ -467,13 +467,16 @@ printf("KDDKDD INSANITY CHECK TWO  minzone %d  zone %d \n", minzone, rkey->zone)
 #ifdef NEW_OUT_OF_CORE
     if (multivalue == NULL) {  // Get block
       int *tmpvb = NULL;
+printf("KDDKDD INSANITY CHECK TWO-A  block %d minzone %d  zone %d \n", iblock, minzone, rkey->zone);
       nv = mr->multivalue_block(iblock, (char **) &multiv, &tmpvb);
+printf("KDDKDD INSANITY CHECK TWO-B  block %d minzone %d  zone %d \n", iblock, minzone, rkey->zone);
     }
 #endif
     for (i = 0, value = multiv; i < nv; i++, value++) {
       kdd++;
       if (value->zone < minzone) minzone = value->zone;
     }
+printf("KDDKDD INSANITY CHECK TWO-C  block %d minzone %d  zone %d \n", iblock, minzone, rkey->zone);
   }
 printf("KDDKDD INSANITY CHECK THREE  minzone %d  zone %d \n", minzone, rkey->zone);
 
