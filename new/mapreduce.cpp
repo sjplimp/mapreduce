@@ -235,7 +235,7 @@ void MapReduce::copy_kv(KeyValue *kv_src)
 void MapReduce::copy_kmv(KeyMultiValue *kmv_src)
 {
   if (!allocated) allocate();
-  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instances);
+  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instance);
   memswap();
   kmv->copy(kmv_src);
 }
@@ -352,7 +352,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
   }
 
   KeyValue *kvnew = new KeyValue(comm,memavail,memquarter,memtoggle,
-				 kalign,valign,instances);
+				 kalign,valign,instance);
   memswap();
 
   Irregular *irregular = new Irregular(comm);
@@ -477,7 +477,7 @@ uint64_t MapReduce::clone()
   if (kv == NULL) error->all("Cannot clone without KeyValue");
   if (timer) start_timer();
 
-  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instances);
+  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instance);
   memswap();
   kmv->clone(kv);
   kmv->complete();
@@ -503,7 +503,7 @@ uint64_t MapReduce::collapse(char *key, int keybytes)
   if (kv == NULL) error->all("Cannot collapse without KeyValue");
   if (timer) start_timer();
 
-  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instances);
+  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instance);
   memswap();
   kmv->collapse(key,keybytes,kv);
   kmv->complete();
@@ -568,13 +568,13 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
   if (kv == NULL) error->all("Cannot compress without KeyValue");
   if (timer) start_timer();
 
-  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instances);
+  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instance);
   memswap();
   kmv->convert(kv,mem2,memhalf);
   kmv->complete();
   delete kv;
   kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		    kalign,valign,instances);
+		    kalign,valign,instance);
   memswap();
 
   int nkey,keybytes,mvaluebytes,nvalues;
@@ -650,7 +650,7 @@ uint64_t MapReduce::convert()
   if (kv == NULL) error->all("Cannot convert without KeyValue");
   if (timer) start_timer();
 
-  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instances);
+  kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,instance);
   memswap();
   kmv->convert(kv,mem2,memhalf);
   kmv->complete();
@@ -728,7 +728,7 @@ uint64_t MapReduce::gather(int numprocs)
 
     delete kv;
     kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		      kalign,valign,instances);
+		      kalign,valign,instance);
     memswap();
   }
 
@@ -761,11 +761,11 @@ uint64_t MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
   if (addflag == 0) {
     delete kv;
     kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		      kalign,valign,instances);
+		      kalign,valign,instance);
     memswap();
   } else if (kv == NULL) {
     kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		      kalign,valign,instances);
+		      kalign,valign,instance);
     memswap();
   } else {
     kv->append();
@@ -865,11 +865,11 @@ uint64_t MapReduce::map(char *file,
   if (addflag == 0) {
     delete kv;
     kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		      kalign,valign,instances);
+		      kalign,valign,instance);
     memswap();
   } else if (kv == NULL) {
     kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		      kalign,valign,instances);
+		      kalign,valign,instance);
     memswap();
   } else {
     kv->append();
@@ -1289,24 +1289,24 @@ uint64_t MapReduce::map(MapReduce *mr,
   if (mr == this) {
     if (addflag) {
       kv_dest = new KeyValue(comm,memavail,memquarter,memtoggle,
-			     kalign,valign,instances);
+			     kalign,valign,instance);
       memswap();
       kv_dest->copy(kv_src);
       kv_dest->append();
     } else {
       kv_dest = new KeyValue(comm,memavail,memquarter,memtoggle,
-			     kalign,valign,instances);
+			     kalign,valign,instance);
       memswap();
     }
   } else {
     if (addflag == 0) {
       delete kv;
       kv_dest = new KeyValue(comm,memavail,memquarter,memtoggle,
-			     kalign,valign,instances);
+			     kalign,valign,instance);
       memswap();
     } else if (kv == NULL) {
       kv_dest = new KeyValue(comm,memavail,memquarter,memtoggle,
-			     kalign,valign,instances);
+			     kalign,valign,instance);
       memswap();
     } else {
       kv->append();
@@ -1368,7 +1368,7 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
   if (timer) start_timer();
 
   kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		    kalign,valign,instances);
+		    kalign,valign,instance);
   memswap();
 
   int nkey,keybytes,mvaluebytes,nvalues;
@@ -1802,7 +1802,7 @@ void MapReduce::sort_kv(int flag)
 
   delete kv;
   kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		    kalign,valign,instances);
+		    kalign,valign,instance);
   memswap();
 
   sp = spools[nspool-1];

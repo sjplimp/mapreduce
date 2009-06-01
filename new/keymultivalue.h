@@ -15,6 +15,8 @@
 #define KEY_MULTIVALUE_H
 
 #include "mpi.h"
+#include "stdio.h"
+#include "stdint.h"
 
 namespace MAPREDUCE_NS {
 
@@ -72,7 +74,7 @@ class KeyMultiValue {
     int exactsize;              // exact size of all data in page
     int alignsize;              // rounded-up exactsize with alignment
     int filesize;               // rounded-up alignsize for file I/O
-    int fileoffset;             // summed filesize of all previous pages
+    uint64_t fileoffset;        // summed filesize of all previous pages
   };
 
   Page *pages;                  // list of pages
