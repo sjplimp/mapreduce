@@ -1,6 +1,7 @@
 Todo:
 
-tri vs tri_new not giving exact same answers
+tri for RMAT 15 seems to generate a zillion partitions in convert
+  not sure why
 
 ask Cindy if better way to estimate size of intermediate spooled
   files for unseen keys - tallying doesn't really work

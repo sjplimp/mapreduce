@@ -966,13 +966,15 @@ void KeyMultiValue::unique2kmv_extended(int iset)
   char *ptr = page;
 
   iptr = ptr;
-  nvptr = iptr + threelenbytes;
+  nvptr = iptr + 5*sizeof(int);
   kptr = ROUNDUP(nvptr,kalignm1);
   ptr = kptr + uniques[index].keybytes;
 
   intptr = (int *) iptr;
   *(intptr++) = uniques[index].keybytes;
   *(intptr++) = uniques[index].mvbytes;
+  *(intptr++) = 0;
+  *(intptr++) = uniques[index].nvalue;
   *(intptr++) = 0;
 
   memcpy(kptr,&ukeys[uniques[index].keyoffset],uniques[index].keybytes);
@@ -1158,7 +1160,7 @@ void KeyMultiValue::kv2kmv_extended(int iset)
 {
   int i,nkey_kv,keybytes,valuebytes;
   int kdummy,vdummy,adummy;
-  char *ptr,*key,*value;
+  char *ptr,*key,*value,*vptr;
 
   // write out header page
 
@@ -1185,7 +1187,7 @@ void KeyMultiValue::kv2kmv_extended(int iset)
 
   // loop over KV pairs
   // add them to two half pages one block at a time
-  // write out 2 blocks when either is full
+  // write out both pages when either is full
   // no need to hash keys since all are same ikey in uniques
 
   int ikey = sets[iset].first;
@@ -1220,7 +1222,8 @@ void KeyMultiValue::kv2kmv_extended(int iset)
       ptr += valuebytes;
       ptr = ROUNDUP(ptr,talignm1);
 
-      // block limit exceeded, write out 2 pages
+      // block limit exceeded, pack two data sets together, write page
+      // use memmove() since target may overlap src
 
       if (ncount == maxvalue || voffset + valuebytes > halfsize) {
 	if (ncount == 0) {
@@ -1229,17 +1232,16 @@ void KeyMultiValue::kv2kmv_extended(int iset)
 	}
 
 	*((int *) page) = ncount;
-	alignsize = (ncount+1)*sizeof(int);
-	create_page();
-	write_page();
-	npage++;
+	vptr = &page[(ncount+1)*sizeof(int)];
+	vptr = ROUNDUP(vptr,valignm1);
+	memmove(vptr,multivalue,voffset);
+	vptr += voffset;
+	vptr = ROUNDUP(vptr,talignm1);
+	alignsize = vptr - page;
 
-	alignsize = voffset;
-	multivalue = page;
 	create_page();
 	write_page();
 	npage++;
-	page = multivalue;
 
 	nblock++;
 	ncount = 0;
@@ -1252,27 +1254,23 @@ void KeyMultiValue::kv2kmv_extended(int iset)
     }
   }
 
-  // write out 2 pages for last partially filled block
+  // setup page for last partially filled block
+  // will be written by caller
 
   *((int *) page) = ncount;
-  alignsize = (ncount+1)*sizeof(int);
-  create_page();
-  write_page();
-  npage++;
-    
-  alignsize = voffset;
-  multivalue = page;
-  create_page();
-  write_page();
-  npage++;
-  page = multivalue;
-  
+  vptr = &page[(ncount+1)*sizeof(int)];
+  vptr = ROUNDUP(vptr,valignm1);
+  memmove(vptr,multivalue,voffset);
+  vptr += voffset;
+  vptr = ROUNDUP(vptr,talignm1);
+  alignsize = vptr - page;
+
   nblock++;
 
   // rewrite nblock count into header page
 
-  int ipage = npage - 2*nblock;
-  uint64_t fileoffset = pages[ipage].fileoffset + twolenbytes;
+  int ipage = npage - nblock - 1;
+  uint64_t fileoffset = pages[ipage].fileoffset + 4*sizeof(int);
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(&nblock,sizeof(int),1,fp);
 }
