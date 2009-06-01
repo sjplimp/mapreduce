@@ -13,6 +13,7 @@
 
 #include "stdlib.h"
 #include "string.h"
+#include "stdint.h"
 #include "spool.h"
 #include "memory.h"
 #include "error.h"
@@ -38,6 +39,7 @@ Spool::Spool(char *memfile, int memsize,
   pages = NULL;
   npage = maxpage = 0;
 
+  rsize = wsize = 0;
   nentry = size = 0;
 }
 
@@ -168,6 +170,7 @@ void Spool::write_page()
   }
 
   fwrite(page,pages[npage].filesize,1,fp);
+  wsize += pages[npage].filesize;
 }
 
 /* ----------------------------------------------------------------------
@@ -182,6 +185,7 @@ void Spool::read_page(int ipage)
   }
 
   fread(page,pages[ipage].filesize,1,fp);
+  rsize += pages[ipage].filesize;
 }
 
 /* ----------------------------------------------------------------------

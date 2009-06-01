@@ -20,10 +20,12 @@ namespace MAPREDUCE_NS {
 
 class KeyMultiValue {
  public:
-  int nkmv;                     // # of KMV pairs in entire KMV
-  int ksize;                    // exact size of all key data
-  int vsize;                    // exact size of all multivalue data
-  int tsize;                    // total exact size of entire KMV
+  uint64_t nkmv;                     // # of KMV pairs in entire KMV on this proc
+  uint64_t ksize;                    // exact size of all key data
+  uint64_t vsize;                    // exact size of all multivalue data
+  uint64_t tsize;                    // total exact size of entire KMV
+  uint64_t rsize;                    // total bytes read from file
+  uint64_t wsize;                    // total bytes written to file
 
   KeyMultiValue(MPI_Comm, char *, int, int, int, int);
   ~KeyMultiValue();
@@ -31,7 +33,7 @@ class KeyMultiValue {
   void copy(KeyMultiValue *);
   void complete();
   int request_info(char **);
-  int request_page(int, int);
+  int request_page(int, int, int &, int &, int &);
   void overwrite_page(int);
 
   void clone(class KeyValue *);
@@ -112,7 +114,7 @@ class KeyMultiValue {
   // partitions of KV data
 
   struct Partition {
-    int nkv;
+    uint64_t nkv;
     int ksize;
     int sortbit;
     class KeyValue *kv;

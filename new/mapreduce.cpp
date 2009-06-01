@@ -44,13 +44,13 @@ int compare_standalone(const void *, const void *);
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
-#define ROUNDUP(A,B) (char *) (((unsigned long) A + B) & ~B);
+#define ROUNDUP(A,B) (char *) (((uint64_t) A + B) & ~B);
 
-#define MBYTES 100
-#define FILECHUNK 128
-#define VALUECHUNK 128
 #define MAXLINE 1024
 #define ALIGNFILE 512         // same as in other classes
+#define FILECHUNK 128
+#define VALUECHUNK 128
+#define MBYTES 100
 #define ALIGNKV 4
 
 /* ----------------------------------------------------------------------
@@ -109,22 +109,7 @@ MapReduce::MapReduce()
   MPI_Comm_rank(comm,&me);
   MPI_Comm_size(comm,&nprocs);
 
-  memory = new Memory(comm);
-  error = new Error(comm);
-
-  mapstyle = 0;
-  verbosity = 0;
-  timer = 0;
-  memsize = MBYTES;
-  keyalign = valuealign = ALIGNKV;
-
-  twolenbytes = 2*sizeof(int);
-  blockvalid = 0;
-
-  allocated = 0;
-  memblock = NULL;
-  kv = NULL;
-  kmv = NULL;
+  defaults();
 }
 
 /* ----------------------------------------------------------------------
@@ -152,22 +137,7 @@ MapReduce::MapReduce(double dummy)
   MPI_Comm_rank(comm,&me);
   MPI_Comm_size(comm,&nprocs);
 
-  memory = new Memory(comm);
-  error = new Error(comm);
-
-  mapstyle = 0;
-  verbosity = 0;
-  timer = 0;
-  memsize = MBYTES;
-  keyalign = valuealign = ALIGNKV;
-
-  twolenbytes = 2*sizeof(int);
-  blockvalid = 0;
-
-  allocated = 0;
-  memblock = NULL;
-  kv = NULL;
-  kmv = NULL;
+  defaults();
 }
 
 /* ----------------------------------------------------------------------
@@ -186,6 +156,33 @@ MapReduce::~MapReduce()
 
   instances--;
   if (mpi_finalize_flag && instances == 0) MPI_Finalize();
+}
+
+/* ----------------------------------------------------------------------
+   default settings
+------------------------------------------------------------------------- */
+
+void MapReduce::defaults()
+{
+  memory = new Memory(comm);
+  error = new Error(comm);
+
+  mapstyle = 0;
+  verbosity = 0;
+  timer = 0;
+  memsize = MBYTES;
+  keyalign = valuealign = ALIGNKV;
+
+  twolenbytes = 2*sizeof(int);
+  blockvalid = 0;
+
+  allocated = 0;
+  memblock = NULL;
+  kv = NULL;
+  kmv = NULL;
+
+  if (sizeof(uint64_t) != 8 || sizeof(char *) != 8)
+    error->all("Not compiled for 8-byte integers and pointers");
 }
 
 /* ----------------------------------------------------------------------
@@ -308,7 +305,7 @@ void MapReduce::memswap()
    add KV pairs from another MR to my KV
 ------------------------------------------------------------------------- */
 
-int MapReduce::add(MapReduce *mr)
+uint64_t MapReduce::add(MapReduce *mr)
 {
   if (kv == NULL) error->all("Cannot add without KeyValue");
   if (mr->kv == NULL) 
@@ -324,8 +321,8 @@ int MapReduce::add(MapReduce *mr)
 
   stats("Add",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -338,7 +335,7 @@ int MapReduce::add(MapReduce *mr)
    requires irregular all2all communication
 ------------------------------------------------------------------------- */
 
-int MapReduce::aggregate(int (*hash)(char *, int))
+uint64_t MapReduce::aggregate(int (*hash)(char *, int))
 {
   int i,nbytes,dummy1,dummy2,dummy3;
   int nkey_send,nkey_recv;
@@ -456,14 +453,16 @@ int MapReduce::aggregate(int (*hash)(char *, int))
   memory->sfree(bufkv);
   delete irregular;
 
+  rsize = kv->rsize;
   delete kv;
   kv = kvnew;
   kv->complete();
+  wsize = kv->wsize;
 
   stats("Aggregate",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -473,7 +472,7 @@ int MapReduce::aggregate(int (*hash)(char *, int))
    assume each KV key is unique, but is not required
 ------------------------------------------------------------------------- */
 
-int MapReduce::clone()
+uint64_t MapReduce::clone()
 {
   if (kv == NULL) error->all("Cannot clone without KeyValue");
   if (timer) start_timer();
@@ -487,8 +486,8 @@ int MapReduce::clone()
 
   stats("Clone",1,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -499,7 +498,7 @@ int MapReduce::clone()
    new value = list of old key,value,key,value,etc
 ------------------------------------------------------------------------- */
 
-int MapReduce::collapse(char *key, int keybytes)
+uint64_t MapReduce::collapse(char *key, int keybytes)
 {
   if (kv == NULL) error->all("Cannot collapse without KeyValue");
   if (timer) start_timer();
@@ -513,8 +512,8 @@ int MapReduce::collapse(char *key, int keybytes)
 
   stats("Collapse",1,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -524,7 +523,7 @@ int MapReduce::collapse(char *key, int keybytes)
    hash = user hash function (NULL if not provided)
 ------------------------------------------------------------------------- */
 
-int MapReduce::collate(int (*hash)(char *, int))
+uint64_t MapReduce::collate(int (*hash)(char *, int))
 {
   if (kv == NULL) error->all("Cannot collate without KeyValue");
   if (timer) start_timer();
@@ -534,14 +533,19 @@ int MapReduce::collate(int (*hash)(char *, int))
   verbosity = timer = 0;
 
   aggregate(hash);
+  int rsize_partial = rsize;
+  int wsize_partial = wsize;
+
   convert();
+  rsize += rsize_partial;
+  wsize += wsize_partial;
 
   verbosity = verbosity_hold;
   timer = timer_hold;
   stats("Collate",1,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -554,10 +558,13 @@ int MapReduce::collate(int (*hash)(char *, int))
    appcompress() returns single key/value to new KV
 ------------------------------------------------------------------------- */
 
-int MapReduce::compress(void (*appcompress)(char *, int, char *,
-					    int, int *, KeyValue *, void *),
-			void *appptr)
+uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
+						 int, int *, KeyValue *, 
+						 void *),
+			     void *appptr)
 {
+  int dummy1,dummy2,dummy3;
+
   if (kv == NULL) error->all("Cannot compress without KeyValue");
   if (timer) start_timer();
 
@@ -578,7 +585,7 @@ int MapReduce::compress(void (*appcompress)(char *, int, char *,
   int npage = kmv->request_info(&page);
 
   for (int ipage = 0; ipage < npage; ipage++) {
-    nkey = kmv->request_page(ipage,0);
+    nkey = kmv->request_page(ipage,0,dummy1,dummy2,dummy3);
 
     ptr = page;
 
@@ -625,8 +632,8 @@ int MapReduce::compress(void (*appcompress)(char *, int, char *,
 
   stats("Compress",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -638,7 +645,7 @@ int MapReduce::compress(void (*appcompress)(char *, int, char *,
    new multivalue = concatenated list of all values for that key in KV
 ------------------------------------------------------------------------- */
 
-int MapReduce::convert()
+uint64_t MapReduce::convert()
 {
   if (kv == NULL) error->all("Cannot convert without KeyValue");
   if (timer) start_timer();
@@ -647,13 +654,15 @@ int MapReduce::convert()
   memswap();
   kmv->convert(kv,mem2,memhalf);
   kmv->complete();
+  rsize = kv->rsize;
+  wsize = kmv->wsize;
   delete kv;
   kv = NULL;
 
   stats("Convert",1,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -662,7 +671,7 @@ int MapReduce::convert()
    numprocs = # of procs new KV resides on (0 to numprocs-1)
 ------------------------------------------------------------------------- */
 
-int MapReduce::gather(int numprocs)
+uint64_t MapReduce::gather(int numprocs)
 {
   int i,flag,npage,nkey;
   char *buf;
@@ -677,8 +686,8 @@ int MapReduce::gather(int numprocs)
 
   if (nprocs == 1 || numprocs == nprocs) {
     stats("Gather",0,verbosity);
-    int nkeyall;
-    MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+    uint64_t nkeyall;
+    MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
     return nkeyall;
   }
 
@@ -727,8 +736,8 @@ int MapReduce::gather(int numprocs)
 
   stats("Gather",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -738,8 +747,8 @@ int MapReduce::gather(int numprocs)
    mapstyle determines how tasks are partitioned to processors
 ------------------------------------------------------------------------- */
 
-int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
-		   void *appptr, int addflag)
+uint64_t MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
+			void *appptr, int addflag)
 {
   MPI_Status status;
 
@@ -823,11 +832,13 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
   } else error->all("Invalid mapstyle setting");
 
   kv->complete();
+  rsize = 0;
+  wsize = kv->wsize;
 
   stats("Map",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -837,8 +848,9 @@ int MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
    mapstyle determines how tasks are partitioned to processors
 ------------------------------------------------------------------------- */
 
-int MapReduce::map(char *file, void (*appmap)(int, char *, KeyValue *, void *),
-		   void *appptr, int addflag)
+uint64_t MapReduce::map(char *file, 
+			void (*appmap)(int, char *, KeyValue *, void *),
+			void *appptr, int addflag)
 {
   int n;
   char line[MAXLINE];
@@ -975,11 +987,13 @@ int MapReduce::map(char *file, void (*appmap)(int, char *, KeyValue *, void *),
   memory->sfree(files);
 
   kv->complete();
+  rsize = 0;
+  wsize = kv->wsize;
 
   stats("Map",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -988,10 +1002,10 @@ int MapReduce::map(char *file, void (*appmap)(int, char *, KeyValue *, void *),
    nfiles filenames are split into nmap pieces based on separator char
 ------------------------------------------------------------------------- */
 
-int MapReduce::map(int nmap, int nfiles, char **files,
-		   char sepchar, int delta,
-		   void (*appmap)(int, char *, int, KeyValue *, void *),
-		   void *appptr, int addflag)
+uint64_t MapReduce::map(int nmap, int nfiles, char **files,
+			char sepchar, int delta,
+			void (*appmap)(int, char *, int, KeyValue *, void *),
+			void *appptr, int addflag)
 {
   filemap.sepwhich = 1;
   filemap.sepchar = sepchar;
@@ -1005,10 +1019,10 @@ int MapReduce::map(int nmap, int nfiles, char **files,
    nfiles filenames are split into nmap pieces based on separator string
 ------------------------------------------------------------------------- */
 
-int MapReduce::map(int nmap, int nfiles, char **files,
-		   char *sepstr, int delta,
-		   void (*appmap)(int, char *, int, KeyValue *, void *),
-		   void *appptr, int addflag)
+uint64_t MapReduce::map(int nmap, int nfiles, char **files,
+			char *sepstr, int delta,
+			void (*appmap)(int, char *, int, KeyValue *, void *),
+			void *appptr, int addflag)
 {
   filemap.sepwhich = 0;
   int n = strlen(sepstr) + 1;
@@ -1029,9 +1043,9 @@ int MapReduce::map(int nmap, int nfiles, char **files,
    map_file_standalone() reads chunk of file and passes it to user appmap()
 ------------------------------------------------------------------------- */
 
-int MapReduce::map_file(int nmap, int nfiles, char **files,
-			void (*appmap)(int, char *, int, KeyValue *, void *),
-			void *appptr, int addflag)
+uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
+			     void (*appmap)(int, char *, int, KeyValue *, void *),
+			     void *appptr, int addflag)
 {
   if (nfiles > nmap) error->all("Cannot map with more files than tasks");
   if (timer) start_timer();
@@ -1135,7 +1149,7 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
       filemap.whichtask[itask++] = j;
     }
 
-  // use non-file map() partition tasks to procs
+  // use non-file map() to partition tasks to procs
   // it calls map_file_standalone once for each task
 
   int verbosity_hold = verbosity;
@@ -1160,8 +1174,8 @@ int MapReduce::map_file(int nmap, int nfiles, char **files,
   delete [] filemap.whichfile;
   delete [] filemap.whichtask;
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1247,15 +1261,15 @@ void MapReduce::map_file_wrapper(int imap, KeyValue *kv)
 }
 
 /* ----------------------------------------------------------------------
-   create a KV via a parallel map operation from an existing kv_src
-   make one call to appmap() for each key/value pair in kv_src
+   create a KV via a parallel map operation from an existing MR's KV
+   make one call to appmap() for each key/value pair in the input MR's KV
    each proc operates on key/value pairs it owns
 ------------------------------------------------------------------------- */
 
-int MapReduce::map(MapReduce *mr, 
-		   void (*appmap)(int, char *, int, char *, int, 
-				  KeyValue *, void *),
-		   void *appptr, int addflag)
+uint64_t MapReduce::map(MapReduce *mr, 
+			void (*appmap)(int, char *, int, char *, int, 
+				       KeyValue *, void *),
+			void *appptr, int addflag)
 {
   if (mr->kv == NULL)
     error->all("MapReduce passed to map() does not have KeyValue pairs");
@@ -1300,13 +1314,13 @@ int MapReduce::map(MapReduce *mr,
     }
   }
 
-  int nkey,kdummy,vdummy,adummy;
+  int nkey,dummy1,dummy2,dummy3;
   int keybytes,valuebytes;
   char *page,*ptr,*key,*value;
   int npage = kv_src->request_info(&page);
 
   for (int ipage = 0; ipage < npage; ipage++) {
-    nkey = kv_src->request_page(ipage,kdummy,vdummy,adummy);
+    nkey = kv_src->request_page(ipage,dummy1,dummy2,dummy3);
     
     ptr = page;
 
@@ -1333,8 +1347,8 @@ int MapReduce::map(MapReduce *mr,
 
   stats("Map",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1344,10 +1358,12 @@ int MapReduce::map(MapReduce *mr,
    each proc processes its owned KMV pairs
 ------------------------------------------------------------------------- */
 
-int MapReduce::reduce(void (*appreduce)(char *, int, char *,
-					int, int *, KeyValue *, void *),
-		      void *appptr)
+uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
+					     int, int *, KeyValue *, void *),
+			   void *appptr)
 {
+  int dummy1,dummy2,dummy3;
+
   if (kmv == NULL) error->all("Cannot reduce without KeyMultiValue");
   if (timer) start_timer();
 
@@ -1363,7 +1379,7 @@ int MapReduce::reduce(void (*appreduce)(char *, int, char *,
   int npage = kmv->request_info(&page);
 
   for (int ipage = 0; ipage < npage; ipage++) {
-    nkey = kmv->request_page(ipage,0);
+    nkey = kmv->request_page(ipage,0,dummy1,dummy2,dummy3);
 
     ptr = page;
 
@@ -1405,13 +1421,15 @@ int MapReduce::reduce(void (*appreduce)(char *, int, char *,
   }
 
   kv->complete();
+  rsize = kmv->rsize;
+  wsize = kv->wsize;
   delete kmv;
   kmv = NULL;
 
   stats("Reduce",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1423,7 +1441,7 @@ int MapReduce::reduce(void (*appreduce)(char *, int, char *,
    new value = list of old key,value,key,value,etc
 ------------------------------------------------------------------------- */
 
-int MapReduce::scrunch(int numprocs, char *key, int keybytes)
+uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
 {
   if (kv == NULL) error->all("Cannot scrunch without KeyValue");
   if (timer) start_timer();
@@ -1433,14 +1451,19 @@ int MapReduce::scrunch(int numprocs, char *key, int keybytes)
   verbosity = timer = 0;
 
   gather(numprocs);
+  int rsize_partial = rsize;
+  int wsize_partial = wsize;
+
   collapse(key,keybytes);
+  rsize += rsize_partial;
+  wsize += wsize_partial;
 
   verbosity = verbosity_hold;
   timer = timer_hold;
   stats("Scrunch",1,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1463,13 +1486,15 @@ int MapReduce::multivalue_blocks()
 int MapReduce::multivalue_block(int iblock, 
 				char **pmultivalue, int **pvaluesizes)
 {
+  int dummy1,dummy2,dummy3;
+
   if (!blockvalid) error->one("Invalid call to multivalue_blocks()");
   if (iblock < 0 || iblock >= nblock_kmv)
     error->one("Invalid call to multivalue_blocks()");
 
   char *page;
   kmv->request_info(&page);
-  kmv->request_page(block_header_page+iblock+1,0);
+  kmv->request_page(block_header_page+iblock+1,0,dummy1,dummy2,dummy3);
 
   int nvalue = *((int *) page);
   *pvaluesizes = (int *) &page[sizeof(int)];
@@ -1487,7 +1512,7 @@ int MapReduce::multivalue_block(int iblock,
    each proc sorts only its data
 ------------------------------------------------------------------------- */
 
-int MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
+uint64_t MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
 {
   if (kv == NULL) error->all("Cannot sort_keys without KeyValue");
   if (timer) start_timer();
@@ -1497,8 +1522,8 @@ int MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
 
   stats("Sort_keys",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1508,7 +1533,7 @@ int MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
    each proc sorts only its data
 ------------------------------------------------------------------------- */
 
-int MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
+uint64_t MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
 {
   if (kv == NULL) error->all("Cannot sort_values without KeyValue");
   if (timer) start_timer();
@@ -1518,8 +1543,8 @@ int MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
 
   stats("Sort_values",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1530,9 +1555,11 @@ int MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
    each proc sorts only its data
 ------------------------------------------------------------------------- */
 
-int MapReduce::sort_multivalues(int (*appcompare)(char *, int, char *, int))
+uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int, 
+						       char *, int))
 {
   int i,j,k;
+  int dummy1,dummy2,dummy3;
 
   if (kmv == NULL) error->all("Cannot sort_multivalues without KeyMultiValue");
   if (timer) start_timer();
@@ -1552,7 +1579,7 @@ int MapReduce::sort_multivalues(int (*appcompare)(char *, int, char *, int))
   int *valuesizes;
 
   for (int ipage = 0; ipage < npage; ipage++) {
-    nkey = kmv->request_page(ipage,1);
+    nkey = kmv->request_page(ipage,1,dummy1,dummy2,dummy3);
 
     ptr = page;
 
@@ -1619,8 +1646,8 @@ int MapReduce::sort_multivalues(int (*appcompare)(char *, int, char *, int))
 
   stats("Sort_multivalues",0,verbosity);
 
-  int nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
+  uint64_t nkeyall;
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1927,19 +1954,22 @@ void MapReduce::kv_stats(int level)
 {
   if (kv == NULL) error->all("Cannot print stats without KeyValue");
 
-  int nkeyall;
+  uint64_t nkeyall,keysizeall,valuesizeall,readsizeall,writesizeall;
 
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
-  double keysize = kv->ksize;
-  double keysizeall;
-  MPI_Allreduce(&keysize,&keysizeall,1,MPI_DOUBLE,MPI_SUM,comm);
-  double valuesize = kv->vsize;
-  double valuesizeall;
-  MPI_Allreduce(&valuesize,&valuesizeall,1,MPI_DOUBLE,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->ksize,&keysizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->vsize,&valuesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&rsize,&readsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&wsize,&writesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
-  if (me == 0)
-    printf("%d KV pairs, %.3g Mb of key data, %.3g Mb of value data\n",
+  if (me == 0) {
+    printf("%u KV pairs, %.3g Mb keys, %.3g Mb values",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
+    if (readsizeall || writesizeall)
+      printf(", %.3g/%.3g Mb read/write",
+	     readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
+    printf("\n");
+  }
 
   if (level == 2) {
     int histo[10],histotmp[10];
@@ -1979,18 +2009,22 @@ void MapReduce::kmv_stats(int level)
 {
   if (kmv == NULL) error->all("Cannot print stats without KeyMultiValue");
 
-  int nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_INT,MPI_SUM,comm);
-  double keysize = kmv->ksize;
-  double keysizeall;
-  MPI_Allreduce(&keysize,&keysizeall,1,MPI_DOUBLE,MPI_SUM,comm);
-  double multivaluesize = kmv->vsize;
-  double multivaluesizeall;
-  MPI_Allreduce(&multivaluesize,&multivaluesizeall,1,MPI_DOUBLE,MPI_SUM,comm);
+  uint64_t nkeyall,keysizeall,valuesizeall,readsizeall,writesizeall;
 
-  if (me == 0)
-    printf("%d KMV pairs, %.3g Mb of key data, %.3g Mb of value data\n",
-	   nkeyall,keysizeall/1024.0/1024.0,multivaluesizeall/1024.0/1024.0);
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->ksize,&keysizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->vsize,&valuesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&rsize,&readsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&wsize,&writesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+
+  if (me == 0) {
+    printf("%u KMV pairs, %.3g Mb keys, %.3g Mb values",
+	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
+    if (readsizeall || writesizeall)
+      printf(", %.3g/%.3g Mb read/write",
+	     readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
+    printf("\n");
+  }
 
   if (level == 2) {
     int histo[10],histotmp[10];

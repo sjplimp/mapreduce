@@ -21,10 +21,12 @@ namespace MAPREDUCE_NS {
 
 class KeyValue {
  public:
-  int nkv;                      // # of KV pairs in entire KV
-  int ksize;                    // exact size of all key data
-  int vsize;                    // exact size of all value data
-  int tsize;                    // total exact size of entire KV
+  uint64_t nkv;                      // # of KV pairs in entire KV on this proc
+  uint64_t ksize;                    // exact size of all key data
+  uint64_t vsize;                    // exact size of all value data
+  uint64_t tsize;                    // total exact size of entire KV
+  uint64_t rsize;                    // total bytes read from file
+  uint64_t wsize;                    // total bytes written to file
 
   KeyValue(MPI_Comm, char *, int, int, int, int, int);
   ~KeyValue();

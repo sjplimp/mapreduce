@@ -15,6 +15,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "string.h"
+#include "stdint.h"
 #include "keyvalue.h"
 #include "memory.h"
 #include "error.h"
@@ -24,7 +25,7 @@ using namespace MAPREDUCE_NS;
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
-#define ROUNDUP(A,B) (char *) (((unsigned long) A + B) & ~B);
+#define ROUNDUP(A,B) (char *) (((uint64_t) A + B) & ~B);
 
 #define ALIGNFILE 512              // same as in mapreduce.cpp
 #define PAGECHUNK 16
@@ -66,7 +67,7 @@ KeyValue::KeyValue(MPI_Comm comm_caller,
 
   twolenbytes = 2*sizeof(int);
 
-  nkv = ksize = vsize = tsize = 0;
+  nkv = ksize = vsize = tsize = rsize = wsize = 0;
   init_page();
 }
 
@@ -92,6 +93,9 @@ void KeyValue::copy(KeyValue *kv)
 {
   if (kv == this) error->all("Cannot perform KeyValue copy on self");
 
+  // pages will be loaded into other KV's memory
+  // write_page() will write them from that page to my spool file
+
   char *page_hold = page;
   int npage_other = kv->request_info(&page);
 
@@ -102,7 +106,10 @@ void KeyValue::copy(KeyValue *kv)
     npage++;
   }
 
+  // last page needs to be copied to my memory before calling complete()
+
   nkey = kv->request_page(npage_other-1,keysize,valuesize,alignsize);
+  memcpy(page_hold,page,alignsize);
   complete();
   page = page_hold;
 }
@@ -171,6 +178,7 @@ void KeyValue::complete()
 
 int KeyValue::request_info(char **ptr)
 {
+  rsize = wsize = 0;
   *ptr = page;
   return npage;
 }
@@ -511,9 +519,10 @@ void KeyValue::write_page()
     fileflag = 1;
   }
 
-  long fileoffset = pages[npage].fileoffset;
+  uint64_t fileoffset = pages[npage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(page,pages[npage].filesize,1,fp);
+  wsize += pages[npage].filesize;
 }
 
 /* ----------------------------------------------------------------------
@@ -529,9 +538,10 @@ void KeyValue::read_page(int ipage, int writeflag)
     if (fp == NULL) error->one("Could not open KeyValue file for reading");
   }
 
-  long fileoffset = pages[ipage].fileoffset;
+  uint64_t fileoffset = pages[ipage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fread(page,pages[ipage].filesize,1,fp);
+  rsize += pages[ipage].filesize;
 }
 
 /* ----------------------------------------------------------------------

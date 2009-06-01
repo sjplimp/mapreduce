@@ -1,7 +1,21 @@
 Todo:
 
+tri vs tri_new not giving exact same answers
+
 ask Cindy if better way to estimate size of intermediate spooled
   files for unseen keys - tallying doesn't really work
+
+sort_keys appears broken for OOC
+  corpus doesn't give same answer as old on 1 proc
+
+valgrind error on 1 proc for rmat 15, right at start for blockvalid
+
+need to test if multivalue_block(s) calls work
+
+rmat src and new give slightly different answers
+
+for calc of "halfsize" in KMV - could do better job of estimating
+  two halves, based on ave value size
 
 OOC own docs:
   write up notes on how all funky stuff works
@@ -11,6 +25,16 @@ OOC own docs:
     must compute size via roundup() on int someplace (not ROUNDUP on ptr)
   need a doc write-up of 3/4 pass complicated alg for OOC convert
 
+OOC: stats
+  search for long or LONG
+  ptr (unsigned) and counters and MPI AllReduce
+  how to insure long is really 8 bytes?
+  need to print out read/write with stats correctly for all operations
+  rsize and wsize accumulated in KV,KMV,spool or in top-level MR ?
+  what if call kv_stats() from user program - what to use for rsize,wsize?
+  when are rsize,wsize cleared in KV and KMV and spool ?
+  sp->nkv and esize are used and assigned to ints in KMV in a few places
+  
 OOC examples:
   make sure all programs in 3 langs all work
   could make wordfreq work on a dict to gen arbitrary size data
@@ -18,17 +42,17 @@ OOC examples:
 OOC copy:
   b/c now return a ptr, can't make a copy which is a non-pointer?
 
+OOC python:
+  need to still implement multivalue_block()
+  test all new functions from Python
+
 OOC minutia:
   why isnt rmat_new getting exact same answer as older rmat?
-  use debug output to see if writing of intermediate files is
-    writing lots of tiny stuff or not
   if a spooled partition ends up empty should I still keep it?
     might be hard to delete a partition once it has been setup
   need to check if sort bits run out - shouldn't happen in practice
   do I really need extra iset field in Partition, or can info
     be stored elsewhere
-  do I need to seek in KMV read/write file
-    maybe I do for sort_multivalues()
   change all #defines to reasonable values once debugged
   allow user control of spoolsize memory? with a setting?
   is new/src speed equiv when fits in memory?

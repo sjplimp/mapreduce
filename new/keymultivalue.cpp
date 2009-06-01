@@ -28,7 +28,7 @@ using namespace MAPREDUCE_NS;
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
-#define ROUNDUP(A,B) (char *) (((unsigned long) A + B) & ~B);
+#define ROUNDUP(A,B) (char *) (((uint64_t) A + B) & ~B);
 
 #define ALIGNFILE 512              // same as in mapreduce.cpp
 #define PARTITIONCHUNK 1
@@ -72,7 +72,7 @@ KeyMultiValue::KeyMultiValue(MPI_Comm comm_caller,
   twolenbytes = 2*sizeof(int);
   threelenbytes = 3*sizeof(int);
 
-  nkmv = ksize = vsize = tsize = 0;
+  nkmv = ksize = vsize = tsize = rsize = wsize = 0;
   init_page();
 }
 
@@ -96,17 +96,23 @@ void KeyMultiValue::copy(KeyMultiValue *kmv)
 {
   if (kmv == this) error->all("Cannot perform KeyMultiValue copy on self");
 
+  // pages will be loaded into other KV's memory
+  // write_page() will write them from that page to my spool file
+
   char *page_hold = page;
   int npage_other = kmv->request_info(&page);
 
   for (int ipage = 0; ipage < npage_other-1; ipage++) {
-    nkey = kmv->request_page(ipage,0);
+    nkey = kmv->request_page(ipage,0,keysize,valuesize,alignsize);
     create_page();
     write_page();
     npage++;
   }
 
-  nkey = kmv->request_page(npage_other-1,0);
+  // last page needs to be copied to my memory before calling complete()
+
+  nkey = kmv->request_page(npage_other-1,0,keysize,valuesize,alignsize);
+  memcpy(page_hold,page,alignsize);
   complete();
   page = page_hold;
 }
@@ -148,6 +154,7 @@ void KeyMultiValue::complete()
 
 int KeyMultiValue::request_info(char **ptr)
 {
+  rsize = wsize = 0;
   *ptr = page;
   return npage;
 }
@@ -159,7 +166,8 @@ int KeyMultiValue::request_info(char **ptr)
    writeflag = 1 when called by MR::sort_multivalues()
 ------------------------------------------------------------------------- */
 
-int KeyMultiValue::request_page(int ipage, int writeflag)
+int KeyMultiValue::request_page(int ipage, int writeflag, int &keysize_page, 
+				int &valuesize_page, int &alignsize_page)
 {
   // load page from file if necessary
 
@@ -171,6 +179,10 @@ int KeyMultiValue::request_page(int ipage, int writeflag)
     fclose(fp);
     fp = NULL;
   }
+
+  keysize_page = pages[ipage].keysize;
+  valuesize_page = pages[ipage].valuesize;
+  alignsize_page = pages[ipage].alignsize;
 
   return pages[ipage].nkey;
 }
@@ -201,7 +213,7 @@ void KeyMultiValue::overwrite_page(int ipage)
 void KeyMultiValue::add(char *key, int keybytes, char *value, int valuebytes)
 {
   char *iptr = &page[alignsize];
-  char *kptr = iptr + 5*sizeof(int);
+  char *kptr = iptr + 4*sizeof(int);
   kptr = ROUNDUP(kptr,kalignm1);
   char *vptr = kptr + keybytes;
   vptr = ROUNDUP(vptr,valignm1);
@@ -1256,7 +1268,7 @@ void KeyMultiValue::kv2kmv_extended(int iset)
   // rewrite nblock count into header page
 
   int ipage = npage - 2*nblock;
-  long fileoffset = pages[ipage].fileoffset + twolenbytes;
+  uint64_t fileoffset = pages[ipage].fileoffset + twolenbytes;
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(&nblock,sizeof(int),1,fp);
 }
@@ -1366,9 +1378,10 @@ void KeyMultiValue::write_page()
     fileflag = 1;
   }
 
-  long fileoffset = pages[npage].fileoffset;
+  uint64_t fileoffset = pages[npage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(page,pages[npage].filesize,1,fp);
+  wsize += pages[npage].filesize;
 }
 
 /* ----------------------------------------------------------------------
@@ -1385,9 +1398,10 @@ void KeyMultiValue::read_page(int ipage, int writeflag)
       error->one("Could not open KeyMultiValue file for reading");
   }
 
-  long fileoffset = pages[ipage].fileoffset;
+  uint64_t fileoffset = pages[ipage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fread(page,pages[ipage].filesize,1,fp);
+  rsize += pages[ipage].filesize;
 }
 
 /* ----------------------------------------------------------------------

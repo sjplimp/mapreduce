@@ -44,42 +44,42 @@ class MapReduce {
 
   MapReduce *copy();
 
-  int add(MapReduce *);
-  int aggregate(int (*)(char *, int));
-  int clone();
-  int collapse(char *, int);
-  int collate(int (*)(char *, int));
-  int compress(void (*)(char *, int, char *,
-			int, int *, class KeyValue *, void *),
-	       void *);
-  int convert();
-  int gather(int);
+  uint64_t add(MapReduce *);
+  uint64_t aggregate(int (*)(char *, int));
+  uint64_t clone();
+  uint64_t collapse(char *, int);
+  uint64_t collate(int (*)(char *, int));
+  uint64_t compress(void (*)(char *, int, char *,
+			     int, int *, class KeyValue *, void *),
+		    void *);
+  uint64_t convert();
+  uint64_t gather(int);
 
-  int map(int, void (*)(int, class KeyValue *, void *),
-	  void *, int addflag = 0);
-  int map(char *, void (*)(int, char *, class KeyValue *, void *),
-	  void *, int addflag = 0);
-  int map(int, int, char **, char, int, 
-	  void (*)(int, char *, int, class KeyValue *, void *),
-	  void *, int addflag = 0);
-  int map(int, int, char **, char *, int, 
-	  void (*)(int, char *, int, class KeyValue *, void *),
-	  void *, int addflag = 0);
-  int map(MapReduce *, void (*)(int, char *, int, char *, int, 
-				class KeyValue *, void *),
-	  void *, int addflag = 0);
+  uint64_t map(int, void (*)(int, class KeyValue *, void *),
+	       void *, int addflag = 0);
+  uint64_t map(char *, void (*)(int, char *, class KeyValue *, void *),
+	       void *, int addflag = 0);
+  uint64_t map(int, int, char **, char, int, 
+	       void (*)(int, char *, int, class KeyValue *, void *),
+	       void *, int addflag = 0);
+  uint64_t map(int, int, char **, char *, int, 
+	       void (*)(int, char *, int, class KeyValue *, void *),
+	       void *, int addflag = 0);
+  uint64_t map(MapReduce *, void (*)(int, char *, int, char *, int, 
+				     class KeyValue *, void *),
+	       void *, int addflag = 0);
 
-  int reduce(void (*)(char *, int, char *,
-		      int, int *, class KeyValue *, void *),
-	     void *);
-  int scrunch(int, char *, int);
+  uint64_t reduce(void (*)(char *, int, char *,
+			   int, int *, class KeyValue *, void *),
+		  void *);
+  uint64_t scrunch(int, char *, int);
 
   int multivalue_blocks();
   int multivalue_block(int, char **, int **);
 
-  int sort_keys(int (*)(char *, int, char *, int));
-  int sort_values(int (*)(char *, int, char *, int));
-  int sort_multivalues(int (*)(char *, int, char *, int));
+  uint64_t sort_keys(int (*)(char *, int, char *, int));
+  uint64_t sort_values(int (*)(char *, int, char *, int));
+  uint64_t sort_multivalues(int (*)(char *, int, char *, int));
 
   void kv_stats(int);
   void kmv_stats(int);
@@ -100,6 +100,7 @@ class MapReduce {
   int me,nprocs;
   int instance,allocated;
   double time_start,time_stop;
+  uint64_t rsize,wsize;
   class Memory *memory;
   class Error *error;
 
@@ -152,14 +153,15 @@ class MapReduce {
   
   // private functions
 
+  void defaults();
   void copy_kv(KeyValue *);
   void copy_kmv(KeyMultiValue *);
   void allocate();
   void memswap();
 
-  int map_file(int, int, char **,
-	       void (*)(int, char *, int, class KeyValue *, void *),
-	       void *, int addflag);
+  uint64_t map_file(int, int, char **,
+		    void (*)(int, char *, int, class KeyValue *, void *),
+		    void *, int addflag);
 
   void sort_kv(int);
   void merge(int, class Spool *, class Spool *, class Spool *);

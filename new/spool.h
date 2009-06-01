@@ -20,8 +20,10 @@ namespace MAPREDUCE_NS {
 
 class Spool {
  public:
-  int nkv;                      // # of KV entries in entire spool file
-  int esize;                    // size of all entries (with alignment)
+  uint64_t nkv;                      // # of KV entries in entire spool file
+  uint64_t esize;                    // size of all entries (with alignment)
+  uint64_t rsize;                    // total bytes read from file
+  uint64_t wsize;                    // total bytes written to file
 
   Spool(char *, int, class Memory *, class Error *);
   ~Spool();
