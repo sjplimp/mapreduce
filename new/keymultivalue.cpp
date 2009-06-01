@@ -206,6 +206,19 @@ void KeyMultiValue::overwrite_page(int ipage)
 }
 
 /* ----------------------------------------------------------------------
+   close disk file if open
+   called by MR::compress() and MR::reduce()
+------------------------------------------------------------------------- */
+
+void KeyMultiValue::close_page()
+{
+  if (fileflag) {
+    fclose(fp);
+    fp = NULL;
+  }
+}
+
+/* ----------------------------------------------------------------------
    add a key/value pair as a one-value KMV
    called by clone()
 ------------------------------------------------------------------------- */
@@ -731,10 +744,8 @@ int KeyMultiValue::kv2unique(int ipartition, int spoolflag)
     }
   }
 
-  if (spooled) {
-    seen->complete();
-    unseen->complete();
-  }
+  if (spoolflag) seen->complete();
+  if (spooled) unseen->complete();
 
   return spooled;
 }

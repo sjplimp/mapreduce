@@ -626,6 +626,10 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
     }
   }
 
+  // insure KMV file is closed if last request_page() was for extended page
+
+  kmv->close_page();
+
   kv->complete();
   delete kmv;
   kmv = NULL;
@@ -1422,6 +1426,10 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
       }
     }
   }
+
+  // insure KMV file is closed if last request_page() was for extended page
+
+  kmv->close_page();
 
   kv->complete();
   rsize = kmv->rsize;

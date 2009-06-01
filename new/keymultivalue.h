@@ -37,6 +37,7 @@ class KeyMultiValue {
   int request_info(char **);
   int request_page(int, int, int &, int &, int &);
   void overwrite_page(int);
+  void close_page();
 
   void clone(class KeyValue *);
   void collapse(char *, int, class KeyValue *);
