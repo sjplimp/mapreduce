@@ -183,6 +183,11 @@ void MapReduce::defaults()
 
   if (sizeof(uint64_t) != 8 || sizeof(char *) != 8)
     error->all("Not compiled for 8-byte integers and pointers");
+
+  int mpisize;
+  MPI_Type_size(MPI_UNSIGNED_LONG,&mpisize);
+  if (mpisize != 8)
+    error->all("MPI_UNSIGNED_LONG is not 8-byte data type");
 }
 
 /* ----------------------------------------------------------------------

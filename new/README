@@ -20,10 +20,7 @@ OOC own docs:
   need a doc write-up of 3/4 pass complicated alg for OOC convert
 
 OOC: stats
-  need to print out read/write with stats correctly for all operations
-  rsize and wsize accumulated in KV,KMV,spool or in top-level MR ?
   what if call kv_stats() from user program - what to use for rsize,wsize?
-  when are rsize,wsize cleared in KV and KMV and spool ?
   sp->nkv and esize are used and assigned to ints in KMV in a few places
   
 OOC examples:
@@ -48,10 +45,11 @@ OOC minutia:
   allow user control of spoolsize memory? with a setting?
   is new/src speed equiv when fits in memory?
   early KMV pages are the giant KMV ones for wordcount - guess this is natural?
-  remove all internal errors once debugged?
-  print more stats on collate (partitions, sets, file write/read, etc)
+  remove all internal error messages once debugged?
+  print more stats on collate (partitions, sets, etc)
   limit memsize to 4096 so 1 Gbytes write/read and totalsize always int > 0
-  need to do memset on chunks in keymultivalue?
+    is limit 2 Gb now, could be 8 Gb?
+  need to do memset on chunks in keymultivalue and spool?
     or on big block
     might slow things down, but throws errors in file write due
       to ALIGNSIZE write
