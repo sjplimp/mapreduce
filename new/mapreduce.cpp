@@ -364,6 +364,9 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
   if (kv == NULL) error->all("Cannot aggregate without KeyValue");
   if (timer) start_timer();
 
+  filecount = 0;
+  rsize = wsize = 0;
+
   if (nprocs == 1) {
     stats("Aggregate",0,verbosity);
     return kv->nkv;
@@ -743,6 +746,9 @@ uint64_t MapReduce::gather(int numprocs)
     error->all("Invalid proc count for gather");
   if (timer) start_timer();
 
+  filecount = 0;
+  rsize = wsize = 0;
+
   if (nprocs == 1 || numprocs == nprocs) {
     stats("Gather",0,verbosity);
     uint64_t nkeyall;
@@ -785,6 +791,9 @@ uint64_t MapReduce::gather(int numprocs)
       MPI_Send(buf,sizes[3],MPI_BYTE,iproc,1,comm);
     }
 
+    filecount = kv->fileflag;
+    wsize = kv->wsize;
+
     delete kv;
     kv = new KeyValue(comm,memavail,memquarter,memtoggle,
 		      kalign,valign,instance);
@@ -792,6 +801,9 @@ uint64_t MapReduce::gather(int numprocs)
   }
 
   kv->complete();
+
+  filecount += kv->fileflag;
+  rsize += kv->rsize;
 
   stats("Gather",0,verbosity);
 
@@ -1909,11 +1921,11 @@ void MapReduce::sort_kv(int flag)
     spools[idest]->assign(mem2c);
     merge(flag,spools[isrc],spools[isrc+1],spools[idest]);
     spools[idest++]->complete();
-    rsize += spools[isrc]->rsize;
-    wsize += spools[isrc]->wsize;
+    spool_rsize += spools[isrc]->rsize;
+    spool_wsize += spools[isrc]->wsize;
     delete spools[isrc++];
-    rsize += spools[isrc]->rsize;
-    wsize += spools[isrc]->wsize;
+    spool_rsize += spools[isrc]->rsize;
+    spool_wsize += spools[isrc]->wsize;
     delete spools[isrc++];
   }
 
@@ -2091,12 +2103,11 @@ void MapReduce::kv_stats(int level)
   MPI_Allreduce(&wsize,&writesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
   if (me == 0) {
-    printf("%u KV pairs, %.3g Mb keys, %.3g Mb values",
+    printf("%u KV pairs, %.3g Mb keys, %.3g Mb values\n",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
-    //if (fileall)
-    //  printf(", %u files, %.3g/%.3g Mb read/write",
-    //	     fileall,readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
-    printf("\n");
+    if (fileall)
+      printf("        %u files, %.3g Mb read, %.3g Mb write\n",
+    	     fileall,readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
   }
 
   if (level == 2) {
@@ -2147,12 +2158,11 @@ void MapReduce::kmv_stats(int level)
   MPI_Allreduce(&wsize,&writesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
   if (me == 0) {
-    printf("%u KMV pairs, %.3g Mb keys, %.3g Mb values",
+    printf("%u KMV pairs, %.3g Mb keys, %.3g Mb values\n",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
-    //if (fileall)
-    //  printf(", %u files, %.3g/%.3g Mb read/write",
-    //	     fileall,readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
-    printf("\n");
+    if (fileall)
+      printf("        %u files, %.3g Mb read, %.3g Mb write\n",
+    	     fileall,readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
   }
 
   if (level == 2) {

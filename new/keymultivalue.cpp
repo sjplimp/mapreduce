@@ -485,8 +485,8 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
     // will happen if unique keys for paritition fit in memory
     
     if (spoolflag && spooled == 0) {
-      rsize += seen->rsize + unseen->rsize;
-      wsize += seen->wsize + unseen->wsize;
+      spool_rsize += seen->rsize + unseen->rsize;
+      spool_wsize += seen->wsize + unseen->wsize;
       delete seen;
       delete unseen;
     }
@@ -498,9 +498,11 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
     // nnew = next larger power-of-2 so can use hash bits for splitting unseen
 
     if (spooled) {
-      rsize += partitions[ipartition].sp->rsize;
-      wsize += partitions[ipartition].sp->wsize;
-      delete partitions[ipartition].sp;
+      if (partitions[ipartition].sp) {
+	spool_rsize += partitions[ipartition].sp->rsize;
+	spool_wsize += partitions[ipartition].sp->wsize;
+	delete partitions[ipartition].sp;
+      }
 
       nnew = unseen->nkv/seen->nkv + 1;
       nbits = 0;
@@ -550,8 +552,8 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 	}
 	
 	unseen2spools(nnew,nbits,partitions[ipartition].sortbit);
-	rsize += unseen->rsize;
-	wsize += unseen->wsize;
+	spool_rsize += unseen->rsize;
+	spool_wsize += unseen->wsize;
 	delete unseen;
 	npartition += nnew;
       }
@@ -596,9 +598,11 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 	}
 
 	unique2spools(ipartition);
-	rsize += partitions[ipartition].sp->rsize;
-	wsize += partitions[ipartition].sp->wsize;
-	delete partitions[ipartition].sp;
+	if (partitions[ipartition].sp) {
+	  spool_rsize += partitions[ipartition].sp->rsize;
+	  spool_wsize += partitions[ipartition].sp->wsize;
+	  delete partitions[ipartition].sp;
+	}
       }
 
       // scan KV pairs in a set to populate KMV page(s) with KV values
@@ -607,9 +611,11 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
       if (sets[iset].sp) sets[iset].sp->assign(chunks[0]);
       if (!sets[iset].extended) kv2kmv(iset);
       else kv2kmv_extended(iset);
-      rsize += sets[iset].sp->rsize;
-      wsize += sets[iset].sp->wsize;
-      delete sets[iset].sp;
+      if (sets[iset].sp) {
+	spool_rsize += sets[iset].sp->rsize;
+	spool_wsize += sets[iset].sp->wsize;
+	delete sets[iset].sp;
+      }
 
       // write KMV page to disk unless very last one
       
