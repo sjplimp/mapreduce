@@ -564,6 +564,7 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
 			     void *appptr)
 {
   int dummy1,dummy2,dummy3;
+  char *keycopy;
 
   if (kv == NULL) error->all("Cannot compress without KeyValue");
   if (timer) start_timer();
@@ -617,11 +618,19 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 
+	// make copy of key because subsequent calls to
+	// multivalue_block() will overwrite page
+
+	keycopy = new char[keybytes];
+	memcpy(keycopy,key,keybytes);
+
 	block_header_page = ipage;
 	blockvalid = 1;
 	appcompress(key,keybytes,NULL,nvalues,(int *) this,kv,appptr);
 	blockvalid = 0;
 	ipage += nblock_kmv;
+
+	delete [] keycopy;
       }
     }
   }
@@ -1367,6 +1376,7 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
 			   void *appptr)
 {
   int dummy1,dummy2,dummy3;
+  char *keycopy;
 
   if (kmv == NULL) error->all("Cannot reduce without KeyMultiValue");
   if (timer) start_timer();
@@ -1418,11 +1428,19 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 
+	// make copy of key because subsequent calls to
+	// multivalue_block() will overwrite page
+
+	keycopy = new char[keybytes];
+	memcpy(keycopy,key,keybytes);
+
 	block_header_page = ipage;
 	blockvalid = 1;
 	appreduce(key,keybytes,NULL,nvalues,(int *) this,kv,appptr);
 	blockvalid = 0;
 	ipage += nblock_kmv;
+
+	delete [] keycopy;
       }
     }
   }

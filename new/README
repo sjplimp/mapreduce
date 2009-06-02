@@ -6,16 +6,6 @@ tri for RMAT 15 seems to generate a zillion partitions in convert
 ask Cindy if better way to estimate size of intermediate spooled
   files for unseen keys - tallying doesn't really work
 
-wordfreq_new on big corpus (1-5) is crashing on big reduce pages somehow
-  valgrind doesn't tell much
-
-valgrind error on 1 proc for rmat 15, right at start for blockvalid
-
-need to test if multivalue_block(s) calls work
-
-rmat src and new give slightly different answers
-  may be fixed now?
-
 for calc of "halfsize" in KMV - could do better job of estimating
   two halves, based on ave value size
 
@@ -40,13 +30,13 @@ OOC examples:
 
 OOC copy:
   b/c now return a ptr, can't make a copy which is a non-pointer?
+  doc that there is no copy constructor
 
 OOC python:
   need to still implement multivalue_block()
   test all new functions from Python
 
 OOC minutia:
-  why isnt rmat_new getting exact same answer as older rmat?
   if a spooled partition ends up empty should I still keep it?
     might be hard to delete a partition once it has been setup
   need to check if sort bits run out - shouldn't happen in practice
@@ -65,7 +55,6 @@ OOC minutia:
       to ALIGNSIZE write
     test with valgrind with no memset()
   take away -g switches in Make?
-  change all MR lib interface quantities to u64 ints or longs?
   does posix_align not work on some boxes?
   allow file prefix for OOC files?
   have KV and KMV stats print file chunks & size data
