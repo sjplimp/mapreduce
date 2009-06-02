@@ -173,13 +173,6 @@ int KeyMultiValue::request_page(int ipage, int writeflag, int &keysize_page,
 
   if (fileflag) read_page(ipage,writeflag);
 
-  // close file if last page
-
-  if (ipage == npage-1 && fileflag) {
-    fclose(fp);
-    fp = NULL;
-  }
-
   keysize_page = pages[ipage].keysize;
   valuesize_page = pages[ipage].valuesize;
   alignsize_page = pages[ipage].alignsize;
@@ -196,13 +189,6 @@ void KeyMultiValue::overwrite_page(int ipage)
 {
   if (!fileflag) return;
   write_page();
-
-  // close file if last page
-
-  if (ipage == npage-1) {
-    fclose(fp);
-    fp = NULL;
-  }
 }
 
 /* ----------------------------------------------------------------------
@@ -210,7 +196,7 @@ void KeyMultiValue::overwrite_page(int ipage)
    called by MR::compress() and MR::reduce()
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::close_page()
+void KeyMultiValue::close_file()
 {
   if (fp) {
     fclose(fp);
@@ -415,7 +401,8 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
   chunks = NULL;
   nchunk = 0;
 
-  int fcount = 0;
+  spool_filecount = 0;
+  spool_rsize = spool_wsize = 0;
 
   // partition memunique to hold unique keys
   // each unique key requires:
@@ -468,9 +455,9 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 	partitions[ipartition].ksize > maxukeys) {
       spoolflag = 1;
 
-      sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
+      sprintf(sfile,"mrmpi.sp.%d.%d",spool_filecount++,me);
       seen = new Spool(sfile,memspool,memory,error);
-      sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
+      sprintf(sfile,"mrmpi.sp.%d.%d",spool_filecount++,me);
       unseen = new Spool(sfile,memspool,memory,error);
       seen_ksize = unseen_ksize = 0;
     }
@@ -498,6 +485,8 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
     // will happen if unique keys for paritition fit in memory
     
     if (spoolflag && spooled == 0) {
+      rsize += seen->rsize + unseen->rsize;
+      wsize += seen->wsize + unseen->wsize;
       delete seen;
       delete unseen;
     }
@@ -509,6 +498,8 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
     // nnew = next larger power-of-2 so can use hash bits for splitting unseen
 
     if (spooled) {
+      rsize += partitions[ipartition].sp->rsize;
+      wsize += partitions[ipartition].sp->wsize;
       delete partitions[ipartition].sp;
 
       nnew = unseen->nkv/seen->nkv + 1;
@@ -553,12 +544,14 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 
 	for (i = npartition; i < npartition+nnew; i++) {
 	  partitions[i].kv = NULL;
-	  sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
+	  sprintf(sfile,"mrmpi.sp.%d.%d",spool_filecount++,me);
 	  partitions[i].sp = new Spool(sfile,memspool,memory,error);
 	  partitions[i].sp->assign(chunks[ichunk++]);
 	}
 	
 	unseen2spools(nnew,nbits,partitions[ipartition].sortbit);
+	rsize += unseen->rsize;
+	wsize += unseen->wsize;
 	delete unseen;
 	npartition += nnew;
       }
@@ -597,12 +590,14 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 
 	for (i = 0; i < nset; i++) {
 	  sets[i].kv = NULL;
-	  sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
+	  sprintf(sfile,"mrmpi.sp.%d.%d",spool_filecount++,me);
 	  sets[i].sp = new Spool(sfile,memspool,memory,error);
 	  sets[i].sp->assign(chunks[ichunk++]);
 	}
 
 	unique2spools(ipartition);
+	rsize += partitions[ipartition].sp->rsize;
+	wsize += partitions[ipartition].sp->wsize;
 	delete partitions[ipartition].sp;
       }
 
@@ -612,6 +607,8 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
       if (sets[iset].sp) sets[iset].sp->assign(chunks[0]);
       if (!sets[iset].extended) kv2kmv(iset);
       else kv2kmv_extended(iset);
+      rsize += sets[iset].sp->rsize;
+      wsize += sets[iset].sp->wsize;
       delete sets[iset].sp;
 
       // write KMV page to disk unless very last one

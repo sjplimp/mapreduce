@@ -207,8 +207,22 @@ MapReduce *MapReduce::copy()
     mrnew->valuealign = valuealign;
   }
 
-  if (kv) mrnew->copy_kv(kv);
-  if (kmv) mrnew->copy_kmv(kmv);
+  if (kv) {
+    mrnew->copy_kv(kv);
+    filecount = kv->fileflag + mrnew->kv->fileflag;
+    rsize = kv->rsize;
+    wsize = mrnew->kv->wsize;
+  }
+
+  if (kmv) {
+    mrnew->copy_kmv(kmv);
+    filecount = kmv->fileflag + mrnew->kmv->fileflag;
+    rsize = kmv->rsize;
+    wsize = mrnew->kmv->wsize;
+  }
+
+  if (kv) stats("Copy",0,verbosity);
+  if (kmv) stats("Copy",1,verbosity);
 
   return mrnew;
 }
@@ -318,6 +332,10 @@ uint64_t MapReduce::add(MapReduce *mr)
   kv->append();
   kv->add(mr->kv);
   kv->complete();
+
+  filecount = kv->fileflag + mr->kv->fileflag;
+  rsize = kv->rsize + mr->kv->rsize;
+  wsize = kv->wsize;
 
   stats("Add",0,verbosity);
 
@@ -453,10 +471,14 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
   memory->sfree(bufkv);
   delete irregular;
 
+  filecount = kv->fileflag;
   rsize = kv->rsize;
+
   delete kv;
   kv = kvnew;
   kv->complete();
+
+  filecount += kv->fileflag;
   wsize = kv->wsize;
 
   stats("Aggregate",0,verbosity);
@@ -481,6 +503,11 @@ uint64_t MapReduce::clone()
   memswap();
   kmv->clone(kv);
   kmv->complete();
+
+  filecount = kv->fileflag + kmv->fileflag;
+  rsize = kv->rsize;
+  wsize = kmv->wsize;
+
   delete kv;
   kv = NULL;
 
@@ -507,6 +534,11 @@ uint64_t MapReduce::collapse(char *key, int keybytes)
   memswap();
   kmv->collapse(key,keybytes,kv);
   kmv->complete();
+
+  filecount = kv->fileflag + kmv->fileflag;
+  rsize = kv->rsize;
+  wsize = kmv->wsize;
+
   delete kv;
   kv = NULL;
 
@@ -533,10 +565,12 @@ uint64_t MapReduce::collate(int (*hash)(char *, int))
   verbosity = timer = 0;
 
   aggregate(hash);
+  int filecount_partial = filecount;
   int rsize_partial = rsize;
   int wsize_partial = wsize;
 
   convert();
+  filecount += filecount_partial;
   rsize += rsize_partial;
   wsize += wsize_partial;
 
@@ -573,6 +607,11 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
   memswap();
   kmv->convert(kv,mem2,memhalf);
   kmv->complete();
+
+  filecount = kv->fileflag + kmv->fileflag + kmv->spool_filecount;
+  rsize = kv->rsize + kmv->spool_rsize;
+  wsize = kmv->wsize + kmv->spool_wsize;
+
   delete kv;
   kv = new KeyValue(comm,memavail,memquarter,memtoggle,
 		    kalign,valign,instance);
@@ -635,11 +674,15 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
     }
   }
 
-  // insure KMV file is closed if last request_page() was for extended page
+  // insure KMV file is closed, if last request_page() was for extended page
 
-  kmv->close_page();
+  kmv->close_file();
 
   kv->complete();
+
+  filecount += kv->fileflag;
+  wsize += kv->wsize;
+
   delete kmv;
   kmv = NULL;
 
@@ -667,8 +710,11 @@ uint64_t MapReduce::convert()
   memswap();
   kmv->convert(kv,mem2,memhalf);
   kmv->complete();
-  rsize = kv->rsize;
-  wsize = kmv->wsize;
+
+  filecount = kv->fileflag + kmv->fileflag + kmv->spool_filecount;
+  rsize = kv->rsize + kmv->spool_rsize;
+  wsize = kmv->wsize + kmv->spool_wsize;
+
   delete kv;
   kv = NULL;
 
@@ -845,7 +891,9 @@ uint64_t MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
   } else error->all("Invalid mapstyle setting");
 
   kv->complete();
-  rsize = 0;
+
+  filecount = kv->fileflag;
+  rsize = kv->rsize;
   wsize = kv->wsize;
 
   stats("Map",0,verbosity);
@@ -1000,7 +1048,9 @@ uint64_t MapReduce::map(char *file,
   memory->sfree(files);
 
   kv->complete();
-  rsize = 0;
+
+  filecount = kv->fileflag;
+  rsize = kv->rsize;
   wsize = kv->wsize;
 
   stats("Map",0,verbosity);
@@ -1299,6 +1349,9 @@ uint64_t MapReduce::map(MapReduce *mr,
   KeyValue *kv_src = mr->kv;
   KeyValue *kv_dest;
 
+  filecount = 0;
+  rsize = wsize = 0;
+
   if (mr == this) {
     if (addflag) {
       kv_dest = new KeyValue(comm,memavail,memquarter,memtoggle,
@@ -1306,6 +1359,9 @@ uint64_t MapReduce::map(MapReduce *mr,
       memswap();
       kv_dest->copy(kv_src);
       kv_dest->append();
+      filecount = kv_src->fileflag + kv_dest->fileflag;
+      rsize = kv_src->rsize;
+      wsize = kv_dest->wsize;
     } else {
       kv_dest = new KeyValue(comm,memavail,memquarter,memtoggle,
 			     kalign,valign,instance);
@@ -1354,9 +1410,15 @@ uint64_t MapReduce::map(MapReduce *mr,
     }
   }
 
+  filecount += kv_src->fileflag;
+  rsize += kv_src->rsize;
+
   if (mr == this) delete kv_src;
   kv = kv_dest;
   kv->complete();
+
+  filecount += kv_dest->fileflag;
+  wsize += kv_dest->wsize;
 
   stats("Map",0,verbosity);
 
@@ -1445,13 +1507,16 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
     }
   }
 
-  // insure KMV file is closed if last request_page() was for extended page
+  // insure KMV file is closed, if last request_page() was for extended page
 
-  kmv->close_page();
+  kmv->close_file();
 
   kv->complete();
+
+  filecount = kv->fileflag + kmv->fileflag;
   rsize = kmv->rsize;
   wsize = kv->wsize;
+
   delete kmv;
   kmv = NULL;
 
@@ -1480,10 +1545,12 @@ uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
   verbosity = timer = 0;
 
   gather(numprocs);
+  int filecount_partial = filecount;
   int rsize_partial = rsize;
   int wsize_partial = wsize;
 
   collapse(key,keybytes);
+  filecount += filecount_partial;
   rsize += rsize_partial;
   wsize += wsize_partial;
 
@@ -1549,6 +1616,10 @@ uint64_t MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
   compare = appcompare;
   sort_kv(0);
 
+  filecount += spool_filecount;
+  rsize += spool_rsize;
+  wsize += spool_wsize;
+
   stats("Sort_keys",0,verbosity);
 
   uint64_t nkeyall;
@@ -1569,6 +1640,10 @@ uint64_t MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
 
   compare = appcompare;
   sort_kv(1);
+
+  filecount += spool_filecount;
+  rsize += spool_rsize;
+  wsize += spool_wsize;
 
   stats("Sort_values",0,verbosity);
 
@@ -1620,7 +1695,7 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
       nvalues = *((int *) ptr);
       ptr += sizeof(int);
 
-      if (nvalues < 0)
+      if (nvalues == 0)
 	error->one("Cannot yet sort multivalues for a "
 		   "multiple block KeyMultiValue");
 
@@ -1670,8 +1745,16 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
     kmv->overwrite_page(ipage);
   }
 
+  // insure KMV file is closed, if last request_page() was for extended page
+
+  kmv->close_file();
+
   memory->sfree(order);
   memory->sfree(soffset);
+
+  filecount = kmv->fileflag;
+  rsize = kmv->rsize;
+  wsize = kmv->wsize;
 
   stats("Sort_multivalues",0,verbosity);
 
@@ -1701,6 +1784,9 @@ void MapReduce::sort_kv(int flag)
   // if multiple pages, setup spool files
   // partition mem2 into 3 pieces for spool merges
 
+  spool_filecount = 0;
+  spool_rsize = spool_wsize = 0;
+
   if (npage > 1) {
     nspool = 2*npage - 1;
     spools = new Spool*[nspool];
@@ -1709,7 +1795,7 @@ void MapReduce::sort_kv(int flag)
     mem2b = &mem2[memspool];
     mem2c = &mem2[2*memspool];
     for (int i = 0; i < nspool; i++) {
-      sprintf(sfile,"mrmpi.sps.%d.%d",i,me);
+      sprintf(sfile,"mrmpi.sps.%d.%d",spool_filecount++,me);
       spools[i] = new Spool(sfile,memspool,memory,error);
     }
   }
@@ -1823,11 +1909,18 @@ void MapReduce::sort_kv(int flag)
     spools[idest]->assign(mem2c);
     merge(flag,spools[isrc],spools[isrc+1],spools[idest]);
     spools[idest++]->complete();
+    rsize += spools[isrc]->rsize;
+    wsize += spools[isrc]->wsize;
     delete spools[isrc++];
+    rsize += spools[isrc]->rsize;
+    wsize += spools[isrc]->wsize;
     delete spools[isrc++];
   }
 
   // convert final spools[nspool-1] to a new KV
+
+  filecount = kv->fileflag;
+  rsize = kv->rsize;
 
   delete kv;
   kv = new KeyValue(comm,memavail,memquarter,memtoggle,
@@ -1845,8 +1938,13 @@ void MapReduce::sort_kv(int flag)
 
   kv->complete();
 
+  filecount += kv->fileflag;
+  wsize = kv->rsize;
+
   // delete last spool file and data structure
 
+  rsize += spools[nspool-1]->rsize;
+  wsize += spools[nspool-1]->wsize;
   delete spools[nspool-1];
   delete [] spools;
 }
@@ -1983,20 +2081,21 @@ void MapReduce::kv_stats(int level)
 {
   if (kv == NULL) error->all("Cannot print stats without KeyValue");
 
-  uint64_t nkeyall,keysizeall,valuesizeall,readsizeall,writesizeall;
+  uint64_t nkeyall,keysizeall,valuesizeall,fileall,readsizeall,writesizeall;
 
   MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&kv->ksize,&keysizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&kv->vsize,&valuesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&filecount,&fileall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&rsize,&readsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&wsize,&writesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
   if (me == 0) {
     printf("%u KV pairs, %.3g Mb keys, %.3g Mb values",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
-    //if (readsizeall || writesizeall)
-    //  printf(", %.3g/%.3g Mb read/write",
-    //	     readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
+    //if (fileall)
+    //  printf(", %u files, %.3g/%.3g Mb read/write",
+    //	     fileall,readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
     printf("\n");
   }
 
@@ -2038,20 +2137,21 @@ void MapReduce::kmv_stats(int level)
 {
   if (kmv == NULL) error->all("Cannot print stats without KeyMultiValue");
 
-  uint64_t nkeyall,keysizeall,valuesizeall,readsizeall,writesizeall;
+  uint64_t nkeyall,keysizeall,valuesizeall,fileall,readsizeall,writesizeall;
 
   MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&kmv->ksize,&keysizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&kmv->vsize,&valuesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&filecount,&fileall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&rsize,&readsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&wsize,&writesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
   if (me == 0) {
     printf("%u KMV pairs, %.3g Mb keys, %.3g Mb values",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
-    //if (readsizeall || writesizeall)
-    //  printf(", %.3g/%.3g Mb read/write",
-    //	     readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
+    //if (fileall)
+    //  printf(", %u files, %.3g/%.3g Mb read/write",
+    //	     fileall,readsizeall/1024.0/1024.0,writesizeall/1024.0/1024.0);
     printf("\n");
   }
 

@@ -1,5 +1,7 @@
 Todo:
 
+keycopy should be allocated once, with memory->smalloc?
+
 tri for RMAT 15 seems to generate a zillion partitions in convert
   not sure why
 
@@ -113,6 +115,9 @@ add link to WWW page:
   http://blog.doughellmann.com/2009/04/implementing-mapreduce-with.html
 
 -------------------------
+
+bookkeep comm send/recv like I do file read/write?
+  aggregate and gather
 
 add a kv_dump or kmv_dump function for debugging?
   have it staged by proc ID ?

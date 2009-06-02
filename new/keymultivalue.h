@@ -22,13 +22,18 @@ namespace MAPREDUCE_NS {
 
 class KeyMultiValue {
  public:
-  uint64_t nkmv;                     // # of KMV pairs in entire KMV on this proc
-  uint64_t ksize;                    // exact size of all key data
-  uint64_t vsize;                    // exact size of all multivalue data
-  uint64_t tsize;                    // total exact size of entire KMV
-  uint64_t rsize;                    // total bytes read from file
-  uint64_t wsize;                    // total bytes written to file
+  uint64_t nkmv;                   // # of KMV pairs in entire KMV on this proc
+  uint64_t ksize;                  // exact size of all key data
+  uint64_t vsize;                  // exact size of all multivalue data
+  uint64_t tsize;                  // total exact size of entire KMV
+  uint64_t rsize;                  // total bytes read from file
+  uint64_t wsize;                  // total bytes written to file
+  int fileflag;                    // 1 if file exists, 0 if not
 
+  int spool_filecount;             // count of spool files
+  uint64_t spool_rsize;            // total bytes read from spool files
+  uint64_t spool_wsize;            // total bytes written to spool files
+  
   KeyMultiValue(MPI_Comm, char *, int, int, int, int);
   ~KeyMultiValue();
 
@@ -37,7 +42,7 @@ class KeyMultiValue {
   int request_info(char **);
   int request_page(int, int, int &, int &, int &);
   void overwrite_page(int);
-  void close_page();
+  void close_file();
 
   void clone(class KeyValue *);
   void collapse(char *, int, class KeyValue *);
@@ -111,7 +116,6 @@ class KeyMultiValue {
   // file info
 
   char filename[32];    // filename to store KV if needed
-  int fileflag;         // 1 if file exists, 0 if not
   FILE *fp;             // file ptr
 
   // partitions of KV data

@@ -67,7 +67,8 @@ KeyValue::KeyValue(MPI_Comm comm_caller,
 
   twolenbytes = 2*sizeof(int);
 
-  nkv = ksize = vsize = tsize = rsize = wsize = 0;
+  nkv = ksize = vsize = tsize = 0;
+  rsize = wsize = 0;
   init_page();
 }
 
@@ -178,7 +179,6 @@ void KeyValue::complete()
 
 int KeyValue::request_info(char **ptr)
 {
-  rsize = wsize = 0;
   *ptr = page;
   return npage;
 }
@@ -517,6 +517,7 @@ void KeyValue::write_page()
     fp = fopen(filename,"wb");
     if (fp == NULL) error->one("Could not open KeyValue file for writing");
     fileflag = 1;
+    wsize = 0;
   }
 
   uint64_t fileoffset = pages[npage].fileoffset;
@@ -536,6 +537,7 @@ void KeyValue::read_page(int ipage, int writeflag)
     if (writeflag) fp = fopen(filename,"r+b");
     else fp = fopen(filename,"rb");
     if (fp == NULL) error->one("Could not open KeyValue file for reading");
+    rsize = wsize = 0;
   }
 
   uint64_t fileoffset = pages[ipage].fileoffset;

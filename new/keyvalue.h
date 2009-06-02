@@ -28,6 +28,7 @@ class KeyValue {
   uint64_t tsize;                    // total exact size of entire KV
   uint64_t rsize;                    // total bytes read from file
   uint64_t wsize;                    // total bytes written to file
+  int fileflag;                      // 1 if file exists, 0 if not
 
   KeyValue(MPI_Comm, char *, int, int, int, int, int);
   ~KeyValue();
@@ -85,7 +86,6 @@ class KeyValue {
   // file info
 
   char filename[32];            // filename to store KV if needed
-  int fileflag;                 // 1 if file exists, 0 if not
   FILE *fp;                     // file ptr
 
   // private methods
