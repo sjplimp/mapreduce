@@ -401,7 +401,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
   chunks = NULL;
   nchunk = 0;
 
-  spool_filecount = 0;
+  int fcount = 0;
   spool_rsize = spool_wsize = 0;
 
   // partition memunique to hold unique keys
@@ -455,9 +455,9 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 	partitions[ipartition].ksize > maxukeys) {
       spoolflag = 1;
 
-      sprintf(sfile,"mrmpi.sp.%d.%d",spool_filecount++,me);
+      sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
       seen = new Spool(sfile,memspool,memory,error);
-      sprintf(sfile,"mrmpi.sp.%d.%d",spool_filecount++,me);
+      sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
       unseen = new Spool(sfile,memspool,memory,error);
       seen_ksize = unseen_ksize = 0;
     }
@@ -546,7 +546,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 
 	for (i = npartition; i < npartition+nnew; i++) {
 	  partitions[i].kv = NULL;
-	  sprintf(sfile,"mrmpi.sp.%d.%d",spool_filecount++,me);
+	  sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
 	  partitions[i].sp = new Spool(sfile,memspool,memory,error);
 	  partitions[i].sp->assign(chunks[ichunk++]);
 	}
@@ -592,7 +592,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 
 	for (i = 0; i < nset; i++) {
 	  sets[i].kv = NULL;
-	  sprintf(sfile,"mrmpi.sp.%d.%d",spool_filecount++,me);
+	  sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
 	  sets[i].sp = new Spool(sfile,memspool,memory,error);
 	  sets[i].sp->assign(chunks[ichunk++]);
 	}

@@ -100,13 +100,12 @@ class MapReduce {
   int me,nprocs;
   int instance,allocated;
   double time_start,time_stop;
-  uint64_t filecount,rsize,wsize;
+  uint64_t rsize,wsize;
   class Memory *memory;
   class Error *error;
 
   // spool statistics
 
-  int spool_filecount;             // count of spool files
   uint64_t spool_rsize;            // total bytes read from spool files
   uint64_t spool_wsize;            // total bytes written to spool files
 

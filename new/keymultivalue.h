@@ -30,7 +30,6 @@ class KeyMultiValue {
   uint64_t wsize;                  // total bytes written to file
   int fileflag;                    // 1 if file exists, 0 if not
 
-  int spool_filecount;             // count of spool files
   uint64_t spool_rsize;            // total bytes read from spool files
   uint64_t spool_wsize;            // total bytes written to spool files
   
