@@ -421,7 +421,7 @@ static void reduce2a(char *key, int keybytes, char *multivalue,
    output KV = edges from (zone, row) with updated best zone
      key = (zone, col), value = (Eij,Z_best_in_row)
 ------------------------------------------------------------------------- */
-#ifndef NOISY
+#ifdef NOISY
 #define PRINT_REDUCE3A(key, value) \
     printf("reduce3a:  Key (%d %d) Value [Edge (%d %d) Zone %d]\n", \
            key.zone, key.col, value.e.vi, value.e.vj, value.zone)
@@ -518,7 +518,7 @@ printf("KDDKDD PROCESSED A2 %d mvs\n", kdd);
    output KV = vertices with updated state
      key = Vi, value = (Eij,Zi)
 ------------------------------------------------------------------------- */
-#ifndef NOISY
+#ifdef NOISY
 #define PRINT_REDUCE3B(key, value) \
     printf("reduce3b:  Key %d  Value [Edge (%d %d) Zone %d]\n", \
            key, value.e.vi, value.e.vj, value.zone)

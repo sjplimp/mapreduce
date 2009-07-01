@@ -65,6 +65,9 @@ int main(int narg, char **args)
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 2;
+#ifdef NEW_OUT_OF_CORE
+  mr->memsize = 1;
+#endif
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
@@ -78,7 +81,12 @@ int main(int narg, char **args)
   // eliminate duplicate edges = both I,J and J,I exist
   // results in ((vi,vj),None) with all vi < vj
 
+#ifdef NEW_OUT_OF_CORE
+  mr->map(mr,&invert_edges,NULL);
+#else
   mr->map(mr->kv,&invert_edges,NULL);
+#endif
+
   mr->collate(NULL);
 
   nedges = mr->reduce(&remove_duplicates,NULL);
@@ -86,12 +94,21 @@ int main(int narg, char **args)
 
   // make copy of graph for use in triangle finding
 
+#ifdef NEW_OUT_OF_CORE
+  MapReduce *mrcopy = mr->copy();
+#else
   MapReduce *mrcopy = new MapReduce(*mr);
+#endif
 
   // augment edges with degree of each vertex
   // results in ((vi,vj),(deg(vi),deg(vj)) with all vi < vj
 
+#ifdef NEW_OUT_OF_CORE
+  mr->map(mr,&emit_vertices,NULL);
+#else
   mr->map(mr->kv,&emit_vertices,NULL);
+#endif
+
   mr->collate(NULL);
   mr->reduce(&first_degree,NULL);
   mr->collate(NULL);
@@ -103,10 +120,21 @@ int main(int narg, char **args)
   // this enables finding completed triangles in emit_triangles()
   // results in ((vi,vj,vk),None)
 
+#ifdef NEW_OUT_OF_CORE
+  mr->map(mr,&low_degree,NULL);
+#else
   mr->map(mr->kv,&low_degree,NULL);
+#endif
+
   mr->collate(NULL);
   mr->reduce(&nsq_angles,NULL);
+
+#ifdef NEW_OUT_OF_CORE
+  mr->add(mrcopy);
+#else
   mr->kv->add(mrcopy->kv);
+#endif
+
   mr->collate(NULL);
   int ntri = mr->reduce(&emit_triangles,NULL);
   if (me == 0) printf("%d triangles\n",ntri);
@@ -118,7 +146,11 @@ int main(int narg, char **args)
     printf("ERROR: Could not open output file");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
+#ifdef NEW_OUT_OF_CORE
+  mr->map(mr,&output_triangle,fp);
+#else
   mr->map(mr->kv,&output_triangle,fp);
+#endif
   fclose(fp);
 
   // timing data

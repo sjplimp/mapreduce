@@ -206,13 +206,22 @@ int main(int narg, char **args)
 
   MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
   mrraw->verbosity = 1;
+
+#ifdef NEW_OUT_OF_CORE
+  mrraw->memsize = 1;
+#endif
+
   int nrawedges;
   if (onefile) nrawedges = mrraw->map(onefile,&fileread1,NULL);
   else nrawedges = mrraw->map(nfiles,&fileread2,argfiles);
 
   // mrvert = unique non-zero vertices
 
+#ifdef NEW_OUT_OF_CORE
+  MapReduce *mrvert = mrraw->copy();
+#else
   MapReduce *mrvert = new MapReduce(*mrraw);
+#endif
   mrvert->clone();
   mrvert->reduce(&vertex_emit,NULL);
   mrvert->collate(NULL);
@@ -221,7 +230,11 @@ int main(int narg, char **args)
   // mredge = unique I->J edges with I and J non-zero
   // no longer need mrraw
 
+#ifdef NEW_OUT_OF_CORE
+  MapReduce *mredge = mrraw->copy();
+#else
   MapReduce *mredge = new MapReduce(*mrraw);
+#endif
   mredge->collate(NULL);
   int nedges = mredge->reduce(&edge_unique,NULL);
   delete mrraw;
@@ -250,7 +263,11 @@ int main(int narg, char **args)
     // mrout KV = (Vi,[Vj Vk ... Vz ])
     // print out edges in using hashvalues from input file.
     
+#ifdef NEW_OUT_OF_CORE
+    MapReduce *mrout = mredge->copy();
+#else
     MapReduce *mrout = new MapReduce(*mredge);
+#endif
     mrout->collate(NULL);
     mrout->reduce(&hfile_write,fp);
 
@@ -277,7 +294,11 @@ int main(int narg, char **args)
     MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
     label.nthresh -= nlocal;
 
+#ifdef NEW_OUT_OF_CORE
+    MapReduce *mrvertlabel = mrvert->copy();
+#else
     MapReduce *mrvertlabel = new MapReduce(*mrvert);
+#endif
     mrvertlabel->clone();
     mrvertlabel->reduce(&vertex_label,&label);
     
@@ -293,7 +314,7 @@ int main(int narg, char **args)
     mredge->reduce(&edge_label2,NULL);
     
     delete mrvertlabel;
-  }
+  } else delete mrvert;
 
   // compute and output an out-degree histogram
 
@@ -302,7 +323,11 @@ int main(int narg, char **args)
     // mrdegree = vertices with their out degree as negative value
     // nsingleton = # of verts with 0 outdegree
     
+#ifdef NEW_OUT_OF_CORE
+    MapReduce *mrdegree = mredge->copy();
+#else
     MapReduce *mrdegree = new MapReduce(*mredge);
+#endif
     mrdegree->collate(NULL);
     int n = mrdegree->reduce(&edge_count,NULL);
     nsingleton = nverts - n;
@@ -345,7 +370,11 @@ int main(int narg, char **args)
     // mrdegree = vertices with their out degree as negative value
     // nsingleton_in = # of verts with 0 indegree
     
+#ifdef NEW_OUT_OF_CORE
+    MapReduce *mrdegree = mredge->copy();
+#else
     MapReduce *mrdegree = new MapReduce(*mredge);
+#endif
     mrdegree->clone();
     mrdegree->reduce(&edge_reverse,NULL);
     mrdegree->collate(NULL);
@@ -391,7 +420,11 @@ int main(int narg, char **args)
     // mrdegree = vertices with their out degree as negative value
     // nsingleton = # of verts with 0 out-degree
     
+#ifdef NEW_OUT_OF_CORE
+    MapReduce *mrdegree = mredge->copy();
+#else
     MapReduce *mrdegree = new MapReduce(*mredge);
+#endif
     mrdegree->collate(NULL);
     int n = mrdegree->reduce(&edge_count,NULL);
     nsingleton = nverts - n;
@@ -411,7 +444,11 @@ int main(int narg, char **args)
     // mrout KV = (Vi,[Vj Vk ... Vz outdegree-of-Vi]
     // print out matrix edges in Matrix Market format with 1/out-degree
     
+#ifdef NEW_OUT_OF_CORE
+    MapReduce *mrout = mredge->copy();
+#else
     MapReduce *mrout = new MapReduce(*mredge);
+#endif
     mrout->kv->add(mrdegree->kv);
     mrout->collate(NULL);
     mrout->reduce(&matrix_write,fp);
@@ -553,30 +590,75 @@ void edge_unique(char *key, int keybytes, char *multivalue,
   if (vertexsize == 16) {
     std::map<std::pair<unsigned long, unsigned long>,int> hash;
 
-    int offset = 0;
-    for (int i = 0; i < nvalues; i++) {
-      unsigned long *v1 = (unsigned long *) &multivalue[offset];
-      unsigned long *v2 = (unsigned long *) &multivalue[offset+8];
-      if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
-	hash[std::make_pair(*v1,*v2)] = 0;
-      else {
+#ifdef NEW_OUT_OF_CORE
+    if (multivalue) {
+#endif
+      int offset = 0;
+      for (int i = 0; i < nvalues; i++) {
+        unsigned long *v1 = (unsigned long *) &multivalue[offset];
+        unsigned long *v2 = (unsigned long *) &multivalue[offset+8];
+        if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
+          hash[std::make_pair(*v1,*v2)] = 0;
+        else {
+          offset += valuebytes[i];
+          continue;
+        }
+        kv->add(key,keybytes,&multivalue[offset],vertexsize);
         offset += valuebytes[i];
-        continue;
       }
-      kv->add(key,keybytes,&multivalue[offset],vertexsize);
-      offset += valuebytes[i];
+#ifdef NEW_OUT_OF_CORE
+    } else {
+      // Multivalue is in multiple blocks; retrieve blocks one-by-one.
+      MapReduce *mr = (MapReduce *) valuebytes;
+      int nblocks = mr->multivalue_blocks();
+      for (int iblock = 0; iblock < nblocks; iblock++) {
+        nvalues = mr->multivalue_block(iblock,&multivalue,&valuebytes);
+        int offset = 0;
+        for (int i = 0; i < nvalues; i++) {
+          unsigned long *v1 = (unsigned long *) &multivalue[offset];
+          unsigned long *v2 = (unsigned long *) &multivalue[offset+8];
+          if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
+            hash[std::make_pair(*v1,*v2)] = 0;
+          else {
+            offset += valuebytes[i];
+            continue;
+          }
+          kv->add(key,keybytes,&multivalue[offset],vertexsize);
+          offset += valuebytes[i];
+        }
+      }
     }
-
+#endif
   } else {
     std::map<unsigned long,int> hash;
 
-    unsigned long *vertex = (unsigned long *) multivalue;
-    for (int i = 0; i < nvalues; i++) {
-      if (vertex[i] == 0) continue;
-      if (hash.find(vertex[i]) == hash.end()) hash[vertex[i]] = 0;
-      else continue;
-      kv->add(key,keybytes,(char *) &vertex[i],vertexsize);
+#ifdef NEW_OUT_OF_CORE
+    if (multivalue) {
+#endif
+      unsigned long *vertex = (unsigned long *) multivalue;
+      for (int i = 0; i < nvalues; i++) {
+        if (vertex[i] == 0) continue;
+        if (hash.find(vertex[i]) == hash.end()) hash[vertex[i]] = 0;
+        else continue;
+        kv->add(key,keybytes,(char *) &vertex[i],vertexsize);
+      }
+#ifdef NEW_OUT_OF_CORE
+    } else {
+      // Multivalue is in multiple blocks; retrieve blocks one-by-one.
+      MapReduce *mr = (MapReduce *) valuebytes;
+      int nblocks = mr->multivalue_blocks();
+      for (int iblock = 0; iblock < nblocks; iblock++) {
+        nvalues = mr->multivalue_block(iblock,&multivalue,&valuebytes);
+        unsigned long *vertex = (unsigned long *) multivalue;
+        for (int i = 0; i < nvalues; i++) {
+          if (vertex[i] == 0) continue;
+          if (hash.find(vertex[i]) == hash.end()) hash[vertex[i]] = 0;
+          else continue;
+          kv->add(key,keybytes,(char *) &vertex[i],vertexsize);
+        }
+      }
     }
+#endif
   }
 }
 

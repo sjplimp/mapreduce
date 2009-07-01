@@ -1,14 +1,14 @@
 # Mac/MPI Makefile for MapReduce programs
 
-CC =		mpic++ 
-CCFLAGS =	-g -I../new
-CCFLAGS += -DNEW_OUT_OF_CORE
-LINK =		mpic++ 
+CC =		mpic++ -m64
+CCFLAGS =	-g -I../src
+#CCFLAGS += -DNEW_OUT_OF_CORE
+LINK =		mpic++ -m64
 LINKFLAGS =	-g 
-LINKFLAGS += -DNEW_OUT_OF_CORE
-USRLIB =	-L../new -lmrmpi
+#LINKFLAGS += -DNEW_OUT_OF_CORE
+USRLIB =	-L../src -lmrmpi
 SYSLIB =	
-LIB =		../new/libmrmpi.a
+LIB =		../src/libmrmpi.a
 
 
 include Makefile.common
