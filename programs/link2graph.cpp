@@ -222,6 +222,7 @@ int main(int narg, char **args)
 #else
   MapReduce *mrvert = new MapReduce(*mrraw);
 #endif
+
   mrvert->clone();
   mrvert->reduce(&vertex_emit,NULL);
   mrvert->collate(NULL);
@@ -235,6 +236,7 @@ int main(int narg, char **args)
 #else
   MapReduce *mredge = new MapReduce(*mrraw);
 #endif
+
   mredge->collate(NULL);
   int nedges = mredge->reduce(&edge_unique,NULL);
   delete mrraw;
@@ -268,6 +270,7 @@ int main(int narg, char **args)
 #else
     MapReduce *mrout = new MapReduce(*mredge);
 #endif
+
     mrout->collate(NULL);
     mrout->reduce(&hfile_write,fp);
 
@@ -286,11 +289,13 @@ int main(int narg, char **args)
 
     LABEL label;
     label.count = 0;
+
 #ifdef NEW_OUT_OF_CORE
     int nlocal = mrvert->kv->nkv;
 #else
     int nlocal = mrvert->kv->nkey;
 #endif
+
     MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
     label.nthresh -= nlocal;
 
@@ -299,6 +304,7 @@ int main(int narg, char **args)
 #else
     MapReduce *mrvertlabel = new MapReduce(*mrvert);
 #endif
+
     mrvertlabel->clone();
     mrvertlabel->reduce(&vertex_label,&label);
     
@@ -306,10 +312,21 @@ int main(int narg, char **args)
 
     // reset all vertices in mredge from 1 to N
 
+#ifdef NEW_OUT_OF_CORE
+    mredge->add(mrvertlabel);
+#else
     mredge->kv->add(mrvertlabel->kv);
+#endif
+
     mredge->collate(NULL);
     mredge->reduce(&edge_label1,NULL);
+
+#ifdef NEW_OUT_OF_CORE
+    mredge->add(mrvertlabel);
+#else
     mredge->kv->add(mrvertlabel->kv);
+#endif
+
     mredge->collate(NULL);
     mredge->reduce(&edge_label2,NULL);
     
@@ -328,6 +345,7 @@ int main(int narg, char **args)
 #else
     MapReduce *mrdegree = new MapReduce(*mredge);
 #endif
+
     mrdegree->collate(NULL);
     int n = mrdegree->reduce(&edge_count,NULL);
     nsingleton = nverts - n;
@@ -446,10 +464,11 @@ int main(int narg, char **args)
     
 #ifdef NEW_OUT_OF_CORE
     MapReduce *mrout = mredge->copy();
+    mrout->add(mrdegree);
 #else
     MapReduce *mrout = new MapReduce(*mredge);
-#endif
     mrout->kv->add(mrdegree->kv);
+#endif
     mrout->collate(NULL);
     mrout->reduce(&matrix_write,fp);
 

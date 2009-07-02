@@ -40,10 +40,6 @@ link2graph:	link2graph.o $(LIB)
 		$(LINK) $(LINKFLAGS) link2graph.o \
 			$(USRLIB) $(SYSLIB) -o link2graph
 
-link2graph_new:	link2graph_new.o $(LIB)
-		$(LINK) $(LINKFLAGS) link2graph_new.o \
-			$(USRLIB) $(SYSLIB) -o link2graph_new
-
 # Program to count triangles in a graph.
 tri:	tri.o $(LIB)
 	$(LINK) $(LINKFLAGS) tri.o $(USRLIB) $(SYSLIB) -o tri
