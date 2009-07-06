@@ -21,6 +21,8 @@
 namespace MAPREDUCE_NS {
 
 class KeyValue {
+  friend class MapReduce;
+
  public:
   uint64_t nkv;                      // # of KV pairs in entire KV on this proc
   uint64_t ksize;                    // exact size of all key data
@@ -42,10 +44,6 @@ class KeyValue {
   void add(char *, int, char *, int);
   void add(int, char *, int, char *, int);
   void add(int, char *, int *, char *, int *);
-  void add(KeyValue *);
-  void add(int, char *);
-  void add(int, char *, int, int, int);
-  void add(int, char *, int, int);
 
  private:
   MPI_Comm comm;
@@ -89,6 +87,11 @@ class KeyValue {
   FILE *fp;                     // file ptr
 
   // private methods
+
+  void add(KeyValue *);
+  void add(int, char *);
+  void add(int, char *, int, int, int);
+  void add(int, char *, int, int);
 
   void init_page();
   void create_page();
