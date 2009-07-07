@@ -34,6 +34,7 @@ using namespace MAPREDUCE_NS;
 
 MapReduce *MapReduce::mrptr;
 int MapReduce::instances = 0;
+int MapReduce::instancesever = 0;
 int MapReduce::mpi_finalize_flag = 0;
 
 // prototypes for non-class functions
@@ -61,7 +62,8 @@ int compare_standalone(const void *, const void *);
 MapReduce::MapReduce(MPI_Comm caller)
 {
   instances++;
-  instance = instances;
+  instancesever++;
+  instance = instancesever;
 
   comm = caller;
   MPI_Comm_rank(comm,&me);
@@ -94,7 +96,8 @@ MapReduce::MapReduce(MPI_Comm caller)
 MapReduce::MapReduce()
 {
   instances++;
-  instance = instances;
+  instancesever++;
+  instance = instancesever;
 
   int flag;
   MPI_Initialized(&flag);
@@ -121,7 +124,8 @@ MapReduce::MapReduce()
 MapReduce::MapReduce(double dummy)
 {
   instances++;
-  instance = instances;
+  instancesever++;
+  instance = instancesever;
   mpi_finalize_flag = 1;
 
   int flag;
@@ -239,7 +243,7 @@ void MapReduce::copy_kv(KeyValue *kv_src)
 {
   if (!allocated) allocate();
   kv = new KeyValue(comm,memavail,memquarter,memtoggle,
-		    kalign,valign,instances);
+		    kalign,valign,instance);
   memswap();
   kv->copy(kv_src);
 }
