@@ -92,6 +92,43 @@ typedef struct {
 
 static int vertexsize = 8;
 
+#ifdef NEW_OUT_OF_CORE
+
+// Macro defining how to loop over blocks when multivalue is stored in
+// more than one block.  This macro is used frequently, so we define it here.
+// Code to be executed on each block should be between a BEGIN_BLOCK_LOOP
+// and an END_BLOCK_LOOP.
+// Note:  This mechanism is a little clunky.  Make sure you DO NOT have a 
+// semicolon afer these macros.
+
+#define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues) { \
+  int bbb_nblocks = 1; \
+  MapReduce *bbb_mr = NULL; \
+  if (!(multivalue)) { \
+    bbb_mr = (MapReduce *) (valuebytes); \
+    int bbb_nblocks = bbb_mr->multivalue_blocks(); \
+  } \
+  for (int bbb_iblock = 0; bbb_iblock < bbb_nblocks; bbb_iblock++) { \
+    if (bbb_mr)  \
+      (nvalues) = bbb_mr->multivalue_block(bbb_iblock, \
+                                           &(multivalue),&(valuebytes)); 
+
+#define BREAK_BLOCK_LOOP break
+#define END_BLOCK_LOOP } }
+
+#else  // !NEW_OUT_OF_CORE
+
+// These macros are not needed with the in-core mapreduce library.
+// We'll define them as no-ops (with curly braces so compilation is consistent,
+// though, so we don't need as many #ifdefs in the code.
+
+#define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues) {
+
+#define BREAK_BLOCK_LOOP 
+#define END_BLOCK_LOOP }
+
+#endif  // NEW_OUT_OF_CORE
+
 /* ---------------------------------------------------------------------- */
 
 int main(int narg, char **args)
@@ -250,12 +287,14 @@ int main(int narg, char **args)
   mrraw->memsize = 1;
 #endif
 
+  if (me == 0) printf("Reading input files...\n");
   int nrawedges;
   if (onefile) nrawedges = mrraw->map(onefile,&fileread1,NULL);
   else nrawedges = mrraw->map(nfiles,&fileread2,argfiles);
 
   // mrvert = unique non-zero vertices
 
+  if (me == 0) printf("Finding unique vertices...\n");
 #ifdef NEW_OUT_OF_CORE
   MapReduce *mrvert = mrraw->copy();
 #else
@@ -270,6 +309,7 @@ int main(int narg, char **args)
   // mredge = unique I->J edges with I and J non-zero + edge weights
   //          (computed as number of occurrences of I->J in input).
   // no longer need mrraw
+  if (me == 0) printf("Finding unique edges...\n");
 #ifdef NEW_OUT_OF_CORE
   MapReduce *mredge = mrraw->copy();
 #else
@@ -290,6 +330,7 @@ int main(int narg, char **args)
   if (hfile) {
 
     if (me == 0) {
+      printf("Printing hash-key files ...\n");
       char fname[128];
       sprintf(fname,"%s.header",hfile);
       FILE *fp = fopen(fname,"w");
@@ -326,6 +367,7 @@ int main(int narg, char **args)
     // label.nthresh = # of verts on procs < me
     // no longer need mrvert
 
+    if (me == 0) printf("Converting hash-keys to integers...\n");
     LABEL label;
     label.count = 0;
 
@@ -379,6 +421,7 @@ int main(int narg, char **args)
     // mrdegree = vertices with their out degree as negative value
     // nsingleton = # of verts with 0 outdegree
     
+    if (me == 0) printf("Generating out-degree histogram...\n");
 #ifdef NEW_OUT_OF_CORE
     MapReduce *mrdegree = mredge->copy();
 #else
@@ -427,6 +470,7 @@ int main(int narg, char **args)
     // mrdegree = vertices with their out degree as negative value
     // nsingleton_in = # of verts with 0 indegree
     
+    if (me == 0) printf("Generating out-degree histogram...\n");
 #ifdef NEW_OUT_OF_CORE
     MapReduce *mrdegree = mredge->copy();
 #else
@@ -474,6 +518,7 @@ int main(int narg, char **args)
 
   if (mfile) {
 
+    if (me == 0) printf("Generating matrix-market file...\n");
     if (me == 0) {
       char fname[128];
       sprintf(fname,"%s.header",mfile);
@@ -659,105 +704,66 @@ void edge_unique(char *key, int keybytes, char *multivalue,
   if (*vi == 0) return;
 
   if (vertexsize == 16) {
+
     map<std::pair<uint64_t, uint64_t>,WEIGHT> hash;
 
-#ifdef NEW_OUT_OF_CORE
-    if (multivalue) {
-#endif
-      int offset = 0;
-      // Use a hash table to count the number of occurrences of each edge.
-      for (int i = 0; i < nvalues; i++) {
-        uint64_t *v1 = (uint64_t *) &multivalue[offset];
-        uint64_t *v2 = (uint64_t *) &multivalue[offset+8];
-        if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
-          hash[std::make_pair(*v1,*v2)] = 1;
-        else
-          hash[std::make_pair(*v1,*v2)]++;
-        offset += valuebytes[i];
-      }
-      // Iterate over the hash table to emit edges with their counts.
-      map<std::pair<uint64_t, uint64_t>,WEIGHT>::iterator mit;
-      for (mit = hash.begin(); mit != hash.end(); mit++) {
-        std::pair<uint64_t, uint64_t> e = (*mit).first;
-        EDGE16 tmp;
-        tmp.v[0] = e.first;
-        tmp.v[1] = e.second;
-        tmp.wt = (*mit).second;
-        kv->add(key,keybytes,(char *) &tmp,sizeof(EDGE16));
-      }
-#ifdef NEW_OUT_OF_CORE
-    } else {
+    BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
-// KDDKDD STILL TODO OUT_OF_CORE 
-cout << "OUT_OF_CORE NOT READY YET" << endl; MPI_Abort(MPI_COMM_WORLD,1);
-// KDDKDD STILL TODO OUT_OF_CORE 
-
-      // Multivalue is in multiple blocks; retrieve blocks one-by-one.
-      MapReduce *mr = (MapReduce *) valuebytes;
-      int nblocks = mr->multivalue_blocks();
-      for (int iblock = 0; iblock < nblocks; iblock++) {
-        nvalues = mr->multivalue_block(iblock,&multivalue,&valuebytes);
-        int offset = 0;
-        for (int i = 0; i < nvalues; i++) {
-          uint64_t *v1 = (uint64_t *) &multivalue[offset];
-          uint64_t *v2 = (uint64_t *) &multivalue[offset+8];
-          if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
-            hash[std::make_pair(*v1,*v2)] = 0;
-          else {
-            offset += valuebytes[i];
-            continue;
-          }
-          kv->add(key,keybytes,&multivalue[offset],vertexsize);
-          offset += valuebytes[i];
-        }
-      }
+    // Use a hash table to count the number of occurrences of each edge.
+    int offset = 0;
+    for (int i = 0; i < nvalues; i++) {
+      uint64_t *v1 = (uint64_t *) &multivalue[offset];
+      uint64_t *v2 = (uint64_t *) &multivalue[offset+8];
+      if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
+        hash[std::make_pair(*v1,*v2)] = 1;
+      else
+        hash[std::make_pair(*v1,*v2)]++;
+      offset += valuebytes[i];
     }
-#endif
+
+    END_BLOCK_LOOP
+
+static int kdd = 0;
+    // Iterate over the hash table to emit edges with their counts.
+    // Note:  Assuming the hash table fits in memory!
+    map<std::pair<uint64_t, uint64_t>,WEIGHT>::iterator mit;
+    for (mit = hash.begin(); mit != hash.end(); mit++) {
+      std::pair<uint64_t, uint64_t> e = (*mit).first;
+      EDGE16 tmp;
+      tmp.v[0] = e.first;
+      tmp.v[1] = e.second;
+      tmp.wt = (*mit).second;
+kdd++;
+      kv->add(key,keybytes,(char *) &tmp,sizeof(EDGE16));
+    }
+printf("KDDKDD ADDED %d UNIQUE EDGES\n", kdd);
   } else {  // vertexsize = 8
 
     map<uint64_t,WEIGHT> hash;
 
-#ifdef NEW_OUT_OF_CORE
-    if (multivalue) {
-#endif
-      // Use a hash table to count the number of occurrences of each edge.
-      uint64_t *vertex = (uint64_t *) multivalue;
-      for (int i = 0; i < nvalues; i++) {
-        if (vertex[i] == 0) continue;
-        if (hash.find(vertex[i]) == hash.end()) 
-          hash[vertex[i]] = 1;
-        else
-          hash[vertex[i]]++;
-      }
-      // Iterate over the hash table to emit edges with their counts.
-      map<uint64_t,WEIGHT>::iterator mit;
-      for (mit = hash.begin(); mit != hash.end(); mit++) {
-        EDGE08 tmp;
-        tmp.v[0] = (*mit).first;
-        tmp.wt = (*mit).second;
-        kv->add(key,keybytes,(char*)&tmp,sizeof(EDGE08));
-      }
-#ifdef NEW_OUT_OF_CORE
-    } else {
-// KDDKDD STILL TODO OUT_OF_CORE 
-cout << "OUT_OF_CORE NOT READY YET" << endl; MPI_Abort(MPI_COMM_WORLD,1);
-// KDDKDD STILL TODO OUT_OF_CORE 
+    BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
-      // Multivalue is in multiple blocks; retrieve blocks one-by-one.
-      MapReduce *mr = (MapReduce *) valuebytes;
-      int nblocks = mr->multivalue_blocks();
-      for (int iblock = 0; iblock < nblocks; iblock++) {
-        nvalues = mr->multivalue_block(iblock,&multivalue,&valuebytes);
-        uint64_t *vertex = (uint64_t *) multivalue;
-        for (int i = 0; i < nvalues; i++) {
-          if (vertex[i] == 0) continue;
-          if (hash.find(vertex[i]) == hash.end()) hash[vertex[i]] = 0;
-          else continue;
-          kv->add(key,keybytes,(char *) &vertex[i],vertexsize);
-        }
-      }
+    // Use a hash table to count the number of occurrences of each edge.
+    uint64_t *vertex = (uint64_t *) multivalue;
+    for (int i = 0; i < nvalues; i++) {
+      if (vertex[i] == 0) continue;
+      if (hash.find(vertex[i]) == hash.end()) 
+        hash[vertex[i]] = 1;
+      else
+        hash[vertex[i]]++;
     }
-#endif
+
+    END_BLOCK_LOOP
+
+    // Iterate over the hash table to emit edges with their counts.
+    // Note:  Assuming the hash table fits in memory!
+    map<uint64_t,WEIGHT>::iterator mit;
+    for (mit = hash.begin(); mit != hash.end(); mit++) {
+      EDGE08 tmp;
+      tmp.v[0] = (*mit).first;
+      tmp.wt = (*mit).second;
+      kv->add(key,keybytes,(char*)&tmp,sizeof(EDGE08));
+    }
   }
 }
 
@@ -785,30 +791,47 @@ void vertex_label(char *key, int keybytes, char *multivalue,
 void edge_label1(char *key, int keybytes, char *multivalue,
 		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  // id = int ID in mvalue list
 
-  int offset = 0;
-  for (int i = 0; i < nvalues; i++) {
+
+  // Identify id = int ID of vertex key in mvalue list.
+  VERTEX id;
+  int i, offset;
+
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+
+  offset = 0;
+  for (i = 0; i < nvalues; i++) {
     if (valuebytes[i] == sizeof(VERTEX)) break;
     offset += valuebytes[i];
   }
-  VERTEX id = - *((VERTEX *) &multivalue[offset]);
+  if (i < nvalues) {
+    id = - *((VERTEX *) &multivalue[offset]);
+    BREAK_BLOCK_LOOP;
+  }
+
+  END_BLOCK_LOOP
+
+
+  // Now relabel vertex key using the ID found and emit reverse edges Vj->key.
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
-  for (int i = 0; i < nvalues; i++) {
+  for (i = 0; i < nvalues; i++) {
     if (valuebytes[i] != sizeof(VERTEX)) {
       // For key, assuming v is first field of both EDGE16 and EDGE8.
-      uint64_t *key = (uint64_t *)(&multivalue[offset]);
+      uint64_t *newkey = (uint64_t *)(&multivalue[offset]);
       EDGE val;
       val.v = id;
       if (vertexsize == 16)
         val.wt = (*((EDGE16 *)(&multivalue[offset]))).wt;
       else
         val.wt = (*((EDGE08 *)(&multivalue[offset]))).wt;
-      kv->add((char*)key,vertexsize,(char*)&val,sizeof(EDGE));
+      kv->add((char*)newkey,vertexsize,(char*)&val,sizeof(EDGE));
     }
     offset += valuebytes[i];
   }
+
+  END_BLOCK_LOOP
 }
 
 /* ----------------------------------------------------------------------
@@ -823,22 +846,36 @@ void edge_label1(char *key, int keybytes, char *multivalue,
 void edge_label2(char *key, int keybytes, char *multivalue,
 		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  int i;
 
   // id = positive int in mvalue list
 
-  int offset = 0;
+  int i;
+  int offset;
+  VERTEX id;
+
+  // Identify id = int ID of vertex key in mvalue list.
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+
+  offset = 0;
   for (i = 0; i < nvalues; i++) {
     if (valuebytes[i] == sizeof(VERTEX)) break;
     offset += valuebytes[i];
   }
-  VERTEX id = *((VERTEX *) &multivalue[offset]);
+  if (i < nvalues) {
+    id = *((VERTEX *) &multivalue[offset]);
+    BREAK_BLOCK_LOOP;
+  }
+
+  END_BLOCK_LOOP
+
+  // Now relabel vertex key using the ID found and emit edges key->Vj using IDs.
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
   for (i = 0; i < nvalues; i++) {
     if (valuebytes[i] != sizeof(VERTEX)) {
-      EDGE *mv = (EDGE *)&multivalue[offset];
-      VERTEX vi = -mv->v;
+      EDGE *mv = (EDGE *)&(multivalue[offset]);
+      VERTEX vi = -(mv->v);
       EDGE tmp;
       tmp.v = id;
       tmp.wt = mv->wt;
@@ -846,6 +883,8 @@ void edge_label2(char *key, int keybytes, char *multivalue,
     }
     offset += valuebytes[i];
   }
+
+  END_BLOCK_LOOP
 }
 
 /* ----------------------------------------------------------------------
@@ -930,6 +969,8 @@ void hfile_write(char *key, int keybytes, char *multivalue,
 
   uint64_t *vi = (uint64_t *) key;
 
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+
   if (keybytes == 16) {
     // Two 64-bit ints per vertex
     EDGE16 *edge = (EDGE16 *) multivalue;
@@ -943,9 +984,10 @@ void hfile_write(char *key, int keybytes, char *multivalue,
     for (i = 0; i < nvalues; i++)
       fprintf(fp,"%lld   %lld\n", *vi, edge[i].v[0]);
   }
-  else {
+  else 
     fprintf(fp, "Invalid vertex size %d\n", keybytes);
-  }
+
+  END_BLOCK_LOOP
 }
 
 /* ----------------------------------------------------------------------
@@ -962,15 +1004,29 @@ void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
 
   FILE *fp = (FILE *) ptr;
 
-  int offset = 0;
+  int offset;
+  double inverse_outdegree;
+  VERTEX vi = *((VERTEX *) key);
+
+  // First, find the negative int, which is -degree of Vi.
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+
+  offset = 0;
   for (i = 0; i < nvalues; i++) {
     if (valuebytes[i] == sizeof(int)) break;
     offset += valuebytes[i];
   }
-  int tmp = *((int *) &multivalue[offset]);
-  double inverse_outdegree = -1.0/tmp;
+  if (i < nvalues) {
+    int tmp = *((int *) &multivalue[offset]);
+    inverse_outdegree = -1.0/tmp;
+    BREAK_BLOCK_LOOP;
+  }
 
-  VERTEX vi = *((VERTEX *) key);
+  END_BLOCK_LOOP
+
+
+  // Then, output the edges Vi->Vj with value 1/degree_of_Vi
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
   for (i = 0; i < nvalues; i++) {
@@ -980,6 +1036,8 @@ void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
     }
     offset += valuebytes[i];
   }
+
+  END_BLOCK_LOOP
 }
 
 /* ----------------------------------------------------------------------
@@ -994,8 +1052,13 @@ void matrix_write_weights(char *key, int keybytes, char *multivalue,
   int i;
   FILE *fp = (FILE *) ptr;
   VERTEX vi = *((VERTEX *) key);
+
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+
   EDGE *edge = (EDGE *) multivalue;
 
   for (i = 0; i < nvalues; i++)
     fprintf(fp,"%d %d %d.\n",vi,edge[i].v,edge[i].wt);
+
+  END_BLOCK_LOOP
 }
