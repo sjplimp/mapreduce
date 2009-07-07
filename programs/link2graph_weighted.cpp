@@ -537,7 +537,7 @@ int main(int narg, char **args)
 #else
       MapReduce *mrout = new MapReduce(*mredge);
 #endif
-      mrout->convert(NULL);
+      mrout->convert();
       mrout->reduce(&matrix_write_weights,fp);
       
       delete mrout;
@@ -966,20 +966,21 @@ void hfile_write(char *key, int keybytes, char *multivalue,
 
   uint64_t *vi = (uint64_t *) key;
 
+
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   if (keybytes == 16) {
     // Two 64-bit ints per vertex
     EDGE16 *edge = (EDGE16 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp,"%lld %lld    %lld %lld\n",
+      fprintf(fp,"%llu %llu    %llu %llu\n",
                   vi[0], vi[1] ,edge[i].v[0], edge[i].v[1]);
   }
   else if (keybytes == 8) {
     // One 64-bit int per vertex
     EDGE08 *edge = (EDGE08 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp,"%lld   %lld\n", *vi, edge[i].v[0]);
+      fprintf(fp,"%llu   %llu\n", *vi, edge[i].v[0]);
   }
   else 
     fprintf(fp, "Invalid vertex size %d\n", keybytes);
