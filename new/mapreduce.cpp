@@ -1493,7 +1493,7 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
 
 	block_header_page = ipage;
 	blockvalid = 1;
-	appreduce(key,keybytes,NULL,nvalues,(int *) this,kv,appptr);
+	appreduce(keycopy,keybytes,NULL,nvalues,(int *) this,kv,appptr);
 	blockvalid = 0;
 	ipage += nblock_kmv;
 
@@ -1562,7 +1562,7 @@ uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
 
 int MapReduce::multivalue_blocks()
 {
-  if (!blockvalid) error->one("Invalid call to multivalue_block()");
+  if (!blockvalid) error->one("Invalid call to multivalue_blocks()");
   return nblock_kmv;
 }
 
@@ -1576,9 +1576,9 @@ int MapReduce::multivalue_block(int iblock,
 {
   int dummy1,dummy2,dummy3;
 
-  if (!blockvalid) error->one("Invalid call to multivalue_blocks()");
+  if (!blockvalid) error->one("Invalid call to multivalue_block()");
   if (iblock < 0 || iblock >= nblock_kmv)
-    error->one("Invalid call to multivalue_blocks()");
+    error->one("Invalid call to multivalue_block()");
 
   char *page;
   kmv->request_info(&page);
