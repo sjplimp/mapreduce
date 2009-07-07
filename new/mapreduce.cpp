@@ -666,7 +666,7 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
 
 	block_header_page = ipage;
 	blockvalid = 1;
-	appcompress(key,keybytes,NULL,nvalues,(int *) this,kv,appptr);
+	appcompress(keycopy,keybytes,NULL,nvalues,(int *) this,kv,appptr);
 	blockvalid = 0;
 	ipage += nblock_kmv;
 
