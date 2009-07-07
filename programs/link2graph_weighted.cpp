@@ -106,7 +106,7 @@ static int vertexsize = 8;
   MapReduce *bbb_mr = NULL; \
   if (!(multivalue)) { \
     bbb_mr = (MapReduce *) (valuebytes); \
-    int bbb_nblocks = bbb_mr->multivalue_blocks(); \
+    bbb_nblocks = bbb_mr->multivalue_blocks(); \
   } \
   for (int bbb_iblock = 0; bbb_iblock < bbb_nblocks; bbb_iblock++) { \
     if (bbb_mr)  \
@@ -351,7 +351,7 @@ int main(int narg, char **args)
     MapReduce *mrout = new MapReduce(*mredge);
 #endif
 
-    mrout->collate(NULL);
+    mrout->convert();
     mrout->reduce(&hfile_write,fp);
 
     delete mrout;
@@ -537,7 +537,7 @@ int main(int narg, char **args)
 #else
       MapReduce *mrout = new MapReduce(*mredge);
 #endif
-      mrout->collate(NULL);
+      mrout->convert(NULL);
       mrout->reduce(&matrix_write_weights,fp);
       
       delete mrout;
@@ -723,7 +723,6 @@ void edge_unique(char *key, int keybytes, char *multivalue,
 
     END_BLOCK_LOOP
 
-static int kdd = 0;
     // Iterate over the hash table to emit edges with their counts.
     // Note:  Assuming the hash table fits in memory!
     map<std::pair<uint64_t, uint64_t>,WEIGHT>::iterator mit;
@@ -733,10 +732,8 @@ static int kdd = 0;
       tmp.v[0] = e.first;
       tmp.v[1] = e.second;
       tmp.wt = (*mit).second;
-kdd++;
-      kv->add(key,keybytes,(char *) &tmp,sizeof(EDGE16));
+      kv->add(key,keybytes,(char *)&tmp,sizeof(EDGE16));
     }
-printf("KDDKDD ADDED %d UNIQUE EDGES\n", kdd);
   } else {  // vertexsize = 8
 
     map<uint64_t,WEIGHT> hash;
