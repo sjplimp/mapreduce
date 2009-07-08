@@ -94,34 +94,40 @@ static int vertexsize = 8;
 
 #ifdef NEW_OUT_OF_CORE
 
-// Macro defining how to loop over blocks when multivalue is stored in
-// more than one block.  This macro is used frequently, so we define it here.
-// Code to be executed on each block should be between a BEGIN_BLOCK_LOOP
+// Macros defining how to loop over blocks when multivalue is stored in
+// more than one block.  These macros are used frequently, so we define them 
+// here.
+// Each reduce function should initially CHECK_FOR_BLOCKS to get the
+// number of blocks for the multivalue. 
+// Then code to be executed on each block should be between a BEGIN_BLOCK_LOOP
 // and an END_BLOCK_LOOP.
 // Note:  This mechanism is a little clunky.  Make sure you DO NOT have a 
 // semicolon afer these macros.
 
-#define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues) { \
+#define CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)  \
   int bbb_nblocks = 1; \
   MapReduce *bbb_mr = NULL; \
   if (!(multivalue)) { \
     bbb_mr = (MapReduce *) (valuebytes); \
     bbb_nblocks = bbb_mr->multivalue_blocks(); \
-  } \
+  } 
+
+#define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)  \
   for (int bbb_iblock = 0; bbb_iblock < bbb_nblocks; bbb_iblock++) { \
     if (bbb_mr)  \
       (nvalues) = bbb_mr->multivalue_block(bbb_iblock, \
                                            &(multivalue),&(valuebytes)); 
 
 #define BREAK_BLOCK_LOOP break
-#define END_BLOCK_LOOP } }
+#define END_BLOCK_LOOP } 
 
 #else  // !NEW_OUT_OF_CORE
 
 // These macros are not needed with the in-core mapreduce library.
-// We'll define them as no-ops (with curly braces so compilation is consistent,
+// We'll define them as no-ops (with curly braces so compilation is consistent),
 // though, so we don't need as many #ifdefs in the code.
 
+#define CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues) 
 #define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues) {
 
 #define BREAK_BLOCK_LOOP 
@@ -673,6 +679,10 @@ void vertex_emit(char *key, int keybytes, char *multivalue,
 {
   uint64_t *vi = (uint64_t *) key;
   if (*vi != 0) kv->add((char *) vi,vertexsize,NULL,0);
+  if (!multivalue) {
+    printf("Error in vertex_emit; not ready for out of core. %d\n", nvalues);
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
   uint64_t *vj = (uint64_t *) multivalue;
   if (*vj != 0) kv->add((char *) vj,vertexsize,NULL,0);
 }
@@ -707,6 +717,7 @@ void edge_unique(char *key, int keybytes, char *multivalue,
 
     map<std::pair<uint64_t, uint64_t>,WEIGHT> hash;
 
+    CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
     BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
     // Use a hash table to count the number of occurrences of each edge.
@@ -738,6 +749,7 @@ void edge_unique(char *key, int keybytes, char *multivalue,
 
     map<uint64_t,WEIGHT> hash;
 
+    CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
     BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
     // Use a hash table to count the number of occurrences of each edge.
@@ -792,8 +804,9 @@ void edge_label1(char *key, int keybytes, char *multivalue,
 
   // Identify id = int ID of vertex key in mvalue list.
   VERTEX id;
-  int i, offset;
+  int i, offset, found=0;
 
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
@@ -803,11 +816,18 @@ void edge_label1(char *key, int keybytes, char *multivalue,
   }
   if (i < nvalues) {
     id = - *((VERTEX *) &multivalue[offset]);
+    found = 1;
     BREAK_BLOCK_LOOP;
   }
 
   END_BLOCK_LOOP
 
+
+  // Sanity check
+  if (!found) {
+    printf("Error in edge_label1; id not found.\n");
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
 
   // Now relabel vertex key using the ID found and emit reverse edges Vj->key.
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
@@ -851,6 +871,7 @@ void edge_label2(char *key, int keybytes, char *multivalue,
   VERTEX id;
 
   // Identify id = int ID of vertex key in mvalue list.
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
@@ -967,6 +988,7 @@ void hfile_write(char *key, int keybytes, char *multivalue,
   uint64_t *vi = (uint64_t *) key;
 
 
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   if (keybytes == 16) {
@@ -1007,6 +1029,7 @@ void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
   VERTEX vi = *((VERTEX *) key);
 
   // First, find the negative int, which is -degree of Vi.
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
@@ -1051,6 +1074,7 @@ void matrix_write_weights(char *key, int keybytes, char *multivalue,
   FILE *fp = (FILE *) ptr;
   VERTEX vi = *((VERTEX *) key);
 
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   EDGE *edge = (EDGE *) multivalue;
