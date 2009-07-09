@@ -145,6 +145,31 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
+#ifdef NEW_OUT_OF_CORE
+#ifdef ODIN
+  // On odin, test the file system for writing; some nodes seem to have 
+  // trouble writing to local disk.
+  // This test currently uses an odin-specific path.  When MR-MPI allows
+  // us to specify a filename prefix, we can make this test more generic.
+  {
+    char filename[29];
+    sprintf(filename, "/localdisk1/scratch/test.%03d", me);
+    FILE *fp = fopen(filename, "w");
+    if (fp == NULL) {
+      char name[252];
+      int len;
+      MPI_Get_processor_name(name, &len);
+      name[len]='\0';
+      printf("RANK %d NODE %s:   CANNOT OPEN TEST FILE ON LOCAL DISK.\n",
+             me, name);
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+    fclose(fp);
+    remove(filename);
+  }
+#endif
+#endif
+
   // parse command-line args
 
   char *outhfile = NULL;
