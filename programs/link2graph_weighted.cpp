@@ -1020,14 +1020,14 @@ void hfile_write(char *key, int keybytes, char *multivalue,
     // Two 64-bit ints per vertex
     EDGE16 *edge = (EDGE16 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp,"%llu %llu    %llu %llu\n",
-                  vi[0], vi[1] ,edge[i].v[0], edge[i].v[1]);
+      fprintf(fp,"%llu %llu    %llu %llu %d\n",
+                  vi[0], vi[1] ,edge[i].v[0], edge[i].v[1], edge[i].wt);
   }
   else if (keybytes == 8) {
     // One 64-bit int per vertex
     EDGE08 *edge = (EDGE08 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp,"%llu   %llu\n", *vi, edge[i].v[0]);
+      fprintf(fp,"%llu   %llu %d\n", *vi, edge[i].v[0], edge[i].wt);
   }
   else 
     fprintf(fp, "Invalid vertex size %d\n", keybytes);
