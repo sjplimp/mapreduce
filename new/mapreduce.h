@@ -32,14 +32,10 @@ class MapReduce {
   class KeyMultiValue *kmv;        // single KMV stored by MR
 
   static MapReduce *mrptr;         // holds a ptr to MR currently being used
-  static int instances;            // total # of MRs currently instantiated; 
-                                   // grows as new MRs are created; 
-                                   // shrinks as they are destroyed.
-  static int instancesever;        // total # of MRs ever instantiated; 
-                                   // grows as new MRs are created, but 
-                                   // never shrinks.
-                                   // Needed to prevent duplicate filenames in
-                                   // copies.
+  static int instances_now;        // total # of MRs currently instantiated
+                                   // grows as created, shrinks as destroyed
+  static int instances_ever;       // total # of MRs ever instantiated
+                                   // grows as created, never shrinks
   static int mpi_finalize_flag;    // 1 if MR library should finalize MPI
 
   // library API
@@ -105,7 +101,8 @@ class MapReduce {
  private:
   MPI_Comm comm;
   int me,nprocs;
-  int instance,allocated;
+  int instance_me;         // which instances_ever I am
+  int allocated;
   double time_start,time_stop;
   uint64_t rsize,wsize;
   class Memory *memory;
