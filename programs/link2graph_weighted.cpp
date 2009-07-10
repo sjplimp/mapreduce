@@ -9,6 +9,15 @@
 //              build graph from 1 value per edge in link file
 //         -e2
 //              build graph from 2 values per edge in link file
+//         -gb
+//              Input file is in Greg Bayer's format, with each record
+//              containing:
+//                 32-bit timestamp
+//                 32-bit time error
+//                 64-bit from host ID
+//                 64-bit from host path
+//                 64-bit to host ID
+//                 64-bit to host path
 //         -out histofile
 //              print vertex out-degree histogramming to histofile
 //         -in histofile
@@ -87,6 +96,10 @@ typedef struct {
   WEIGHT wt;
 } EDGE;
 
+// Data input size.  
+// Standard format is 4 64-bit fields per record, for a total of 32 bytes.
+// Greg Bayer's format adds 2 32-bit fields at the beginning of each record.
+static int GREG_BAYER = 0;
 #define RECORDSIZE 32
 #define CHUNK 8192
 
@@ -215,6 +228,14 @@ int main(int narg, char **args)
       mfile = new char[n];
       strcpy(mfile,args[iarg+1]);
       iarg += 2;
+    } else if (strcmp(args[iarg],"-gb") == 0) {
+      // Input file is in Greg Bayer's format.
+      if (iarg+1 > narg) {
+	flag = 1;
+	break;
+      }
+      GREG_BAYER = 8;
+      iarg += 1;
     } else if (strcmp(args[iarg],"-mw") == 0) {
       // Use edge weights as values in matrix-market file.
       if (iarg+1 > narg) {
@@ -639,7 +660,7 @@ int main(int narg, char **args)
 
 void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
 {
-  char buf[CHUNK*RECORDSIZE];
+  char buf[CHUNK*(RECORDSIZE+GREG_BAYER)];
 
   FILE *fp = fopen(filename,"rb");
   if (fp == NULL) {
@@ -648,9 +669,10 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
   }
 
   while (1) {
-    int nrecords = fread(buf,RECORDSIZE,CHUNK,fp);
+    int nrecords = fread(buf,RECORDSIZE+GREG_BAYER,CHUNK,fp);
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
+      ptr += GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
       kv->add(&ptr[0],vertexsize,&ptr[16],vertexsize);
       ptr += RECORDSIZE;
     }
@@ -670,7 +692,7 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
 
 void fileread2(int itask, KeyValue *kv, void *ptr)
 {
-  char buf[CHUNK*RECORDSIZE];
+  char buf[CHUNK*(RECORDSIZE+GREG_BAYER)];
 
   char **files = (char **) ptr;
   FILE *fp = fopen(files[itask],"rb");
@@ -680,9 +702,10 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
   }
 
   while (1) {
-    int nrecords = fread(buf,RECORDSIZE,CHUNK,fp);
+    int nrecords = fread(buf,RECORDSIZE+GREG_BAYER,CHUNK,fp);
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
+      ptr += GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
       kv->add(&ptr[0],vertexsize,&ptr[16],vertexsize);
       ptr += RECORDSIZE;
     }
