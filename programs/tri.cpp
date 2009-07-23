@@ -64,9 +64,10 @@ int main(int narg, char **args)
   strcpy(outfile,args[2]);
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->verbosity = 2;
+  mr->verbosity = 1;
 #ifdef NEW_OUT_OF_CORE
-  mr->memsize = 1;
+  //mr->memsize = 1;
+  mr->memsize = 1024;
 #endif
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -75,7 +76,8 @@ int main(int narg, char **args)
   // read input file
   // results in ((vi,vj),None)
 
-  int nedges = mr->map(nprocs,1,&infile,'\n',80,&fileread,NULL);
+  int nedges = mr->map(100*nprocs,1,&infile,'\n',80,&fileread,NULL);
+  //int nedges = mr->map(nprocs,1,&infile,'\n',80,&fileread,NULL);
   if (me == 0) printf("%d edges in input file\n",nedges);
 
   // eliminate duplicate edges = both I,J and J,I exist
@@ -175,7 +177,7 @@ int main(int narg, char **args)
 
 // read portion of input file
 // all procs trim last line (between newline and NULL)
-// 1st proc trims header line
+// 1st proc trims header line(s)
 // emit one KV per edge: key = (vi,vj), value = None
 
 void fileread(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
@@ -183,7 +185,10 @@ void fileread(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
   EDGE edge;
 
   char *line = strtok(bytes,"\n");
-  if (itask == 0) line = strtok(NULL,"\n");
+  if (itask == 0) {
+    while (line[0] == '%') line = strtok(NULL,"\n");
+    line = strtok(NULL,"\n");
+  }
 
   while (line) {
     if (strlen(line)) {

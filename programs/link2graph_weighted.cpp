@@ -333,16 +333,20 @@ int main(int narg, char **args)
   // pass remaining list of filenames to map()
 
   MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
-  mrraw->verbosity = 1;
+//  mrraw->verbosity = 1;
+  mrraw->verbosity = 0;
 
 #ifdef NEW_OUT_OF_CORE
-  mrraw->memsize = 1;
+//  mrraw->memsize = 1;
 #endif
 
   if (me == 0) printf("Reading input files...\n");
   int nrawedges;
   if (onefile) nrawedges = mrraw->map(onefile,&fileread1,NULL);
   else nrawedges = mrraw->map(nfiles,&fileread2,argfiles);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tmap = MPI_Wtime();
 
   // mrvert = unique non-zero vertices
 
@@ -644,7 +648,9 @@ int main(int narg, char **args)
     printf("Graph: %d unique vertices\n",nverts);
     printf("Graph: %d unique edges\n",nedges);
     printf("Graph: %d vertices with zero out-degree\n",nsingleton);
-    printf("Time:  %g secs\n",tstop-tstart);
+    printf("Time for map:      %g secs\n",tmap-tstart);
+    printf("Time without map:  %g secs\n",tstop-tmap);
+    printf("Total Time:        %g secs\n",tstop-tstart);
   }
 
   MPI_Finalize();
@@ -1050,7 +1056,7 @@ void hfile_write(char *key, int keybytes, char *multivalue,
     // One 64-bit int per vertex
     EDGE08 *edge = (EDGE08 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp,"%llu   %llu %d\n", *vi, edge[i].v[0], edge[i].wt);
+      fprintf(fp,"%lld   %lld %d\n", *vi, edge[i].v[0], edge[i].wt);
   }
   else 
     fprintf(fp, "Invalid vertex size %d\n", keybytes);
