@@ -1,0 +1,88 @@
+The link2graph program uses the MPI-based MapReduce library MR-MPI to 
+create host-to-host or host/path-to-host/path
+graphs from FLOWBEE data.  The graphs can be output to files in various 
+formats or (eventually) can be handed off to other MapReduce programs.
+
+Capabilities in link2graph:
+
+1.  Read binary data in FLOWBEE format or Greg Bayer's new compressed format
+2.  Identify unique edges in the data. 
+    Count the number of occurrences of each edge.
+    Create a MapReduce object containing the graph stored as key-value pairs:
+    key = source vertex 
+    value = {destination vertex, occurrence count}.
+3.  (optional) write edge lists using vertex hash keys and occurrence count to
+    files.
+4.  (optional) convert vertex hash keys to consecutive numbers in the range
+    [1:N] for N vertices; create a new graph (as in 3) with renumbered 
+    vertices.
+5.  (optional) write histograms of vertex in- and out-degree to files.
+6.  (optional) write MatrixMarket formatted file with edge lists using [1:N] 
+    and either 1/vertex_outdegree (useful for PageRank) or edge occurrence
+    count.
+
+The link2graph program works with both the in-core and out-of-core MR-MPI
+libraries.  We debugged and experimented on odin with the out-of-core library 
+using odin's local disks.  Recent system issues on odin have made performance
+evaluation difficult.  These issues are close to being resolved.
+
+Issues:
+
+-  [1:N] ordering difficult in Hadoop implementation.  In MR-MPI, we take
+   advantage of MPI global operations (e.g., MPI_Scan) and a consistent 
+   mapping of tasks to processors to simplify the [1:N] ordering.  Hadoop
+   does not enable such global operations; nor does it guarantee the 
+   mapping of tasks to processors will always be the same.
+
+-  Working with large data sets.  Hadoop had difficulty working with
+   many separate input files, so Greg created a new compressed format
+   that combines many files into a single file with time-stamps on each 
+   record.  We modified link2graph to read either format.
+
+-  Out-of-core MR-MPI uses a paging mechanism to write key-value and
+   key-multivalue pairs to files.  Converting an in-core MR-MPI program 
+   to an out-of-core MR-MPI program requires additional code to handle 
+   cases where the size of a single key-multivalue exceeds a single page.
+   We defined macros in link2graph to enable multiple pages to be accessed
+   without obscuring the operations of reduce functions.  My hope is that
+   these macros will be useable in converting other programs from in-core
+   to out-of-core as well.
+
+
+MapReduce operations used in each step:
+
+1.  Read binary data in FLOWBEE format or Greg Bayer's new compressed format
+
+    Map:
+    Input:   (a) a list of data files or (b) a file containing the names of the
+             data files.
+    Output:  Key-Value pairs containing edges with hashkey IDs for vertices.
+             Key = source vertex
+             Value = destination vertex
+
+2.  Identify unique edges in the data. 
+    Count the number of occurrences of each edge.
+    Create a MapReduce object containing the graph stored as key-value pairs.
+
+    Collate by source vertex.
+    Reduce:
+    Input:   Key-Multivalue pair
+             Key = source vertex (with hashkey ID).
+             Value = list of nvalue destination vertices
+    Compute: Build a local hash table of destination vertices, counting
+             the number of occurrences of each destination vertex.
+    Output:  Key-Value pairs
+             Key = source vertex (with hashkey ID).
+             Value = {unique destination vertex, number of occurrence of edge}
+  
+3.  (optional) Write edge lists using vertex hash keys and occurrence count to
+    files.
+
+
+4.  (optional) Convert vertex hash keys to consecutive numbers in the range
+    [1:N] for N vertices; create a new graph (as in 3) with renumbered 
+    vertices.
+5.  (optional) Write histograms of vertex in- and out-degree to files.
+6.  (optional) Write MatrixMarket formatted file with edge lists using [1:N] 
+    and either 1/vertex_outdegree (useful for PageRank) or edge occurrence
+    count.
