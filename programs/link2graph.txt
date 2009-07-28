@@ -6,20 +6,20 @@ formats or (eventually) can be handed off to other MapReduce programs.
 Capabilities in link2graph:
 
 1.  Read binary data in FLOWBEE format or Greg Bayer's new compressed format
-2.  Identify unique edges in the data. 
-    Count the number of occurrences of each edge.
+2.  Identify unique edges Vi->Vj in the data. 
+    Count the number of occurrences Wij of each edge Vi->Vj
     Create a MapReduce object containing the graph stored as key-value pairs:
-    key = source vertex 
-    value = {destination vertex, occurrence count}.
-3.  (optional) write edge lists using vertex hash keys and occurrence count to
+    key = source vertex Vi
+    value = {destination vertex Vj, occurrence count Wij}.
+3.  (optional) Write edge lists using vertex hashkey IDs and occurrence count to
     files.
-4.  (optional) convert vertex hash keys to consecutive numbers in the range
+4.  (optional) Convert vertex hashkey IDs to consecutive numbers in the range
     [1:N] for N vertices; create a new graph (as in 3) with renumbered 
     vertices.
-5.  (optional) write histograms of vertex in- and out-degree to files.
-6.  (optional) write MatrixMarket formatted file with edge lists using [1:N] 
+5.  (optional) Write histogram of vertex out-degree to files.
+6.  (optional) Write MatrixMarket formatted file with edge lists using [1:N] 
     and either 1/vertex_outdegree (useful for PageRank) or edge occurrence
-    count.
+    count Wij.
 
 The link2graph program works with both the in-core and out-of-core MR-MPI
 libraries.  We debugged and experimented on odin with the out-of-core library 
@@ -31,13 +31,15 @@ Issues:
 -  [1:N] ordering difficult in Hadoop implementation.  In MR-MPI, we take
    advantage of MPI global operations (e.g., MPI_Scan) and a consistent 
    mapping of tasks to processors to simplify the [1:N] ordering.  Hadoop
-   does not enable such global operations; nor does it guarantee the 
+   does not enable such global operations, nor does it guarantee the 
    mapping of tasks to processors will always be the same.
 
 -  Working with large data sets.  Hadoop had difficulty working with
    many separate input files, so Greg created a new compressed format
    that combines many files into a single file with time-stamps on each 
-   record.  We modified link2graph to read either format.
+   record.  We modified link2graph to read either format.  We also modified
+   link2graph to report the number of occurrences of each edge as Greg's
+   Hadoop implementation does.
 
 -  Out-of-core MR-MPI uses a paging mechanism to write key-value and
    key-multivalue pairs to files.  Converting an in-core MR-MPI program 
@@ -49,40 +51,169 @@ Issues:
    to out-of-core as well.
 
 
-MapReduce operations used in each step:
+Details of MapReduce operations used in each step:
 
 1.  Read binary data in FLOWBEE format or Greg Bayer's new compressed format
 
-    Map:
-    Input:   (a) a list of data files or (b) a file containing the names of the
-             data files.
-    Output:  Key-Value pairs containing edges with hashkey IDs for vertices.
-             Key = source vertex
-             Value = destination vertex
+    Map:   Input:   (a) a list of data files or (b) a file containing the 
+                    names of the data files.
+           Output:  Key-Value pairs containing edges with hashkey IDs for 
+                    vertices.
+                    Key = source vertex
+                    Value = destination vertex
 
-2.  Identify unique edges in the data. 
-    Count the number of occurrences of each edge.
-    Create a MapReduce object containing the graph stored as key-value pairs.
+2.  Identify unique edges Vi->Vj in the data. 
+    Count the number of occurrences Wij of each edge Vi->Vj
+    Create a MapReduce object containing the graph stored as key-value pairs:
+    key = source vertex Vi
+    value = {destination vertex Vj, occurrence count Wij}.
 
     Collate by source vertex.
-    Reduce:
-    Input:   Key-Multivalue pair
-             Key = source vertex (with hashkey ID).
-             Value = list of nvalue destination vertices
-    Compute: Build a local hash table of destination vertices, counting
-             the number of occurrences of each destination vertex.
-    Output:  Key-Value pairs
-             Key = source vertex (with hashkey ID).
-             Value = {unique destination vertex, number of occurrence of edge}
+    Reduce: Input:   Key-Multivalue pair
+                     Key = source vertex Vi (with hashkey ID).
+                     Multivalue = list of nvalue destination vertices Vj
+            Compute: Build a local hash table of destination vertices Vj, 
+                     counting the number of occurrences Wij of each Vj in the 
+                     multivalue.
+            Output:  Key-Value pairs
+                     Key = source vertex Vi (with hashkey ID).
+                     Value = {unique destination vertex Vj, number of 
+                              occurrences Wij of edge Vi->Vj}
   
 3.  (optional) Write edge lists using vertex hash keys and occurrence count to
     files.
 
+    Copy the MapReduce object to a temporary object.
+    Reduce: Input:   Key-Multivalue pair
+                     Key = source vertex Vi (with hashkey ID).
+                     Multivalue = list of {destination vertex Vj, number of 
+                                  occurrences Wij of edge Vi->Vj}
+            Compute: Open a file for each processor.  
+                     For each Vj, write edge source Vi and destination Vj,
+                     along with occurrence count Wij.
+            Output:  None.
 
 4.  (optional) Convert vertex hash keys to consecutive numbers in the range
     [1:N] for N vertices; create a new graph (as in 3) with renumbered 
     vertices.
-5.  (optional) Write histograms of vertex in- and out-degree to files.
+
+    a. Create MapReduce object with only unique vertices:
+           Copy the MapReduce object from step 3 to a temporary object.
+           Reduce:  Input:  Key-Multivalue pair
+                            Key = source vertex Vi(with hashkey ID).
+                            Multivalue = list of {destination vertex Vj, number
+                                         of occurrences Wij of edge Vi->Vj}
+                    Output: One key-value pair for each vertex:
+                            Key = Vi, Value = NULL
+                            Key = Vj, Value = NULL, for each Vj in input 
+                                                    multivalue.
+                   
+           Collate
+           Reduce: Input:  Key-Multivalue pair
+                           Key = unique vertex Vi (with hashkey ID)
+                           Multivalue = NULL
+                   Output: One key-value pair:
+                           Key = Vi, Value = NULL
+
+    b. Relabel vertices with numbers in range [1:N] for N vertices.
+           Perform MPI_Scan on number of local key-value pairs in unique-vertex
+                   MapReduce object above, giving the starting label for 
+                   vertices on this processor.
+           Clone the vertex MapReduce object to locally convert key-values 
+                   to key-multivalues.
+           Reduce: Input:   Key-Multivalue pair
+                            Key = unique vertex Vi (with hashkey ID)
+                            Multivalue = NULL
+                   Compute: Increment vertex counter on processor.
+                   Output:  One key-value pair:
+                            Key = Vi, Value = vertex counter value (in [1:N])
+
+    c. Relabel edges in edge MapReduce object output from step 3.
+           Add the relabeled vertex MapReduce object from step 4b to the 
+                    edge MapReduce object from step 3.  
+                    (Essentially, add the set of key-value pairs from one 
+                    object to the other.)
+           Collate
+           Reduce: Input:   Key-Multivalue pair
+                            Key = source vertex Vi (with hashkey ID)
+                            Multivalue = list of {destination vertex Vj, number
+                                         of occurrences Wij of edge Vi->Vj}
+                                         PLUS index in [1:N] of Vi.
+                   Compute: Identify the index entry of Vi in the multivalue; 
+                            its size (in bytes)
+                            is smaller than other multivalue entries.
+                   Output:  One key-value pair for each Vj in multivalue.
+                            Key = Vj
+                            Value = {relabeled Vi in range [1:N], number of 
+                                     occurrences Wij of edge Vi->Vj}
+
+           Again, add the relabled vertex MapReduce object from step 4b to the 
+                    output MapReduce object.
+
+           Collate
+           Reduce: Input:   Key-Multivalue pair
+                            Key = destination vertex Vj (with hashkey ID)
+                            Multivalue = list of {source vertex Vi in [1:N], 
+                                         number of occurrences Wij of 
+                                         edge Vi->Vj}
+                                         PLUS index in [1:N] of Vj.
+                   Compute: Identify the index entry of Vj in the multivalue; 
+                            its size (in bytes)
+                            is smaller than other multivalue entries.
+                   Output:  One key-value pair for each Vi in multivalue.
+                            Key = Vi in [1:N]
+                            Value = {relabeled Vj in range [1:N], number of 
+                                     occurrences Wij of edge Vi->Vj}
+
+5.  (optional) Write histograms of vertex out-degree to files.
+
+    Copy the converted MapReduce object from step 4 to a temporary object.
+    Collate
+    Reduce: Input:   Key-Multivalue pair
+                     Key = source vertex Vi (in [1:N])
+                     Multivalue = list of {destination vertex Vj (in [1:N]), 
+                                  number of occurrences Wij of edge Vi->Vj}
+            Output:  Key-value pair
+                     Key = Vi
+                     Value = number of values in Multivalue (outdegree of Vi)
+    Clone the MapReduce object to locally convert key-values to key-multivalues.
+    Reduce: Input:   Key-Multivalue pair
+                     Key = Vi (in 1:N)
+                     Multivalue = outdegree of Vi
+            Output:  Key-value pair
+                     Key = outdegree of Vi
+                     Value = Vi
+    Collate
+    Reduce: Input:   Key-Multivalue pair
+                     Key = outdegree k
+                     Multivalue = list of vertices Vi with outdegree k
+            Output:  Key-value pair
+                     Key = outdegree k
+                     Value = number of vertices in multivalue (i.e., number of
+                             vertices having outdegree k).
+    Processor 0 opens histogram file.
+    Gather MapReduce object to processor 0. 
+    Sort MapReduce keys (increasing outdegree)
+    Clone the MapReduce object to locally convert key-values to key-multivalues.
+    Reduce: Input:   Key-Multivalue pair
+                     Key = outdegree k
+                     Multivalue = number of vertices having outdegree k
+            Compute: Write outdegree k and number of vertices having outdegree
+                     k to histogram file.
+            Output:  None.
+
 6.  (optional) Write MatrixMarket formatted file with edge lists using [1:N] 
     and either 1/vertex_outdegree (useful for PageRank) or edge occurrence
     count.
+
+    Copy the converted MapReduce object from step 4 to a temporary object.
+    Reduce: Input:  Key-Multivalue pair
+                    Key = source vertex Vi (in [1:N])
+                    Multivalue = list of {destination vertex Vj (in [1:N]), 
+                                 number of occurrences Wij of edge Vi->Vj}
+            Compute: Open a file for each processor.  
+                     If 1/vertex_outdegree numerical value is desired, 
+                     compute as in step 5.
+                     Write edge source Vi and destination Vj, along with 
+                     desired numerical value (1/vertex_outdegree or Wij).
+            Output:  None.
