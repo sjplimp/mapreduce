@@ -16,8 +16,9 @@ Capabilities in link2graph:
 4.  (optional) Convert vertex hashkey IDs to consecutive numbers in the range
     [1:N] for N vertices; create a new graph (as in 3) with renumbered 
     vertices.
-5.  (optional) Write histogram of vertex out-degree to files.
-6.  (optional) Write MatrixMarket formatted file with edge lists using [1:N] 
+5.  (optional) Write histogram of vertex outdegree to files.
+6.  (optional) Write histogram of vertex indegree to files.
+7.  (optional) Write MatrixMarket formatted file with edge lists using [1:N] 
     and either 1/vertex_outdegree (useful for PageRank) or edge occurrence
     count Wij.
 
@@ -165,7 +166,7 @@ Details of MapReduce operations used in each step:
                             Value = {relabeled Vj in range [1:N], number of 
                                      occurrences Wij of edge Vi->Vj}
 
-5.  (optional) Write histograms of vertex out-degree to files.
+5.  (optional) Write histograms of vertex outdegree to files.
 
     Copy the converted MapReduce object from step 4 to a temporary object.
     Collate
@@ -173,21 +174,21 @@ Details of MapReduce operations used in each step:
                      Key = source vertex Vi (in [1:N])
                      Multivalue = list of {destination vertex Vj (in [1:N]), 
                                   number of occurrences Wij of edge Vi->Vj}
-            Output:  Key-value pair
+            Output:  Key-value pair with Vi and its outdegree
                      Key = Vi
                      Value = number of values in Multivalue (outdegree of Vi)
     Clone the MapReduce object to locally convert key-values to key-multivalues.
     Reduce: Input:   Key-Multivalue pair
                      Key = Vi (in 1:N)
                      Multivalue = outdegree of Vi
-            Output:  Key-value pair
+            Output:  Key-value pair to allow grouping by outdegrees.
                      Key = outdegree of Vi
                      Value = Vi
     Collate
     Reduce: Input:   Key-Multivalue pair
                      Key = outdegree k
                      Multivalue = list of vertices Vi with outdegree k
-            Output:  Key-value pair
+            Output:  Key-value pair to allow gather of results to one processor.
                      Key = outdegree k
                      Value = number of vertices in multivalue (i.e., number of
                              vertices having outdegree k).
@@ -202,7 +203,21 @@ Details of MapReduce operations used in each step:
                      k to histogram file.
             Output:  None.
 
-6.  (optional) Write MatrixMarket formatted file with edge lists using [1:N] 
+6.  (optional) Write histograms of vertex indegrees to files.
+
+    Copy the converted MapReduce object from step 4 to a temporary object.
+    Clone the MapReduce object to locally convert key-values to key-multivalues.
+    Reduce: Input:   Key-Multivalue pair
+                     Key = source vertex Vi (in [1:N])
+                     Multivalue = a single destination vertex Vj with
+                                  the number of occurrences Wij of edge Vi->Vj.
+            Output:  Key-value pair representing reversed edge
+                     Key = Vj
+                     Value = Vi
+    Compute outdegrees with the reversed edges as in Step 5.
+
+
+7.  (optional) Write MatrixMarket formatted file with edge lists using [1:N] 
     and either 1/vertex_outdegree (useful for PageRank) or edge occurrence
     count.
 

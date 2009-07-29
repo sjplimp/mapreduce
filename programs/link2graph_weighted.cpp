@@ -91,6 +91,7 @@ typedef struct {
 } EDGE08;
 
 // Edge with destination vertex (VERTEXTYPE) and edge weight
+// Note:  edge_reverse assumes v is first field of this struct.
 typedef struct {
   VERTEX v;
   WEIGHT wt;
@@ -523,22 +524,23 @@ int main(int narg, char **args)
 
   if (inhfile) {
 
-    // mrdegree = vertices with their out degree as negative value
+    // mrdegree = vertices with their in degree as negative value
     // nsingleton_in = # of verts with 0 indegree
     
-    if (me == 0) printf("Generating out-degree histogram...\n");
+    if (me == 0) printf("Generating in-degree histogram...\n");
 #ifdef NEW_OUT_OF_CORE
     MapReduce *mrdegree = mredge->copy();
 #else
     MapReduce *mrdegree = new MapReduce(*mredge);
 #endif
     mrdegree->clone();
-    mrdegree->reduce(&edge_reverse,NULL);
+    mrdegree->reduce(&edge_reverse,NULL);  // Assumes destination vertex is
+                                           // first field in EDGE struct.
     mrdegree->collate(NULL);
     int n = mrdegree->reduce(&edge_count,NULL);
     int nsingleton_in = nverts - n;
 
-    // mrhisto KV = (out degree, vert count)
+    // mrhisto KV = (in degree, vert count)
     
     MapReduce *mrhisto = mrdegree;
     mrhisto->clone();
@@ -546,8 +548,8 @@ int main(int narg, char **args)
     mrhisto->collate(NULL);
     mrhisto->reduce(&edge_histo,NULL);
 
-    // output sorted histogram of out degree
-    // add in inferred zero-degree as last entry
+    // output sorted histogram of in degree
+    // add inferred zero-degree as last entry
 
     FILE *fp;
     if (me == 0) {
