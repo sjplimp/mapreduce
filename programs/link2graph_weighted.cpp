@@ -29,6 +29,17 @@
 //         -h hashfile
 //              print graph edges as (i,j) pairs using original hashvalues
 //              from input file (not converted to [1:N]).  Works for -e1 or -e2.
+//         -ts timeseriesfile
+//              Print time-series file format used by Greg Mackey.
+//              Requires -c to convert hashkey IDs to integer IDs.
+//              To keep time series, input file (in -ff or -f) should contain
+//              only one file (one timestep).
+//              A separate file per processor is produced for srcs and dests; 
+//              these have to be concatenated for use.
+//              timeseriesfile.srcs:  64-bit source vtx in range [0:n-1]
+//              timeseriesfile.dests:  64-bit destination vtx in range [0:n-1]
+//              timeseriesfile.vmap:  for each vtx in [0:n-1], 
+//                                    64-bit host hashkey ID
 //         -ff file
 //              file with list of binary link files to read in (one per line)
 //         -f file1 file2 ...
@@ -58,6 +69,10 @@ void edge_label2(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_count(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_reverse(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_histo(char *, int, char *, int, int *, KeyValue *, void *);
+int increasing_sort(char *, int, char *, int);
+void key_value_reverse(char *, int, char *, int, int *, KeyValue *, void *);
+void time_series_write(char *, int, char *, int, int *, KeyValue *, void *);
+void time_series_vmap(char *, int, char *, int, int *, KeyValue *, void *);
 int histo_sort(char *, int, char *, int);
 void histo_write(char *, int, char *, int, int *, KeyValue *, void *);
 void hfile_write(char *, int, char *, int, int *, KeyValue *, void *);
@@ -186,6 +201,7 @@ int main(int narg, char **args)
 
   // parse command-line args
 
+  char *tsfile = NULL;
   char *outhfile = NULL;
   char *inhfile = NULL;
   char *mfile = NULL;
@@ -202,8 +218,8 @@ int main(int narg, char **args)
     if (strcmp(args[iarg],"-out") == 0) {
       // Generate an outdegree histogram.
       if (iarg+2 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       int n = strlen(args[iarg+1]) + 1;
       outhfile = new char[n];
@@ -212,18 +228,28 @@ int main(int narg, char **args)
     } else if (strcmp(args[iarg],"-in") == 0) {
       // Generate an indegree histogram.
       if (iarg+2 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       int n = strlen(args[iarg+1]) + 1;
       inhfile = new char[n];
       strcpy(inhfile,args[iarg+1]);
       iarg += 2;
+    } else if (strcmp(args[iarg],"-ts") == 0) {
+      // Generate time-series file in Greg Mackey's format
+      if (iarg+2 > narg) {
+        flag = 1;
+        break;
+      }
+      int n = strlen(args[iarg+1]) + 1;
+      tsfile = new char[n];
+      strcpy(tsfile,args[iarg+1]);
+      iarg += 2;
     } else if (strcmp(args[iarg],"-m") == 0) {
       // Generate a matrix-market output file.
       if (iarg+2 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       int n = strlen(args[iarg+1]) + 1;
       mfile = new char[n];
@@ -232,24 +258,24 @@ int main(int narg, char **args)
     } else if (strcmp(args[iarg],"-gb") == 0) {
       // Input file is in Greg Bayer's format.
       if (iarg+1 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       GREG_BAYER = 8;
       iarg += 1;
     } else if (strcmp(args[iarg],"-mw") == 0) {
       // Use edge weights as values in matrix-market file.
       if (iarg+1 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       mfile_weights = 1;
       iarg += 1;
     } else if (strcmp(args[iarg],"-h") == 0) {
       // Generate a output file of edges using hashvalues from input file.
       if (iarg+2 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       int n = strlen(args[iarg+1]) + 1;
       hfile = new char[n];
@@ -258,32 +284,32 @@ int main(int narg, char **args)
     } else if (strcmp(args[iarg],"-c") == 0) {
       // Convert vertex IDs to range 1-N.
       if (iarg+1 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       convertflag = 1;
       iarg += 1;
     } else if (strcmp(args[iarg],"-e1") == 0) {
       // Use one 64-bit fields as a vertex ID.
       if (iarg+1 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       vertexsize = 8;
       iarg += 1;
     } else if (strcmp(args[iarg],"-e2") == 0) {
       // Use two 64-bit fields as a vertex ID.
       if (iarg+1 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       vertexsize = 16;
       iarg += 1;
     } else if (strcmp(args[iarg],"-ff") == 0) {
       // Use one file of data filenames.
       if (iarg+2 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       int n = strlen(args[iarg+1]) + 1;
       onefile = new char[n];
@@ -292,8 +318,8 @@ int main(int narg, char **args)
     } else if (strcmp(args[iarg],"-f") == 0) {
       // Use one or more data files listed here.
       if (iarg+2 > narg) {
-	flag = 1;
-	break;
+        flag = 1;
+        break;
       }
       nfiles = narg-1 - iarg; 
       argfiles = &args[iarg+1];
@@ -317,6 +343,16 @@ int main(int narg, char **args)
 
   if (convertflag == 0 && (outhfile || inhfile)) {
     if (me == 0) printf("Must convert vertex values if histogram\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  if (convertflag == 0 && tsfile) {
+    if (me == 0) printf("Must convert vertex values if time-series file\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  if (vertexsize != 8 && tsfile) {
+    if (me == 0) printf("Time-series files contain only hosts; use -e1\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
@@ -418,6 +454,7 @@ int main(int narg, char **args)
 
   // update mredge so its vertices are unique ints from 1-N, not hash values
 
+  MapReduce *mrvertlabel = NULL;
   if (convertflag) {
 
     // mrvertlabel = vertices with unique IDs 1-N
@@ -438,9 +475,9 @@ int main(int narg, char **args)
     label.nthresh -= nlocal;
 
 #ifdef NEW_OUT_OF_CORE
-    MapReduce *mrvertlabel = mrvert->copy();
+    mrvertlabel = mrvert->copy();
 #else
-    MapReduce *mrvertlabel = new MapReduce(*mrvert);
+    mrvertlabel = new MapReduce(*mrvert);
 #endif
 
     mrvertlabel->clone();
@@ -468,11 +505,57 @@ int main(int narg, char **args)
     mredge->collate(NULL);
     mredge->reduce(&edge_label2,NULL);
     
-    delete mrvertlabel;
   } else delete mrvert;
 
-  // compute and output an out-degree histogram
+  // output a time-series formatted file using Greg Mackey's format.
+  if (tsfile) {
+    if (me == 0) printf("Generating time-series file...\n");
+    
+    char fname[128];
+    FILE *fp[2];
+    sprintf(fname,"%s.srcs.%d",tsfile,me);
+    fp[0] = fopen(fname,"w");
+    sprintf(fname,"%s.dests.%d",tsfile,me);
+    fp[1] = fopen(fname,"w");
 
+    // Write the srcs and dests files, one per processor.
+#ifdef NEW_OUT_OF_CORE
+    MapReduce *mrout = mredge->copy();
+#else
+    MapReduce *mrout = new MapReduce(*mredge);
+#endif
+    mrout->convert();
+    mrout->reduce(&time_series_write,fp);
+    
+    delete mrout;
+    fclose(fp[0]);
+    fclose(fp[1]);
+
+    // Write the vmap file:  gather to processor 0, sort, output to single file.
+    if (me == 0) {
+      sprintf(fname, "%s.vmap", tsfile);
+      fp[0] = fopen(fname,"w");
+    } else fp[0] = NULL;
+    
+#ifdef NEW_OUT_OF_CORE
+    mrout = mrvertlabel->copy();
+#else
+    mrout = new MapReduce(*mrvertlabel);
+#endif
+   
+    mrout->clone();
+    mrout->reduce(key_value_reverse,NULL);
+    mrout->gather(1);
+    mrout->sort_keys(&increasing_sort);
+    mrout->clone();
+    mrout->reduce(&time_series_vmap,fp[0]);
+
+    delete mrout;
+    fclose(fp[0]);
+  }
+  if (mrvertlabel) delete mrvertlabel;
+
+  // compute and output an out-degree histogram
   if (outhfile) {
 
     // mrdegree = vertices with their out degree as negative value
@@ -731,7 +814,7 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
 ------------------------------------------------------------------------- */
 
 void vertex_emit(char *key, int keybytes, char *multivalue,
-		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   uint64_t *vi = (uint64_t *) key;
   if (*vi != 0) kv->add((char *) vi,vertexsize,NULL,0);
@@ -750,7 +833,7 @@ void vertex_emit(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void vertex_unique(char *key, int keybytes, char *multivalue,
-		   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   kv->add(key,keybytes,NULL,0);
 }
@@ -764,7 +847,7 @@ void vertex_unique(char *key, int keybytes, char *multivalue,
    only unique edges are emitted
 ------------------------------------------------------------------------- */
 void edge_unique(char *key, int keybytes, char *multivalue,
-		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   uint64_t *vi = (uint64_t *) key;
   if (*vi == 0) return;
@@ -839,7 +922,7 @@ void edge_unique(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void vertex_label(char *key, int keybytes, char *multivalue,
-		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   LABEL *label = (LABEL *) ptr;
   label->count++;
@@ -854,7 +937,7 @@ void vertex_label(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void edge_label1(char *key, int keybytes, char *multivalue,
-		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
 
 
@@ -917,7 +1000,7 @@ void edge_label1(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void edge_label2(char *key, int keybytes, char *multivalue,
-		 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
 
   // id = positive int in mvalue list
@@ -968,7 +1051,7 @@ void edge_label2(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void edge_count(char *key, int keybytes, char *multivalue,
-		int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   int value = -nvalues;
   kv->add(key,keybytes,(char *) &value,sizeof(int));
@@ -981,7 +1064,7 @@ void edge_count(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void edge_reverse(char *key, int keybytes, char *multivalue,
-		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   int value = - *((int *) multivalue);
   kv->add((char *) &value,sizeof(int),key,keybytes);
@@ -994,11 +1077,10 @@ void edge_reverse(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void edge_histo(char *key, int keybytes, char *multivalue,
-		int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   kv->add(key,keybytes,(char *) &nvalues,sizeof(int));
 }
-
 /* ----------------------------------------------------------------------
    histo_sort compare() function
    sort degree values in reverse order
@@ -1020,7 +1102,7 @@ int histo_sort(char *value1, int len1, char *value2, int len2)
 ------------------------------------------------------------------------- */
 
 void histo_write(char *key, int keybytes, char *multivalue,
-		int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   FILE *fp = (FILE *) ptr;
 
@@ -1036,7 +1118,7 @@ void histo_write(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void hfile_write(char *key, int keybytes, char *multivalue,
-		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   int i;
   FILE *fp = (FILE *) ptr;
@@ -1074,7 +1156,7 @@ void hfile_write(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
-		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   int i;
 
@@ -1124,7 +1206,7 @@ void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
    write each edge to file, create no new KV
 ------------------------------------------------------------------------- */
 void matrix_write_weights(char *key, int keybytes, char *multivalue,
-		  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   int i;
   FILE *fp = (FILE *) ptr;
@@ -1140,3 +1222,82 @@ void matrix_write_weights(char *key, int keybytes, char *multivalue,
 
   END_BLOCK_LOOP
 }
+
+/* ----------------------------------------------------------------------
+   increasing_sort compare() function
+   sort values in increasing order
+------------------------------------------------------------------------- */
+
+int increasing_sort(char *value1, int len1, char *value2, int len2)
+{
+  int *i1 = (int *) value1;
+  int *i2 = (int *) value2;
+  if (*i1 < *i2) return -1;
+  else if (*i1 > *i2) return 1;
+  else return 0;
+}
+
+/* ----------------------------------------------------------------------
+   key_value_reverse reduce() function
+   input KMV: (key, value)
+   output KV: (value, key)
+------------------------------------------------------------------------- */
+
+void key_value_reverse(char *key, int keybytes, char *multivalue,
+                       int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  if (nvalues > 1) {
+    printf("Improper use of key_value_reverse; nvalues = %d > 1.\n", nvalues);
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+  if (!multivalue) {
+    printf("Improper use of key_value_reverse; multivalue == NULL.\n");
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+  kv->add(multivalue,valuebytes[0],key,keybytes);
+}
+
+/* ----------------------------------------------------------------------
+   time_series_write reduce() function
+   input KMV: (Vi,[{Vj Wj} {Vk Wk} ...]), 
+   where Wj is the weight of edge Vi->Vj.
+   write each edge to files, create no new KV
+------------------------------------------------------------------------- */
+void time_series_write(char *key, int keybytes, char *multivalue,
+                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  int i;
+  FILE **fp = (FILE **) ptr;
+  VERTEX vi = *((VERTEX *) key);
+
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+
+  EDGE *edge = (EDGE *) multivalue;
+
+  uint64_t vi_l = (uint64_t) vi - 1;  // Greg Mackey's format is [0:N-1]
+  for (i = 0; i < nvalues; i++) {
+    uint64_t vj_l = (uint64_t) edge[i].v - 1; // Greg Mackey's format is [0:N-1]
+    fwrite(&vi_l, 8, 1, fp[0]);
+    fwrite(&vj_l, 8, 1, fp[1]);
+  }
+
+  END_BLOCK_LOOP
+}
+
+/* ----------------------------------------------------------------------
+   time_series_vmap reduce() function
+   input KMV: (Vi (in [1:N],Vi in hashkey ID) 
+   Keys are sorted.
+   write hashkey ID to file, create no new KV
+------------------------------------------------------------------------- */
+
+void time_series_vmap(char *key, int keybytes, char *multivalue,
+                      int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  FILE *fp = (FILE *) ptr;
+
+  uint64_t *hashkey = (uint64_t *) multivalue;
+  fwrite(hashkey, 8, 1, fp);
+}
+
