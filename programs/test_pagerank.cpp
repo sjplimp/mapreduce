@@ -457,8 +457,8 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->verbosity = 1;
-  mr->timer = 1;
+  mr->verbosity = 0;
+  mr->timer = 0;
   mr->mapstyle = 1;  // mapstyle == 0 does not work for this code.
 #ifdef NEW_OUT_OF_CORE
   mr->memsize = memsize;
