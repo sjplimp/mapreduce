@@ -53,6 +53,8 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
+#include "renumber_graph.hpp"
+#include "shared.hpp"
 
 #include <map>
 
@@ -79,39 +81,6 @@ void histo_write(char *, int, char *, int, int *, KeyValue *, void *);
 void hfile_write(char *, int, char *, int, int *, KeyValue *, void *);
 void matrix_write_inverse_degree(char *, int, char *, int, int *, KeyValue *, void *);
 void matrix_write_weights(char *, int, char *, int, int *, KeyValue *, void *);
-
-// Vertex type in 1-N ordering; occasionally we use negative values for
-// identifying special cases, so make sure this type is signed.
-typedef int VERTEX;
-
-typedef struct {
-  VERTEX nthresh;
-  VERTEX count;
-} LABEL;
-
-// Edge Weight type; set to number of occurrence of edge in original input.
-typedef unsigned int WEIGHT;
-
-// Edge with destination vertex (16-bytes) and edge weight
-// Note:  edge_label1 assumes v is first field of this struct.
-typedef struct {
-  uint64_t v[2];
-  WEIGHT wt;  
-} EDGE16;
-
-// Edge with destination vertex (8-bytes) and edge weight
-// Note:  edge_label1 assumes v is first field of this struct.
-typedef struct {
-  uint64_t v[1];
-  WEIGHT wt;  
-} EDGE08;
-
-// Edge with destination vertex (VERTEXTYPE) and edge weight
-// Note:  edge_reverse assumes v is first field of this struct.
-typedef struct {
-  VERTEX v;
-  WEIGHT wt;
-} EDGE;
 
 // Data input size.  
 // Standard format is 4 64-bit fields per record, for a total of 32 bytes.
@@ -396,60 +365,11 @@ int main(int narg, char **args)
     fclose(fp);
   }
 
-  // update mredge so its vertices are unique ints from 1-N, not hash values
-
-  MapReduce *mrvertlabel = NULL;
   if (convertflag) {
-
-    // mrvertlabel = vertices with unique IDs 1-N
-    // label.nthresh = # of verts on procs < me
-    // no longer need mrvert
-
-    if (me == 0) printf("Converting hash-keys to integers...\n");
-    LABEL label;
-    label.count = 0;
-
-#ifdef NEW_OUT_OF_CORE
-    int nlocal = mrvert->kv->nkv;
-#else
-    int nlocal = mrvert->kv->nkey;
-#endif
-
-    MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-    label.nthresh -= nlocal;
-
-#ifdef NEW_OUT_OF_CORE
-    mrvertlabel = mrvert->copy();
-#else
-    mrvertlabel = new MapReduce(*mrvert);
-#endif
-
-    mrvertlabel->clone();
-    mrvertlabel->reduce(&vertex_label,&label);
-    
-    delete mrvert;
-
-    // reset all vertices in mredge from 1 to N
-
-#ifdef NEW_OUT_OF_CORE
-    mredge->add(mrvertlabel);
-#else
-    mredge->kv->add(mrvertlabel->kv);
-#endif
-
-    mredge->collate(NULL);
-    mredge->reduce(&edge_label1,NULL);
-
-#ifdef NEW_OUT_OF_CORE
-    mredge->add(mrvertlabel);
-#else
-    mredge->kv->add(mrvertlabel->kv);
-#endif
-
-    mredge->collate(NULL);
-    mredge->reduce(&edge_label2,NULL);
-    
-  } else delete mrvert;
+    // update mrvert and mredge so their vertices are unique ints from 1-N,
+    // not hash values
+    renumber_graph(vertexsize, mrvert, mredge);
+  } 
 
   // output a time-series formatted file using Greg Mackey's format.
   if (tsfile) {
@@ -482,9 +402,9 @@ int main(int narg, char **args)
     } else fp[0] = NULL;
     
 #ifdef NEW_OUT_OF_CORE
-    mrout = mrvertlabel->copy();
+    mrout = mrvert->copy();
 #else
-    mrout = new MapReduce(*mrvertlabel);
+    mrout = new MapReduce(*mrvert);
 #endif
    
     mrout->clone();
@@ -497,7 +417,7 @@ int main(int narg, char **args)
     delete mrout;
     fclose(fp[0]);
   }
-  if (mrvertlabel) delete mrvertlabel;
+  if (mrvert) delete mrvert;
 
   // compute and output an out-degree histogram
   if (outhfile) {
@@ -857,135 +777,6 @@ void edge_unique(char *key, int keybytes, char *multivalue,
       kv->add(key,keybytes,(char*)&tmp,sizeof(EDGE08));
     }
   }
-}
-
-/* ----------------------------------------------------------------------
-   vertex_label reduce() function
-   input KMV: (Vi,[])
-   output KV: (Vi,ID), where ID is a unique int from 1 to N
-------------------------------------------------------------------------- */
-
-void vertex_label(char *key, int keybytes, char *multivalue,
-                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
-{
-  LABEL *label = (LABEL *) ptr;
-  label->count++;
-  VERTEX id = label->nthresh + label->count;
-  kv->add(key,keybytes,(char *) &id,sizeof(VERTEX));
-}
-
-/* ----------------------------------------------------------------------
-   edge_label1 reduce() function
-   input KMV: (Vi,[{Vj,Wj} {Vk,Wk} ...]), one of the mvalues is a 1-N int ID
-   output KV: (Vj,{-IDi,Wj}) (Vk,{-IDi,Wk}) ...
-------------------------------------------------------------------------- */
-
-void edge_label1(char *key, int keybytes, char *multivalue,
-                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
-{
-
-
-  // Identify id = int ID of vertex key in mvalue list.
-  VERTEX id;
-  int i, offset, found=0;
-
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
-  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-  offset = 0;
-  for (i = 0; i < nvalues; i++) {
-    if (valuebytes[i] == sizeof(VERTEX)) break;
-    offset += valuebytes[i];
-  }
-  if (i < nvalues) {
-    id = - *((VERTEX *) &multivalue[offset]);
-    found = 1;
-    BREAK_BLOCK_LOOP;
-  }
-
-  END_BLOCK_LOOP
-
-
-  // Sanity check
-  if (!found) {
-    printf("Error in edge_label1; id not found.\n");
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-
-  // Now relabel vertex key using the ID found and emit reverse edges Vj->key.
-  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-  offset = 0;
-  for (i = 0; i < nvalues; i++) {
-    if (valuebytes[i] != sizeof(VERTEX)) {
-      // For key, assuming v is first field of both EDGE16 and EDGE8.
-      uint64_t *newkey = (uint64_t *)(&multivalue[offset]);
-      EDGE val;
-      val.v = id;
-      if (vertexsize == 16)
-        val.wt = (*((EDGE16 *)(&multivalue[offset]))).wt;
-      else
-        val.wt = (*((EDGE08 *)(&multivalue[offset]))).wt;
-      kv->add((char*)newkey,vertexsize,(char*)&val,sizeof(EDGE));
-    }
-    offset += valuebytes[i];
-  }
-
-  END_BLOCK_LOOP
-}
-
-/* ----------------------------------------------------------------------
-   edge_label2 reduce() function
-   input KMV: (Vi,[{-IDj,Wi} {-IDk,Wi} ...]+one of the mvalues is a positive 
-   int = IDi.
-   Note that the edges are backward on input.  
-   And Wi can differ for each IDj.
-   output KV: (IDj,{IDi,Wi}) (IDk,{IDi,Wi}) ...
-------------------------------------------------------------------------- */
-
-void edge_label2(char *key, int keybytes, char *multivalue,
-                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
-{
-
-  // id = positive int in mvalue list
-
-  int i;
-  int offset;
-  VERTEX id;
-
-  // Identify id = int ID of vertex key in mvalue list.
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
-  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-  offset = 0;
-  for (i = 0; i < nvalues; i++) {
-    if (valuebytes[i] == sizeof(VERTEX)) break;
-    offset += valuebytes[i];
-  }
-  if (i < nvalues) {
-    id = *((VERTEX *) &multivalue[offset]);
-    BREAK_BLOCK_LOOP;
-  }
-
-  END_BLOCK_LOOP
-
-  // Now relabel vertex key using the ID found and emit edges key->Vj using IDs.
-  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-  offset = 0;
-  for (i = 0; i < nvalues; i++) {
-    if (valuebytes[i] != sizeof(VERTEX)) {
-      EDGE *mv = (EDGE *)&(multivalue[offset]);
-      VERTEX vi = -(mv->v);
-      EDGE tmp;
-      tmp.v = id;
-      tmp.wt = mv->wt;
-      kv->add((char *) &vi,sizeof(VERTEX),(char *) &tmp,sizeof(EDGE));
-    }
-    offset += valuebytes[i];
-  }
-
-  END_BLOCK_LOOP
 }
 
 /* ----------------------------------------------------------------------
