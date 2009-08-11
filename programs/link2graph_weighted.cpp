@@ -45,6 +45,9 @@
 //         -f file1 file2 ...
 //              binary link files to read in
 //              if specified, this must be the last switch used
+//              Note that if k files are specified, at most k processors
+//              initially have key-value pairs; this may lead to imbalanced
+//              computation when k < nproc.
 
 #include "mpi.h"
 #include "stdio.h"
