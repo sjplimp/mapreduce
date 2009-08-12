@@ -1,5 +1,5 @@
-// Code simplifying use of out-of-core MR-MPI.
 
+// Code simplifying use of out-of-core MR-MPI.
 
 #ifndef _BLOCKMACROS_HPP
 #define _BLOCKMACROS_HPP
@@ -67,6 +67,23 @@ void test_local_disks(char *root)
   }
   fclose(fp);
   remove(filename);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+void greetings()
+{
+  // A sanity-check message from the processor.
+  int me, np;
+  MPI_Comm_rank(MPI_COMM_WORLD, &me);
+  MPI_Comm_size(MPI_COMM_WORLD, &np);
+
+  char name[252];
+  int len;
+  MPI_Get_processor_name(name, &len);
+  name[len]='\0';
+
+  printf("GREETINGS FROM RANK %d of %d, NODE %s.\n",
+         me, np, name);
 }
 
 #endif

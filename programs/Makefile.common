@@ -4,7 +4,7 @@ INCS =          mrvector.h mrmatrix.h mrall.h
 
 # Targets
 
-all:	matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted
+all:	matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted sssp
 
 # Connected Components without distances; two versions of the 
 # algorithm (original Cohen + more scalable Plimpton) can be run 
@@ -45,6 +45,11 @@ link2graph_weighted:	link2graph_weighted.o $(LIB)
 		$(LINK) $(LINKFLAGS) link2graph_weighted.o \
 			$(USRLIB) $(SYSLIB) -o link2graph_weighted
 
+# Program to compute single-source shortest paths.
+sssp:		sssp.o $(LIB)
+		$(LINK) $(LINKFLAGS) sssp.o \
+			$(USRLIB) $(SYSLIB) -o sssp
+
 # Program to count triangles in a graph.
 tri:	tri.o $(LIB)
 	$(LINK) $(LINKFLAGS) tri.o $(USRLIB) $(SYSLIB) -o tri
@@ -54,7 +59,7 @@ tri_new:	tri_new.o $(LIB)
 
 clean:
 	rm *.o
-	rm matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted
+	rm matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted sssp
 
 # Rules
 
