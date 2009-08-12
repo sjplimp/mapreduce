@@ -57,6 +57,7 @@
 #include "keyvalue.h"
 #include "blockmacros.hpp"
 #include "renumber_graph.hpp"
+#include "read_fb_data.hpp"
 #include "shared.hpp"
 
 #include <map>
@@ -64,14 +65,6 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-void fileread1(int, char *, KeyValue *, void *);
-void fileread2(int, KeyValue *, void *);
-void vertex_emit(char *, int, char *, int, int *, KeyValue *, void *);
-void vertex_unique(char *, int, char *, int, int *, KeyValue *, void *);
-void edge_unique(char *, int, char *, int, int *, KeyValue *, void *);
-void vertex_label(char *, int, char *, int, int *, KeyValue *, void *);
-void edge_label1(char *, int, char *, int, int *, KeyValue *, void *);
-void edge_label2(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_count(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_reverse(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_histo(char *, int, char *, int, int *, KeyValue *, void *);
@@ -84,16 +77,6 @@ void histo_write(char *, int, char *, int, int *, KeyValue *, void *);
 void hfile_write(char *, int, char *, int, int *, KeyValue *, void *);
 void matrix_write_inverse_degree(char *, int, char *, int, int *, KeyValue *, void *);
 void matrix_write_weights(char *, int, char *, int, int *, KeyValue *, void *);
-
-// Data input size.  
-// Standard format is 4 64-bit fields per record, for a total of 32 bytes.
-// Greg Bayer's format adds 2 32-bit fields at the beginning of each record.
-static int GREG_BAYER = 0;
-#define RECORDSIZE 32
-#define CHUNK 8192
-
-static int vertexsize = 8;
-
 
 /* ---------------------------------------------------------------------- */
 
@@ -124,9 +107,6 @@ int main(int narg, char **args)
   bool mfile_weights = 0;
   char *hfile = NULL;
   int convertflag = 0;
-  char *onefile = NULL;
-  int nfiles = 0;
-  char **argfiles = NULL;
 
   int flag = 0;
   int iarg = 1;
@@ -171,14 +151,6 @@ int main(int narg, char **args)
       mfile = new char[n];
       strcpy(mfile,args[iarg+1]);
       iarg += 2;
-    } else if (strcmp(args[iarg],"-gb") == 0) {
-      // Input file is in Greg Bayer's format.
-      if (iarg+1 > narg) {
-        flag = 1;
-        break;
-      }
-      GREG_BAYER = 8;
-      iarg += 1;
     } else if (strcmp(args[iarg],"-mw") == 0) {
       // Use edge weights as values in matrix-market file.
       if (iarg+1 > narg) {
@@ -205,55 +177,15 @@ int main(int narg, char **args)
       }
       convertflag = 1;
       iarg += 1;
-    } else if (strcmp(args[iarg],"-e1") == 0) {
-      // Use one 64-bit fields as a vertex ID.
-      if (iarg+1 > narg) {
-        flag = 1;
-        break;
-      }
-      vertexsize = 8;
-      iarg += 1;
-    } else if (strcmp(args[iarg],"-e2") == 0) {
-      // Use two 64-bit fields as a vertex ID.
-      if (iarg+1 > narg) {
-        flag = 1;
-        break;
-      }
-      vertexsize = 16;
-      iarg += 1;
-    } else if (strcmp(args[iarg],"-ff") == 0) {
-      // Use one file of data filenames.
-      if (iarg+2 > narg) {
-        flag = 1;
-        break;
-      }
-      int n = strlen(args[iarg+1]) + 1;
-      onefile = new char[n];
-      strcpy(onefile,args[iarg+1]);
-      iarg += 2;
-    } else if (strcmp(args[iarg],"-f") == 0) {
-      // Use one or more data files listed here.
-      if (iarg+2 > narg) {
-        flag = 1;
-        break;
-      }
-      nfiles = narg-1 - iarg; 
-      argfiles = &args[iarg+1];
-      iarg = narg;
     } else {
-      flag = 1;
-      break;
+      // Skip this argument; it may be meant for another subroutine.
+      iarg += 1;
     }
   }
 
   if (flag) {
     if (me == 0)
       printf("Syntax: link2graph switch arg(s) switch arg(s) ...\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
-  }
-
-  if (onefile == NULL && argfiles == NULL) {
-    if (me == 0) printf("No input files specified");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
@@ -267,69 +199,33 @@ int main(int narg, char **args)
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
-  if (vertexsize != 8 && tsfile) {
-    if (me == 0) printf("Time-series files contain only hosts; use -e1\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
-  }
-
   if (convertflag == 0 && mfile) {
     if (me == 0) printf("Must convert vertex values if output matrix\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
   // process the files and create a graph/matrix
+  ReadFBData readFB(narg, args);
+
+  if (readFB.vertexsize != 8 && tsfile) {
+    if (me == 0) printf("Time-series files contain only hosts; use -e1\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  // mrraw = all edges in file data
-  // pass remaining list of filenames to map()
-
-  MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
-//  mrraw->verbosity = 1;
-  mrraw->verbosity = 0;
-
-#ifdef NEW_OUT_OF_CORE
-//  mrraw->memsize = 1;
-#endif
-
-  if (me == 0) printf("Reading input files...\n");
-  int nrawedges;
-  if (onefile) nrawedges = mrraw->map(onefile,&fileread1,NULL);
-  else nrawedges = mrraw->map(nfiles,&fileread2,argfiles);
-
-  MPI_Barrier(MPI_COMM_WORLD);
-  double tmap = MPI_Wtime();
-
-  // mrvert = unique non-zero vertices
-
-  if (me == 0) printf("Finding unique vertices...\n");
-#ifdef NEW_OUT_OF_CORE
-  MapReduce *mrvert = mrraw->copy();
-#else
-  MapReduce *mrvert = new MapReduce(*mrraw);
-#endif
-
-  mrvert->clone();
-  mrvert->reduce(&vertex_emit,NULL);
-  mrvert->collate(NULL);
-  int nverts = mrvert->reduce(&vertex_unique,NULL);
-
-  // mredge = unique I->J edges with I and J non-zero + edge weights
-  //          (computed as number of occurrences of I->J in input).
-  // no longer need mrraw
-  if (me == 0) printf("Finding unique edges...\n");
-#ifdef NEW_OUT_OF_CORE
-  MapReduce *mredge = mrraw->copy();
-#else
-  MapReduce *mredge = new MapReduce(*mrraw);
-#endif
-
-  mredge->collate(NULL);
-  int nedges = mredge->reduce(&edge_unique,NULL);
-  delete mrraw;
+  MapReduce *mrvert = NULL;
+  MapReduce *mredge = NULL;
+  int nverts;    // Number of unique non-zero vertices
+  int nrawedges; // Number of edges in input files.
+  int nedges;    // Number of unique edges in input files.
+  readFB.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
 
   // set nsingleton to -1 in case never compute it via options
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tprev = MPI_Wtime();
 
   int nsingleton = -1;
 
@@ -368,11 +264,21 @@ int main(int narg, char **args)
     fclose(fp);
   }
 
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tnow = MPI_Wtime();
+  if (me == 0) printf("Time for hashfile:  %g secs\n", tnow - tprev);
+  tprev = tnow;
+
   if (convertflag) {
     // update mrvert and mredge so their vertices are unique ints from 1-N,
     // not hash values
-    renumber_graph(vertexsize, mrvert, mredge);
+    renumber_graph(readFB.vertexsize, mrvert, mredge);
   } 
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  tnow = MPI_Wtime();
+  if (me == 0) printf("Time for convert:  %g secs\n", tnow - tprev);
+  tprev = tnow;
 
   // output a time-series formatted file using Greg Mackey's format.
   if (tsfile) {
@@ -421,6 +327,11 @@ int main(int narg, char **args)
     fclose(fp[0]);
   }
   if (mrvert) delete mrvert;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  tnow = MPI_Wtime();
+  if (me == 0) printf("Time for tsfile:  %g secs\n", tnow - tprev);
+  tprev = tnow;
 
   // compute and output an out-degree histogram
   if (outhfile) {
@@ -521,6 +432,11 @@ int main(int narg, char **args)
     }
   }
 
+  MPI_Barrier(MPI_COMM_WORLD);
+  tnow = MPI_Wtime();
+  if (me == 0) printf("Time for histos:  %g secs\n", tnow - tprev);
+  tprev = tnow;
+
   // output a Matrix Market file
   // one-line header + one chunk per proc
 
@@ -583,12 +499,16 @@ int main(int narg, char **args)
     fclose(fp);
   }
 
+  MPI_Barrier(MPI_COMM_WORLD);
+  tnow = MPI_Wtime();
+  if (me == 0) printf("Time for mtx:  %g secs\n", tnow - tprev);
+  tprev = tnow;
+
   // clean up
 
   delete [] outhfile;
   delete [] inhfile;
   delete [] mfile;
-  delete [] onefile;
 
   delete mredge;
 
@@ -600,186 +520,13 @@ int main(int narg, char **args)
     printf("Graph: %d unique vertices\n",nverts);
     printf("Graph: %d unique edges\n",nedges);
     printf("Graph: %d vertices with zero out-degree\n",nsingleton);
-    printf("Time for map:      %g secs\n",tmap-tstart);
-    printf("Time without map:  %g secs\n",tstop-tmap);
+    printf("Time for map:      %g secs\n",readFB.timeMap);
+    printf("Time for unique:   %g secs\n",readFB.timeUnique);
+    printf("Time without map:  %g secs\n",tstop-tstart-readFB.timeMap);
     printf("Total Time:        %g secs\n",tstop-tstart);
   }
 
   MPI_Finalize();
-}
-
-/* ----------------------------------------------------------------------
-   fileread1 map() function
-   for each record in file:
-     vertexsize = 8: KV = 1st 8-byte field, 3rd 8-byte field
-     vertexsize = 16: KV = 1st 16-byte field, 2nd 16-byte field
-   output KV: (Vi,Vj)
-------------------------------------------------------------------------- */
-
-void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
-{
-  char buf[CHUNK*(RECORDSIZE+GREG_BAYER)];
-
-  FILE *fp = fopen(filename,"rb");
-  if (fp == NULL) {
-    printf("Could not open link file %s\n", filename);
-    MPI_Abort(MPI_COMM_WORLD,1);
-  }
-
-  while (1) {
-    int nrecords = fread(buf,RECORDSIZE+GREG_BAYER,CHUNK,fp);
-    char *ptr = buf;
-    for (int i = 0; i < nrecords; i++) {
-      ptr += GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
-      kv->add(&ptr[0],vertexsize,&ptr[16],vertexsize);
-      ptr += RECORDSIZE;
-    }
-    if (nrecords == 0) break;
-  }
-
-  fclose(fp);
-}
-
-/* ----------------------------------------------------------------------
-   fileread2 map() function
-   for each record in file:
-     vertexsize = 8: KV = 1st 8-byte field, 3rd 8-byte field
-     vertexsize = 16: KV = 1st 16-byte field, 2nd 16-byte field
-   output KV: (Vi,Vj)
-------------------------------------------------------------------------- */
-
-void fileread2(int itask, KeyValue *kv, void *ptr)
-{
-  char buf[CHUNK*(RECORDSIZE+GREG_BAYER)];
-
-  char **files = (char **) ptr;
-  FILE *fp = fopen(files[itask],"rb");
-  if (fp == NULL) {
-    printf("Could not open link file\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
-  }
-
-  while (1) {
-    int nrecords = fread(buf,RECORDSIZE+GREG_BAYER,CHUNK,fp);
-    char *ptr = buf;
-    for (int i = 0; i < nrecords; i++) {
-      ptr += GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
-      kv->add(&ptr[0],vertexsize,&ptr[16],vertexsize);
-      ptr += RECORDSIZE;
-    }
-    if (nrecords == 0) break;
-  }
-
-  fclose(fp);
-}
-
-/* ----------------------------------------------------------------------
-   vertex_emit reduce() function
-   input KMV: (Vi,[Vj])
-   output KV: (Vi,NULL) (Vj,NULL)
-   omit any Vi if first 8 bytes is 0
-------------------------------------------------------------------------- */
-
-void vertex_emit(char *key, int keybytes, char *multivalue,
-                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
-{
-  uint64_t *vi = (uint64_t *) key;
-  if (*vi != 0) kv->add((char *) vi,vertexsize,NULL,0);
-  if (!multivalue) {
-    printf("Error in vertex_emit; not ready for out of core. %d\n", nvalues);
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-  uint64_t *vj = (uint64_t *) multivalue;
-  if (*vj != 0) kv->add((char *) vj,vertexsize,NULL,0);
-}
-
-/* ----------------------------------------------------------------------
-   vertex_unique reduce() function
-   input KMV: (Vi,[NULL NULL ...])
-   output KV: (Vi,NULL)
-------------------------------------------------------------------------- */
-
-void vertex_unique(char *key, int keybytes, char *multivalue,
-                   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
-{
-  kv->add(key,keybytes,NULL,0);
-}
-
-/* ----------------------------------------------------------------------
-   edge_unique reduce() function
-   input KMV: (Vi,[Vj Vk ...])
-   output KV: (Vi,{Vj,Wj}) (Vi,{Vk,Wk}) ...
-   where Wj is weight of edge Vi->Vj.
-   only an edge where first 8 bytes of Vi or Vj are both non-zero is emitted
-   only unique edges are emitted
-------------------------------------------------------------------------- */
-void edge_unique(char *key, int keybytes, char *multivalue,
-                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
-{
-  uint64_t *vi = (uint64_t *) key;
-  if (*vi == 0) return;
-
-  if (vertexsize == 16) {
-
-    map<std::pair<uint64_t, uint64_t>,WEIGHT> hash;
-
-    CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
-    BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-    // Use a hash table to count the number of occurrences of each edge.
-    int offset = 0;
-    for (int i = 0; i < nvalues; i++) {
-      uint64_t *v1 = (uint64_t *) &multivalue[offset];
-      uint64_t *v2 = (uint64_t *) &multivalue[offset+8];
-      if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
-        hash[std::make_pair(*v1,*v2)] = 1;
-      else
-        hash[std::make_pair(*v1,*v2)]++;
-      offset += valuebytes[i];
-    }
-
-    END_BLOCK_LOOP
-
-    // Iterate over the hash table to emit edges with their counts.
-    // Note:  Assuming the hash table fits in memory!
-    map<std::pair<uint64_t, uint64_t>,WEIGHT>::iterator mit;
-    for (mit = hash.begin(); mit != hash.end(); mit++) {
-      std::pair<uint64_t, uint64_t> e = (*mit).first;
-      EDGE16 tmp;
-      tmp.v[0] = e.first;
-      tmp.v[1] = e.second;
-      tmp.wt = (*mit).second;
-      kv->add(key,keybytes,(char *)&tmp,sizeof(EDGE16));
-    }
-  } else {  // vertexsize = 8
-
-    map<uint64_t,WEIGHT> hash;
-
-    CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
-    BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-    // Use a hash table to count the number of occurrences of each edge.
-    uint64_t *vertex = (uint64_t *) multivalue;
-    for (int i = 0; i < nvalues; i++) {
-      if (vertex[i] == 0) continue;
-      if (hash.find(vertex[i]) == hash.end()) 
-        hash[vertex[i]] = 1;
-      else
-        hash[vertex[i]]++;
-    }
-
-    END_BLOCK_LOOP
-
-    // Iterate over the hash table to emit edges with their counts.
-    // Note:  Assuming the hash table fits in memory!
-    map<uint64_t,WEIGHT>::iterator mit;
-    for (mit = hash.begin(); mit != hash.end(); mit++) {
-      EDGE08 tmp;
-      tmp.v[0] = (*mit).first;
-      tmp.wt = (*mit).second;
-      kv->add(key,keybytes,(char*)&tmp,sizeof(EDGE08));
-    }
-  }
 }
 
 /* ----------------------------------------------------------------------

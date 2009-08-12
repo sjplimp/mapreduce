@@ -46,22 +46,23 @@ void edge_unique(char *, int, char *, int, int *, KeyValue *, void *);
 // Greg Bayer's format adds 2 32-bit fields at the beginning of each record.
 class ReadFBData{
 public:
-  ReadFBData(int narg, char *arg[]);
+  ReadFBData(int, char **);
   ~ReadFBData() {delete [] onefile;}
+  void run(MapReduce **, MapReduce **, int*, int*, int*);
 
   int nfiles;       // If -f option is used, how many files are listed?
   char **argfiles;  // If -f option is used, argfiles points to list of files.
   char *onefile;    // If -ff option is used, onefile contains the filename.
-  int GREG_BAYER;   // Offset size for Greg Bayer's format.
-  int vertexsize;   // Consider 8-bytes or 16-bytes for one vertex hashkey ID.
+  int GREG_BAYER;   // Offset size for Greg Bayer's format; valid values: 0 or 8
+  int vertexsize;   // Use 8-bytes or 16-bytes for one vertex hashkey ID?
   const int RECORDSIZE;  // Base recordsize; always set to 32 bytes.
   const int CHUNK;       // Base chunk size.
   int me;                // Processor ID.
-  double maptime;        // Time for doing input maps.
-  double uniquetime;     // Time for computing unique edges/vertices.
+  double timeMap;        // Time for doing input maps.
+  double timeUnique;     // Time for computing unique edges/vertices.
 };
 
-ReadFBData::ReadFBData(int narg, char *arg[]) : 
+ReadFBData::ReadFBData(int narg, char *args[]) : 
              onefile(NULL), GREG_BAYER(0), vertexsize(8),
              RECORDSIZE(32), CHUNK(8192) 
 {
@@ -124,26 +125,24 @@ ReadFBData::ReadFBData(int narg, char *arg[]) :
   }
 
   if (onefile == NULL && argfiles == NULL) {
-    if (me == 0) printf("No input files specified");
+    if (me == 0) printf("No input files specified.\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 }
 
 /////////////////////////////////////////////////////////////////////////////
-  // process the files and create a graph/matrix
-  ReadFBData readFB(nargs, args);
-  MPI_Barrier(MPI_COMM_WORLD);
-  double tstart = MPI_Wtime();
-  readFB.run(&mrvert, &mredge);
-/////////////////////////////////////////////////////////////////////////////
-
-ReadFBData::run(
+// run:  Read the input files and generate MapReduce objects with unique
+//       vertices and edges.
+void ReadFBData::run(
   MapReduce **return_mrvert,   // Output:  Unique vertices
                                //          Key = Vi hashkey ID; value = NULL.
-  MapReduce **return_mredges   // Output:  Unique edges
+  MapReduce **return_mredge,   // Output:  Unique edges
                                //          Key = Vi hashkey ID; 
                                //          Value = {Vj hashkey ID, Wij} for
                                //          edge Vi->Vj with Wij occurrences
+  int *nverts,                 // Output:  Number of unique non-zero vertices.
+  int *nrawedges,              // Output:  Number of edges in input files.
+  int *nedges                  // Output:  Number of unique edges in input file.
 ) 
 {
   // mrraw = all edges in file data
@@ -159,13 +158,12 @@ ReadFBData::run(
   double tstart = MPI_Wtime();
 
   if (me == 0) printf("Reading input files...\n");
-  int nrawedges;
-  if (onefile) nrawedges = mrraw->map(onefile,&fileread1,NULL);
-  else nrawedges = mrraw->map(nfiles,&fileread2,argfiles);
+  if (onefile) *nrawedges = mrraw->map(onefile,&fileread1,this);
+  else *nrawedges = mrraw->map(nfiles,&fileread2,this);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tmap = MPI_Wtime();
-  maptime = tmap - tstart;
+  timeMap = tmap - tstart;
 
   // mrvert = unique non-zero vertices
 
@@ -177,9 +175,9 @@ ReadFBData::run(
 #endif
 
   mrvert->clone();
-  mrvert->reduce(&vertex_emit,NULL);
+  mrvert->reduce(&vertex_emit,this);
   mrvert->collate(NULL);
-  mrvert->reduce(&vertex_unique,NULL);
+  *nverts = mrvert->reduce(&vertex_unique,NULL);
 
   // mredge = unique I->J edges with I and J non-zero + edge weights
   //          (computed as number of occurrences of I->J in input).
@@ -188,16 +186,13 @@ ReadFBData::run(
   MapReduce *mredge = mrraw;
 
   mredge->collate(NULL);
-  mredge->reduce(&edge_unique,NULL);
-
-  delete [] onefile;
+  *nedges = mredge->reduce(&edge_unique,this);
 
   *return_mrvert = mrvert;
   *return_mredge = mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
-  double tstop = MPI_Wtime();
-  uniquetime = tstop - tmap;
+  timeUnique = MPI_Wtime() - tmap;
 }
 
 /* ----------------------------------------------------------------------
@@ -210,7 +205,8 @@ ReadFBData::run(
 
 void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
 {
-  char buf[CHUNK*(RECORDSIZE+GREG_BAYER)];
+  ReadFBData *rfb = (ReadFBData *) ptr;
+  char buf[rfb->CHUNK*(rfb->RECORDSIZE+rfb->GREG_BAYER)];
 
   FILE *fp = fopen(filename,"rb");
   if (fp == NULL) {
@@ -219,12 +215,12 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
   }
 
   while (1) {
-    int nrecords = fread(buf,RECORDSIZE+GREG_BAYER,CHUNK,fp);
+    int nrecords = fread(buf,rfb->RECORDSIZE+rfb->GREG_BAYER,rfb->CHUNK,fp);
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
-      ptr += GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
-      kv->add(&ptr[0],vertexsize,&ptr[16],vertexsize);
-      ptr += RECORDSIZE;
+      ptr += rfb->GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
+      kv->add(&ptr[0],rfb->vertexsize,&ptr[16],rfb->vertexsize);
+      ptr += rfb->RECORDSIZE;
     }
     if (nrecords == 0) break;
   }
@@ -242,9 +238,10 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
 
 void fileread2(int itask, KeyValue *kv, void *ptr)
 {
-  char buf[CHUNK*(RECORDSIZE+GREG_BAYER)];
+  ReadFBData *rfb = (ReadFBData *) ptr;
+  char buf[rfb->CHUNK*(rfb->RECORDSIZE+rfb->GREG_BAYER)];
 
-  char **files = (char **) ptr;
+  char **files = rfb->argfiles;
   FILE *fp = fopen(files[itask],"rb");
   if (fp == NULL) {
     printf("Could not open link file\n");
@@ -252,12 +249,12 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
   }
 
   while (1) {
-    int nrecords = fread(buf,RECORDSIZE+GREG_BAYER,CHUNK,fp);
+    int nrecords = fread(buf,rfb->RECORDSIZE+rfb->GREG_BAYER,rfb->CHUNK,fp);
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
-      ptr += GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
-      kv->add(&ptr[0],vertexsize,&ptr[16],vertexsize);
-      ptr += RECORDSIZE;
+      ptr += rfb->GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
+      kv->add(&ptr[0],rfb->vertexsize,&ptr[16],rfb->vertexsize);
+      ptr += rfb->RECORDSIZE;
     }
     if (nrecords == 0) break;
   }
@@ -275,14 +272,15 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
 void vertex_emit(char *key, int keybytes, char *multivalue,
                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  ReadFBData *rfb = (ReadFBData *) ptr;
   uint64_t *vi = (uint64_t *) key;
-  if (*vi != 0) kv->add((char *) vi,vertexsize,NULL,0);
+  if (*vi != 0) kv->add((char *) vi,rfb->vertexsize,NULL,0);
   if (!multivalue) {
     printf("Error in vertex_emit; not ready for out of core. %d\n", nvalues);
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   uint64_t *vj = (uint64_t *) multivalue;
-  if (*vj != 0) kv->add((char *) vj,vertexsize,NULL,0);
+  if (*vj != 0) kv->add((char *) vj,rfb->vertexsize,NULL,0);
 }
 
 /* ----------------------------------------------------------------------
@@ -308,10 +306,11 @@ void vertex_unique(char *key, int keybytes, char *multivalue,
 void edge_unique(char *key, int keybytes, char *multivalue,
                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  ReadFBData *rfb = (ReadFBData *) ptr;
   uint64_t *vi = (uint64_t *) key;
   if (*vi == 0) return;
 
-  if (vertexsize == 16) {
+  if (rfb->vertexsize == 16) {
 
     map<std::pair<uint64_t, uint64_t>,WEIGHT> hash;
 
