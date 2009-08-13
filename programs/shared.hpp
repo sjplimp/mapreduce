@@ -13,7 +13,7 @@ typedef struct {
 } LABEL;
 
 // Edge Weight type; set to number of occurrence of edge in original input.
-typedef unsigned int WEIGHT;
+typedef int WEIGHT;
 
 // Edge with destination vertex (16-bytes) and edge weight
 // Note:  edge_label1 assumes v is first field of this struct.
