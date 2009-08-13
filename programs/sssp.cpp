@@ -5,9 +5,8 @@
 //          of Vi in the shortest weighted path from S to Vi.
 // 
 // Assume:  Vertices are identified by positive whole numbers in range [1:N].
-//          Distances are passed through the MapReduce objects as negative
-//          numbers (so we can distinguish them from vertices or weights).
-//          Assume edge weights are positive whole numbers.
+//
+// This implementation uses a BFS-like algorithm.  See sssp.txt for details.
 
 #include <mpi.h>
 #include <stdio.h>
@@ -29,6 +28,15 @@ REDUCE_FN default_vtx_distance;
 REDUCE_FN output_distances;
 
 void add_source(int, KeyValue *, void *);
+
+typedef struct {
+  EDGE e;        // Edge describing the distance of a vtx from S; 
+                 // e.v is predecessor vtx; e.wt is distance from S through e.v.
+  bool current;  // Flag indicating that this distance is the current state
+                 // for the vtx (the currently accepted best distance).
+                 // Needed so we can know when to stop (when no vtx distances
+                 // change in an iteration).
+} DISTANCE;
 
 /////////////////////////////////////////////////////////////////////////////
 int main(int narg, char **args)
@@ -65,7 +73,6 @@ int main(int narg, char **args)
   renumber_graph(readFB.vertexsize, mrvert, mredge);
 
   srand48(1l);
-nexp = 1; // KDDKDD
 
   for (int exp = 0; exp < nexp; exp++) {
     // Create a new MapReduce object, Paths.
@@ -79,12 +86,10 @@ nexp = 1; // KDDKDD
     VERTEX source = -1;
     if (me == 0) {
       source = drand48() * nverts + 1;
-source = 6; // KDDKDD
       printf("Source vertex:  %d\n", source);
       mrpath->map(1, add_source, &source);
     }
     MPI_Bcast(&source, 1, MPI_INT, 0, MPI_COMM_WORLD);
-printf("KDDKDD after add_source:  %d KVs\n", mrpath->kv->nkey);
 
     //  Perform a BFS from S, editing distances as visit vertices.
     int done = 0;
@@ -99,25 +104,17 @@ printf("KDDKDD after add_source:  %d KVs\n", mrpath->kv->nkey);
 #else
       mrpath->kv->add(mredge->kv);
 #endif
-printf("KDDKDD after add(mredge):  %d KVs\n", mrpath->kv->nkey);
 
       mrpath->collate(NULL);
       mrpath->reduce(bfs_with_distances, &done);
-printf("KDDKDD after bfs_with_distances:  %d KVs\n", mrpath->kv->nkey);
 
       int alldone;
       MPI_Allreduce(&done, &alldone, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
       done = alldone;
     }
 
-    // Finish up:  Paths may have more than one distance per vertex.  Take the 
-    //             best.
-    mrpath->collate(NULL);
-    mrpath->reduce(last_distance_update, NULL);
-
-printf("KDDKDD after last_distance_update:  %d KVs\n", mrpath->kv->nkey);
-
-    // Output results:  Include vertices that are not on a path from S.
+    // Finish up:  Want distance from S to all vertices.  Have to add in 
+    //             vertices that are not connected to S through any paths.
 #ifdef NEW_OUT_OF_CORE
     MapReduce *mrinit = mrvert->copy();
 #else
@@ -131,20 +128,28 @@ printf("KDDKDD after last_distance_update:  %d KVs\n", mrpath->kv->nkey);
 #else
     mrpath->kv->add(mrinit->kv);
 #endif
-printf("KDDKDD after add(mrinit):  %d KVs\n", mrpath->kv->nkey);
+    delete mrinit;
 
     mrpath->collate(NULL);
+    mrpath->reduce(last_distance_update, NULL);
+
+    // Now mrpath contains one key-value per vertex Vi:
+    // Key = Vi
+    // Value = {Vd, D, true}:  the predecessor vtx Vd, the distance D from 
+    //                         S to Vi, and an extraneous flag that we could
+    //                         remove.
+
+    // Output results.
 
     char filename[32];
     sprintf(filename, "distance_from_%d.%d", source, np);
     FILE *fp = fopen(filename, "w");
 
+    mrpath->clone();
     mrpath->reduce(output_distances, (void *) fp);
-printf("KDDKDD after output_distances:  %d KVs\n", mrpath->kv->nkey);
 
     fclose(fp);
    
-    delete mrinit;
     delete mrpath;
   } 
 }
@@ -156,10 +161,11 @@ printf("KDDKDD after output_distances:  %d KVs\n", mrpath->kv->nkey);
 void add_source(int nmap, KeyValue *kv, void *ptr)
 {
   VERTEX *v = (VERTEX *) ptr;
-  EDGE e;
-  e.v = -1;  // No predecessor on path from source to itself.
-  e.wt = 0;  // Distance from source to itself is zero.
-  kv->add((char *) v, sizeof(VERTEX), (char *) &e, sizeof(EDGE));
+  DISTANCE d;
+  d.e.v = -1;  // No predecessor on path from source to itself.
+  d.e.wt = 0;  // Distance from source to itself is zero.
+  d.current = false;
+  kv->add((char *) v, sizeof(VERTEX), (char *) &d, sizeof(DISTANCE));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -168,7 +174,7 @@ void add_source(int nmap, KeyValue *kv, void *ptr)
 // Reduce:  Input:   Key-multivalue 
 //                   Key = Vi
 //                   Multivalue = [{Vj, Wij} for all adj vertices Vj] + 
-//                                 (possibly) {Vk, -Dk} representing
+//                                 (possibly) {Vk, Dk, true/false} representing
 //                                 shortest distance from S to Vi through
 //                                 preceding vertex Vk.
 //                 
@@ -180,10 +186,10 @@ void add_source(int nmap, KeyValue *kv, void *ptr)
 //          Output:  Only if a minimum distance was computed, emit one key-value
 //                   for each adjacent vertex Vj:
 //                   Key = Vj
-//                   Value = {Vi, -(D+Wij)}
+//                   Value = {Vi, D+Wij, false}
 //                   Also emit best distance so far for Vi:
 //                   Key = Vi
-//                   Value = {Vd, -D}, where Vd is the preceding vertex
+//                   Value = {Vd, D, true}, where Vd is the preceding vertex
 //                           corresponding to the best distance.
 void bfs_with_distances(char *key, int keybytes, char *multivalue,
                         int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
@@ -196,53 +202,99 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
 
   // First, find the shortest distance to Vi, if any have been computed yet.
   bool found = false;
-  EDGE shortest;            // The shortest path so far to Vi.
-  shortest.wt = -INT_MAX;   // Distances are represented as negative wts.
-  shortest.v = -1;
+  DISTANCE previous;         // Best distance for Vi from previous iterations.
+  previous.e.wt = INT_MAX;
+  previous.e.v = -1;
+  previous.current = false;
+  DISTANCE shortest;         // Shortest path so far to Vi.
+  shortest.e.wt = INT_MAX; 
+  shortest.e.v = -1;
 
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
-  EDGE *e = (EDGE *) multivalue;
+  int offset = 0;
   for (int j = 0; j < nvalues; j++) {
-printf("KDDKDD BFS nvalues %d e[%d].wt = %d\n", nvalues, j, e[j].wt);
-    if (e[j].wt <= 0) {  // This is a distance value.
+    // Multivalues are either edges or distances.  Distances use more bytes.
+    if (valuebytes[j] == sizeof(DISTANCE)) { // This is a distance value.
+      DISTANCE *d = (DISTANCE *) &multivalue[offset];
       found = true;
-      if (e[j].wt > shortest.wt) {  // e[j].wt is the shortest path so far.
-        if (shortest.wt != -INT_MAX) *done = 0;  // Changing the weights.
-        shortest.wt = e[j].wt;
-        shortest.v = e[j].v;
-      }
+      if (d->e.wt < shortest.e.wt)  shortest = *d;   // shortest path so far.
+      if (d->current) previous = *d;     // currently accepted best distance.
     }
+    offset += valuebytes[j];
   }
 
   END_BLOCK_LOOP
 
+  // if !found, this vtx hasn't been visited along a path from S yet.
+  // It is only in mrpath because we added in the entire graph to get the
+  // edge lists.  We don't have to emit anything for this vtx.
+
   if (found) {
     // Emit best distance so far for Vi.
-    kv->add(key, keybytes, (char *) &shortest, sizeof(EDGE));
+    shortest.current = true;
+    kv->add(key, keybytes, (char *) &shortest, sizeof(DISTANCE));
+
+    // Check stopping criterion: not done if (1) this is the first distance
+    // computed for Vi, OR (2) the distance for Vi was updated.
+    if (!previous.current || 
+        (previous.current && (shortest.e.wt != previous.e.wt))) {
+
+      *done = 0;
   
-    // Next, augment the path from Vi to each Vj with the weight Wij.
-    BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+      // Next, augment the path from Vi to each Vj with the weight Wij.
+      BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
   
-    EDGE *e = (EDGE *) multivalue;
-    for (int j = 0; j < nvalues; j++) {
-      if (e[j].wt > 0) {  // This is an adjacency value.
-        EDGE dist;
-        dist.v = vi;    // Predecessor of Vj along the path.
-        dist.wt = shortest.wt - e[j].wt; // Distances are stored as neg. wts.
-        kv->add((char *) &(e[j].v), sizeof(VERTEX),
-                (char *) &dist, sizeof(EDGE));
+      int offset = 0;
+      for (int j = 0; j < nvalues; j++) {
+        if (valuebytes[j] == sizeof(EDGE)) { // This is an adjacency value.
+          EDGE *e = (EDGE *) &multivalue[offset];
+          DISTANCE dist;
+          dist.e.v = vi;    // Predecessor of Vj along the path.
+          dist.e.wt = shortest.e.wt + e->wt; 
+          dist.current = false;
+          kv->add((char *) &(e->v), sizeof(VERTEX),
+                  (char *) &dist, sizeof(DISTANCE));
+        }
+        offset += valuebytes[j];
       }
-    }
   
-    END_BLOCK_LOOP
+      END_BLOCK_LOOP
+    }
   }
 }
 
 /////////////////////////////////////////////////////////////////////////////
+//  default_vtx_distance:   Earlier, we didn't emit an initial value of 
+//  infinity for every vertex, as we'd have to carry that around throughout 
+//  the iterations.  But now we'll add initial values in so that we report
+//  (infinite) distances for vertices that are not connected to S.
+//
+//  Reduce:  Input:   Key-multivalue
+//                    Key = Vi hashkey
+//                    Multivalue = Vi in [1:N]
+//
+//
+//           Output:  Key = Vi
+//                    Value = default shortest distance INT_MAX through vtx -1.
+void default_vtx_distance(char *key, int keybytes, char *multivalue,
+                          int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
+{
+  DISTANCE shortest;
+  shortest.e.wt = INT_MAX;
+  shortest.e.v = -1;
+  shortest.current = true;
+
+  VERTEX v = *((VERTEX *) multivalue);
+  kv->add((char *) &v, sizeof(VERTEX), (char *) &shortest, sizeof(DISTANCE));
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//  last_distance_update
 //  Reduce:  Input:   Key-multivalue
 //                    Key = Vi
-//                    Multivalue = [{Vk, -Dk}] representing the shortest
+//                    Multivalue = [{Vk, Dk, true/false}] 
+//                                 representing the shortest
 //                                 distance from S to Vi through preceding
 //                                 vertex Vk.
 //
@@ -259,58 +311,34 @@ void last_distance_update(char *key, int keybytes, char *multivalue,
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
 
   // First, find the shortest distance to Vi, if any have been computed yet.
-  EDGE shortest;            // The shortest path so far to Vi.
-  shortest.wt = -INT_MAX;   // Distances are represented as negative wts.
-  shortest.v = -1;
+  DISTANCE shortest;            // The shortest path so far to Vi.
+  shortest.e.wt = INT_MAX;  
+  shortest.e.v = -1;
+  shortest.current = true;
 
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
-  EDGE *e = (EDGE *) multivalue;
-  for (int j = 0; j < nvalues; j++) {
-    if (e[j].wt <= 0) {  // This is a distance value.
-      if (e[j].wt > shortest.wt) {  // e->wt is the shortest path so far.
-        shortest.wt = e[j].wt;
-        shortest.v = e[j].v;
-      }
-    }
-  }
+  DISTANCE *d = (DISTANCE *) multivalue;
+  for (int j = 0; j < nvalues; j++)
+    if (d[j].e.wt < shortest.e.wt) shortest = d[j]; // shortest path so far.
 
   END_BLOCK_LOOP
 
   // Then emit the best distance from S to Vi.
-  kv->add(key, keybytes, (char *) &shortest, sizeof(EDGE));
+  // Don't need to emit the DISTANCE structure here, as we don't need
+  // the stopping-criterion flag any longer.
+  kv->add(key, keybytes, (char *) &shortest.e, sizeof(EDGE));
 }
 
 /////////////////////////////////////////////////////////////////////////////
-//  Reduce:  Input:   Key-multivalue
-//                    Key = Vi hashkey
-//                    Multivalue = Vi in [1:N]
+//  output_distances: Write the best distance from S to Vi to a file.
 //
-//           Output:  Key = Vi
-//                    Value = default shortest distance INT_MAX through vtx -1.
-void default_vtx_distance(char *key, int keybytes, char *multivalue,
-                          int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
-{
-  EDGE shortest;
-  shortest.v = -1;
-  shortest.wt = -INT_MAX;
-
-  VERTEX v = *((VERTEX *) multivalue);
-  kv->add((char *) &v, sizeof(VERTEX), (char *) &shortest, sizeof(EDGE));
-}
-
-/////////////////////////////////////////////////////////////////////////////
 //  Reduce:  Input:   Key-multivalue
 //                    Key = Vi
-//                    Multivalue = [{Vk, -Dk}] representing the shortest
-//                                 distance from S to Vi through preceding
-//                                 vertex Vk.
-//                    Note that nvalues should equal one or two.
-//                    If nvalues == 1, Vi is not connected to S.
-//                    If nvalues == 2, report the shorter distance.
-//
-//           Compute: Find minimum distance D, keeping track of corresponding
-//                    preceding vertex Vd.
+//                    Multivalue = {Vk, Dk} representing the 
+//                                 shortest distance from S to Vi through 
+//                                 preceding vertex Vk.
+//                    Note that nvalues should equal one.
 //
 //           Output:  Write path entries to a file
 //                    Vi D Vd
@@ -321,15 +349,10 @@ void output_distances(char *key, int keybytes, char *multivalue,
   FILE *fp = (FILE *) ptr;
   EDGE *e = (EDGE *) multivalue;
 
-  if (nvalues > 2) {
+  if (nvalues > 1) {
     printf("Sanity check failed in output_distances:  nvalues = %d\n", nvalues);
     MPI_Abort(MPI_COMM_WORLD,-1);
   }
   
-  int shortidx = 0;
-  if (nvalues > 1) 
-    if (e[1].wt > e[0].wt) shortidx = 1;  // Distances are negative numbers.
-
-  printf("KDD nvalues %d: key %d:  %d  %d\n", nvalues, *((VERTEX *)key), -e[0].wt, (nvalues > 1 ? -e[1].wt : -234));
-  fprintf(fp, "%d %d %d\n", *((VERTEX *)key), -e[shortidx].wt, e[shortidx].v);
+  fprintf(fp, "%d %d %d\n", *((VERTEX *)key), e->wt, e->v);
 }
