@@ -86,10 +86,10 @@ int main(int narg, char **args)
     VERTEX source = -1;
     if (me == 0) {
       source = drand48() * nverts + 1;
-      printf("Source vertex:  %d\n", source);
-      mrpath->map(1, add_source, &source);
+      printf("Source vertex:  %d of %d\n", source, nverts);
     }
     MPI_Bcast(&source, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    mrpath->map(1, add_source, &source);
 
     //  Perform a BFS from S, editing distances as visit vertices.
     int done = 0;
@@ -142,7 +142,7 @@ int main(int narg, char **args)
     // Output results.
 
     char filename[32];
-    sprintf(filename, "distance_from_%d.%d", source, np);
+    sprintf(filename, "distance_from_%d.%d", source, me);
     FILE *fp = fopen(filename, "w");
 
     mrpath->clone();
@@ -152,6 +152,7 @@ int main(int narg, char **args)
    
     delete mrpath;
   } 
+  MPI_Finalize();
 }
 
 /////////////////////////////////////////////////////////////////////////////
