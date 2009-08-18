@@ -89,3 +89,11 @@ while (!done) {
 
 5.  Output results.
 
+
+
+CURRENT WORK:  
+-  Modify algorithm to use HashKey IDs instead of [1:N] IDs for vertices.
+   (Allows output useful to users of the code, larger inputs, and consistent
+   results across parallel tests on differing numbers of processors and 
+   platforms.)
+-  Performance tests and improvements.
