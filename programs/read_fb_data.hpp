@@ -48,7 +48,7 @@ class ReadFBData{
 public:
   ReadFBData(int, char **);
   ~ReadFBData() {delete [] onefile;}
-  void run(MapReduce **, MapReduce **, int*, int*, int*);
+  void run(MapReduce **, MapReduce **, uint64_t*, uint64_t*, uint64_t*);
 
   int nfiles;       // If -f option is used, how many files are listed?
   char **argfiles;  // If -f option is used, argfiles points to list of files.
@@ -140,9 +140,9 @@ void ReadFBData::run(
                                //          Key = Vi hashkey ID; 
                                //          Value = {Vj hashkey ID, Wij} for
                                //          edge Vi->Vj with Wij occurrences
-  int *nverts,                 // Output:  Number of unique non-zero vertices.
-  int *nrawedges,              // Output:  Number of edges in input files.
-  int *nedges                  // Output:  Number of unique edges in input file.
+  uint64_t *nverts,            // Output:  Number of unique non-zero vertices.
+  uint64_t *nrawedges,         // Output:  Number of edges in input files.
+  uint64_t *nedges             // Output:  Number of unique edges in input file.
 ) 
 {
   // mrraw = all edges in file data
@@ -337,8 +337,8 @@ void edge_unique(char *key, int keybytes, char *multivalue,
     for (mit = hash.begin(); mit != hash.end(); mit++) {
       std::pair<uint64_t, uint64_t> e = (*mit).first;
       EDGE16 tmp;
-      tmp.v[0] = e.first;
-      tmp.v[1] = e.second;
+      tmp.v.v[0] = e.first;
+      tmp.v.v[1] = e.second;
       tmp.wt = (*mit).second;
       kv->add(key,keybytes,(char *)&tmp,sizeof(EDGE16));
     }
@@ -366,7 +366,7 @@ void edge_unique(char *key, int keybytes, char *multivalue,
     map<uint64_t,WEIGHT>::iterator mit;
     for (mit = hash.begin(); mit != hash.end(); mit++) {
       EDGE08 tmp;
-      tmp.v[0] = (*mit).first;
+      tmp.v.v[0] = (*mit).first;
       tmp.wt = (*mit).second;
       kv->add(key,keybytes,(char*)&tmp,sizeof(EDGE08));
     }

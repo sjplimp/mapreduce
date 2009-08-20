@@ -217,9 +217,9 @@ int main(int narg, char **args)
 
   MapReduce *mrvert = NULL;
   MapReduce *mredge = NULL;
-  int nverts;    // Number of unique non-zero vertices
-  int nrawedges; // Number of edges in input files.
-  int nedges;    // Number of unique edges in input files.
+  uint64_t nverts;    // Number of unique non-zero vertices
+  uint64_t nrawedges; // Number of edges in input files.
+  uint64_t nedges;    // Number of unique edges in input files.
   readFB.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
 
   // set nsingleton to -1 in case never compute it via options
@@ -227,7 +227,7 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tprev = MPI_Wtime();
 
-  int nsingleton = -1;
+  uint64_t nsingleton = -1;
 
   // output a hash-key file of unique edges I->J.
   // No header information; one chunk per proc.
@@ -239,13 +239,13 @@ int main(int narg, char **args)
       char fname[128];
       sprintf(fname,"%s.header",hfile);
       FILE *fp = fopen(fname,"w");
-      fprintf(fp,"%d %d %d\n",nverts,nverts,nedges);
+      fprintf(fp,"%ld %ld %ld\n",nverts,nverts,nedges);
       fclose(fp);
     }
     
     char fname[128];
     sprintf(fname,"%s.%d",hfile,me);
-    FILE *fp = fopen(fname,"w");
+    FILE *fp = fopen(fname, "w");
 
     // mrout KV = (Vi,[Vj Vk ... Vz ])
     // print out edges in using hashvalues from input file.
@@ -347,7 +347,7 @@ int main(int narg, char **args)
 #endif
 
     mrdegree->collate(NULL);
-    int n = mrdegree->reduce(&edge_count,NULL);
+    uint64_t n = mrdegree->reduce(&edge_count,NULL);
     nsingleton = nverts - n;
 
     // mrhisto KV = (out degree, vert count)
@@ -376,7 +376,7 @@ int main(int narg, char **args)
     delete mrhisto;
     
     if (me == 0) {
-      fprintf(fp,"%d %d\n",0,nsingleton);
+      fprintf(fp,"%d %ld\n",0,nsingleton);
       fclose(fp);
     }
   }
@@ -398,8 +398,8 @@ int main(int narg, char **args)
     mrdegree->reduce(&edge_reverse,NULL);  // Assumes destination vertex is
                                            // first field in EDGE struct.
     mrdegree->collate(NULL);
-    int n = mrdegree->reduce(&edge_count,NULL);
-    int nsingleton_in = nverts - n;
+    uint64_t n = mrdegree->reduce(&edge_count,NULL);
+    uint64_t nsingleton_in = nverts - n;
 
     // mrhisto KV = (in degree, vert count)
     
@@ -427,7 +427,7 @@ int main(int narg, char **args)
     delete mrhisto;
     
     if (me == 0) {
-      fprintf(fp,"%d %d\n",0,nsingleton_in);
+      fprintf(fp,"%d %ld\n",0,nsingleton_in);
       fclose(fp);
     }
   }
@@ -447,13 +447,13 @@ int main(int narg, char **args)
       char fname[128];
       sprintf(fname,"%s.header",mfile);
       FILE *fp = fopen(fname,"w");
-      fprintf(fp,"%d %d %d\n",nverts,nverts,nedges);
+      fprintf(fp,"%ld %ld %ld\n",nverts,nverts,nedges);
       fclose(fp);
     }
     
     char fname[128];
     sprintf(fname,"%s.%d",mfile,me);
-    FILE *fp = fopen(fname,"w");
+    FILE *fp = fopen(fname, "w");
 
     if (mfile_weights) {
 #ifdef NEW_OUT_OF_CORE
@@ -477,7 +477,7 @@ int main(int narg, char **args)
       MapReduce *mrdegree = new MapReduce(*mredge);
 #endif
       mrdegree->collate(NULL);
-      int n = mrdegree->reduce(&edge_count,NULL);
+      uint64_t n = mrdegree->reduce(&edge_count,NULL);
       nsingleton = nverts - n;
 
       // mrout KV = (Vi,[Vj Vk ... Vz -outdegree-of-Vi]
@@ -516,10 +516,10 @@ int main(int narg, char **args)
   double tstop = MPI_Wtime();
 
   if (me == 0) {
-    printf("Graph: %d original edges\n",nrawedges);
-    printf("Graph: %d unique vertices\n",nverts);
-    printf("Graph: %d unique edges\n",nedges);
-    printf("Graph: %d vertices with zero out-degree\n",nsingleton);
+    printf("Graph: %ld original edges\n",nrawedges);
+    printf("Graph: %ld unique vertices\n",nverts);
+    printf("Graph: %ld unique edges\n",nedges);
+    printf("Graph: %ld vertices with zero out-degree\n",nsingleton);
     printf("Time for map:      %g secs\n",readFB.timeMap);
     printf("Time for unique:   %g secs\n",readFB.timeUnique);
     printf("Time without map:  %g secs\n",tstop-tstart-readFB.timeMap);
@@ -608,24 +608,23 @@ void hfile_write(char *key, int keybytes, char *multivalue,
   int i;
   FILE *fp = (FILE *) ptr;
 
-  uint64_t *vi = (uint64_t *) key;
-
-
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   if (keybytes == 16) {
     // Two 64-bit ints per vertex
+    VERTEX16 *vi = (VERTEX16 *) key;
     EDGE16 *edge = (EDGE16 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp,"%llu %llu    %llu %llu %d\n",
-                  vi[0], vi[1] ,edge[i].v[0], edge[i].v[1], edge[i].wt);
+      fprintf(fp, "%lld %lld   %lld %lld %d\n",
+              vi->v[0], vi->v[1], edge[i].v.v[0], edge[i].v.v[1], edge[i].wt);
   }
   else if (keybytes == 8) {
     // One 64-bit int per vertex
+    VERTEX08 *vi = (VERTEX08 *) key;
     EDGE08 *edge = (EDGE08 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp,"%lld   %lld %d\n", *vi, edge[i].v[0], edge[i].wt);
+      fprintf(fp, "%lld   %lld %d\n", vi->v[0], edge[i].v.v[0], edge[i].wt);
   }
   else 
     fprintf(fp, "Invalid vertex size %d\n", keybytes);
@@ -649,7 +648,7 @@ void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
 
   int offset;
   double inverse_outdegree;
-  VERTEX vi = *((VERTEX *) key);
+  iVERTEX *vi = (iVERTEX *) key;
 
   // First, find the negative int, which is -degree of Vi.
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
@@ -675,8 +674,8 @@ void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
   offset = 0;
   for (i = 0; i < nvalues; i++) {
     if (valuebytes[i] != sizeof(int)) {
-      EDGE *edge = (EDGE *) &multivalue[offset];
-      fprintf(fp,"%d %d %g\n",vi,edge->v,inverse_outdegree);
+      iEDGE *edge = (iEDGE *) &multivalue[offset];
+      fprintf(fp, "%d %d %f\n", vi->v, edge->v.v, inverse_outdegree);
     }
     offset += valuebytes[i];
   }
@@ -695,15 +694,17 @@ void matrix_write_weights(char *key, int keybytes, char *multivalue,
 {
   int i;
   FILE *fp = (FILE *) ptr;
-  VERTEX vi = *((VERTEX *) key);
+  iVERTEX *vi = (iVERTEX *) key;
 
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
-  EDGE *edge = (EDGE *) multivalue;
+  iEDGE *edge = (iEDGE *) multivalue;
 
-  for (i = 0; i < nvalues; i++)
-    fprintf(fp,"%d %d %d.\n",vi,edge[i].v,edge[i].wt);
+  for (i = 0; i < nvalues; i++) {
+    fprintf(fp, "%d %d %d.\n", vi->v, edge->v.v, edge->wt);
+    edge++;
+  }
 
   END_BLOCK_LOOP
 }
@@ -753,16 +754,16 @@ void time_series_write(char *key, int keybytes, char *multivalue,
 {
   int i;
   FILE **fp = (FILE **) ptr;
-  VERTEX vi = *((VERTEX *) key);
+  iVERTEX vi = *((iVERTEX *) key);
 
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
-  EDGE *edge = (EDGE *) multivalue;
+  iEDGE *edge = (iEDGE *) multivalue;
 
-  uint64_t vi_l = (uint64_t) vi - 1;  // Greg Mackey's format is [0:N-1]
+  uint64_t vi_l = (uint64_t) vi.v-1;  // Greg Mackey's format is [0:N-1]
   for (i = 0; i < nvalues; i++) {
-    uint64_t vj_l = (uint64_t) edge[i].v - 1; // Greg Mackey's format is [0:N-1]
+    uint64_t vj_l = (uint64_t) edge[i].v.v-1; // Greg Mackey's format is [0:N-1]
     fwrite(&vi_l, 8, 1, fp[0]);
     fwrite(&vj_l, 8, 1, fp[1]);
   }

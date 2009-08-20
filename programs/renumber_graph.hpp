@@ -97,8 +97,9 @@ void vertex_label(char *key, int keybytes, char *multivalue,
 {
   LABEL *label = (LABEL *) ptr;
   label->count++;
-  VERTEX id = label->nthresh + label->count;
-  kv->add(key,keybytes,(char *) &id,sizeof(VERTEX));
+  iVERTEX id;
+  id.v = label->nthresh + label->count;
+  kv->add(key,keybytes,(char *) &id,sizeof(iVERTEX));
 }
 
 /* ----------------------------------------------------------------------
@@ -113,7 +114,7 @@ void edge_label1(char *key, int keybytes, char *multivalue,
 
 
   // Identify id = int ID of vertex key in mvalue list.
-  VERTEX id;
+  iVERTEX id;
   int i, offset, found=0;
   int vertexsize = *((int *)ptr);
 
@@ -122,11 +123,11 @@ void edge_label1(char *key, int keybytes, char *multivalue,
 
   offset = 0;
   for (i = 0; i < nvalues; i++) {
-    if (valuebytes[i] == sizeof(VERTEX)) break;
+    if (valuebytes[i] == sizeof(iVERTEX)) break;
     offset += valuebytes[i];
   }
   if (i < nvalues) {
-    id = - *((VERTEX *) &multivalue[offset]);
+    id.v = - (*((iVERTEX *) &multivalue[offset])).v;
     found = 1;
     BREAK_BLOCK_LOOP;
   }
@@ -145,16 +146,16 @@ void edge_label1(char *key, int keybytes, char *multivalue,
 
   offset = 0;
   for (i = 0; i < nvalues; i++) {
-    if (valuebytes[i] != sizeof(VERTEX)) {
+    if (valuebytes[i] != sizeof(iVERTEX)) {
       // For key, assuming v is first field of both EDGE16 and EDGE8.
       uint64_t *newkey = (uint64_t *)(&multivalue[offset]);
-      EDGE val;
+      iEDGE val;
       val.v = id;
       if (vertexsize == 16)
         val.wt = (*((EDGE16 *)(&multivalue[offset]))).wt;
       else
         val.wt = (*((EDGE08 *)(&multivalue[offset]))).wt;
-      kv->add((char*)newkey,vertexsize,(char*)&val,sizeof(EDGE));
+      kv->add((char*)newkey,vertexsize,(char*)&val,sizeof(iEDGE));
     }
     offset += valuebytes[i];
   }
@@ -179,7 +180,7 @@ void edge_label2(char *key, int keybytes, char *multivalue,
 
   int i;
   int offset;
-  VERTEX id;
+  iVERTEX id;
 
   // Identify id = int ID of vertex key in mvalue list.
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
@@ -187,11 +188,11 @@ void edge_label2(char *key, int keybytes, char *multivalue,
 
   offset = 0;
   for (i = 0; i < nvalues; i++) {
-    if (valuebytes[i] == sizeof(VERTEX)) break;
+    if (valuebytes[i] == sizeof(iVERTEX)) break;
     offset += valuebytes[i];
   }
   if (i < nvalues) {
-    id = *((VERTEX *) &multivalue[offset]);
+    id = *((iVERTEX *) &multivalue[offset]);
     BREAK_BLOCK_LOOP;
   }
 
@@ -202,13 +203,14 @@ void edge_label2(char *key, int keybytes, char *multivalue,
 
   offset = 0;
   for (i = 0; i < nvalues; i++) {
-    if (valuebytes[i] != sizeof(VERTEX)) {
-      EDGE *mv = (EDGE *)&(multivalue[offset]);
-      VERTEX vi = -(mv->v);
-      EDGE tmp;
+    if (valuebytes[i] != sizeof(iVERTEX)) {
+      iEDGE *mv = (iEDGE *)&(multivalue[offset]);
+      iVERTEX vi;
+      vi.v = -((mv->v).v);
+      iEDGE tmp;
       tmp.v = id;
       tmp.wt = mv->wt;
-      kv->add((char *) &vi,sizeof(VERTEX),(char *) &tmp,sizeof(EDGE));
+      kv->add((char *) &vi,sizeof(iVERTEX),(char *) &tmp,sizeof(iEDGE));
     }
     offset += valuebytes[i];
   }
