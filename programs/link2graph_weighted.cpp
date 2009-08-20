@@ -272,7 +272,7 @@ int main(int narg, char **args)
   if (convertflag) {
     // update mrvert and mredge so their vertices are unique ints from 1-N,
     // not hash values
-    renumber_graph(readFB.vertexsize, mrvert, mredge);
+    renumber_graph(mrvert, mredge);
   } 
 
   MPI_Barrier(MPI_COMM_WORLD);

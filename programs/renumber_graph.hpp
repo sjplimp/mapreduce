@@ -33,7 +33,6 @@ void edge_label1(char *, int, char *, int, int *, KeyValue *, void *);
 void edge_label2(char *, int, char *, int, int *, KeyValue *, void *);
 
 void renumber_graph(
-  int vertexsize,      // Size of hashkey ID for vertex (8 or 16).
   MapReduce *mrvert,   // Input: Unique non-zero vertices with hashkey IDs.
                        // Output:  Unique non-zero vertices with [1:N] numbering
                        // Key = hashkey ID  Value = ID in [1:N].
@@ -73,7 +72,7 @@ void renumber_graph(
 #endif
 
   mredge->collate(NULL);
-  mredge->reduce(&edge_label1,&vertexsize);
+  mredge->reduce(&edge_label1,NULL);
 
 #ifdef NEW_OUT_OF_CORE
   mredge->add(mrvert);
@@ -116,7 +115,6 @@ void edge_label1(char *key, int keybytes, char *multivalue,
   // Identify id = int ID of vertex key in mvalue list.
   iVERTEX id;
   int i, offset, found=0;
-  int vertexsize = *((int *)ptr);
 
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
@@ -151,11 +149,11 @@ void edge_label1(char *key, int keybytes, char *multivalue,
       uint64_t *newkey = (uint64_t *)(&multivalue[offset]);
       iEDGE val;
       val.v = id;
-      if (vertexsize == 16)
+      if (keybytes == 16)
         val.wt = (*((EDGE16 *)(&multivalue[offset]))).wt;
       else
         val.wt = (*((EDGE08 *)(&multivalue[offset]))).wt;
-      kv->add((char*)newkey,vertexsize,(char*)&val,sizeof(iEDGE));
+      kv->add((char*)newkey,keybytes,(char*)&val,sizeof(iEDGE));
     }
     offset += valuebytes[i];
   }
