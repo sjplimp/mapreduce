@@ -230,7 +230,9 @@ void output_distances(char *key, int keybytes, char *multivalue,
                       int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
 {
   ofstream *fp = (ofstream *) ptr;
+//  FILE *fp = (FILE *) ptr;
   EDGE *e = (EDGE *) multivalue;
+  VERTEX *vi = (VERTEX *) key;
 
   if (nvalues > 1) {
     cout << "Sanity check failed in output_distances:  nvalues = " 
@@ -239,6 +241,14 @@ void output_distances(char *key, int keybytes, char *multivalue,
   }
   
   *fp << *((VERTEX *)key) << "   " << *e << endl;
+//  if (keybytes == 16)
+//    fprintf(fp, "%lld %lld    %lld %lld  %ld\n",
+//            vi->v[0], vi->v[1], edge->v.v[0], edge->v.v[1], edge->wt);
+//  else if (keybytes == 8) 
+//    fprintf(fp, "%lld    %lld   %ld\n",
+//            vi->v[0], edge->v.v[0], edge->wt);
+//  else
+//    fprintf(fp, "Invalid vertex size %d\n", keybytes);
 }
 
 
@@ -247,13 +257,17 @@ template <typename VERTEX, typename EDGE>
 class SSSP {
 public:
   SSSP(MapReduce *mrvert_, MapReduce *mredge_) : mrvert(mrvert_),
-                                                 mredge(mredge_)
+                                                 mredge(mredge_),
+                                                 tcompute(0.),
+                                                 twrite(0.)
   {
     MPI_Comm_rank(MPI_COMM_WORLD, &me); 
     MPI_Comm_size(MPI_COMM_WORLD, &np); 
   };
   ~SSSP(){};
   void run(int);
+  double tcompute;  // Compute time
+  double twrite;    // Write time
 private:
   int me;
   int np;
@@ -271,6 +285,9 @@ void SSSP<VERTEX, EDGE>::run(int iteration)
   //       Processor 0 emits into Paths key-value pair [S, {-1, 0}], 
   //       signifying that vertex S has distance zero from itself, with no
   //       predecessor.
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tstart = MPI_Wtime();
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
   VERTEX source;
@@ -339,6 +356,11 @@ void SSSP<VERTEX, EDGE>::run(int iteration)
   mrpath->collate(NULL);
   mrpath->reduce(last_distance_update<VERTEX,EDGE>, NULL);
 
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tstop = MPI_Wtime();
+  tcompute += (tstop - tstart);
+
   // Now mrpath contains one key-value per vertex Vi:
   // Key = Vi
   // Value = {Vd, D}:  the predecessor vtx Vd, the distance D from 
@@ -356,6 +378,9 @@ void SSSP<VERTEX, EDGE>::run(int iteration)
   mrpath->reduce(output_distances<VERTEX,EDGE>, (void *) &fp);
 
   fp.close();
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  twrite += (MPI_Wtime() - tstop);
    
   delete mrpath;
 }
@@ -404,12 +429,20 @@ int main(int narg, char **args)
     if (me == 0) cout << "Beginning sssp with VERTEX16" << endl;
     for (int exp = 0; exp < nexp; exp++) 
       sssp.run(exp);
+    if (me == 0) {
+      cout << "Experiment Time (Compute): " << sssp.tcompute << endl;
+      cout << "Experiment Time (Write):   " << sssp.twrite << endl;
+    }
   }
   else if (readFB.vertexsize == 8) {
     SSSP<VERTEX08, EDGE08> sssp(mrvert, mredge);
     if (me == 0) cout << "Beginning sssp with VERTEX08" << endl;
     for (int exp = 0; exp < nexp; exp++) 
       sssp.run(exp);
+    if (me == 0) {
+      cout << "Experiment Time (Compute): " << sssp.tcompute << endl;
+      cout << "Experiment Time (Write):   " << sssp.twrite << endl;
+    }
   }
   else {
     cout << "Invalid vertex size " << readFB.vertexsize << endl;
@@ -421,7 +454,7 @@ int main(int narg, char **args)
 
   if (me == 0) {
     cout << "Time (Map):         " << tmap - tstart << endl;
-    cout << "Time (Iterations):  " << tstop - tmap << endl;
+    cout << "Time (Experiments): " << tstop - tmap << endl;
     cout << "Time (Total):       " << tstop - tstart << endl;
   }
 
