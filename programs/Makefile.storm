@@ -6,5 +6,7 @@ LINK =		CC
 LINKFLAGS =	-O  
 USRLIB =	-L../src -lmrmpi
 SYSLIB =
+DEPFLAGS =      -M
+
 
 include Makefile.common

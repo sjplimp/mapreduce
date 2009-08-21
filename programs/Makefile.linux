@@ -6,5 +6,6 @@ LINK =		g++
 LINKFLAGS =	-g  
 USRLIB =	-L../src -lmrmpi
 SYSLIB =	-lmpich -lpthread -lrt
+DEPFLAGS = 	-M
 
 include Makefile.common

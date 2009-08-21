@@ -193,6 +193,12 @@ void ReadFBData::run(
 
   MPI_Barrier(MPI_COMM_WORLD);
   timeUnique = MPI_Wtime() - tmap;
+
+  if (me == 0) {
+    printf("ReadFB:  Number of edges:            %ld\n", *nrawedges);
+    printf("ReadFB:  Number of unique edges:     %ld\n", *nedges);
+    printf("ReadFB:  Number of unique vertices:  %ld\n", *nverts);
+  }
 }
 
 /* ----------------------------------------------------------------------

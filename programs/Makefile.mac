@@ -10,6 +10,8 @@ LINKFLAGS =	-g
 USRLIB =	-L../new -lmrmpi
 SYSLIB =	
 LIB =		../new/libmrmpi.a
+DEPFLAGS =      -M
+
 
 SRC = 		mrvector.cpp mrmatrix.cpp 
 OBJS = 		$(SRC:.cpp=.o)

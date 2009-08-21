@@ -256,22 +256,53 @@ void output_distances(char *key, int keybytes, char *multivalue,
 template <typename VERTEX, typename EDGE>
 class SSSP {
 public:
-  SSSP(MapReduce *mrvert_, MapReduce *mredge_) : mrvert(mrvert_),
-                                                 mredge(mredge_),
-                                                 tcompute(0.),
-                                                 twrite(0.),
-                                                 sourcefp(NULL)
+  SSSP(int narg, char **args, MapReduce *mrvert_, MapReduce *mredge_) :
+                                                  mrvert(mrvert_),
+                                                  mredge(mredge_),
+                                                  tcompute(0.),
+                                                  twrite(0.),
+                                                  sourcefp(NULL), 
+                                                  write_files(false),
+                                                  counter(0)
   {
     MPI_Comm_rank(MPI_COMM_WORLD, &me); 
     MPI_Comm_size(MPI_COMM_WORLD, &np); 
+
+    // Process input options.  Open the source vertex file on proc 0.
+    int iarg = 1;
+    while (iarg < narg) {
+      if (strcmp(args[iarg], "-s") == 0) {
+        iarg++;
+        if (me == 0) {
+          sourcefp = fopen(args[iarg], "rb");
+          if (!sourcefp) {
+            cout << "Unable to open source file " << args[iarg] << endl;
+            MPI_Abort(MPI_COMM_WORLD, -1);          
+          }
+        }
+      }
+      else if (strcmp(args[iarg], "-o") == 0) {
+        write_files = true;
+      }
+      iarg++;
+    }
+    if (me == 0 && !sourcefp) {
+      cout << "Source-vertex file missing; " 
+           << "use -s to specify source-vertex file." << endl
+           << "(Remember to keep -f or -ff arguments last on command line.)"
+           << endl;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
   };
+
   ~SSSP()
   {
     if (sourcefp) fclose(sourcefp);
     sourcemap.clear();
   };
-  bool run(int, char**);
-  bool get_next_source(int, char **, VERTEX *);
+
+  bool run();
+  bool get_next_source(VERTEX *);
   double tcompute;  // Compute time
   double twrite;    // Write time
 private:
@@ -283,6 +314,9 @@ private:
                                 // proc 0.
   map<VERTEX, char> sourcemap;  // unique vertices previouslly used as sources;
                                 // populated only on proc 0.
+  bool write_files;             // Flag indicating whether to write files
+                                // after computing SSSP.
+  uint64_t counter;             // Count how many times the SSSP is run().
 };
 
 /////////////////////////////////////////////////////////////////////////////
@@ -293,37 +327,11 @@ private:
 
 template <typename VERTEX, typename EDGE>
 bool SSSP<VERTEX, EDGE>::get_next_source(
-  int narg, 
-  char **args, 
   VERTEX *source
 )
 {
   source->reset();
   if (me == 0) {
-    // If the source file is not yet open, find its filename and open it now.
-    if (!sourcefp) {
-      int iarg = 1;
-      while (iarg < narg) {
-        if (strcmp(args[iarg], "-s") == 0) {
-          iarg++;
-          sourcefp = fopen(args[iarg], "rb");
-          if (!sourcefp) {
-            cout << "Unable to open source file " << args[iarg] << endl;
-            MPI_Abort(MPI_COMM_WORLD, -1);          
-          }
-          break;
-        }
-        iarg++;
-      }
-      if (!sourcefp) {
-        cout << "Source-vertex file missing; " 
-             << "use -s to specify source-vertex file." << endl
-             << "(Remember to keep -f or -ff arguments last on command line.)"
-             << endl;
-        MPI_Abort(MPI_COMM_WORLD, -1);
-      }
-    }
-
     // Read source vertices from file; keep reading until reach EOF or
     // until find a source vertex that we haven't used before.
     // Keep track of used source vertices in a map (hash table would be better).
@@ -354,10 +362,7 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
 //////////////////////////////////////////////////////////////////////////////
 // Routine to run the SSSP algorithm.
 template <typename VERTEX, typename EDGE>
-bool SSSP<VERTEX, EDGE>::run(
-  int narg,
-  char **args
-) 
+bool SSSP<VERTEX, EDGE>::run() 
 {
   // Create a new MapReduce object, Paths.
   // Select a source vertex.  
@@ -371,7 +376,7 @@ bool SSSP<VERTEX, EDGE>::run(
 
   VERTEX source;
 
-  if (!get_next_source(narg, args, &source))
+  if (!get_next_source(&source))
     return false;  // no unique source remains; quit execution and return.
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
@@ -427,8 +432,10 @@ bool SSSP<VERTEX, EDGE>::run(
   double tstop = MPI_Wtime();
   tcompute += (tstop - tstart);
 
-  if (me == 0) cout << "Source vertex = " << source
-                    << "; Iterations = " << iter << endl;
+  if (me == 0) cout << counter << ":  Source vertex = " << source
+                    << "; Iterations = " << iter 
+                    << "; Compute Time = " << (tstop-tstart) << endl;
+  counter++;
 
   // Now mrpath contains one key-value per vertex Vi:
   // Key = Vi
@@ -438,19 +445,21 @@ bool SSSP<VERTEX, EDGE>::run(
 
   // Output results.
 
-  char filename[128];
-  if (sizeof(VERTEX) == 16)
-    sprintf(filename, "distance_from_%llu_%llu.%03d",
-                       source.v[0], source.v[1], me);
-  else
-    sprintf(filename, "distance_from_%llu.%03d", source.v[0], me);
-  ofstream fp;
-  fp.open(filename);
+  if (write_files) {
+    char filename[128];
+    if (sizeof(VERTEX) == 16)
+      sprintf(filename, "distance_from_%llu_%llu.%03d",
+                         source.v[0], source.v[1], me);
+    else
+      sprintf(filename, "distance_from_%llu.%03d", source.v[0], me);
+    ofstream fp;
+    fp.open(filename);
+  
+    mrpath->clone();
+    mrpath->reduce(output_distances<VERTEX,EDGE>, (void *) &fp);
 
-  mrpath->clone();
-  mrpath->reduce(output_distances<VERTEX,EDGE>, (void *) &fp);
-
-  fp.close();
+    fp.close();
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
   twrite += (MPI_Wtime() - tstop);
@@ -497,18 +506,18 @@ int main(int narg, char **args)
 
   srand48(1l);
   if (readFB.vertexsize == 16) {
-    SSSP<VERTEX16, EDGE16> sssp(mrvert, mredge);
-    if (me == 0) cout << "Beginning sssp with VERTEX16" << endl;
-    while (sssp.run(narg, args));
+    SSSP<VERTEX16, EDGE16> sssp(narg, args, mrvert, mredge);
+    if (me == 0) cout << "Beginning sssp with 16-byte keys." << endl;
+    while (sssp.run());
     if (me == 0) {
       cout << "Experiment Time (Compute): " << sssp.tcompute << endl;
       cout << "Experiment Time (Write):   " << sssp.twrite << endl;
     }
   }
   else if (readFB.vertexsize == 8) {
-    SSSP<VERTEX08, EDGE08> sssp(mrvert, mredge);
-    if (me == 0) cout << "Beginning sssp with VERTEX08" << endl;
-    while (sssp.run(narg, args));
+    SSSP<VERTEX08, EDGE08> sssp(narg, args, mrvert, mredge);
+    if (me == 0) cout << "Beginning sssp with 8-byte keys." << endl;
+    while (sssp.run());
     if (me == 0) {
       cout << "Experiment Time (Compute): " << sssp.tcompute << endl;
       cout << "Experiment Time (Write):   " << sssp.twrite << endl;

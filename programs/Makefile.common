@@ -1,6 +1,13 @@
-SRC = 		mrvector.cpp mrmatrix.cpp 
-OBJS = 		$(SRC:.cpp=.o)
-INCS =          mrvector.h mrmatrix.h mrall.h
+SRC = 		mrvector.cpp mrmatrix.cpp test_matvec.cpp \
+		test_pagerank.cpp \
+		ccnd.cpp test_cc.cpp test_cc_common.cpp test_ccnd.cpp \
+		random_mars.cpp \
+		link2graph.cpp link2graph_weighted.cpp \
+		mrglobalsum.cpp test_gs.cpp \
+	        tri.cpp tri_new.cpp \
+		sssp.cpp
+
+OBJ = 		$(SRC:.cpp=.o)
 
 # Targets
 
@@ -9,14 +16,14 @@ all:	matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted sssp
 # Connected Components without distances; two versions of the 
 # algorithm (original Cohen + more scalable Plimpton) can be run 
 # with this executable.
-ccnd:   random_mars.o test_ccnd.o test_cc_common.o ccnd.o $(LIB)
+ccnd:	test_ccnd.o test_cc_common.o ccnd.o random_mars.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_ccnd.o test_cc_common.o \
-                ccnd.o random_mars.o \
+		ccnd.o random_mars.o \
 		$(USRLIB) $(SYSLIB) -o ccnd
 
 # Original Connect Components algorith by Cohen; includes distance
 # calculation from root of each component.
-ccd:    random_mars.o test_cc.o test_cc_common.o $(LIB)
+ccd:	test_cc.o test_cc_common.o random_mars.o $(LIB)
 	$(LINK) $(LINKFLAGS) test_cc.o test_cc_common.o random_mars.o \
 		$(USRLIB) $(SYSLIB) -o ccd 
 
@@ -26,13 +33,13 @@ gs:	test_gs.o mrglobalsum.o $(LIB)
 		$(USRLIB) $(SYSLIB) -o gs
 
 # MapReduce implementation of Google's pagerank.
-pagerank:	test_pagerank.o $(OBJS) $(LIB) $(INCS)
-	$(LINK) $(LINKFLAGS) test_pagerank.o $(OBJS) \
+pagerank:	test_pagerank.o mrmatrix.o mrvector.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_pagerank.o mrmatrix.o mrvector.o \
 		$(USRLIB) $(SYSLIB) -o pagerank
 
 # MapReduce implementation of matrix-vector multiplication.
-matvec:	test_matvec.o $(OBJS) $(LIB)
-	$(LINK) $(LINKFLAGS) test_matvec.o $(OBJS) \
+matvec:	test_matvec.o mrmatrix.o mrvector.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_matvec.o mrmatrix.o mrvector.o \
 		$(USRLIB) $(SYSLIB) -o matvec
 
 # Program to convert data to MapReduce graph and/or MatrixMarket file.
@@ -58,7 +65,7 @@ tri_new:	tri_new.o $(LIB)
 	$(LINK) $(LINKFLAGS) tri_new.o $(USRLIB) $(SYSLIB) -o tri_new
 
 clean:
-	rm *.o
+	rm *.o *.d
 	rm matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted sssp
 
 # Rules
@@ -68,3 +75,11 @@ clean:
 
 %.o:%.c
 	$(CC) $(CCFLAGS) -c $<
+
+# Individual dependencies
+%.d:%.cpp
+	$(CC) $(CCFLAGS) $(DEPFLAGS) $< > $@
+
+DEPENDS = $(OBJ:.o=.d)
+include $(DEPENDS)
+
