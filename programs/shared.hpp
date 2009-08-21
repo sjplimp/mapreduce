@@ -20,6 +20,14 @@ public:
   friend std::ostream& operator<< (std::ostream& output, const VERTEX16& v) {
     output << v.v[0] << " " << v.v[1];
   };
+  inline bool valid() {return (v[0] != 0);};
+  inline void reset() {v[0] = 0; v[1] = 0;};
+  friend bool operator<(const VERTEX16& lhs, const VERTEX16& rhs) {
+    if (lhs.v[0] < rhs.v[0]) return true;
+    if (lhs.v[0] > rhs.v[0]) return false;
+    if (lhs.v[1] < rhs.v[1]) return true;
+    return false;
+  };
 };
 
 
@@ -31,6 +39,12 @@ public:
   friend std::ostream& operator<< (std::ostream& output, const VERTEX08& v) {
     output << v.v[0];
   };
+  inline bool valid() {return (v[0] != 0);};
+  inline void reset() {v[0] = 0;};
+  friend bool operator<(const VERTEX08& lhs, const VERTEX08& rhs) {
+    if (lhs.v[0] < rhs.v[0]) return true;
+    return false;
+  };
 };
 
 // Vertex in 1-N ordering; occasionally we use negative values for
@@ -41,6 +55,12 @@ public:
   iVERTEX& operator=(const iVERTEX& rhs){v = rhs.v;};
   friend std::ostream& operator<< (std::ostream& output, const iVERTEX& v) {
     output << v.v;
+  };
+  inline bool valid() {return (v != 0);};
+  inline void reset() {v = 0;};
+  friend bool operator<(const iVERTEX& lhs, const iVERTEX& rhs) {
+    if (lhs.v < rhs.v) return true;
+    return false;
   };
 };
 

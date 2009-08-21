@@ -259,13 +259,19 @@ public:
   SSSP(MapReduce *mrvert_, MapReduce *mredge_) : mrvert(mrvert_),
                                                  mredge(mredge_),
                                                  tcompute(0.),
-                                                 twrite(0.)
+                                                 twrite(0.),
+                                                 sourcefp(NULL)
   {
     MPI_Comm_rank(MPI_COMM_WORLD, &me); 
     MPI_Comm_size(MPI_COMM_WORLD, &np); 
   };
-  ~SSSP(){};
-  void run(int);
+  ~SSSP()
+  {
+    if (sourcefp) fclose(sourcefp);
+    sourcemap.clear();
+  };
+  bool run(int, char**);
+  bool get_next_source(int, char **, VERTEX *);
   double tcompute;  // Compute time
   double twrite;    // Write time
 private:
@@ -273,11 +279,85 @@ private:
   int np;
   MapReduce *mrvert;
   MapReduce *mredge;
-  
+  FILE *sourcefp;               // Pointer to source-vtx file; set only on 
+                                // proc 0.
+  map<VERTEX, char> sourcemap;  // unique vertices previouslly used as sources;
+                                // populated only on proc 0.
 };
 
+/////////////////////////////////////////////////////////////////////////////
+// Routine to read source vertex from a file, determine whether it has been
+// used as a source vertex previously, and if not, return it to the application.
+// The source file is specified on the command line, with "-s sourcefile".
+// It should be in Karl's format.
+
 template <typename VERTEX, typename EDGE>
-void SSSP<VERTEX, EDGE>::run(int iteration) 
+bool SSSP<VERTEX, EDGE>::get_next_source(
+  int narg, 
+  char **args, 
+  VERTEX *source
+)
+{
+  source->reset();
+  if (me == 0) {
+    // If the source file is not yet open, find its filename and open it now.
+    if (!sourcefp) {
+      int iarg = 1;
+      while (iarg < narg) {
+        if (strcmp(args[iarg], "-s") == 0) {
+          iarg++;
+          sourcefp = fopen(args[iarg], "rb");
+          if (!sourcefp) {
+            cout << "Unable to open source file " << args[iarg] << endl;
+            MPI_Abort(MPI_COMM_WORLD, -1);          
+          }
+          break;
+        }
+        iarg++;
+      }
+      if (!sourcefp) {
+        cout << "Source-vertex file missing; " 
+             << "use -s to specify source-vertex file." << endl
+             << "(Remember to keep -f or -ff arguments last on command line.)"
+             << endl;
+        MPI_Abort(MPI_COMM_WORLD, -1);
+      }
+    }
+
+    // Read source vertices from file; keep reading until reach EOF or
+    // until find a source vertex that we haven't used before.
+    // Keep track of used source vertices in a map (hash table would be better).
+    const int RECORDSIZE=32;
+    uint64_t buf[4];
+    while (1) {
+      int nrecords = fread(buf, RECORDSIZE, 1, sourcefp);
+      if (nrecords == 0) break;  // EOF; return an invalid source.
+
+      if (buf[0] != 0)  { // Non-zero vertex
+        *source = *((VERTEX *) &buf);
+        if (sourcemap.find(*source) == sourcemap.end()) {
+          // Found a source we haven't used before
+          sourcemap[*source] = '1';
+          break;  // Stop reading and return this source vertex.
+        }
+        else
+          source->reset();
+      }
+    }
+  }
+
+  MPI_Bcast(source, sizeof(VERTEX), MPI_BYTE, 0, MPI_COMM_WORLD);
+  return(source->valid());
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+// Routine to run the SSSP algorithm.
+template <typename VERTEX, typename EDGE>
+bool SSSP<VERTEX, EDGE>::run(
+  int narg,
+  char **args
+) 
 {
   // Create a new MapReduce object, Paths.
   // Select a source vertex.  
@@ -289,32 +369,18 @@ void SSSP<VERTEX, EDGE>::run(int iteration)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
   VERTEX source;
-  if (me == 0) cout << "Selecting source vertex..." << endl;
 
-#ifdef NEW_OUT_OF_CORE
-  cout << "Random source selection not yet working with out-of-core "
-       << "implementation." << endl;
-  MPI_Abort(MPI_COMM_WORLD, -1);
+  if (!get_next_source(narg, args, &source))
+    return false;  // no unique source remains; quit execution and return.
 
-#else
-  if (me == iteration%np) {
-    uint64_t nkey = mrvert->kv->nkey;
-    uint64_t idx = drand48() * nkey;
-    memcpy(&source, &(mrvert->kv->keydata[mrvert->kv->keys[idx]]), 
-           sizeof(VERTEX));
-    cout << "Source vertex:  " << source << endl;
-  }
-#endif
-    
-  if (me == 0) cout << "Adding source vertex to MRPath..." << endl;
-  MPI_Bcast(&source, sizeof(VERTEX), MPI_BYTE, iteration%np, MPI_COMM_WORLD);
+  MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
+
   mrpath->map(1, add_source<VERTEX,EDGE>, &source);
 
   //  Perform a BFS from S, editing distances as visit vertices.
-  if (me == 0) cout << "Beginning while loop..." << endl;
   int done = 0;
+  int iter = 0;
   while (!done) {
     done = 1;
  
@@ -333,8 +399,8 @@ void SSSP<VERTEX, EDGE>::run(int iteration)
     int alldone;
     MPI_Allreduce(&done, &alldone, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     done = alldone;
+    iter++;
   }
-  if (me == 0) cout << "Done while loop..." << endl;
 
   // Finish up:  Want distance from S to all vertices.  Have to add in 
   //             vertices that are not connected to S through any paths.
@@ -361,6 +427,9 @@ void SSSP<VERTEX, EDGE>::run(int iteration)
   double tstop = MPI_Wtime();
   tcompute += (tstop - tstart);
 
+  if (me == 0) cout << "Source vertex = " << source
+                    << "; Iterations = " << iter << endl;
+
   // Now mrpath contains one key-value per vertex Vi:
   // Key = Vi
   // Value = {Vd, D}:  the predecessor vtx Vd, the distance D from 
@@ -369,8 +438,12 @@ void SSSP<VERTEX, EDGE>::run(int iteration)
 
   // Output results.
 
-  char filename[32];
-  sprintf(filename, "distance_iteration_%d.%d", iteration, me);
+  char filename[128];
+  if (sizeof(VERTEX) == 16)
+    sprintf(filename, "distance_from_%llu_%llu.%03d",
+                       source.v[0], source.v[1], me);
+  else
+    sprintf(filename, "distance_from_%llu.%03d", source.v[0], me);
   ofstream fp;
   fp.open(filename);
 
@@ -383,6 +456,8 @@ void SSSP<VERTEX, EDGE>::run(int iteration)
   twrite += (MPI_Wtime() - tstop);
    
   delete mrpath;
+
+  return true;  // Keep going.
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -395,9 +470,6 @@ int main(int narg, char **args)
 
   if (np < 100) greetings();
 
-  // Get input options.
-  int nexp = 40;    // Number of experiments to run.
-  
   // Create a new MapReduce object, Edges.
   // Map(Edges):  Input graph from files as in link2graph_weighted.
   //              Output:  Key-values representing edges Vi->Vj with weight Wij
@@ -427,8 +499,7 @@ int main(int narg, char **args)
   if (readFB.vertexsize == 16) {
     SSSP<VERTEX16, EDGE16> sssp(mrvert, mredge);
     if (me == 0) cout << "Beginning sssp with VERTEX16" << endl;
-    for (int exp = 0; exp < nexp; exp++) 
-      sssp.run(exp);
+    while (sssp.run(narg, args));
     if (me == 0) {
       cout << "Experiment Time (Compute): " << sssp.tcompute << endl;
       cout << "Experiment Time (Write):   " << sssp.twrite << endl;
@@ -437,8 +508,7 @@ int main(int narg, char **args)
   else if (readFB.vertexsize == 8) {
     SSSP<VERTEX08, EDGE08> sssp(mrvert, mredge);
     if (me == 0) cout << "Beginning sssp with VERTEX08" << endl;
-    for (int exp = 0; exp < nexp; exp++) 
-      sssp.run(exp);
+    while (sssp.run(narg, args));
     if (me == 0) {
       cout << "Experiment Time (Compute): " << sssp.tcompute << endl;
       cout << "Experiment Time (Write):   " << sssp.twrite << endl;
@@ -448,6 +518,9 @@ int main(int narg, char **args)
     cout << "Invalid vertex size " << readFB.vertexsize << endl;
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
+
+  delete mrvert;
+  delete mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
