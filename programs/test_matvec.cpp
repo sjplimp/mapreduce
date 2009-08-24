@@ -35,6 +35,7 @@
 #include "keyvalue.h"
 #include "mrmatrix.h"
 #include "mrvector.h"
+#include <assert.h>
 
 using namespace MAPREDUCE_NS;
 using namespace std;

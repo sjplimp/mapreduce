@@ -232,7 +232,7 @@ void output_distances(char *key, int keybytes, char *multivalue,
   ofstream *fp = (ofstream *) ptr;
 //  FILE *fp = (FILE *) ptr;
   EDGE *e = (EDGE *) multivalue;
-  VERTEX *vi = (VERTEX *) key;
+//  VERTEX *vi = (VERTEX *) key;
 
   if (nvalues > 1) {
     cout << "Sanity check failed in output_distances:  nvalues = " 

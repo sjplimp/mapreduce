@@ -88,13 +88,16 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
+  if (nprocs < 100) greetings();
+
 #ifdef NEW_OUT_OF_CORE
 #ifdef ODIN
   // On odin, test the file system for writing; some nodes seem to have 
   // trouble writing to local disk.
   // This test currently uses an odin-specific path.  When MR-MPI allows
   // us to specify a filename prefix, we can make this test more generic.
-  test_local_disk("/localdisk1/scratch");
+  //test_local_disk("/localdisk1/scratch");
+  test_local_disks("/Scratch/Users/kddevin");
 #endif
 #endif
 
@@ -227,7 +230,7 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tprev = MPI_Wtime();
 
-  uint64_t nsingleton = -1;
+  int64_t nsingleton = -1;
 
   // output a hash-key file of unique edges I->J.
   // No header information; one chunk per proc.

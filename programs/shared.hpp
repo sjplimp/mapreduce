@@ -16,9 +16,14 @@
 class VERTEX16 {
 public:
   uint64_t v[2];
-  VERTEX16& operator=(const VERTEX16& rhs){v[0] = rhs.v[0]; v[1] = rhs.v[1];};
+  VERTEX16& operator=(const VERTEX16& rhs){
+    v[0] = rhs.v[0]; 
+    v[1] = rhs.v[1];
+    return *this;
+  };
   friend std::ostream& operator<< (std::ostream& output, const VERTEX16& v) {
     output << v.v[0] << " " << v.v[1];
+    return output;
   };
   inline bool valid() {return (v[0] != 0);};
   inline void reset() {v[0] = 0; v[1] = 0;};
@@ -35,9 +40,10 @@ public:
 class VERTEX08{
 public:
   uint64_t v[1];
-  VERTEX08& operator=(const VERTEX08& rhs){v[0] = rhs.v[0];};
+  VERTEX08& operator=(const VERTEX08& rhs){v[0] = rhs.v[0]; return *this;};
   friend std::ostream& operator<< (std::ostream& output, const VERTEX08& v) {
     output << v.v[0];
+    return output;
   };
   inline bool valid() {return (v[0] != 0);};
   inline void reset() {v[0] = 0;};
@@ -52,9 +58,10 @@ public:
 class iVERTEX{
 public:
   int v;
-  iVERTEX& operator=(const iVERTEX& rhs){v = rhs.v;};
+  iVERTEX& operator=(const iVERTEX& rhs){v = rhs.v; return *this;};
   friend std::ostream& operator<< (std::ostream& output, const iVERTEX& v) {
     output << v.v;
+    return output;
   };
   inline bool valid() {return (v != 0);};
   inline void reset() {v = 0;};
@@ -75,6 +82,7 @@ public:
   WEIGHT wt;  
   friend std::ostream& operator<<(std::ostream& output, const EDGE16& e) {
     output << e.v << " " << e.wt;
+    return output;
   };
 };
 
@@ -86,6 +94,7 @@ public:
   WEIGHT wt;  
   friend std::ostream& operator<<(std::ostream& output, const EDGE08& e) {
     output << e.v << " " << e.wt;
+    return output;
   };
 };
 
@@ -97,6 +106,7 @@ public:
   WEIGHT wt;
   friend std::ostream& operator<<(std::ostream& output, const iEDGE& e) {
     output << e.v << " " << e.wt;
+    return output;
   }
 };
 
