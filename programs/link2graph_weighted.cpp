@@ -96,8 +96,8 @@ int main(int narg, char **args)
   // trouble writing to local disk.
   // This test currently uses an odin-specific path.  When MR-MPI allows
   // us to specify a filename prefix, we can make this test more generic.
-  //test_local_disk("/localdisk1/scratch");
-  test_local_disks("/Scratch/Users/kddevin");
+  test_local_disk("/localdisk1/scratch");
+  //test_local_disks("/Scratch/Users/kddevin");
 #endif
 #endif
 
