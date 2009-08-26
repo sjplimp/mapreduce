@@ -71,8 +71,10 @@ public:
   };
 };
 
-// Edge Weight type; set to number of occurrence of edge in original input.
-typedef int WEIGHT;
+// Edge Weight type; set to 
+//   number of occurrence of edge in original input OR
+//   1/number of occurrences of edge.
+typedef float WEIGHT;
 
 // Edge with destination vertex (16-bytes) and edge weight
 // Note:  edge_label1 assumes v is first field of this struct.

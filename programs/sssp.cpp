@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
+#include <float.h>
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
@@ -30,7 +31,7 @@ class DISTANCE {
 public:
   DISTANCE(){
     memset(&(e.v.v), 0, sizeof(VERTEX));
-    e.wt = INT_MAX;
+    e.wt = FLT_MAX;
     current = false;
   };
   ~DISTANCE(){};
@@ -163,7 +164,7 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
 //
 //
 //           Output:  Key = Vi
-//                    Value = default shortest distance INT_MAX through vtx -1.
+//                    Value = default shortest distance FLT_MAX through vtx -1.
 template <typename VERTEX, typename EDGE>
 void default_vtx_distance(char *key, int keybytes, char *multivalue,
                           int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
@@ -484,7 +485,7 @@ int main(int narg, char **args)
   //              Output:  Key-values representing edges Vi->Vj with weight Wij
   //                       Key = Vi    
   //                       Value = {Vj, Wij} 
-  ReadFBData readFB(narg, args);
+  ReadFBData readFB(narg, args, true);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();

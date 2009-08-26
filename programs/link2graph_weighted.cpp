@@ -619,7 +619,7 @@ void hfile_write(char *key, int keybytes, char *multivalue,
     VERTEX16 *vi = (VERTEX16 *) key;
     EDGE16 *edge = (EDGE16 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp, "%lld %lld   %lld %lld %d\n",
+      fprintf(fp, "%lld %lld   %lld %lld %f\n",
               vi->v[0], vi->v[1], edge[i].v.v[0], edge[i].v.v[1], edge[i].wt);
   }
   else if (keybytes == 8) {
@@ -627,7 +627,7 @@ void hfile_write(char *key, int keybytes, char *multivalue,
     VERTEX08 *vi = (VERTEX08 *) key;
     EDGE08 *edge = (EDGE08 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp, "%lld   %lld %d\n", vi->v[0], edge[i].v.v[0], edge[i].wt);
+      fprintf(fp, "%lld   %lld %f\n", vi->v[0], edge[i].v.v[0], edge[i].wt);
   }
   else 
     fprintf(fp, "Invalid vertex size %d\n", keybytes);
@@ -705,7 +705,7 @@ void matrix_write_weights(char *key, int keybytes, char *multivalue,
   iEDGE *edge = (iEDGE *) multivalue;
 
   for (i = 0; i < nvalues; i++) {
-    fprintf(fp, "%d %d %d.\n", vi->v, edge->v.v, edge->wt);
+    fprintf(fp, "%d %d %f\n", vi->v, edge->v.v, edge->wt);
     edge++;
   }
 

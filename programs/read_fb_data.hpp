@@ -46,7 +46,7 @@ void edge_unique(char *, int, char *, int, int *, KeyValue *, void *);
 // Greg Bayer's format adds 2 32-bit fields at the beginning of each record.
 class ReadFBData{
 public:
-  ReadFBData(int, char **);
+  ReadFBData(int narg, char **args, bool invwtflag=false);
   ~ReadFBData() {delete [] onefile;}
   void run(MapReduce **, MapReduce **, uint64_t*, uint64_t*, uint64_t*);
 
@@ -60,11 +60,13 @@ public:
   int me;                // Processor ID.
   double timeMap;        // Time for doing input maps.
   double timeUnique;     // Time for computing unique edges/vertices.
+  bool invWt;            // Flag indicating whether or not to use 1/occurrence
+                         // count as edge weight.
 };
 
-ReadFBData::ReadFBData(int narg, char *args[]) : 
+ReadFBData::ReadFBData(int narg, char *args[], bool invwtflag) : 
              onefile(NULL), GREG_BAYER(0), vertexsize(8),
-             RECORDSIZE(32), CHUNK(8192) 
+             RECORDSIZE(32), CHUNK(8192), invWt(invwtflag)
 {
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
   int flag = 0;
@@ -139,7 +141,7 @@ void ReadFBData::run(
   MapReduce **return_mredge,   // Output:  Unique edges
                                //          Key = Vi hashkey ID; 
                                //          Value = {Vj hashkey ID, Wij} for
-                               //          edge Vi->Vj with Wij occurrences
+                               //          edge Vi->Vj with weight Wij
   uint64_t *nverts,            // Output:  Number of unique non-zero vertices.
   uint64_t *nrawedges,         // Output:  Number of edges in input files.
   uint64_t *nedges             // Output:  Number of unique edges in input file.
@@ -180,7 +182,8 @@ void ReadFBData::run(
   *nverts = mrvert->reduce(&vertex_unique,NULL);
 
   // mredge = unique I->J edges with I and J non-zero + edge weights
-  //          (computed as number of occurrences of I->J in input).
+  //          (computed as number of occurrences of I->J in input OR 
+  //           1/number of occurrences of I->J).
   // no longer need mrraw
   if (me == 0) printf("Finding unique edges...\n");
   MapReduce *mredge = mrraw;
@@ -345,7 +348,8 @@ void edge_unique(char *key, int keybytes, char *multivalue,
       EDGE16 tmp;
       tmp.v.v[0] = e.first;
       tmp.v.v[1] = e.second;
-      tmp.wt = (*mit).second;
+      if (rfb->invWt) tmp.wt = 1./(*mit).second;
+      else            tmp.wt = (*mit).second;
       kv->add(key,keybytes,(char *)&tmp,sizeof(EDGE16));
     }
   } else {  // vertexsize = 8
@@ -373,7 +377,8 @@ void edge_unique(char *key, int keybytes, char *multivalue,
     for (mit = hash.begin(); mit != hash.end(); mit++) {
       EDGE08 tmp;
       tmp.v.v[0] = (*mit).first;
-      tmp.wt = (*mit).second;
+      if (rfb->invWt) tmp.wt = 1./(*mit).second;
+      else            tmp.wt = (*mit).second;
       kv->add(key,keybytes,(char*)&tmp,sizeof(EDGE08));
     }
   }
