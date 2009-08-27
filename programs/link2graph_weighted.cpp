@@ -288,11 +288,13 @@ int main(int narg, char **args)
     if (me == 0) printf("Generating time-series file...\n");
     
     char fname[128];
-    FILE *fp[2];
+    FILE *fp[3];
     sprintf(fname,"%s.srcs.%d",tsfile,me);
     fp[0] = fopen(fname,"w");
     sprintf(fname,"%s.dests.%d",tsfile,me);
     fp[1] = fopen(fname,"w");
+    sprintf(fname,"%s.freq.%d",tsfile,me);
+    fp[2] = fopen(fname,"w");
 
     // Write the srcs and dests files, one per processor.
 #ifdef NEW_OUT_OF_CORE
@@ -306,6 +308,7 @@ int main(int narg, char **args)
     delete mrout;
     fclose(fp[0]);
     fclose(fp[1]);
+    fclose(fp[2]);
 
     // Write the vmap file:  gather to processor 0, sort, output to single file.
     if (me == 0) {
@@ -769,6 +772,8 @@ void time_series_write(char *key, int keybytes, char *multivalue,
     uint64_t vj_l = (uint64_t) edge[i].v.v-1; // Greg Mackey's format is [0:N-1]
     fwrite(&vi_l, 8, 1, fp[0]);
     fwrite(&vj_l, 8, 1, fp[1]);
+	uint64_t weight = (uint64_t) edge[i].wt;
+    fwrite(&weight, 8, 1, fp[2]);
   }
 
   END_BLOCK_LOOP
