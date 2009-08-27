@@ -450,7 +450,6 @@ static void reduce3a(char *key, int keybytes, char *multivalue,
   REDUCE2AVALUE *value;
   int minzone = IBIGVAL;
 
-printf("KDDKDD INSANITY CHECK ONE  minzone %d  zone %d \n", minzone, rkey->zone);
   // Chunking of data for out-of-core; make work for in-core as well.
   int nblocks = 1;
 #ifdef NEW_OUT_OF_CORE
@@ -461,24 +460,19 @@ printf("KDDKDD INSANITY CHECK ONE  minzone %d  zone %d \n", minzone, rkey->zone)
   }
 #endif
 
-printf("KDDKDD INSANITY CHECK TWO  minzone %d  zone %d \n", minzone, rkey->zone);
   int kdd = 0;
   for (int iblock = 0; iblock < nblocks; iblock++) {
 #ifdef NEW_OUT_OF_CORE
     if (multivalue == NULL) {  // Get block
       int *tmpvb = NULL;
-printf("KDDKDD INSANITY CHECK TWO-A  block %d minzone %d  zone %d \n", iblock, minzone, rkey->zone);
       nv = mr->multivalue_block(iblock, (char **) &multiv, &tmpvb);
-printf("KDDKDD INSANITY CHECK TWO-B  block %d minzone %d  zone %d \n", iblock, minzone, rkey->zone);
     }
 #endif
     for (i = 0, value = multiv; i < nv; i++, value++) {
       kdd++;
       if (value->zone < minzone) minzone = value->zone;
     }
-printf("KDDKDD INSANITY CHECK TWO-C  block %d minzone %d  zone %d \n", iblock, minzone, rkey->zone);
   }
-printf("KDDKDD INSANITY CHECK THREE  minzone %d  zone %d \n", minzone, rkey->zone);
 
   if (rkey->zone != minzone) cc->doneflag = 0;
 
@@ -489,7 +483,6 @@ printf("KDDKDD INSANITY CHECK THREE  minzone %d  zone %d \n", minzone, rkey->zon
   REDUCE3AKEY rkey3;
   rkey3.zone = rkey->zone;
 
-printf("KDDKDD PROCESSED A1 %d mvs  minzone %d  zone %d %d\n", kdd, minzone, rkey->zone, rkey3.zone);
   kdd = 0;
   for (int iblock = 0; iblock < nblocks; iblock++) {
 #ifdef NEW_OUT_OF_CORE
@@ -507,7 +500,6 @@ kdd++;
 //    PRINT_REDUCE3A(rkey3, value3);
     }
   }
-printf("KDDKDD PROCESSED A2 %d mvs\n", kdd);
 }
 
 /* ----------------------------------------------------------------------
