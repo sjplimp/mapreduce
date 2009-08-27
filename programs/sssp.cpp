@@ -193,7 +193,6 @@ template <typename VERTEX, typename EDGE>
 void last_distance_update(char *key, int keybytes, char *multivalue,
                           int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
 {
-
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
 
   // First, find the shortest distance to Vi, if any have been computed yet.
@@ -264,7 +263,8 @@ public:
                                                   twrite(0.),
                                                   sourcefp(NULL), 
                                                   write_files(false),
-                                                  counter(0)
+                                                  counter(0),
+                                                  tnlabeled(0)
   {
     MPI_Comm_rank(MPI_COMM_WORLD, &me); 
     MPI_Comm_size(MPI_COMM_WORLD, &np); 
@@ -306,6 +306,7 @@ public:
   bool get_next_source(VERTEX *);
   double tcompute;  // Compute time
   double twrite;    // Write time
+  uint64_t tnlabeled;  // Total number of vtx labeled in all experiments.
 private:
   int me;
   int np;
@@ -387,6 +388,7 @@ bool SSSP<VERTEX, EDGE>::run()
   //  Perform a BFS from S, editing distances as visit vertices.
   int done = 0;
   int iter = 0;
+  uint64_t nlabeled = 0;  // # of vtxs actually labeled during SSSP.
   while (!done) {
     done = 1;
  
@@ -400,7 +402,7 @@ bool SSSP<VERTEX, EDGE>::run()
 #endif
 
     mrpath->collate(NULL);
-    mrpath->reduce(bfs_with_distances<VERTEX,EDGE>, &done);
+    nlabeled = mrpath->reduce(bfs_with_distances<VERTEX,EDGE>, &done);
 
     int alldone;
     MPI_Allreduce(&done, &alldone, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
@@ -428,14 +430,15 @@ bool SSSP<VERTEX, EDGE>::run()
   mrpath->collate(NULL);
   mrpath->reduce(last_distance_update<VERTEX,EDGE>, NULL);
 
-
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
   tcompute += (tstop - tstart);
 
-  if (me == 0) cout << counter << ":  Source vertex = " << source
+  if (me == 0) cout << counter << ":  Source = " << source
                     << "; Iterations = " << iter 
+                    << "; Num Vtx Labeled = " << nlabeled  
                     << "; Compute Time = " << (tstop-tstart) << endl;
+  tnlabeled += nlabeled;
   counter++;
 
   // Now mrpath contains one key-value per vertex Vi:
@@ -513,6 +516,7 @@ int main(int narg, char **args)
     if (me == 0) {
       cout << "Experiment Time (Compute): " << sssp.tcompute << endl;
       cout << "Experiment Time (Write):   " << sssp.twrite << endl;
+      cout << "Total # Vtx Labeled:       " << sssp.tnlabeled << endl;
     }
   }
   else if (readFB.vertexsize == 8) {
@@ -522,6 +526,7 @@ int main(int narg, char **args)
     if (me == 0) {
       cout << "Experiment Time (Compute): " << sssp.tcompute << endl;
       cout << "Experiment Time (Write):   " << sssp.twrite << endl;
+      cout << "Total # Vtx Labeled:       " << sssp.tnlabeled << endl;
     }
   }
   else {
