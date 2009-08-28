@@ -305,35 +305,28 @@ int main(int narg, char **args)
     fclose(fp[1]);
     fclose(fp[2]);
 
-    if (readFB.vertexsize == 8) {
-      // Write the vmap file:
-      // gather to processor 0, sort, output to single file.
-      if (me == 0) {
-        sprintf(fname, "%s.vmap", tsfile);
-        fp[0] = fopen(fname,"w");
-      } else fp[0] = NULL;
+    // Write the vmap file:
+    // gather to processor 0, sort, output to single file.
+    if (me == 0) {
+      sprintf(fname, "%s.vmap", tsfile);
+      fp[0] = fopen(fname,"w");
+    } else fp[0] = NULL;
       
 #ifdef NEW_OUT_OF_CORE
-      mrout = mrvert->copy();
+    mrout = mrvert->copy();
 #else
-      mrout = new MapReduce(*mrvert);
+    mrout = new MapReduce(*mrvert);
 #endif
    
-      mrout->clone();
-      mrout->reduce(key_value_reverse,NULL);
-      mrout->gather(1);
-      mrout->sort_keys(&increasing_sort);
-      mrout->clone();
-      mrout->reduce(&time_series_vmap,fp[0]);
+    mrout->clone();
+    mrout->reduce(key_value_reverse,NULL);
+    mrout->gather(1);
+    mrout->sort_keys(&increasing_sort);
+    mrout->clone();
+    mrout->reduce(&time_series_vmap,fp[0]);
   
-      delete mrout;
-      fclose(fp[0]);
-    }
-    else if (me == 0) {
-      printf("Time-series vmap file currently generated only for host-host "
-             "graphs.\n");
-      printf("See Karen Devine for enhancements for path-path graphs.\n");
-    }
+    delete mrout;
+    fclose(fp[0]);
   }
   if (mrvert) delete mrvert;
 
@@ -784,7 +777,7 @@ void time_series_write(char *key, int keybytes, char *multivalue,
 
 /* ----------------------------------------------------------------------
    time_series_vmap reduce() function
-   input KMV: (Vi (in [1:N],Vi in hashkey ID) 
+   input KMV: (Vi in [1:N],Vi in hashkey ID) 
    Keys are sorted.
    write hashkey ID to file, create no new KV
 ------------------------------------------------------------------------- */
@@ -795,6 +788,6 @@ void time_series_vmap(char *key, int keybytes, char *multivalue,
   FILE *fp = (FILE *) ptr;
 
   uint64_t *hashkey = (uint64_t *) multivalue;
-  fwrite(hashkey, 8, 1, fp);
+  fwrite(hashkey, valuebytes[0], 1, fp);
 }
 
