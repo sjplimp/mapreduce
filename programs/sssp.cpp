@@ -382,6 +382,9 @@ bool SSSP<VERTEX, EDGE>::run()
     return false;  // no unique source remains; quit execution and return.
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
+#ifdef NEW_OUT_OF_CORE
+//  mrpath->memsize = 1;
+#endif
 
   mrpath->map(1, add_source<VERTEX,EDGE>, &source);
 
