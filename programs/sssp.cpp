@@ -454,11 +454,17 @@ bool SSSP<VERTEX, EDGE>::run()
 
   if (write_files) {
     char filename[128];
-    if (sizeof(VERTEX) == 16)
-      sprintf(filename, "distance_from_%llu_%llu.%03d",
-                         source.v[0], source.v[1], me);
-    else
-      sprintf(filename, "distance_from_%llu.%03d", source.v[0], me);
+//    Custom filenames for each source -- lots of big files.
+//    if (sizeof(VERTEX) == 16)
+//      sprintf(filename, "distance_from_%llu_%llu.%03d",
+//                         source.v[0], source.v[1], me);
+//    else
+//      sprintf(filename, "distance_from_%llu.%03d", source.v[0], me);
+
+//  Single filename per processor; will be rewritten for each source, 
+//  so it is useful only for timings.
+    sprintf(filename, "distance.%03d", me);
+
     ofstream fp;
     fp.open(filename);
   
