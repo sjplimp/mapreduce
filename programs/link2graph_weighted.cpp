@@ -326,7 +326,7 @@ int main(int narg, char **args)
     mrout->reduce(&time_series_vmap,fp[0]);
   
     delete mrout;
-    fclose(fp[0]);
+    if (fp[0]) fclose(fp[0]);
   }
   if (mrvert) delete mrvert;
 
