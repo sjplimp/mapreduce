@@ -33,6 +33,11 @@ public:
     if (lhs.v[1] < rhs.v[1]) return true;
     return false;
   };
+  friend bool operator!=(const VERTEX16& lhs, const VERTEX16& rhs) {
+    if (lhs.v[0] != rhs.v[0]) return true;
+    if (lhs.v[1] != rhs.v[1]) return true;
+    return false;
+  };
 };
 
 
@@ -51,6 +56,10 @@ public:
     if (lhs.v[0] < rhs.v[0]) return true;
     return false;
   };
+  friend bool operator!=(const VERTEX08& lhs, const VERTEX08& rhs) {
+    if (lhs.v[0] != rhs.v[0]) return true;
+    return false;
+  };
 };
 
 // Vertex in 1-N ordering; occasionally we use negative values for
@@ -67,6 +76,10 @@ public:
   inline void reset() {v = 0;};
   friend bool operator<(const iVERTEX& lhs, const iVERTEX& rhs) {
     if (lhs.v < rhs.v) return true;
+    return false;
+  };
+  friend bool operator!=(const iVERTEX& lhs, const iVERTEX& rhs) {
+    if (lhs.v != rhs.v) return true;
     return false;
   };
 };

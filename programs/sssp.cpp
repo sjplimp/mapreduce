@@ -24,6 +24,8 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
+#define MAX_NUM_EXPERIMENTS 80
+
 /////////////////////////////////////////////////////////////////////////////
 // Class used to pass distance information through the MapReduce system.
 template <typename VERTEX, typename EDGE>
@@ -121,6 +123,8 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
     // Emit best distance so far for Vi.
     shortest.current = true;
     kv->add(key, keybytes, (char *) &shortest, sizeof(DISTANCE<VERTEX, EDGE>));
+//cout << "ADD " << *((VERTEX *) key) << " PRED " << shortest.e.v << " DIST " << shortest.e.wt << " CUR " << shortest.current;
+//cout << "   PREVIOUS " << previous.e.v << " DIST " << previous.e.wt << " CUR " << previous.current << endl;
 
     // Check stopping criterion: not done if (1) this is the first distance
     // computed for Vi, OR (2) the distance for Vi was updated.
@@ -137,12 +141,16 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
         if (valuebytes[j] == sizeof(EDGE)) { 
           // This is an adjacency value.
           EDGE *e = (EDGE *) &multivalue[offset];
-          DISTANCE<VERTEX, EDGE> dist;
-          dist.e.v = *vi;    // Predecessor of Vj along the path.
-          dist.e.wt = shortest.e.wt + e->wt; 
-          dist.current = false;
-          kv->add((char *) &(e->v), sizeof(VERTEX),
-                  (char *) &dist, sizeof(DISTANCE<VERTEX, EDGE>));
+
+          if (shortest.e.v != e->v) { // with all wt > 0, don't follow loops
+            DISTANCE<VERTEX, EDGE> dist;
+            dist.e.v = *vi;    // Predecessor of Vj along the path.
+            dist.e.wt = shortest.e.wt + e->wt; 
+            dist.current = false;
+            kv->add((char *) &(e->v), sizeof(VERTEX),
+                    (char *) &dist, sizeof(DISTANCE<VERTEX, EDGE>));
+//cout << "ADD " << e->v << " PRED " << dist.e.v << " DIST " << dist.e.wt << " CUR " << dist.current << endl;
+          }
         }
         offset += valuebytes[j];
       }
@@ -378,6 +386,9 @@ bool SSSP<VERTEX, EDGE>::run()
 
   VERTEX source;
 
+  if (counter >= MAX_NUM_EXPERIMENTS) 
+   return false;   // Limit the number of experiments for sanity's sake. :)
+
   if (!get_next_source(&source))
     return false;  // no unique source remains; quit execution and return.
 
@@ -410,6 +421,17 @@ bool SSSP<VERTEX, EDGE>::run()
     int alldone;
     MPI_Allreduce(&done, &alldone, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     done = alldone;
+#ifdef VERBOSE
+#ifdef NEW_OUT_OF_CORE
+    MapReduce *mrtmp = mrpath->copy();
+#else
+    MapReduce *mrtmp = new MapReduce(*mrpath);
+#endif
+    uint64_t reallabeled = mrtmp->collate(NULL);
+    if (me == 0)
+      cout << "   Iteration " << iter << " Labeled so far " << reallabeled << " data size " << nlabeled << endl;
+    delete mrtmp;
+#endif
     iter++;
   }
 
