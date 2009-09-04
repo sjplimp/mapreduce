@@ -1,7 +1,7 @@
 # MPI-based Makefile using mpic++ and mpicc.
 
 # Define a directory to use as local disk.
-LOCALDISK = .
+LOCALDISK   = /localdisk1/scratch
 
 CC =		mpic++ 
 CCFLAGS =	-O2

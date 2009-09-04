@@ -17,6 +17,7 @@
 #include "mpi.h"
 #include "stdio.h"
 #include "stdint.h"
+#include "spool.h"
 
 namespace MAPREDUCE_NS {
 
@@ -83,7 +84,7 @@ class KeyValue {
 
   // file info
 
-  char filename[32];            // filename to store KV if needed
+  char filename[MRMPI_FILENAMESIZE];       // filename to store KV if needed
   FILE *fp;                     // file ptr
 
   // private methods

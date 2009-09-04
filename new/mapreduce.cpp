@@ -1769,7 +1769,7 @@ void MapReduce::sort_kv(int flag)
   char *mem2a,*mem2b,*mem2c;
   int *order;
   Spool **spools,*sp;
-  char sfile[32];
+  char sfile[MRMPI_FILENAMESIZE];
 
   char *page;
   int npage = kv->request_info(&page);
@@ -1787,7 +1787,7 @@ void MapReduce::sort_kv(int flag)
     mem2b = &mem2[memspool];
     mem2c = &mem2[2*memspool];
     for (int i = 0; i < nspool; i++) {
-      sprintf(sfile,"mrmpi.sps.%d.%d",i,me);
+      sprintf(sfile,"%s/mrmpi.sps.%d.%d",MRMPI_LOCALDISK,i,me);
       spools[i] = new Spool(sfile,memspool,memory,error);
     }
   }
@@ -2080,7 +2080,7 @@ void MapReduce::kv_stats(int level)
   MPI_Allreduce(&wsize,&writesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
   if (me == 0) {
-    printf("%u KV pairs, %.3g Mb keys, %.3g Mb values",
+    printf("%lu KV pairs, %.3g Mb keys, %.3g Mb values",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
     if (readsizeall || writesizeall)
       printf(", %.3g/%.3g Mb read/write",
@@ -2135,7 +2135,7 @@ void MapReduce::kmv_stats(int level)
   MPI_Allreduce(&wsize,&writesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
   if (me == 0) {
-    printf("%u KMV pairs, %.3g Mb keys, %.3g Mb values",
+    printf("%lu KMV pairs, %.3g Mb keys, %.3g Mb values",
 	   nkeyall,keysizeall/1024.0/1024.0,valuesizeall/1024.0/1024.0);
     if (readsizeall || writesizeall)
       printf(", %.3g/%.3g Mb read/write",

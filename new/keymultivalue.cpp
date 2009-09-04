@@ -48,7 +48,7 @@ KeyMultiValue::KeyMultiValue(MPI_Comm comm_caller,
   memory = new Memory(comm);
   error = new Error(comm);
 
-  sprintf(filename,"mrmpi.kmv.%d.%d",counter,me);
+  sprintf(filename,"%s/mrmpi.kmv.%d.%d",MRMPI_LOCALDISK,counter,me);
   fileflag = 0;
   fp = NULL;
 
@@ -388,7 +388,7 @@ void KeyMultiValue::collapse(char *key, int keybytes, KeyValue *kv)
 void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 {
   int i,ichunk,spoolflag,spooled,nnew,nbits;
-  char sfile[32];
+  char sfile[MRMPI_FILENAMESIZE];
 
   maxpartition = PARTITIONCHUNK;
   partitions = (Partition *) 
@@ -455,9 +455,9 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 	partitions[ipartition].ksize > maxukeys) {
       spoolflag = 1;
 
-      sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
+      sprintf(sfile,"%s/mrmpi.sp.%d.%d",MRMPI_LOCALDISK,fcount++,me);
       seen = new Spool(sfile,memspool,memory,error);
-      sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
+      sprintf(sfile,"%s/mrmpi.sp.%d.%d",MRMPI_LOCALDISK,fcount++,me);
       unseen = new Spool(sfile,memspool,memory,error);
       seen_ksize = unseen_ksize = 0;
     }
@@ -546,7 +546,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 
 	for (i = npartition; i < npartition+nnew; i++) {
 	  partitions[i].kv = NULL;
-	  sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
+	  sprintf(sfile,"%s/mrmpi.sp.%d.%d",MRMPI_LOCALDISK,fcount++,me);
 	  partitions[i].sp = new Spool(sfile,memspool,memory,error);
 	  partitions[i].sp->assign(chunks[ichunk++]);
 	}
@@ -592,7 +592,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
 
 	for (i = 0; i < nset; i++) {
 	  sets[i].kv = NULL;
-	  sprintf(sfile,"mrmpi.sp.%d.%d",fcount++,me);
+	  sprintf(sfile,"%s/mrmpi.sp.%d.%d",MRMPI_LOCALDISK,fcount++,me);
 	  sets[i].sp = new Spool(sfile,memspool,memory,error);
 	  sets[i].sp->assign(chunks[ichunk++]);
 	}

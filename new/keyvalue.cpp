@@ -19,6 +19,7 @@
 #include "keyvalue.h"
 #include "memory.h"
 #include "error.h"
+#include "spool.h"
 
 using namespace MAPREDUCE_NS;
 
@@ -43,8 +44,8 @@ KeyValue::KeyValue(MPI_Comm comm_caller,
   memory = new Memory(comm);
   error = new Error(comm);
 
-  if (memtoggle == 0) sprintf(filename,"mrmpi.kva.%d.%d",counter,me);
-  else sprintf(filename,"mrmpi.kvb.%d.%d",counter,me);
+  if (memtoggle == 0) sprintf(filename,"%s/mrmpi.kva.%d.%d",MRMPI_LOCALDISK,counter,me);
+  else sprintf(filename,"%s/mrmpi.kvb.%d.%d",MRMPI_LOCALDISK,counter,me);
   fileflag = 0;
   fp = NULL;
 
@@ -515,7 +516,11 @@ void KeyValue::write_page()
 {
   if (fp == NULL) {
     fp = fopen(filename,"wb");
-    if (fp == NULL) error->one("Could not open KeyValue file for writing");
+    if (fp == NULL) {
+      char msg[1023];
+      sprintf(msg, "Could not open KeyValue file %s for writing.", filename);
+      error->one(msg);
+    }
     fileflag = 1;
     wsize = 0;
   }

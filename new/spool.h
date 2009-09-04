@@ -16,6 +16,11 @@
 
 #include "stdio.h"
 
+#define _MRMPI_QUOTE(x) #x
+#define MRMPI_QUOTE(x) _MRMPI_QUOTE(x)
+#define MRMPI_LOCALDISK MRMPI_QUOTE(LOCALDISK)
+#define MRMPI_FILENAMESIZE 124
+
 namespace MAPREDUCE_NS {
 
 class Spool {
@@ -59,7 +64,7 @@ class Spool {
 
   // file info
 
-  char filename[32];            // filename to store Spool if needed
+  char filename[MRMPI_FILENAMESIZE];    // filename to store Spool if needed
   int fileflag;                 // 1 if file exists, 0 if not
   FILE *fp;                     // file ptr
 

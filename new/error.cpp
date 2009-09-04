@@ -43,7 +43,11 @@ void Error::all(const char *str)
 
 void Error::one(const char *str)
 {
-  printf("ERROR on proc %d: %s\n",me,str);
+  char name[255];
+  int  namelen;
+  MPI_Get_processor_name(name, &namelen);
+  name[namelen]='\0';
+  printf("ERROR on proc %d (%s): %s\n",me,name,str);
   MPI_Abort(comm,1);
 }
 

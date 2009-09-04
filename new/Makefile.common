@@ -15,10 +15,10 @@ clean:
 # Rules
 
 %.o:%.cpp
-	$(CC) $(CCFLAGS) -c $<
+	$(CC) $(CCFLAGS) -DLOCALDISK=$(LOCALDISK) -c $<
 
 %.d:%.cpp
-	$(CC) $(CCFLAGS) $(DEPFLAGS) $< > $@
+	$(CC) $(CCFLAGS) -DLOCALDISK=$(LOCALDISK) $(DEPFLAGS) $< > $@
 
 # Individual dependencies
 

@@ -1,5 +1,8 @@
 # RedStorm (Cray XT3) Makefile, CC, MPI
 
+# Define a directory to use as local disk.
+LOCALDISK = .
+
 CC =		CC
 CCFLAGS =	-fastsse -DMPICH_IGNORE_CXX_SEEK
 DEPFLAGS =	-M

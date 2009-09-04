@@ -1,5 +1,8 @@
 # Linux Makefile for MapReduce library, g++, MPI
 
+# Define a directory to use as local disk.
+LOCALDISK = .
+
 CC =		g++
 CCFLAGS =	-g -O -DMPICH_IGNORE_CXX_SEEK
 DEPFLAGS =	-M
