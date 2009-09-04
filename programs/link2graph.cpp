@@ -208,7 +208,7 @@ int main(int narg, char **args)
   mrraw->verbosity = 1;
 
 #ifdef NEW_OUT_OF_CORE
-  mrraw->memsize = 1;
+  mrraw->memsize = 1024;
 #endif
 
   int nrawedges;
