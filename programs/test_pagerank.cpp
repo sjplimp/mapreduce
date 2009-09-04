@@ -305,9 +305,17 @@ if (mr->my_proc() == 0) cout << "ALLZERO: " << KDDminallzero
 #endif //KDDTIME
 
 
-  if (mr->my_proc() == 0)
+  static double time_sum = 0.;
+  time_sum += (tstop - tstart);
+  static int time_cnt = 0;
+  time_cnt++;
+
+  if (mr->my_proc() == 0) {
     cout << " Number of iterations " << iter+1 << " Iteration Time "
          << tstop-tstart << endl;
+    cout << " Average time for " << time_cnt << " pagerank computations "
+         << time_sum / time_cnt << endl;
+  }
   delete y;
   double gsum = x->GlobalSum(mr);
   x->Scale(1./gsum);

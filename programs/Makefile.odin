@@ -1,17 +1,13 @@
-# Mac/MPI Makefile for MapReduce programs
+# Odin/MPI Makefile for MapReduce programs
 
 CC =		mpic++ -m64
-CCFLAGS =	-g -I../src -DODIN
-#CCFLAGS += -DNEW_OUT_OF_CORE
-LINK =		mpic++ -m64 -DODIN
-LINKFLAGS =	-g 
-#LINKFLAGS += -DNEW_OUT_OF_CORE
+CCFLAGS =	-O2 -I../src 
+LINK =		mpic++ -m64
+LINKFLAGS =	-O2
 USRLIB =	-L../src -lmrmpi
 SYSLIB =	
 LIB =		../src/libmrmpi.a
 DEPFLAGS =      -M
-
-
 
 include Makefile.common
 

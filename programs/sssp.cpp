@@ -394,7 +394,7 @@ bool SSSP<VERTEX, EDGE>::run()
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
 #ifdef NEW_OUT_OF_CORE
-//  mrpath->memsize = 1;
+  mrpath->memsize = 1;
 #endif
 
   mrpath->map(1, add_source<VERTEX,EDGE>, &source);

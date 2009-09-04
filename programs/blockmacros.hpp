@@ -48,13 +48,18 @@
 #endif  // NEW_OUT_OF_CORE
 
 /////////////////////////////////////////////////////////////////////////////
-void test_local_disks(char *root) 
+#ifdef LOCALDISK
+#define _QUOTEME(x) #x
+#define QUOTEME(x) _QUOTEME(x)
+#define MYLOCALDISK QUOTEME(LOCALDISK)
+
+void test_local_disks() 
 {
 // Test the file system for writing; make sure nodes can write to disks.
   int me;
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
   char filename[29];
-  sprintf(filename, "%s/test.%03d", root, me);
+  sprintf(filename, "%s/test.%03d", MYLOCALDISK, me);
   FILE *fp = fopen(filename, "w");
   if (fp == NULL) {
     char name[252];
@@ -62,12 +67,14 @@ void test_local_disks(char *root)
     MPI_Get_processor_name(name, &len);
     name[len]='\0';
     printf("RANK %d NODE %s:   CANNOT OPEN TEST FILE ON LOCAL DISK %s.\n",
-           me, name, root);
+           me, name, MYLOCALDISK);
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
   fclose(fp);
   remove(filename);
 }
+
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 void greetings()
