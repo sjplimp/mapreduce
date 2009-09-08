@@ -234,15 +234,23 @@ int main(int narg, char **args)
 
     if (me == 0) {
       printf("Printing hash-key files ...\n");
-      char fname[128];
+      char fname[254];
+#ifdef LOCALDISK
+      sprintf(fname,"%s/%s.header",MYLOCALDISK,hfile);
+#else
       sprintf(fname,"%s.header",hfile);
+#endif
       FILE *fp = fopen(fname,"w");
       fprintf(fp,"%ld %ld %ld\n",nverts,nverts,nedges);
       fclose(fp);
     }
     
-    char fname[128];
+    char fname[254];
+#ifdef LOCALDISK
+    sprintf(fname,"%s/%s.%d",MYLOCALDISK,hfile,me);
+#else
     sprintf(fname,"%s.%d",hfile,me);
+#endif
     FILE *fp = fopen(fname, "w");
 
     // mrout KV = (Vi,[Vj Vk ... Vz ])
@@ -282,13 +290,27 @@ int main(int narg, char **args)
   if (tsfile) {
     if (me == 0) printf("Generating time-series file...\n");
     
-    char fname[128];
+    char fname[254];
     FILE *fp[3];
+#ifdef LOCALDISK
+    sprintf(fname,"%s/%s.srcs.%d",MYLOCALDISK,tsfile,me);
+#else
     sprintf(fname,"%s.srcs.%d",tsfile,me);
+#endif
     fp[0] = fopen(fname,"w");
+
+#ifdef LOCALDISK
+    sprintf(fname,"%s/%s.dests.%d",MYLOCALDISK,tsfile,me);
+#else
     sprintf(fname,"%s.dests.%d",tsfile,me);
+#endif
     fp[1] = fopen(fname,"w");
+
+#ifdef LOCALDISK
+    sprintf(fname,"%s/%s.freq.%d",MYLOCALDISK,tsfile,me);
+#else
     sprintf(fname,"%s.freq.%d",tsfile,me);
+#endif
     fp[2] = fopen(fname,"w");
 
     // Write the srcs and dests files, one per processor.
@@ -308,7 +330,11 @@ int main(int narg, char **args)
     // Write the vmap file:
     // gather to processor 0, sort, output to single file.
     if (me == 0) {
+#ifdef LOCALDISK
+      sprintf(fname, "%s/%s.vmap", MYLOCALDISK,tsfile);
+#else
       sprintf(fname, "%s.vmap", tsfile);
+#endif
       fp[0] = fopen(fname,"w");
     } else fp[0] = NULL;
       
@@ -446,15 +472,23 @@ int main(int narg, char **args)
 
     if (me == 0) printf("Generating matrix-market file...\n");
     if (me == 0) {
-      char fname[128];
+      char fname[254];
+#ifdef LOCALDISK
+      sprintf(fname,"%s/%s.header",MYLOCALDISK,mfile);
+#else
       sprintf(fname,"%s.header",mfile);
+#endif
       FILE *fp = fopen(fname,"w");
       fprintf(fp,"%ld %ld %ld\n",nverts,nverts,nedges);
       fclose(fp);
     }
     
     char fname[128];
+#ifdef LOCALDISK
+    sprintf(fname,"%s/%s.%d",MYLOCALDISK,mfile,me);
+#else
     sprintf(fname,"%s.%d",mfile,me);
+#endif
     FILE *fp = fopen(fname, "w");
 
     if (mfile_weights) {

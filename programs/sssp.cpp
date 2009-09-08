@@ -475,7 +475,7 @@ bool SSSP<VERTEX, EDGE>::run()
   // Output results.
 
   if (write_files) {
-    char filename[128];
+    char filename[254];
 //    Custom filenames for each source -- lots of big files.
 //    if (sizeof(VERTEX) == 16)
 //      sprintf(filename, "distance_from_%llu_%llu.%03d",
@@ -485,7 +485,12 @@ bool SSSP<VERTEX, EDGE>::run()
 
 //  Single filename per processor; will be rewritten for each source, 
 //  so it is useful only for timings.
+#ifdef LOCALDISK
+    sprintf(filename, "%s/distance.%03d", MYLOCALDISK, me);
+    printf("KDDKD HEY FILENAME=%s\n", filename);
+#else
     sprintf(filename, "distance.%03d", me);
+#endif
 
     ofstream fp;
     fp.open(filename);
