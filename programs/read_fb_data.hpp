@@ -154,7 +154,7 @@ void ReadFBData::run(
   mrraw->verbosity = 0;
 
 #ifdef NEW_OUT_OF_CORE
-  mrraw->memsize = 1024;
+  mrraw->memsize = MRMEMSIZE;
 #endif
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();

@@ -24,7 +24,7 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-#define MAX_NUM_EXPERIMENTS 80
+#define MAX_NUM_EXPERIMENTS 60
 
 /////////////////////////////////////////////////////////////////////////////
 // Class used to pass distance information through the MapReduce system.
@@ -394,7 +394,7 @@ bool SSSP<VERTEX, EDGE>::run()
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
 #ifdef NEW_OUT_OF_CORE
-  mrpath->memsize = 1024;
+  mrpath->memsize = MRMEMSIZE;
 #endif
 
   mrpath->map(1, add_source<VERTEX,EDGE>, &source);
@@ -487,7 +487,6 @@ bool SSSP<VERTEX, EDGE>::run()
 //  so it is useful only for timings.
 #ifdef LOCALDISK
     sprintf(filename, "%s/distance.%03d", MYLOCALDISK, me);
-    printf("KDDKD HEY FILENAME=%s\n", filename);
 #else
     sprintf(filename, "distance.%03d", me);
 #endif
