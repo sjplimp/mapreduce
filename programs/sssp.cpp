@@ -341,6 +341,7 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
 )
 {
   source->reset();
+#ifdef KDD_READ_SOURCE_FILE
   if (me == 0) {
     // Read source vertices from file; keep reading until reach EOF or
     // until find a source vertex that we haven't used before.
@@ -363,6 +364,19 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
       }
     }
   }
+#endif
+#define KDD_HARDCODE_SOURCE
+#ifdef KDD_HARDCODE_SOURCE
+  static bool firsttime = true;
+  if (firsttime) {
+    firsttime = false;
+    if (me == 0) {
+      source->v[0] = 2415554029276017988lu;   // host-to-host
+      if (sizeof(VERTEX) == 16)               // path-to-path
+        source->v[1] = 5818840024467251242lu;
+    }
+  }
+#endif
 
   MPI_Bcast(source, sizeof(VERTEX), MPI_BYTE, 0, MPI_COMM_WORLD);
   return(source->valid());
