@@ -177,9 +177,13 @@ void ReadFBData::run(
 #endif
 
   mrvert->clone();
+  if (me == 0) printf("        clone complete.\n");
   mrvert->reduce(&vertex_emit,this);
+  if (me == 0) printf("        vertex_emit complete.\n");
   mrvert->collate(NULL);
+  if (me == 0) printf("        collate complete.\n");
   *nverts = mrvert->reduce(&vertex_unique,NULL);
+  if (me == 0) printf("        vertex_unique complete.\n");
 
   // mredge = unique I->J edges with I and J non-zero + edge weights
   //          (computed as number of occurrences of I->J in input OR 
@@ -209,7 +213,7 @@ void ReadFBData::run(
    for each record in file:
      vertexsize = 8: KV = 1st 8-byte field, 3rd 8-byte field
      vertexsize = 16: KV = 1st 16-byte field, 2nd 16-byte field
-   output KV: (Vi,Vj)
+   output KV: ([Vi Vj], NULL)  (EDGE is key; value is NULL.)
 ------------------------------------------------------------------------- */
 
 void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
@@ -228,7 +232,14 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
       ptr += rfb->GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
-      kv->add(&ptr[0],rfb->vertexsize,&ptr[16],rfb->vertexsize);
+      if (rfb->vertexsize == 16) 
+        kv->add(&ptr[0],2*rfb->vertexsize,NULL,0);
+      else { // rfb->vertex_size == 8)
+        uint64_t key[2];
+        key[0] = ((uint64_t *) ptr)[0];
+        key[1] = ((uint64_t *) ptr)[2];
+        kv->add((char *) key, 2*sizeof(uint64_t), NULL, 0);
+      }
       ptr += rfb->RECORDSIZE;
     }
     if (nrecords == 0) break;
@@ -242,7 +253,7 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
    for each record in file:
      vertexsize = 8: KV = 1st 8-byte field, 3rd 8-byte field
      vertexsize = 16: KV = 1st 16-byte field, 2nd 16-byte field
-   output KV: (Vi,Vj)
+   output KV: ([Vi Vj], NULL)  (EDGE is key; value is NULL.)
 ------------------------------------------------------------------------- */
 
 void fileread2(int itask, KeyValue *kv, void *ptr)
@@ -262,7 +273,15 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
       ptr += rfb->GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
-      kv->add(&ptr[0],rfb->vertexsize,&ptr[16],rfb->vertexsize);
+      if (rfb->vertexsize == 16) {
+        kv->add(&ptr[0],2*rfb->vertexsize,NULL,0);
+      }
+      else { // rfb->vertex_size == 8)
+        uint64_t key[2];
+        key[0] = ((uint64_t *) ptr)[0];
+        key[1] = ((uint64_t *) ptr)[2];
+        kv->add((char *) key, 2*sizeof(uint64_t), NULL, 0);
+      }
       ptr += rfb->RECORDSIZE;
     }
     if (nrecords == 0) break;
@@ -273,9 +292,9 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
 
 /* ----------------------------------------------------------------------
    vertex_emit reduce() function
-   input KMV: (Vi,[Vj])
+   input KMV: ([Vi Vj], NULL)  (Key is EDGE, Value is NULL);
    output KV: (Vi,NULL) (Vj,NULL)
-   omit any Vi if first 8 bytes is 0
+   omit any Vertex if first 8 bytes is 0
 ------------------------------------------------------------------------- */
 
 void vertex_emit(char *key, int keybytes, char *multivalue,
@@ -284,11 +303,7 @@ void vertex_emit(char *key, int keybytes, char *multivalue,
   ReadFBData *rfb = (ReadFBData *) ptr;
   uint64_t *vi = (uint64_t *) key;
   if (*vi != 0) kv->add((char *) vi,rfb->vertexsize,NULL,0);
-  if (!multivalue) {
-    printf("Error in vertex_emit; not ready for out of core. %d\n", nvalues);
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-  uint64_t *vj = (uint64_t *) multivalue;
+  uint64_t *vj = (uint64_t *) (key + rfb->vertexsize);
   if (*vj != 0) kv->add((char *) vj,rfb->vertexsize,NULL,0);
 }
 
@@ -306,9 +321,9 @@ void vertex_unique(char *key, int keybytes, char *multivalue,
 
 /* ----------------------------------------------------------------------
    edge_unique reduce() function
-   input KMV: (Vi,[Vj Vk ...])
-   output KV: (Vi,{Vj,Wj}) (Vi,{Vk,Wk}) ...
-   where Wj is weight of edge Vi->Vj.
+   input KMV: ([Vi Vj], NULL) (Key is EDGE, Value is NULL,
+                               nvalues is # of occurrences of edge)
+   output KV: (Vi,{Vj,Wj}) where Wj is weight of edge Vi->Vj.
    only an edge where first 8 bytes of Vi or Vj are both non-zero is emitted
    only unique edges are emitted
 ------------------------------------------------------------------------- */
@@ -317,70 +332,26 @@ void edge_unique(char *key, int keybytes, char *multivalue,
 {
   ReadFBData *rfb = (ReadFBData *) ptr;
   uint64_t *vi = (uint64_t *) key;
+  uint64_t *vj = (uint64_t *) (key + rfb->vertexsize);
   if (*vi == 0) return;
+  if (*vj == 0) return;
 
   if (rfb->vertexsize == 16) {
 
-    map<std::pair<uint64_t, uint64_t>,WEIGHT> hash;
+    EDGE16 edge;
+    edge.v.v[0] = vj[0];
+    edge.v.v[1] = vj[1];
+    if (rfb->invWt) edge.wt = 1./nvalues;
+    else            edge.wt = nvalues;
+    kv->add((char *) vi, rfb->vertexsize, (char *) &edge, sizeof(EDGE16));
 
-    CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
-    BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-    // Use a hash table to count the number of occurrences of each edge.
-    int offset = 0;
-    for (int i = 0; i < nvalues; i++) {
-      uint64_t *v1 = (uint64_t *) &multivalue[offset];
-      uint64_t *v2 = (uint64_t *) &multivalue[offset+8];
-      if (hash.find(std::make_pair(*v1,*v2)) == hash.end())
-        hash[std::make_pair(*v1,*v2)] = 1;
-      else
-        hash[std::make_pair(*v1,*v2)]++;
-      offset += valuebytes[i];
-    }
-
-    END_BLOCK_LOOP
-
-    // Iterate over the hash table to emit edges with their counts.
-    // Note:  Assuming the hash table fits in memory!
-    map<std::pair<uint64_t, uint64_t>,WEIGHT>::iterator mit;
-    for (mit = hash.begin(); mit != hash.end(); mit++) {
-      std::pair<uint64_t, uint64_t> e = (*mit).first;
-      EDGE16 tmp;
-      tmp.v.v[0] = e.first;
-      tmp.v.v[1] = e.second;
-      if (rfb->invWt) tmp.wt = 1./(*mit).second;
-      else            tmp.wt = (*mit).second;
-      kv->add(key,keybytes,(char *)&tmp,sizeof(EDGE16));
-    }
   } else {  // vertexsize = 8
 
-    map<uint64_t,WEIGHT> hash;
-
-    CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
-    BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-    // Use a hash table to count the number of occurrences of each edge.
-    uint64_t *vertex = (uint64_t *) multivalue;
-    for (int i = 0; i < nvalues; i++) {
-      if (vertex[i] == 0) continue;
-      if (hash.find(vertex[i]) == hash.end()) 
-        hash[vertex[i]] = 1;
-      else
-        hash[vertex[i]]++;
-    }
-
-    END_BLOCK_LOOP
-
-    // Iterate over the hash table to emit edges with their counts.
-    // Note:  Assuming the hash table fits in memory!
-    map<uint64_t,WEIGHT>::iterator mit;
-    for (mit = hash.begin(); mit != hash.end(); mit++) {
-      EDGE08 tmp;
-      tmp.v.v[0] = (*mit).first;
-      if (rfb->invWt) tmp.wt = 1./(*mit).second;
-      else            tmp.wt = (*mit).second;
-      kv->add(key,keybytes,(char*)&tmp,sizeof(EDGE08));
-    }
+    EDGE08 edge;
+    edge.v.v[0] = vj[0];
+    if (rfb->invWt) edge.wt = 1./nvalues;
+    else            edge.wt = nvalues;
+    kv->add((char *) vi, rfb->vertexsize, (char *) &edge, sizeof(EDGE08));
   }
 }
 
