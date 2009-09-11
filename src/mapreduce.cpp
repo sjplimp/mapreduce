@@ -45,7 +45,7 @@ int compare_multivalues_standalone(const void *, const void *);
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
-#define FILECHUNK 1
+#define FILECHUNK 4092
 #define MAXLINE 1024
 
 /* ----------------------------------------------------------------------
