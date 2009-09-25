@@ -64,6 +64,12 @@ tri:	tri.o $(LIB)
 tri_new:	tri_new.o $(LIB)
 	$(LINK) $(LINKFLAGS) tri_new.o $(USRLIB) $(SYSLIB) -o tri_new
 
+# Program to compute wordcount of files.
+wordfreq:	wordfreq.o $(LIB)
+		$(LINK) $(LINKFLAGS) wordfreq.o \
+			$(USRLIB) $(SYSLIB) -o wordfreq
+
+
 clean:
 	rm *.o *.d
 	rm matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted sssp
