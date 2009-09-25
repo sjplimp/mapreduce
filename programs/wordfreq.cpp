@@ -13,7 +13,9 @@
 
 // MapReduce word frequency example in C++
 // Syntax: wordfreq file1 file2 ...
-// (1) reads all files, parses into words separated by whitespace
+//     or  wordfreq -n #  
+// (1) reads all files, parses into words separated by whitespace 
+//     or generates Eric Goodman's input of (2**(N+1)-1) words (-n option).
 // (2) counts occurrence of each word in all files
 // (3) prints top 10 words
 //
@@ -31,6 +33,7 @@
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
+void genwords(int, KeyValue *, void *);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
 void output(int, char *, int, char *, int, KeyValue *, void *);
@@ -50,8 +53,15 @@ int main(int narg, char **args)
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
   if (narg <= 1) {
-    if (me == 0) printf("Syntax: wordfreq file1 file2 ...\n");
+    if (me == 0) printf("Syntax: wordfreq file1 file2 ...\nor wordfreq -n #\n");
     MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  int N = -1;
+  bool readfiles = true;
+  if (strcmp(args[1], "-n") == 0) {
+    readfiles = false;
+    N = atoi(args[2]);
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
@@ -59,7 +69,13 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  int nwords = mr->map(narg-1,&fileread,&args[1]);
+  int nwords;
+  if (readfiles)
+    nwords = mr->map(narg-1,&fileread,&args[1]);
+  else {
+    int nuniqueword = (1<<(N+1))-1; 
+    nwords = mr->map(nuniqueword,&genwords,&N);
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tread = MPI_Wtime();
@@ -98,7 +114,10 @@ int main(int narg, char **args)
 
   if (me == 0) {
     printf("%d total words, %d unique words\n",nwords,nunique);
-    printf("Time for fileread:  %g (secs)\n", tread-tstart);
+    if (readfiles)
+      printf("Time for fileread:  %g (secs)\n", tread-tstart);
+    else 
+      printf("Time for genwords:  %g (secs)\n", tread-tstart);
     printf("Time for wordcount: %g (secs)\n", tstop-tread);
     printf("Total Time to process %d files on %d procs = %g (secs)\n",
 	   narg-1,nprocs,tstop-tstart);
@@ -140,6 +159,33 @@ void fileread(int itask, KeyValue *kv, void *ptr)
   }
 
   delete [] text;
+}
+
+/* ----------------------------------------------------------------------
+   generate words using Eric Goodman's strategy.
+   Words are just number strings.
+   Generate 2**N 0s; 2**(N-1) 1s and 2s; 2**(N-2) 3s, 4s, 5s and 6s;
+            2**(N-3) 7s, 8s, 9s, 10s, 11s, 12s, 13s, and 14s; etc.
+   Maxword string is 2**(N+1)-1-1.
+------------------------------------------------------------------------- */
+
+void genwords(int itask, KeyValue *kv, void *ptr)
+{
+  // itask is the word to be emitted.
+  // Compute number of instances of the word to emit.
+  int N = *((int *) ptr);
+  int m;
+
+  for (m = N; m >= 0; m--) 
+    if ((itask < (1<<(m+1))-1) && (itask >= (1<<m)-1)) break;
+
+  // Emit 2**(N-m) copies of itask.
+  char key[32];
+  sprintf(key, "%d\0", itask);
+  uint64_t ncopies = (1<<(N-m));
+  for (uint64_t i = 0; i < ncopies; i++) {
+    kv->add(key, strlen(key)+1, NULL, NULL);
+  }
 }
 
 /* ----------------------------------------------------------------------
