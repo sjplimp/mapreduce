@@ -33,7 +33,8 @@
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
-void genwords(int, KeyValue *, void *);
+void genwords_fileequiv(int, KeyValue *, void *);
+void genwords_wordpertask(int, KeyValue *, void *);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
 void output(int, char *, int, char *, int, KeyValue *, void *);
@@ -73,8 +74,13 @@ int main(int narg, char **args)
   if (readfiles)
     nwords = mr->map(narg-1,&fileread,&args[1]);
   else {
-    int nuniqueword = (1<<(N+1))-1; 
-    nwords = mr->map(nuniqueword,&genwords,&N);
+    // Automatically generate the words using Eric Goodman's scheme.
+    // This version has identical initial distribuion as the file-based input.
+    nwords = mr->map(N+1, &genwords_fileequiv, &N);
+//    This version has better spread of initial data across all processors when,
+//    e.g., the number of processors is much larger than the number of files.
+//    int nuniqueword = (1<<(N+1))-1; 
+//    nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -167,9 +173,40 @@ void fileread(int itask, KeyValue *kv, void *ptr)
    Generate 2**N 0s; 2**(N-1) 1s and 2s; 2**(N-2) 3s, 4s, 5s and 6s;
             2**(N-3) 7s, 8s, 9s, 10s, 11s, 12s, 13s, and 14s; etc.
    Maxword string is 2**(N+1)-1-1.
+   The initial distribution of words is identical to having read
+   Eric's files; the number of tasks == the number of files.
 ------------------------------------------------------------------------- */
 
-void genwords(int itask, KeyValue *kv, void *ptr)
+void genwords_fileequiv(int itask, KeyValue *kv, void *ptr)
+{
+  // itask is the word to be emitted.
+  // Compute number of instances of the word to emit.
+  int N = *((int *) ptr);
+
+  // Compute word range for this task.
+  uint64_t maxword = (1<<(itask+1))-1;
+  uint64_t minword = (1<<(itask))-1;
+  uint64_t ncopies = (1<<(N-itask));
+
+  for (uint64_t w = minword; w < maxword; w++) {
+    char key[32];
+    sprintf(key, "%d\0", w);
+    for (uint64_t i = 0; i < ncopies; i++) {
+      kv->add(key, strlen(key)+1, NULL, NULL);
+printf("KDDKDD ADD copy %d of %d  word %s\n", i,ncopies, key);
+    }
+  }
+}
+/* ----------------------------------------------------------------------
+   generate words using Eric Goodman's strategy.
+   Words are just number strings.
+   Generate 2**N 0s; 2**(N-1) 1s and 2s; 2**(N-2) 3s, 4s, 5s and 6s;
+            2**(N-3) 7s, 8s, 9s, 10s, 11s, 12s, 13s, and 14s; etc.
+   Maxword string is 2**(N+1)-1-1.
+   All instances of one word are generated per map task.
+------------------------------------------------------------------------- */
+
+void genwords_wordpertask(int itask, KeyValue *kv, void *ptr)
 {
   // itask is the word to be emitted.
   // Compute number of instances of the word to emit.
