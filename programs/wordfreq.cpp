@@ -193,7 +193,6 @@ void genwords_fileequiv(int itask, KeyValue *kv, void *ptr)
     sprintf(key, "%d\0", w);
     for (uint64_t i = 0; i < ncopies; i++) {
       kv->add(key, strlen(key)+1, NULL, NULL);
-printf("KDDKDD ADD copy %d of %d  word %s\n", i,ncopies, key);
     }
   }
 }
