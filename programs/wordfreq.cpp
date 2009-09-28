@@ -53,6 +53,12 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
+  if (me == 0) {
+    for (int i=0; i < narg; i++) printf("%s ", args[i]);
+    printf("\n");
+    fflush(stdout);
+  }
+
   if (narg <= 1) {
     if (me == 0) printf("Syntax: wordfreq file1 file2 ...\nor wordfreq -n #\n");
     MPI_Abort(MPI_COMM_WORLD,1);
@@ -66,7 +72,11 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+#ifdef NEW_OUT_OF_CORE
+  mr->memsize=1024;
+#endif
 
+  if (me == 0) {printf("Beginning map...\n"); fflush(stdout);}
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
@@ -77,21 +87,31 @@ int main(int narg, char **args)
     // Automatically generate the words using Eric Goodman's scheme.
     // This version has identical initial distribuion as the file-based input.
     nwords = mr->map(N+1, &genwords_fileequiv, &N);
-//    This version has better spread of initial data across all processors when,
-//    e.g., the number of processors is much larger than the number of files.
-//    int nuniqueword = (1<<(N+1))-1; 
-//    nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
+
+    // This version has better spread of initial data across all procs when,
+    // e.g., the number of processors is much larger than the number of files.
+    // Funny, I thought this method would be better than the fileequiv
+    // method, but as the number of processors increases, it is actually
+    // worse (in terms of execution time).  I haven't investigated whether
+    // the problem is load-imbalance or more communication (or something
+    // else), though.  But for in-core MR-MPI with N=22 on 128 processors,
+    // the fileequiv method took ~3.2 seconds, while the wordpertask method
+    // takes ~14 seconds.
+    // int nuniqueword = (1<<(N+1))-1; 
+    // nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tread = MPI_Wtime();
 
+  if (me == 0) {printf("Beginning reduce...\n"); fflush(stdout);}
   mr->collate(NULL);
   int nunique = mr->reduce(&sum,NULL);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
+  if (me == 0) {printf("Beginning post-processing...\n"); fflush(stdout);}
   mr->sort_values(&ncompare);
 
   Count count;
@@ -118,6 +138,9 @@ int main(int narg, char **args)
 
   delete mr;
 
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tpost = MPI_Wtime();
+
   if (me == 0) {
     printf("%d total words, %d unique words\n",nwords,nunique);
     if (readfiles)
@@ -125,8 +148,13 @@ int main(int narg, char **args)
     else 
       printf("Time for genwords:  %g (secs)\n", tread-tstart);
     printf("Time for wordcount: %g (secs)\n", tstop-tread);
-    printf("Total Time to process %d files on %d procs = %g (secs)\n",
-	   narg-1,nprocs,tstop-tstart);
+    if (readfiles)
+      printf("Total Time to process %d files on %d procs = %g (secs)\n",
+	     narg-1,nprocs,tstop-tstart);
+    else
+      printf("Total Time to process with N=%d on %d procs = %g (secs)\n",
+	     N,nprocs,tstop-tstart);
+    printf("Time for post-processing:  %g (secs)\n", tpost-tstop);
   }
 
   MPI_Finalize();
@@ -190,9 +218,9 @@ void genwords_fileequiv(int itask, KeyValue *kv, void *ptr)
 
   for (uint64_t w = minword; w < maxword; w++) {
     char key[32];
-    sprintf(key, "%d\0", w);
+    sprintf(key, "%ld\0", w);
     for (uint64_t i = 0; i < ncopies; i++) {
-      kv->add(key, strlen(key)+1, NULL, NULL);
+      kv->add(key, strlen(key)+1, NULL, 0);
     }
   }
 }
@@ -220,7 +248,7 @@ void genwords_wordpertask(int itask, KeyValue *kv, void *ptr)
   sprintf(key, "%d\0", itask);
   uint64_t ncopies = (1<<(N-m));
   for (uint64_t i = 0; i < ncopies; i++) {
-    kv->add(key, strlen(key)+1, NULL, NULL);
+    kv->add(key, strlen(key)+1, NULL, 0);
   }
 }
 
