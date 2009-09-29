@@ -29,13 +29,18 @@
 #include "sys/stat.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
+#include "blockmacros.hpp"
 
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
 void genwords_fileequiv(int, KeyValue *, void *);
 void genwords_wordpertask(int, KeyValue *, void *);
+void genwords_thenbalance(int, KeyValue *, void *);
+void balance(char *, int, char *, int, int *, KeyValue *, void *);
+int identity(char *, int);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
+void globalsum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
 void output(int, char *, int, char *, int, KeyValue *, void *);
 
@@ -84,9 +89,20 @@ int main(int narg, char **args)
   if (readfiles)
     nwords = mr->map(narg-1,&fileread,&args[1]);
   else {
+#ifdef FILEEQUIV
     // Automatically generate the words using Eric Goodman's scheme.
     // This version has identical initial distribuion as the file-based input.
     nwords = mr->map(N+1, &genwords_fileequiv, &N);
+#else
+    // Automatically generate the words using Eric Goodman's scheme.
+    // This version has identical initial distribuion as the file-based input.
+    // Then redistribute the words equally among the processors.  They will
+    // no longer be grouped by word, but they will be balanced on the procs.
+    nwords = mr->map(N+1, &genwords_thenbalance, &N);
+    if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
+    mr->collate(&identity);  // Collates by processor
+    mr->reduce(&balance, NULL);
+#endif
 
     // This version has better spread of initial data across all procs when,
     // e.g., the number of processors is much larger than the number of files.
@@ -105,12 +121,25 @@ int main(int narg, char **args)
   double tread = MPI_Wtime();
 
   if (me == 0) {printf("Beginning reduce...\n"); fflush(stdout);}
-  mr->collate(NULL);
+
+#ifdef LOCALCOMPRESS
+  // Perform a local compression of the data first to reduce the amount
+  // of communication that needs to be done.
+  // This compression builds local hash tables, and requires an additional
+  // pass over the data..
+  mr->compress(&sum,NULL);  // Do word-count locally first
+  mr->collate(NULL);        // Hash keys and local counts to processors
+  int nunique = mr->reduce(&globalsum,NULL); // Compute global sums for each key
+#else
+  // Do not do a local compression but, rather, do a global aggregate only.
+  mr->collate(NULL);    
   int nunique = mr->reduce(&sum,NULL);
+#endif
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
+#ifdef POSTPROCESS
   if (me == 0) {printf("Beginning post-processing...\n"); fflush(stdout);}
   mr->sort_values(&ncompare);
 
@@ -135,6 +164,8 @@ int main(int narg, char **args)
 #else
   mr->map(mr->kv,&output,&count);
 #endif
+
+#endif // POSTPROCESS
 
   delete mr;
 
@@ -203,6 +234,68 @@ void fileread(int itask, KeyValue *kv, void *ptr)
    Maxword string is 2**(N+1)-1-1.
    The initial distribution of words is identical to having read
    Eric's files; the number of tasks == the number of files.
+   Emit a processor ID as key, so that can redistribute words evenly
+   by processor ID.
+   Emit the word as the value.
+------------------------------------------------------------------------- */
+
+void genwords_thenbalance(int itask, KeyValue *kv, void *ptr)
+{
+  // itask is the word to be emitted.
+  // Compute number of instances of the word to emit.
+  static int count = 0;
+  static int np;
+  if (!count) MPI_Comm_size(MPI_COMM_WORLD, &np);
+
+  int N = *((int *) ptr);
+
+  // Compute word range for this task.
+  uint64_t maxword = (1<<(itask+1))-1;
+  uint64_t minword = (1<<(itask))-1;
+  uint64_t ncopies = (1<<(N-itask));
+
+  for (uint64_t w = minword; w < maxword; w++) {
+    char key[32];
+    sprintf(key, "%ld\0", w);
+    for (uint64_t i = 0; i < ncopies; i++) {
+      int proc = count % np;
+      count++;
+      kv->add((char *) &proc, sizeof(int), key, strlen(key)+1);
+    }
+  }
+}
+
+int identity(char *key, int keybytes)
+{
+  int p = *((int *) key);
+  return p;
+}
+
+
+void balance(char *key, int keybytes, char *multivalue,
+	     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+
+  int offset = 0;
+  for (int i = 0; i < nvalues; i++) {
+    char *key = multivalue + offset;
+    kv->add(key, valuebytes[i], NULL, 0);
+    offset += valuebytes[i];
+  }
+
+  END_BLOCK_LOOP
+}
+
+/* ----------------------------------------------------------------------
+   generate words using Eric Goodman's strategy.
+   Words are just number strings.
+   Generate 2**N 0s; 2**(N-1) 1s and 2s; 2**(N-2) 3s, 4s, 5s and 6s;
+            2**(N-3) 7s, 8s, 9s, 10s, 11s, 12s, 13s, and 14s; etc.
+   Maxword string is 2**(N+1)-1-1.
+   The initial distribution of words is identical to having read
+   Eric's files; the number of tasks == the number of files.
 ------------------------------------------------------------------------- */
 
 void genwords_fileequiv(int itask, KeyValue *kv, void *ptr)
@@ -261,6 +354,19 @@ void sum(char *key, int keybytes, char *multivalue,
 	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   kv->add(key,keybytes,(char *) &nvalues,sizeof(int));
+}
+
+/* ----------------------------------------------------------------------
+   count word occurrence
+   emit key = word, value = sum of multi-values
+------------------------------------------------------------------------- */
+
+void globalsum(char *key, int keybytes, char *multivalue,
+	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  int sum = 0; 
+  for (int i = 0; i < nvalues; i++) sum += *(((int *) multivalue)+i);
+  kv->add(key,keybytes,(char *) &sum,sizeof(int));
 }
 
 /* ----------------------------------------------------------------------
