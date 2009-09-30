@@ -3,8 +3,6 @@
 // Output:  For each vertex Vi, the shortest weighted distance from a randomly
 //          selected source vertex S to Vi, along with the predecessor vertex 
 //          of Vi in the shortest weighted path from S to Vi.
-// 
-// Assume:  Vertices are identified by positive whole numbers in range [1:N].
 //
 // This implementation uses a BFS-like algorithm.  See sssp.txt for details.
 
@@ -446,6 +444,8 @@ bool SSSP<VERTEX, EDGE>::run()
       cout << "   Iteration " << iter << " Labeled so far " << reallabeled << " data size " << nlabeled << endl;
     delete mrtmp;
 #endif
+    if (me == 0)
+      cout << "   Iteration " << iter << " MRPath size " << nlabeled << endl;
     iter++;
   }
 
@@ -531,6 +531,11 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
   if (np < 100) greetings();
+#ifdef LOCALDISK
+  // Test the file system for writing; some nodes seem to have 
+  // trouble writing to local disk.
+  test_local_disks();
+#endif
 
   // Create a new MapReduce object, Edges.
   // Map(Edges):  Input graph from files as in link2graph_weighted.
