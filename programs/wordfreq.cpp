@@ -34,7 +34,9 @@
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
+void fileread_thenbalance(int, KeyValue *, void *);
 void genwords_fileequiv(int, KeyValue *, void *);
+void genwords_wordpertask_thenbalance(int, KeyValue *, void *);
 void genwords_wordpertask(int, KeyValue *, void *);
 void genwords_thenbalance(int, KeyValue *, void *);
 void balance(char *, int, char *, int, int *, KeyValue *, void *);
@@ -53,6 +55,7 @@ struct Count {
 int main(int narg, char **args)
 {
   MPI_Init(&narg,&args);
+  greetings();
 
   int me,nprocs;
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
@@ -77,6 +80,7 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+mr->verbosity = 1;
 #ifdef NEW_OUT_OF_CORE
   mr->memsize=1024;
 #endif
@@ -86,10 +90,19 @@ int main(int narg, char **args)
   double tstart = MPI_Wtime();
 
   int nwords;
-  if (readfiles)
+  if (readfiles) {
+#ifndef BALANCED
     nwords = mr->map(narg-1,&fileread,&args[1]);
+#else
+    nwords = mr->map(narg-1,&fileread_thenbalance,&args[1]);
+    if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
+    mr->collate(&identity);  // Collates by processor
+    mr->reduce(&balance, NULL);
+#endif
+  }
   else {
 #ifdef FILEEQUIV
+#ifndef BALANCED
     // Automatically generate the words using Eric Goodman's scheme.
     // This version has identical initial distribuion as the file-based input.
     nwords = mr->map(N+1, &genwords_fileequiv, &N);
@@ -103,7 +116,10 @@ int main(int narg, char **args)
     mr->collate(&identity);  // Collates by processor
     mr->reduce(&balance, NULL);
 #endif
+#else
 
+    int nuniqueword = (1<<(N+1))-1; 
+#ifndef BALANCED
     // This version has better spread of initial data across all procs when,
     // e.g., the number of processors is much larger than the number of files.
     // Funny, I thought this method would be better than the fileequiv
@@ -113,8 +129,14 @@ int main(int narg, char **args)
     // else), though.  But for in-core MR-MPI with N=22 on 128 processors,
     // the fileequiv method took ~3.2 seconds, while the wordpertask method
     // takes ~14 seconds.
-    // int nuniqueword = (1<<(N+1))-1; 
-    // nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
+    nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
+#else
+    nwords = mr->map(nuniqueword,&genwords_wordpertask_thenbalance,&N);
+    if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
+    mr->collate(&identity);  // Collates by processor
+    mr->reduce(&balance, NULL);
+#endif
+#endif
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -122,6 +144,7 @@ int main(int narg, char **args)
 
   if (me == 0) {printf("Beginning reduce...\n"); fflush(stdout);}
 
+#define LOCALCOMPRESS
 #ifdef LOCALCOMPRESS
   // Perform a local compression of the data first to reduce the amount
   // of communication that needs to be done.
@@ -226,6 +249,45 @@ void fileread(int itask, KeyValue *kv, void *ptr)
   delete [] text;
 }
 
+/* ----------------------------------------------------------------------
+   read a file
+   for each word in file, emit key = processor, value = word
+------------------------------------------------------------------------- */
+
+void fileread_thenbalance(int itask, KeyValue *kv, void *ptr)
+{
+  // filesize = # of bytes in file
+
+  char **files = (char **) ptr;
+
+  struct stat stbuf;
+  int flag = stat(files[itask],&stbuf);
+  if (flag < 0) {
+    printf("ERROR: Could not query file size\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+  int filesize = stbuf.st_size;
+
+  FILE *fp = fopen(files[itask],"r");
+  char *text = new char[filesize+1];
+  int nchar = fread(text,1,filesize,fp);
+  text[nchar] = '\0';
+  fclose(fp);
+
+  static int count = 0;
+  static int np;
+  if (count == 0) MPI_Comm_size(MPI_COMM_WORLD, &np);
+  const char *whitespace = " \t\n\f\r\0";
+  char *word = strtok(text,whitespace);
+  while (word) {
+    int proc = count % np;
+    count++;
+    kv->add((char *) &proc, sizeof(int), word,strlen(word)+1);
+    word = strtok(NULL,whitespace);
+  }
+
+  delete [] text;
+}
 /* ----------------------------------------------------------------------
    generate words using Eric Goodman's strategy.
    Words are just number strings.
@@ -342,6 +404,30 @@ void genwords_wordpertask(int itask, KeyValue *kv, void *ptr)
   uint64_t ncopies = (1<<(N-m));
   for (uint64_t i = 0; i < ncopies; i++) {
     kv->add(key, strlen(key)+1, NULL, 0);
+  }
+}
+
+void genwords_wordpertask_thenbalance(int itask, KeyValue *kv, void *ptr)
+{
+  // itask is the word to be emitted.
+  // Compute number of instances of the word to emit.
+  static int count = 0;
+  static int np;
+  if (!count) MPI_Comm_size(MPI_COMM_WORLD, &np);
+  int N = *((int *) ptr);
+  int m;
+
+  for (m = N; m >= 0; m--) 
+    if ((itask < (1<<(m+1))-1) && (itask >= (1<<m)-1)) break;
+
+  // Emit 2**(N-m) copies of itask.
+  char key[32];
+  sprintf(key, "%d\0", itask);
+  uint64_t ncopies = (1<<(N-m));
+  for (uint64_t i = 0; i < ncopies; i++) {
+    int proc = count % np;
+    count++;
+    kv->add((char *) &proc, sizeof(int), key, strlen(key)+1);
   }
 }
 
