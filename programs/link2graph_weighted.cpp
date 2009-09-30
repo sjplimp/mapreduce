@@ -90,15 +90,10 @@ int main(int narg, char **args)
 
   if (nprocs < 100) greetings();
 
-#ifdef NEW_OUT_OF_CORE
 #ifdef LOCALDISK
   // On odin, test the file system for writing; some nodes seem to have 
   // trouble writing to local disk.
-  // This test currently uses an odin-specific path.  When MR-MPI allows
-  // us to specify a filename prefix, we can make this test more generic.
   test_local_disks();
-  //test_local_disks("/Scratch/Users/kddevin");
-#endif
 #endif
 
   // parse command-line args
