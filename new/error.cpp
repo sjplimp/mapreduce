@@ -32,7 +32,7 @@ Error::Error(MPI_Comm caller)
 
 void Error::all(const char *str)
 {
-  if (me == 0) printf("ERROR: %s\n",str);
+  if (me == 0) {printf("ERROR: %s\n",str);fflush(stdout);}
   MPI_Finalize();
   exit(1);
 }
@@ -48,6 +48,7 @@ void Error::one(const char *str)
   MPI_Get_processor_name(name, &namelen);
   name[namelen]='\0';
   printf("ERROR on proc %d (%s): %s\n",me,name,str);
+  fflush(stdout);
   MPI_Abort(comm,1);
 }
 
@@ -58,4 +59,5 @@ void Error::one(const char *str)
 void Error::warning(const char *str)
 {
   printf("WARNING: %s\n",str);
+  fflush(stdout);
 }
