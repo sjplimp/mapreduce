@@ -463,7 +463,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
     else {
       memory->sfree(bufkv);
       maxbytes = nbytes;
-      bufkv = (char *) memory->smalloc(maxbytes*sizeof(int),"MR:bufkv");
+      bufkv = (char *) memory->smalloc(maxbytes,"MR:bufkv");
       page_recv = bufkv;
     }
     irregular->exchange(page_send,page_recv);
