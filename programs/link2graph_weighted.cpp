@@ -78,6 +78,9 @@ void hfile_write(char *, int, char *, int, int *, KeyValue *, void *);
 void matrix_write_inverse_degree(char *, int, char *, int, int *, KeyValue *, void *);
 void matrix_write_weights(char *, int, char *, int, int *, KeyValue *, void *);
 
+double Hash_Max;  //  Global variable needed for linear_hash hash function.
+int linear_hash(char *, int);
+
 /* ---------------------------------------------------------------------- */
 
 int main(int narg, char **args)
@@ -322,16 +325,17 @@ int main(int narg, char **args)
     fclose(fp[1]);
     fclose(fp[2]);
 
-    // Write the vmap file:
-    // gather to processor 0, sort, output to single file.
-    if (me == 0) {
+    // Write the vmap file, one per processor.
+    // Bin vertices to processors by ID in [1:N] using a special hash in collate
+    // sort; output to files.
+    // Files then must be cat'ed in order of processor number.
+    // Processor ID in filename should allow that.
 #ifdef LOCALDISK
-      sprintf(fname, "%s/%s.vmap", MYLOCALDISK,tsfile);
+    sprintf(fname, "%s/%s.vmap.%04d", MYLOCALDISK, tsfile, me);
 #else
-      sprintf(fname, "%s.vmap", tsfile);
+    sprintf(fname, "%s.vmap.%04d", tsfile, me);
 #endif
-      fp[0] = fopen(fname,"w");
-    } else fp[0] = NULL;
+    fp[0] = fopen(fname,"w");
       
 #ifdef NEW_OUT_OF_CORE
     mrout = mrvert->copy();
@@ -341,7 +345,10 @@ int main(int narg, char **args)
    
     mrout->clone();
     mrout->reduce(key_value_reverse,NULL);
-    mrout->gather(1);
+
+    // Need max number of keys for hash function linear_hash.
+    Hash_Max = (double) (nverts);
+    mrout->aggregate(linear_hash);
     mrout->sort_keys(&increasing_sort);
     mrout->clone();
     mrout->reduce(&time_series_vmap,fp[0]);
@@ -820,3 +827,15 @@ void time_series_vmap(char *key, int keybytes, char *multivalue,
   fwrite(hashkey, valuebytes[0], 1, fp);
 }
 
+/* ----------------------------------------------------------------------
+   linear_hash() hash function
+   Assumes input keys are type iVERTEX.
+   Assign the first N/P keys to proc 0; the next N/P key to proc 1, etc.
+------------------------------------------------------------------------- */
+int linear_hash(char *key, int keybytes)
+{
+  iVERTEX *v = (iVERTEX *) key;
+  static int np=-1;
+  if (np < 0) MPI_Comm_size(MPI_COMM_WORLD, &np);
+  return ((int) ((((double) (v->v-1)) / Hash_Max) * (double) np));
+}
