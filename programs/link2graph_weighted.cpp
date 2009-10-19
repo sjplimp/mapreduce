@@ -786,6 +786,8 @@ void key_value_reverse(char *key, int keybytes, char *multivalue,
    input KMV: (Vi,[{Vj Wj} {Vk Wk} ...]), 
    where Wj is the weight of edge Vi->Vj.
    write each edge to files, create no new KV
+   Assume weights are frequencies of occurrence of Vi->Vj (i.e., that they
+   can be expressed as an integer).
 ------------------------------------------------------------------------- */
 void time_series_write(char *key, int keybytes, char *multivalue,
                   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
@@ -804,7 +806,7 @@ void time_series_write(char *key, int keybytes, char *multivalue,
     uint64_t vj_l = (uint64_t) edge[i].v.v-1; // Greg Mackey's format is [0:N-1]
     fwrite(&vi_l, 8, 1, fp[0]);
     fwrite(&vj_l, 8, 1, fp[1]);
-	uint64_t weight = (uint64_t) edge[i].wt;
+    uint64_t weight = (uint64_t) edge[i].wt;
     fwrite(&weight, 8, 1, fp[2]);
   }
 
