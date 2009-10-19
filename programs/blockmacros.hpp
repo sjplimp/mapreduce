@@ -66,8 +66,11 @@ void test_local_disks()
     int len;
     MPI_Get_processor_name(name, &len);
     name[len]='\0';
-    printf("RANK %d NODE %s:   CANNOT OPEN TEST FILE ON LOCAL DISK %s.\n",
-           me, name, MYLOCALDISK);
+    printf("ERROR IN THE LOCAL DISK SYSTEM\n");
+    fflush(stdout);
+    printf("RANK %d NODE %s: CANNOT OPEN TEST FILE ON LOCAL DISK %s. (%d %s)\n",
+           me, name, MYLOCALDISK, me, name);
+    fflush(stdout);
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
   fclose(fp);
