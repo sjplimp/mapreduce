@@ -118,6 +118,7 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
   // edge lists.  We don't have to emit anything for this vtx.
 
   if (found) {
+
     // Emit best distance so far for Vi.
     shortest.current = true;
     kv->add(key, keybytes, (char *) &shortest, sizeof(DISTANCE<VERTEX, EDGE>));
@@ -129,8 +130,6 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
     if (!previous.current || 
         (previous.current && (shortest.e.wt != previous.e.wt))) {
 
-      *done = 0;
-  
       // Next, augment the path from Vi to each Vj with the weight Wij.
       BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
   
@@ -140,13 +139,16 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
           // This is an adjacency value.
           EDGE *e = (EDGE *) &multivalue[offset];
 
-          if (shortest.e.v != e->v) { // with all wt > 0, don't follow loops
+          // with all wt > 0, don't follow (1) loops back to predecessor or
+          // (2) self-loops.
+          if ((shortest.e.v != e->v) && (e->v != *vi)) { 
             DISTANCE<VERTEX, EDGE> dist;
             dist.e.v = *vi;    // Predecessor of Vj along the path.
             dist.e.wt = shortest.e.wt + e->wt; 
             dist.current = false;
             kv->add((char *) &(e->v), sizeof(VERTEX),
                     (char *) &dist, sizeof(DISTANCE<VERTEX, EDGE>));
+            *done = 0;
 //cout << "ADD " << e->v << " PRED " << dist.e.v << " DIST " << dist.e.wt << " CUR " << dist.current << endl;
           }
         }
@@ -246,7 +248,10 @@ void output_distances(char *key, int keybytes, char *multivalue,
     MPI_Abort(MPI_COMM_WORLD,-1);
   }
   
-  *fp << *((VERTEX *)key) << "   " << *e << endl;
+// FOR GREG
+  *fp << *((VERTEX *)key) << "   " << e->wt << endl;
+//  *fp << *((VERTEX *)key) << "   " << *e << endl;
+
 //  if (keybytes == 16)
 //    fprintf(fp, "%lld %lld    %lld %lld  %ld\n",
 //            vi->v[0], vi->v[1], edge->v.v[0], edge->v.v[1], edge->wt);
@@ -409,6 +414,8 @@ bool SSSP<VERTEX, EDGE>::run()
   mrpath->memsize = MRMEMSIZE;
 #endif
 
+  if (me == 0) cout << counter << ": BEGINNING SOURCE " << source << endl;
+
   mrpath->map(1, add_source<VERTEX,EDGE>, &source);
 
   //  Perform a BFS from S, editing distances as visit vertices.
@@ -441,7 +448,8 @@ bool SSSP<VERTEX, EDGE>::run()
 #endif
     uint64_t reallabeled = mrtmp->collate(NULL);
     if (me == 0)
-      cout << "   Iteration " << iter << " Labeled so far " << reallabeled << " data size " << nlabeled << endl;
+      cout << "   Iteration " << iter << "; #Vtx_with_possible_distances " << reallabeled << "; data_size " << nlabeled;
+      cout << endl;
     delete mrtmp;
 #endif
     if (me == 0)
@@ -490,19 +498,23 @@ bool SSSP<VERTEX, EDGE>::run()
 
   if (write_files) {
     char filename[254];
-//    Custom filenames for each source -- lots of big files.
-//    if (sizeof(VERTEX) == 16)
-//      sprintf(filename, "distance_from_%llu_%llu.%03d",
-//                         source.v[0], source.v[1], me);
-//    else
-//      sprintf(filename, "distance_from_%llu.%03d", source.v[0], me);
+#ifdef KEEP_OUTPUT
+    // Custom filenames for each source -- lots of big files.
+    // All files written to NFS.
+    if (sizeof(VERTEX) == 16)
+      sprintf(filename, "distance_from_%llu_%llu.%03d",
+                         source.v[0], source.v[1], me);
+    else
+      sprintf(filename, "distance_from_%llu.%03d", source.v[0], me);
 
-//  Single filename per processor; will be rewritten for each source, 
-//  so it is useful only for timings.
+#else
+    //  Single filename per processor; will be rewritten for each source, 
+    //  so it is useful only for timings.
 #ifdef LOCALDISK
     sprintf(filename, "%s/distance.%03d", MYLOCALDISK, me);
 #else
     sprintf(filename, "distance.%03d", me);
+#endif
 #endif
 
     ofstream fp;
