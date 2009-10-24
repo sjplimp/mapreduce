@@ -149,7 +149,7 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
             kv->add((char *) &(e->v), sizeof(VERTEX),
                     (char *) &dist, sizeof(DISTANCE<VERTEX, EDGE>));
             *done = 0;
-//cout << "ADD " << e->v << " PRED " << dist.e.v << " DIST " << dist.e.wt << " CUR " << dist.current << endl;
+// cout << "ADD " << e->v << " PRED " << dist.e.v << " DIST " << dist.e.wt << " CUR " << dist.current << endl;
           }
         }
         offset += valuebytes[j];
@@ -267,46 +267,7 @@ void output_distances(char *key, int keybytes, char *multivalue,
 template <typename VERTEX, typename EDGE>
 class SSSP {
 public:
-  SSSP(int narg, char **args, MapReduce *mrvert_, MapReduce *mredge_) :
-                                                  mrvert(mrvert_),
-                                                  mredge(mredge_),
-                                                  tcompute(0.),
-                                                  twrite(0.),
-                                                  sourcefp(NULL), 
-                                                  write_files(false),
-                                                  counter(0),
-                                                  tnlabeled(0)
-  {
-    MPI_Comm_rank(MPI_COMM_WORLD, &me); 
-    MPI_Comm_size(MPI_COMM_WORLD, &np); 
-
-    // Process input options.  Open the source vertex file on proc 0.
-    int iarg = 1;
-    while (iarg < narg) {
-      if (strcmp(args[iarg], "-s") == 0) {
-        iarg++;
-        if (me == 0) {
-          sourcefp = fopen(args[iarg], "rb");
-          if (!sourcefp) {
-            cout << "Unable to open source file " << args[iarg] << endl;
-            MPI_Abort(MPI_COMM_WORLD, -1);          
-          }
-        }
-      }
-      else if (strcmp(args[iarg], "-o") == 0) {
-        write_files = true;
-      }
-      iarg++;
-    }
-    if (me == 0 && !sourcefp) {
-      cout << "Source-vertex file missing; " 
-           << "use -s to specify source-vertex file." << endl
-           << "(Remember to keep -f or -ff arguments last on command line.)"
-           << endl;
-      MPI_Abort(MPI_COMM_WORLD, -1);
-    }
-  };
-
+  SSSP(int, char **, MapReduce *, MapReduce *);
   ~SSSP()
   {
     if (sourcefp) fclose(sourcefp);
@@ -333,6 +294,58 @@ private:
 };
 
 /////////////////////////////////////////////////////////////////////////////
+// SSSP constructor.
+// Sets options from command line.
+// Builds MapReduce object with outdegree of all unique vertices.
+// Modifies MapReduce edge list to include vertex outdegree in keys.
+template <typename VERTEX, typename EDGE>
+SSSP<VERTEX, EDGE>::SSSP(
+  int narg, 
+  char **args, 
+  MapReduce *mrvert_, 
+  MapReduce *mredge_
+) :
+  mrvert(mrvert_),
+  mredge(mredge_),
+  tcompute(0.),
+  twrite(0.),
+  sourcefp(NULL), 
+  write_files(false),
+  counter(0),
+  tnlabeled(0)
+{
+  MPI_Comm_rank(MPI_COMM_WORLD, &me); 
+  MPI_Comm_size(MPI_COMM_WORLD, &np); 
+
+  // Process input options.  Open the source vertex file on proc 0.
+  int iarg = 1;
+  while (iarg < narg) {
+    if (strcmp(args[iarg], "-s") == 0) {
+      iarg++;
+      if (me == 0) {
+        sourcefp = fopen(args[iarg], "rb");
+        if (!sourcefp) {
+          cout << "Unable to open source file " << args[iarg] << endl;
+          MPI_Abort(MPI_COMM_WORLD, -1);          
+        }
+      }
+    }
+    else if (strcmp(args[iarg], "-o") == 0) {
+      write_files = true;
+    }
+    iarg++;
+  }
+  if (me == 0 && !sourcefp) {
+    cout << "Source-vertex file missing; hard-coded source will be used."
+         << endl
+         << "Use -s to specify source-vertex file."
+         << endl
+         << "(Remember to keep -f or -ff arguments last on command line.)"
+         << endl;
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Routine to read source vertex from a file, determine whether it has been
 // used as a source vertex previously, and if not, return it to the application.
 // The source file is specified on the command line, with "-s sourcefile".
@@ -344,43 +357,42 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
 )
 {
   source->reset();
-#ifdef KDD_READ_SOURCE_FILE
   if (me == 0) {
-    // Read source vertices from file; keep reading until reach EOF or
-    // until find a source vertex that we haven't used before.
-    // Keep track of used source vertices in a map (hash table would be better).
-    const int RECORDSIZE=32;
-    uint64_t buf[4];
-    while (1) {
-      int nrecords = fread(buf, RECORDSIZE, 1, sourcefp);
-      if (nrecords == 0) break;  // EOF; return an invalid source.
-
-      if (buf[0] != 0)  { // Non-zero vertex
-        *source = *((VERTEX *) &buf);
-        if (sourcemap.find(*source) == sourcemap.end()) {
-          // Found a source we haven't used before
-          sourcemap[*source] = '1';
-          break;  // Stop reading and return this source vertex.
+    if (sourcefp) {
+      // Read source vertices from file; keep reading until reach EOF or
+      // until find a source vertex that we haven't used before.
+      // Keep track of used source vtxs in a map (hash table would be better).
+      const int RECORDSIZE=32;
+      uint64_t buf[4];
+      while (1) {
+        int nrecords = fread(buf, RECORDSIZE, 1, sourcefp);
+        if (nrecords == 0) break;  // EOF; return an invalid source.
+  
+        if (buf[0] != 0)  { // Non-zero vertex
+          *source = *((VERTEX *) &buf);
+          if (sourcemap.find(*source) == sourcemap.end()) {
+            // Found a source we haven't used before
+            sourcemap[*source] = '1';
+            break;  // Stop reading and return this source vertex.
+          }
+          else
+            source->reset();
         }
-        else
-          source->reset();
+      }
+    }
+    else {
+      static bool firsttime = true;
+      if (firsttime) {
+        firsttime = false;
+        if (me == 0) {
+          source->v[0] = 2415554029276017988lu;   // host-to-host
+          if (sizeof(VERTEX) == sizeof(VERTEX16)) // path-to-path
+            source->v[1] = 5818840024467251242lu;
+        }
       }
     }
   }
-#endif
-#define KDD_HARDCODE_SOURCE
-#ifdef KDD_HARDCODE_SOURCE
-  static bool firsttime = true;
-  if (firsttime) {
-    firsttime = false;
-    if (me == 0) {
-      source->v[0] = 2415554029276017988lu;   // host-to-host
-      if (sizeof(VERTEX) == 16)               // path-to-path
-        source->v[1] = 5818840024467251242lu;
-    }
-  }
-#endif
-
+  
   MPI_Bcast(source, sizeof(VERTEX), MPI_BYTE, 0, MPI_COMM_WORLD);
   return(source->valid());
 }
@@ -498,10 +510,11 @@ bool SSSP<VERTEX, EDGE>::run()
 
   if (write_files) {
     char filename[254];
+#define KEEP_OUTPUT
 #ifdef KEEP_OUTPUT
     // Custom filenames for each source -- lots of big files.
     // All files written to NFS.
-    if (sizeof(VERTEX) == 16)
+    if (sizeof(VERTEX) == sizeof(VERTEX16))
       sprintf(filename, "distance_from_%llu_%llu.%03d",
                          source.v[0], source.v[1], me);
     else
