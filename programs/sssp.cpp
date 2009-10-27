@@ -449,6 +449,7 @@ bool SSSP<VERTEX, EDGE>::run()
 KDDITER = 0;
 KDDCNT = 0;
   while (!done) {
+double KDDLOOPSTART = MPI_Wtime();
     done = 1;
 KDDADD = 0;
  
@@ -470,6 +471,7 @@ MPI_Allreduce(&KDDADD, &KDDGADD, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     int alldone;
     MPI_Allreduce(&done, &alldone, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     done = alldone;
+double KDDLOOPEND = MPI_Wtime();
 #ifdef VERBOSE
 #ifdef NEW_OUT_OF_CORE
     MapReduce *mrtmp = mrpath->copy();
@@ -481,11 +483,12 @@ MPI_Allreduce(&KDDADD, &KDDGADD, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
       cout << "   Iteration " << iter << "; #Vtx_with_possible_distances " << reallabeled << "; data_size " << nlabeled;
       cout << endl;
     delete mrtmp;
-#endif
+#endif  // End VERBOSE
     if (me == 0)
       cout << "   Iteration " << iter << " MRPath size " << nlabeled 
            << " KDDGCNT " << KDDGCNT
            << " KDDGADD " << KDDGADD
+           << " Time " << KDDLOOPEND - KDDLOOPSTART
            << endl;
     iter++;
   }
