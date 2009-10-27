@@ -22,7 +22,13 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-#define MAX_NUM_EXPERIMENTS 60
+#define MAX_NUM_EXPERIMENTS 10
+
+static int KDDITER = 0;
+static int KDDCNT = 0;
+static int KDDGCNT = 0;
+static int KDDADD = 0;
+static int KDDGADD = 0;
 
 /////////////////////////////////////////////////////////////////////////////
 // Class used to pass distance information through the MapReduce system.
@@ -88,6 +94,9 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
   int *done = (int *) ptr;
   VERTEX *vi = (VERTEX *) key;
 
+int me;
+MPI_Comm_rank(MPI_COMM_WORLD, &me);
+
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
 
 
@@ -130,6 +139,8 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
     if (!previous.current || 
         (previous.current && (shortest.e.wt != previous.e.wt))) {
 
+if (KDDITER > 50) cout << KDDITER << " ME " << me << " MOD " << *((VERTEX *) key) << " PREV " << previous.e.wt << " NEW " << shortest.e.wt << endl;
+      KDDCNT++;
       // Next, augment the path from Vi to each Vj with the weight Wij.
       BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
   
@@ -149,7 +160,8 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
             kv->add((char *) &(e->v), sizeof(VERTEX),
                     (char *) &dist, sizeof(DISTANCE<VERTEX, EDGE>));
             *done = 0;
-// cout << "ADD " << e->v << " PRED " << dist.e.v << " DIST " << dist.e.wt << " CUR " << dist.current << endl;
+            KDDADD++;
+if (KDDITER > 50) cout << KDDITER << " ME " << me << "ADD " << e->v << " PRED " << dist.e.v << " DIST " << dist.e.wt << " CUR " << dist.current << endl;
           }
         }
         offset += valuebytes[j];
@@ -434,8 +446,11 @@ bool SSSP<VERTEX, EDGE>::run()
   int done = 0;
   int iter = 0;
   uint64_t nlabeled = 0;  // # of vtxs actually labeled during SSSP.
+KDDITER = 0;
+KDDCNT = 0;
   while (!done) {
     done = 1;
+KDDADD = 0;
  
     // Add Edges to Paths.
     // Collate Paths by vertex; collects edges and any distances 
@@ -448,6 +463,9 @@ bool SSSP<VERTEX, EDGE>::run()
 
     mrpath->collate(NULL);
     nlabeled = mrpath->reduce(bfs_with_distances<VERTEX,EDGE>, &done);
+KDDITER++;
+MPI_Allreduce(&KDDCNT, &KDDGCNT, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+MPI_Allreduce(&KDDADD, &KDDGADD, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     int alldone;
     MPI_Allreduce(&done, &alldone, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
@@ -465,7 +483,10 @@ bool SSSP<VERTEX, EDGE>::run()
     delete mrtmp;
 #endif
     if (me == 0)
-      cout << "   Iteration " << iter << " MRPath size " << nlabeled << endl;
+      cout << "   Iteration " << iter << " MRPath size " << nlabeled 
+           << " KDDGCNT " << KDDGCNT
+           << " KDDGADD " << KDDGADD
+           << endl;
     iter++;
   }
 
