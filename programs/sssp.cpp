@@ -22,13 +22,17 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-#define MAX_NUM_EXPERIMENTS 10
+#define MAX_NUM_EXPERIMENTS 60
 
 static int KDDITER = 0;
-static int KDDCNT = 0;
-static int KDDGCNT = 0;
-static int KDDADD = 0;
-static int KDDGADD = 0;
+static int KDDCNT = 0;    // Running total # of vtx modified on one proc.
+static int KDDGCNT = 0;   // Running total # of vtx modified on all proc.
+static int KDDMOD = 0;    // # of vtx modified in one iteration on one proc.
+static int KDDGMOD = 0;   // # of vtx modified in one iteration on all proc.
+static int KDDLEAF = 0;   // # of new leaf vtx modified in one iteration on one proc.
+static int KDDGLEAF = 0;  // # of new leaf vtx modified in one iteration on all proc.
+static int KDDADD = 0;    // # of child vtx added in one iteration on one proc.
+static int KDDGADD = 0;   // # of child vtx added in one iteration on all proc.
 
 /////////////////////////////////////////////////////////////////////////////
 // Class used to pass distance information through the MapReduce system.
@@ -94,8 +98,8 @@ void bfs_with_distances(char *key, int keybytes, char *multivalue,
   int *done = (int *) ptr;
   VERTEX *vi = (VERTEX *) key;
 
-int me;
-MPI_Comm_rank(MPI_COMM_WORLD, &me);
+// int me;
+// MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
 
@@ -105,6 +109,7 @@ MPI_Comm_rank(MPI_COMM_WORLD, &me);
   DISTANCE<VERTEX, EDGE> previous; // Best distance for Vi from prev iterations.
   DISTANCE<VERTEX, EDGE> shortest; // Shortest path so far to Vi.
 
+int KDDoutdegree = 0;
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   int offset = 0;
@@ -112,11 +117,12 @@ MPI_Comm_rank(MPI_COMM_WORLD, &me);
     // Multivalues are either edges or distances.  Distances use more bytes.
     if (valuebytes[j] == sizeof(DISTANCE<VERTEX, EDGE>)) {
       // This is a distance value.
-      DISTANCE<VERTEX, EDGE> *d = (DISTANCE<VERTEX, EDGE>*) &multivalue[offset];
+      DISTANCE<VERTEX, EDGE> *d = (DISTANCE<VERTEX, EDGE>*) (multivalue+offset);
       found = true;
       if (d->e.wt < shortest.e.wt)  shortest = *d;   // shortest path so far.
       if (d->current) previous = *d;     // currently accepted best distance.
     }
+else KDDoutdegree++;
     offset += valuebytes[j];
   }
 
@@ -131,16 +137,17 @@ MPI_Comm_rank(MPI_COMM_WORLD, &me);
     // Emit best distance so far for Vi.
     shortest.current = true;
     kv->add(key, keybytes, (char *) &shortest, sizeof(DISTANCE<VERTEX, EDGE>));
-//cout << "ADD " << *((VERTEX *) key) << " PRED " << shortest.e.v << " DIST " << shortest.e.wt << " CUR " << shortest.current;
-//cout << "   PREVIOUS " << previous.e.v << " DIST " << previous.e.wt << " CUR " << previous.current << endl;
 
     // Check stopping criterion: not done if (1) this is the first distance
     // computed for Vi, OR (2) the distance for Vi was updated.
     if (!previous.current || 
         (previous.current && (shortest.e.wt != previous.e.wt))) {
 
-if (KDDITER > 50) cout << KDDITER << " ME " << me << " MOD " << *((VERTEX *) key) << " PREV " << previous.e.wt << " NEW " << shortest.e.wt << endl;
-      KDDCNT++;
+// if (KDDITER >= 0) cout << KDDITER  << " ME " << me << " MOD " << *((VERTEX *) key) << " PREV " << previous.e.wt << " NEW " << shortest.e.wt << " PRED " << shortest.e.v << endl;
+if (KDDoutdegree == 0 && !previous.current) KDDLEAF++;
+else KDDMOD++;
+KDDCNT++;
+
       // Next, augment the path from Vi to each Vj with the weight Wij.
       BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
   
@@ -161,7 +168,7 @@ if (KDDITER > 50) cout << KDDITER << " ME " << me << " MOD " << *((VERTEX *) key
                     (char *) &dist, sizeof(DISTANCE<VERTEX, EDGE>));
             *done = 0;
             KDDADD++;
-if (KDDITER > 50) cout << KDDITER << " ME " << me << "ADD " << e->v << " PRED " << dist.e.v << " DIST " << dist.e.wt << " CUR " << dist.current << endl;
+// if (KDDITER >= 0) cout << KDDITER << " ME " << me << " ADD from " << *((VERTEX *) key) << " child " << e->v << " PRED " << dist.e.v << " DIST " << dist.e.wt << " CUR " << dist.current << endl;
           }
         }
         offset += valuebytes[j];
@@ -261,7 +268,11 @@ void output_distances(char *key, int keybytes, char *multivalue,
   }
   
 // FOR GREG
-  *fp << *((VERTEX *)key) << "   " << e->wt << endl;
+  if (e->wt < FLT_MAX-1.)
+    *fp << *((VERTEX *)key) << "   " << e->wt << endl;
+  else
+    *fp << *((VERTEX *)key) << "   " << -1. << endl;
+
 //  *fp << *((VERTEX *)key) << "   " << *e << endl;
 
 //  if (keybytes == 16)
@@ -451,6 +462,8 @@ KDDCNT = 0;
   while (!done) {
 double KDDLOOPSTART = MPI_Wtime();
     done = 1;
+KDDMOD = 0;
+KDDLEAF = 0;
 KDDADD = 0;
  
     // Add Edges to Paths.
@@ -465,7 +478,9 @@ KDDADD = 0;
     mrpath->collate(NULL);
     nlabeled = mrpath->reduce(bfs_with_distances<VERTEX,EDGE>, &done);
 KDDITER++;
+MPI_Allreduce(&KDDMOD, &KDDGMOD, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 MPI_Allreduce(&KDDCNT, &KDDGCNT, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+MPI_Allreduce(&KDDLEAF, &KDDGLEAF, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 MPI_Allreduce(&KDDADD, &KDDGADD, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     int alldone;
@@ -486,9 +501,11 @@ double KDDLOOPEND = MPI_Wtime();
 #endif  // End VERBOSE
     if (me == 0)
       cout << "   Iteration " << iter << " MRPath size " << nlabeled 
-           << " KDDGCNT " << KDDGCNT
-           << " KDDGADD " << KDDGADD
-           << " Time " << KDDLOOPEND - KDDLOOPSTART
+           << " MODIFIED: " << KDDGMOD
+           << " NEWLEAF: " << KDDGLEAF
+           << " CHILDADD: " << KDDGADD
+           << " TOTALMOD: " << KDDGCNT
+//           << " Time " << KDDLOOPEND - KDDLOOPSTART
            << endl;
     iter++;
   }
