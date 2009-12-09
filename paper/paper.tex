@@ -1,0 +1,81 @@
+\documentclass[11pt]{article}
+\usepackage[pdftex]{graphicx}
+
+\setlength{\textwidth}{6.5in}
+\setlength{\textheight}{9.25in}
+
+\setlength{\voffset}{-0.0in}
+\hoffset=-50pt
+\topmargin=0pt
+\headheight=0pt
+\headsep=0pt
+\evensidemargin=72pt % 1in+7pt
+
+\setlength{\parskip}{0.5ex}
+\setlength{\parindent}{1em}
+\setlength{\floatsep}{1pt}
+\setlength{\textfloatsep}{2pt}
+\setlength{\intextsep}{2pt}
+
+\begin{document}
+
+\title{Map{R}educe in {MPI} for Large-scale Graph Algorithms}
+
+\author{
+Steven J.~Plimpton, Karen D.~Devine, Jon?, Cohen?, Others? \\
+Sandia National Laboratories \\
+Albuquerque, NM \\
+sjplimp@sandia.gov
+}
+
+\date{}
+
+\maketitle
+
+\centerline{Keywords: MapReduce, message-passing, MPI, graph
+algorithms, RMAT matrices}
+
+\vspace*{0.4in}
+
+\begin{abstract}
+
+We describe a library that allows parallel algorithms to be expressed
+in the MapReduce paradigm, where the user does not need to write
+explicit parallel code, but instead provides a collection of ``map''
+and ``reduce'' functions which operate on portions of a data set.  The
+library itself uses MPI message passing calls to perform the needed
+parallel operations across distributed memory.  We highlight how
+MapReduce operations work in an MPI context, and also how they can be
+coded in an out-of-core manner for data sets that do not fit within
+the aggregate memory of a parallel machine.  Our motivation for
+creating this library was to enable graph algorithms to be coded as
+MapReduce operations, allowing processing of Terabyte-scale data sets.
+We outline a MapReduce version of several such algorithms: vertex
+ranking via PageRank, connected component identification, triangle
+finding, Luby's algorithm for maximally independent sets, and
+single-source shortest-path.  To input arbitrarily large artificial
+graphs we generate RMAT matrices in parallel; we also provide a
+MapReduce version of this operation.  Performance and scalability
+results for the various algorithms are presented for graphs of varying
+sizes on a distributed-memory cluster.  For some cases, we compare our
+results with timings for different algorithms, different machines, and
+different MapReduce software, namely Hadoop.  Our open-source library
+is written in C++, is callable from C++, C, Fortran, or scripting
+languages such as Python, and can run on any parallel platform that
+supports MPI.
+
+\end{abstract}
+
+\pagebreak
+
+\input{intro}
+\input{mr}
+\input{outcore}
+\input{graph}
+\input{results}
+\input{thanks}
+
+\bibliographystyle{aip}
+\bibliography{paper}
+
+\end{document}

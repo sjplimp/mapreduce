@@ -1,0 +1,11 @@
+\section{MapReduce in MPI}
+
+  keys and values, KV and KMV data structures
+  map and reduce are naturally parallel on distributed KV, KMV
+    user owns data, just set of bytes passed to library
+    flavors of map()
+  collate is equivalant to all2all() on distributed hash table
+    how we do irregular communication
+  big difference is we are doing the comm in syncronous manner
+    data is reorganized locally, once it is all on-proc
+  other related operations: compress, gather, collapse, sort
