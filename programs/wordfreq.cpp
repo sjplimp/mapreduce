@@ -31,6 +31,9 @@
 #include "keyvalue.h"
 #include "blockmacros.hpp"
 
+#define BALANCED
+#define FILEEQUIV
+
 using namespace MAPREDUCE_NS;
 
 void fileread(int, KeyValue *, void *);
@@ -80,7 +83,8 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-mr->verbosity = 1;
+// mr->verbosity = 1;
+// mr->timer = 1;
 #ifdef NEW_OUT_OF_CORE
   mr->memsize=1024;
 #endif
@@ -94,10 +98,14 @@ mr->verbosity = 1;
 #ifndef BALANCED
     nwords = mr->map(narg-1,&fileread,&args[1]);
 #else
-    nwords = mr->map(narg-1,&fileread_thenbalance,&args[1]);
-    if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
-    mr->collate(&identity);  // Collates by processor
-    mr->reduce(&balance, NULL);
+    if (nprocs == 1) // No balancing needed
+      nwords = mr->map(narg-1,&fileread,&args[1]);
+    else {
+      nwords = mr->map(narg-1,&fileread_thenbalance,&args[1]);
+      if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
+      mr->collate(&identity);  // Collates by processor
+      mr->reduce(&balance, NULL);
+    }
 #endif
   }
   else {
@@ -107,14 +115,20 @@ mr->verbosity = 1;
     // This version has identical initial distribuion as the file-based input.
     nwords = mr->map(N+1, &genwords_fileequiv, &N);
 #else
-    // Automatically generate the words using Eric Goodman's scheme.
-    // This version has identical initial distribuion as the file-based input.
-    // Then redistribute the words equally among the processors.  They will
-    // no longer be grouped by word, but they will be balanced on the procs.
-    nwords = mr->map(N+1, &genwords_thenbalance, &N);
-    if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
-    mr->collate(&identity);  // Collates by processor
-    mr->reduce(&balance, NULL);
+    if (nprocs == 1) // No balancing needed
+      // Automatically generate the words using Eric Goodman's scheme.
+      // This version has identical initial distribuion as the file-based input.
+      nwords = mr->map(N+1, &genwords_fileequiv, &N);
+    else {
+      // Automatically generate the words using Eric Goodman's scheme.
+      // This version has identical initial distribuion as the file-based input.
+      // Then redistribute the words equally among the processors.  They will
+      // no longer be grouped by word, but they will be balanced on the procs.
+      nwords = mr->map(N+1, &genwords_thenbalance, &N);
+      if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
+      mr->collate(&identity);  // Collates by processor
+      mr->reduce(&balance, NULL);
+    }
 #endif
 #else
 
@@ -131,10 +145,14 @@ mr->verbosity = 1;
     // takes ~14 seconds.
     nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
 #else
-    nwords = mr->map(nuniqueword,&genwords_wordpertask_thenbalance,&N);
-    if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
-    mr->collate(&identity);  // Collates by processor
-    mr->reduce(&balance, NULL);
+    if (nprocs == 1) // No balancing needed
+      nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
+    else {
+      nwords = mr->map(nuniqueword,&genwords_wordpertask_thenbalance,&N);
+      if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
+      mr->collate(&identity);  // Collates by processor
+      mr->reduce(&balance, NULL);
+    }
 #endif
 #endif
   }
@@ -142,7 +160,7 @@ mr->verbosity = 1;
   MPI_Barrier(MPI_COMM_WORLD);
   double tread = MPI_Wtime();
 
-  if (me == 0) {printf("Beginning reduce...\n"); fflush(stdout);}
+  if (me == 0) {printf("Beginning wordcount...\n"); fflush(stdout);}
 
 #define LOCALCOMPRESS
 #ifdef LOCALCOMPRESS
@@ -150,9 +168,11 @@ mr->verbosity = 1;
   // of communication that needs to be done.
   // This compression builds local hash tables, and requires an additional
   // pass over the data..
-  mr->compress(&sum,NULL);  // Do word-count locally first
-  mr->collate(NULL);        // Hash keys and local counts to processors
-  int nunique = mr->reduce(&globalsum,NULL); // Compute global sums for each key
+  int nunique = mr->compress(&sum,NULL);  // Do word-count locally first
+  if (nprocs > 1) {
+    mr->collate(NULL);        // Hash keys and local counts to processors
+    nunique = mr->reduce(&globalsum,NULL); // Compute global sums for each key
+  }
 #else
   // Do not do a local compression but, rather, do a global aggregate only.
   mr->collate(NULL);    
