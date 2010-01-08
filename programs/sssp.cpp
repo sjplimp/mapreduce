@@ -1,5 +1,5 @@
 // Single-source shortest paths via MapReduce
-// Input:   A directed graph, provided by Karl's files.
+// Input:   A directed graph, provided by Karl's files or matrix-market file.
 // Output:  For each vertex Vi, the shortest weighted distance from a randomly
 //          selected source vertex S to Vi, along with the predecessor vertex 
 //          of Vi in the shortest weighted path from S to Vi.
@@ -16,7 +16,7 @@
 #include "keyvalue.h"
 #include "blockmacros.hpp"
 #include "read_fb_data.hpp"
-#include "renumber_graph.hpp"
+#include "read_mm_data.hpp"
 #include "shared.hpp"
 
 using namespace std;
@@ -309,8 +309,10 @@ private:
   MapReduce *mredge;
   FILE *sourcefp;               // Pointer to source-vtx file; set only on 
                                 // proc 0.
-  map<VERTEX, char> sourcemap;  // unique vertices previouslly used as sources;
+  map<VERTEX, char> sourcemap;  // unique vertices previously used as sources;
                                 // populated only on proc 0.
+  bool mmfile;                  // Flag indicating whether input (source and
+                                // graph) is a matrix-market file.
   bool write_files;             // Flag indicating whether to write files
                                 // after computing SSSP.
   uint64_t counter;             // Count how many times the SSSP is run().
@@ -333,6 +335,7 @@ SSSP<VERTEX, EDGE>::SSSP(
   tcompute(0.),
   twrite(0.),
   sourcefp(NULL), 
+  mmfile(false),
   write_files(false),
   counter(0),
   tnlabeled(0)
@@ -346,12 +349,27 @@ SSSP<VERTEX, EDGE>::SSSP(
     if (strcmp(args[iarg], "-s") == 0) {
       iarg++;
       if (me == 0) {
-        sourcefp = fopen(args[iarg], "rb");
+        if (mmfile) {
+          sourcefp = fopen(args[iarg], "r");
+          // Skip comment lines
+          char ch;
+          while ((ch = getc(sourcefp)) == '%' || (ch == '#')) 
+            while (getc(sourcefp) != '\n');
+          // Skip header line
+          while (getc(sourcefp) != '\n');
+        }
+        else
+          sourcefp = fopen(args[iarg], "rb");
         if (!sourcefp) {
           cout << "Unable to open source file " << args[iarg] << endl;
           MPI_Abort(MPI_COMM_WORLD, -1);          
         }
       }
+    }
+    else if (strcmp(args[iarg], "-mmfile") == 0) {
+      // Indicate whether source and graph files are matrix-market format.
+      // Must be specified before -s, -f and -ff arguments.
+      mmfile = true;
     }
     else if (strcmp(args[iarg], "-o") == 0) {
       write_files = true;
@@ -381,7 +399,27 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
 {
   source->reset();
   if (me == 0) {
-    if (sourcefp) {
+    if (mmfile && sourcefp) {
+      // Read source vertices from text file; keep reading until reach EOF or
+      // until find a source vertex that we haven't used before.
+      // Keep track of used source vtxs in a map (hash table would be better).
+      int i, j;
+      float v;
+      while (1) {
+        int nwords = fscanf(sourcefp, "%d %d %f",  &i, &j, &v);
+        if (nwords == 0 or nwords == EOF) break;  // return an invalid source.
+  
+        source->v[0] = i;
+        if (sourcemap.find(*source) == sourcemap.end()) {
+          // Found a source we haven't used before
+          sourcemap[*source] = '1';
+          break;  // Stop reading and return this source vertex.
+        }
+        else
+          source->reset();
+      }
+    }
+    else if (sourcefp) {
       // Read source vertices from file; keep reading until reach EOF or
       // until find a source vertex that we haven't used before.
       // Keep track of used source vtxs in a map (hash table would be better).
@@ -593,6 +631,7 @@ int main(int narg, char **args)
 {
   MPI_Init(&narg, &args);
   int me, np;
+  bool fb_file = true;
   MPI_Comm_size(MPI_COMM_WORLD, &np);
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
@@ -603,33 +642,50 @@ int main(int narg, char **args)
   test_local_disks();
 #endif
 
+  for (int i = 0; i < narg; i++) 
+    if (strcmp(args[i], "-mmfile") == 0) {
+      fb_file = false;
+      break;
+    }
+
+
   // Create a new MapReduce object, Edges.
   // Map(Edges):  Input graph from files as in link2graph_weighted.
   //              Output:  Key-values representing edges Vi->Vj with weight Wij
   //                       Key = Vi    
   //                       Value = {Vj, Wij} 
-  ReadFBData readFB(narg, args, true);
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  double tstart = MPI_Wtime();
+  double tstart;
 
   MapReduce *mrvert = NULL;
   MapReduce *mredge = NULL;
   uint64_t nverts;    // Number of unique non-zero vertices
   uint64_t nrawedges; // Number of edges in input files.
   uint64_t nedges;    // Number of unique edges in input files.
-  readFB.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
+  int vertexsize;
+  if (fb_file) { // FB files
+    ReadFBData readFB(narg, args, true);
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    tstart = MPI_Wtime();
+
+    readFB.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
+    vertexsize = readFB.vertexsize;
+  }
+  else { // MM file
+    ReadMMData readMM(narg, args, true);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    tstart = MPI_Wtime();
+
+    readMM.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
+    vertexsize = readMM.vertexsize;
+  }
   MPI_Barrier(MPI_COMM_WORLD);
   double tmap = MPI_Wtime();
 
-  // update mrvert and mredge so their vertices are unique ints from 1-N,
-  // not hash values
-  // if (me == 0) cout << "Renumbering graph..." << endl;
-  // renumber_graph(readFB.vertexsize, mrvert, mredge);
-
   srand48(1l);
-  if (readFB.vertexsize == 16) {
+  if (vertexsize == 16) {
     SSSP<VERTEX16, EDGE16> sssp(narg, args, mrvert, mredge);
     if (me == 0) cout << "Beginning sssp with 16-byte keys." << endl;
     while (sssp.run());
@@ -639,7 +695,7 @@ int main(int narg, char **args)
       cout << "Total # Vtx Labeled:       " << sssp.tnlabeled << endl;
     }
   }
-  else if (readFB.vertexsize == 8) {
+  else if (vertexsize == 8) {
     SSSP<VERTEX08, EDGE08> sssp(narg, args, mrvert, mredge);
     if (me == 0) cout << "Beginning sssp with 8-byte keys." << endl;
     while (sssp.run());
@@ -650,7 +706,7 @@ int main(int narg, char **args)
     }
   }
   else {
-    cout << "Invalid vertex size " << readFB.vertexsize << endl;
+    cout << "Invalid vertex size " << vertexsize << endl;
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
 

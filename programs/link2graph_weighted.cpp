@@ -654,7 +654,7 @@ void hfile_write(char *key, int keybytes, char *multivalue,
     VERTEX16 *vi = (VERTEX16 *) key;
     EDGE16 *edge = (EDGE16 *) multivalue;
     for (i = 0; i < nvalues; i++)
-      fprintf(fp, "%lld %lld   %lld %lld %f\n",
+      fprintf(fp, "%llu %llu   %llu %llu %f\n",
               vi->v[0], vi->v[1], edge[i].v.v[0], edge[i].v.v[1], edge[i].wt);
   }
   else if (keybytes == 8) {

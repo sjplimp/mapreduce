@@ -39,6 +39,7 @@ void fileread1(int, char *, KeyValue *, void *);
 void fileread2(int, KeyValue *, void *);
 void vertex_emit(char *, int, char *, int, int *, KeyValue *, void *);
 void vertex_unique(char *, int, char *, int, int *, KeyValue *, void *);
+template <class ReadFileType>
 void edge_unique(char *, int, char *, int, int *, KeyValue *, void *);
 
 // Data input information.
@@ -193,7 +194,7 @@ void ReadFBData::run(
   MapReduce *mredge = mrraw;
 
   mredge->collate(NULL);
-  *nedges = mredge->reduce(&edge_unique,this);
+  *nedges = mredge->reduce(&edge_unique<ReadFBData>,this);
 
   *return_mrvert = mrvert;
   *return_mredge = mredge;
@@ -218,8 +219,8 @@ void ReadFBData::run(
 
 void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
 {
-  ReadFBData *rfb = (ReadFBData *) ptr;
-  char buf[rfb->CHUNK*(rfb->RECORDSIZE+rfb->GREG_BAYER)];
+  ReadFBData *rfp = (ReadFBData *) ptr;
+  char buf[rfp->CHUNK*(rfp->RECORDSIZE+rfp->GREG_BAYER)];
 
   FILE *fp = fopen(filename,"rb");
   if (fp == NULL) {
@@ -228,19 +229,19 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
   }
 
   while (1) {
-    int nrecords = fread(buf,rfb->RECORDSIZE+rfb->GREG_BAYER,rfb->CHUNK,fp);
+    int nrecords = fread(buf,rfp->RECORDSIZE+rfp->GREG_BAYER,rfp->CHUNK,fp);
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
-      ptr += rfb->GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
-      if (rfb->vertexsize == 16) 
-        kv->add(&ptr[0],2*rfb->vertexsize,NULL,0);
-      else { // rfb->vertex_size == 8)
+      ptr += rfp->GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
+      if (rfp->vertexsize == 16) 
+        kv->add(&ptr[0],2*rfp->vertexsize,NULL,0);
+      else { // rfp->vertex_size == 8)
         uint64_t key[2];
         key[0] = ((uint64_t *) ptr)[0];
         key[1] = ((uint64_t *) ptr)[2];
         kv->add((char *) key, 2*sizeof(uint64_t), NULL, 0);
       }
-      ptr += rfb->RECORDSIZE;
+      ptr += rfp->RECORDSIZE;
     }
     if (nrecords == 0) break;
   }
@@ -258,10 +259,10 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
 
 void fileread2(int itask, KeyValue *kv, void *ptr)
 {
-  ReadFBData *rfb = (ReadFBData *) ptr;
-  char buf[rfb->CHUNK*(rfb->RECORDSIZE+rfb->GREG_BAYER)];
+  ReadFBData *rfp = (ReadFBData *) ptr;
+  char buf[rfp->CHUNK*(rfp->RECORDSIZE+rfp->GREG_BAYER)];
 
-  char **files = rfb->argfiles;
+  char **files = rfp->argfiles;
   FILE *fp = fopen(files[itask],"rb");
   if (fp == NULL) {
     printf("Could not open link file\n");
@@ -269,20 +270,20 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
   }
 
   while (1) {
-    int nrecords = fread(buf,rfb->RECORDSIZE+rfb->GREG_BAYER,rfb->CHUNK,fp);
+    int nrecords = fread(buf,rfp->RECORDSIZE+rfp->GREG_BAYER,rfp->CHUNK,fp);
     char *ptr = buf;
     for (int i = 0; i < nrecords; i++) {
-      ptr += rfb->GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
-      if (rfb->vertexsize == 16) {
-        kv->add(&ptr[0],2*rfb->vertexsize,NULL,0);
+      ptr += rfp->GREG_BAYER;  // if GREG_BAYER format, skip the extra fields.
+      if (rfp->vertexsize == 16) {
+        kv->add(&ptr[0],2*rfp->vertexsize,NULL,0);
       }
-      else { // rfb->vertex_size == 8)
+      else { // rfp->vertex_size == 8)
         uint64_t key[2];
         key[0] = ((uint64_t *) ptr)[0];
         key[1] = ((uint64_t *) ptr)[2];
         kv->add((char *) key, 2*sizeof(uint64_t), NULL, 0);
       }
-      ptr += rfb->RECORDSIZE;
+      ptr += rfp->RECORDSIZE;
     }
     if (nrecords == 0) break;
   }
@@ -300,11 +301,11 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
 void vertex_emit(char *key, int keybytes, char *multivalue,
                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  ReadFBData *rfb = (ReadFBData *) ptr;
+  ReadFBData *rfp = (ReadFBData *) ptr;
   uint64_t *vi = (uint64_t *) key;
-  if (*vi != 0) kv->add((char *) vi,rfb->vertexsize,NULL,0);
-  uint64_t *vj = (uint64_t *) (key + rfb->vertexsize);
-  if (*vj != 0) kv->add((char *) vj,rfb->vertexsize,NULL,0);
+  if (*vi != 0) kv->add((char *) vi,rfp->vertexsize,NULL,0);
+  uint64_t *vj = (uint64_t *) (key + rfp->vertexsize);
+  if (*vj != 0) kv->add((char *) vj,rfp->vertexsize,NULL,0);
 }
 
 /* ----------------------------------------------------------------------
@@ -327,31 +328,32 @@ void vertex_unique(char *key, int keybytes, char *multivalue,
    only an edge where first 8 bytes of Vi or Vj are both non-zero is emitted
    only unique edges are emitted
 ------------------------------------------------------------------------- */
+template <class ReadFileType>
 void edge_unique(char *key, int keybytes, char *multivalue,
                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  ReadFBData *rfb = (ReadFBData *) ptr;
+  ReadFileType *rfp = (ReadFileType *) ptr;
   uint64_t *vi = (uint64_t *) key;
-  uint64_t *vj = (uint64_t *) (key + rfb->vertexsize);
+  uint64_t *vj = (uint64_t *) (key + rfp->vertexsize);
   if (*vi == 0) return;
   if (*vj == 0) return;
 
-  if (rfb->vertexsize == 16) {
+  if (rfp->vertexsize == 16) {
 
     EDGE16 edge;
     edge.v.v[0] = vj[0];
     edge.v.v[1] = vj[1];
-    if (rfb->invWt) edge.wt = 1./nvalues;
+    if (rfp->invWt) edge.wt = 1./nvalues;
     else            edge.wt = nvalues;
-    kv->add((char *) vi, rfb->vertexsize, (char *) &edge, sizeof(EDGE16));
+    kv->add((char *) vi, rfp->vertexsize, (char *) &edge, sizeof(EDGE16));
 
   } else {  // vertexsize = 8
 
     EDGE08 edge;
     edge.v.v[0] = vj[0];
-    if (rfb->invWt) edge.wt = 1./nvalues;
+    if (rfp->invWt) edge.wt = 1./nvalues;
     else            edge.wt = nvalues;
-    kv->add((char *) vi, rfb->vertexsize, (char *) &edge, sizeof(EDGE08));
+    kv->add((char *) vi, rfp->vertexsize, (char *) &edge, sizeof(EDGE08));
   }
 }
 
