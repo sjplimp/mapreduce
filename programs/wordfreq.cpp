@@ -86,7 +86,7 @@ int main(int narg, char **args)
 // mr->verbosity = 1;
 // mr->timer = 1;
 #ifdef NEW_OUT_OF_CORE
-  mr->memsize=1024;
+  mr->memsize=2000;
 #endif
 
   if (me == 0) {printf("Beginning map...\n"); fflush(stdout);}
@@ -157,6 +157,10 @@ int main(int narg, char **args)
 #endif
   }
 
+#ifdef NEW_OUT_OF_CORE
+  mr->total_stats(true);
+#endif
+
   MPI_Barrier(MPI_COMM_WORLD);
   double tread = MPI_Wtime();
 
@@ -210,6 +214,9 @@ int main(int narg, char **args)
 
 #endif // POSTPROCESS
 
+#ifdef NEW_OUT_OF_CORE
+  mr->total_stats(false);
+#endif
   delete mr;
 
   MPI_Barrier(MPI_COMM_WORLD);

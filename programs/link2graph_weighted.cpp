@@ -60,8 +60,6 @@
 #include "read_fb_data.hpp"
 #include "shared.hpp"
 
-#include <map>
-
 using namespace std;
 using namespace MAPREDUCE_NS;
 
