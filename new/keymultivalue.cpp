@@ -36,6 +36,9 @@ using namespace MAPREDUCE_NS;
 #define PAGECHUNK 16
 #define SPOOLMBYTES 1
 
+double KeyMultiValue::twsize = 0.;
+double KeyMultiValue::trsize = 0.;
+
 /* ---------------------------------------------------------------------- */
 
 KeyMultiValue::KeyMultiValue(MPI_Comm comm_caller,
@@ -1396,6 +1399,7 @@ void KeyMultiValue::write_page()
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(page,pages[npage].filesize,1,fp);
   wsize += pages[npage].filesize;
+  twsize += pages[npage].filesize;
 }
 
 /* ----------------------------------------------------------------------
@@ -1416,6 +1420,7 @@ void KeyMultiValue::read_page(int ipage, int writeflag)
   fseek(fp,fileoffset,SEEK_SET);
   fread(page,pages[ipage].filesize,1,fp);
   rsize += pages[ipage].filesize;
+  trsize += pages[ipage].filesize;
 }
 
 /* ----------------------------------------------------------------------

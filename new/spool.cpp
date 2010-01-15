@@ -23,6 +23,9 @@ using namespace MAPREDUCE_NS;
 #define ALIGNFILE 512              // same as in mapreduce.cpp
 #define PAGECHUNK 16
 
+double Spool::twsize = 0;
+double Spool::trsize = 0;
+
 /* ---------------------------------------------------------------------- */
 
 Spool::Spool(char *memfile, int memsize,
@@ -171,6 +174,7 @@ void Spool::write_page()
 
   fwrite(page,pages[npage].filesize,1,fp);
   wsize += pages[npage].filesize;
+  twsize += pages[npage].filesize;
 }
 
 /* ----------------------------------------------------------------------
@@ -186,6 +190,7 @@ void Spool::read_page(int ipage)
 
   fread(page,pages[ipage].filesize,1,fp);
   rsize += pages[ipage].filesize;
+  trsize += pages[ipage].filesize;
 }
 
 /* ----------------------------------------------------------------------

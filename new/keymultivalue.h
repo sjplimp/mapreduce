@@ -29,6 +29,8 @@ class KeyMultiValue {
   uint64_t tsize;                  // total exact size of entire KMV
   uint64_t rsize;                  // total bytes read from file
   uint64_t wsize;                  // total bytes written to file
+  static double trsize;     // total bytes read from file for all KeyMultiValue
+  static double twsize;     // total bytes written to file for all KeyMultiValue
   int fileflag;                    // 1 if file exists, 0 if not
 
   uint64_t spool_rsize;            // total bytes read from spool files

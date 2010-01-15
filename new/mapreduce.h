@@ -86,6 +86,7 @@ class MapReduce {
 
   void kv_stats(int);
   void kmv_stats(int);
+  void total_stats(bool);
 
   // query functions
 

@@ -29,6 +29,8 @@ class Spool {
   uint64_t esize;                    // size of all entries (with alignment)
   uint64_t rsize;                    // total bytes read from file
   uint64_t wsize;                    // total bytes written to file
+  static double trsize;              // total bytes read from all spool files
+  static double twsize;              // total bytes written to all spool files
 
   Spool(char *, int, class Memory *, class Error *);
   ~Spool();

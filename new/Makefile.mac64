@@ -4,7 +4,8 @@
 LOCALDISK = .
 
 CC =		mpic++ -m64
-CCFLAGS =	-g -O 
+#CCFLAGS =	-O2
+CCFLAGS =	-g
 DEPFLAGS =	-M
 ARCHIVE =	ar
 ARFLAGS =	-rc

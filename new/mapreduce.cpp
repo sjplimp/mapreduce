@@ -2173,6 +2173,61 @@ void MapReduce::kmv_stats(int level)
   }
 }
 
+/* ---------------------------------------------------------------------- */
+/* Report total file-read/write stats over all Spool, KeyValue, KeyMultiValue.
+ */
+void MapReduce::total_stats(bool reset)
+{
+  double tmp[6] = {Spool::trsize, Spool::twsize,
+                   KeyValue::trsize, KeyValue::twsize,
+                   KeyMultiValue::trsize, KeyMultiValue::twsize};
+  double tot[6] = {0., 0., 0., 0., 0., 0.};
+  double max[6] = {0., 0., 0., 0., 0., 0.};
+  double min[6] = {0., 0., 0., 0., 0., 0.};
+  const double megabyte = 1024. * 1024.;
+
+  MPI_Allreduce(tmp, tot, 6,
+                MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(tmp, max, 6,
+                MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(tmp, min, 6,
+                MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+
+  if (me == 0) {
+    printf("MEGABYTES TO FILES:  \n");
+    printf("          Spool files (min):  %.2lf MB read; %.2lf MB written\n",
+           min[0]/megabyte, min[1]/megabyte);
+    printf("       KeyValue files (min):  %.2lf MB read; %.2lf MB written\n", 
+           min[2]/megabyte, min[3]/megabyte);
+    printf("  KeyMultiValue files (min):  %.2lf MB read; %.2lf MB written\n", 
+           min[4]/megabyte, min[5]/megabyte);
+    printf("          Spool files (max):  %.2lf MB read; %.2lf MB written\n",
+           max[0]/megabyte, max[1]/megabyte);
+    printf("       KeyValue files (max):  %.2lf MB read; %.2lf MB written\n", 
+           max[2]/megabyte, max[3]/megabyte);
+    printf("  KeyMultiValue files (max):  %.2lf MB read; %.2lf MB written\n", 
+           max[4]/megabyte, max[5]/megabyte);
+    printf("          Spool files (total):  %.2lf MB read; %.2lf MB written\n",
+           tot[0]/megabyte, tot[1]/megabyte);
+    printf("       KeyValue files (total):  %.2lf MB read; %.2lf MB written\n", 
+           tot[2]/megabyte, tot[3]/megabyte);
+    printf("  KeyMultiValue files (total):  %.2lf MB read; %.2lf MB written\n", 
+           tot[4]/megabyte, tot[5]/megabyte);
+    printf("                Total:  %.2lf MB read; %.2lf MB written\n", 
+           (tot[0] + tot[2] + tot[4])/megabyte,
+           (tot[1] + tot[3] + tot[5])/megabyte);
+  }
+
+  if (reset) {
+    Spool::trsize = 0.;
+    Spool::twsize = 0.;
+    KeyValue::trsize = 0.;
+    KeyValue::twsize = 0.;
+    KeyMultiValue::trsize = 0.;
+    KeyMultiValue::twsize = 0.;
+  }
+}
+
 /* ----------------------------------------------------------------------
    stats for either KV or KMV
 ------------------------------------------------------------------------- */
