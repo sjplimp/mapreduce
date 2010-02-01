@@ -32,7 +32,10 @@ Error::Error(MPI_Comm caller)
 
 void Error::all(const char *str)
 {
-  if (me == 0) {printf("ERROR: %s\n",str); fflush(stdout);}
+  if (me == 0) {
+    printf("ERROR: %s\n",str);
+    fflush(stdout);
+  }
   MPI_Finalize();
   exit(1);
 }
