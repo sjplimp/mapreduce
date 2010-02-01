@@ -5,11 +5,20 @@ all:	wordfreq cwordfreq rmat crmat
 wordfreq:	wordfreq.o $(LIB)
 	$(LINK) $(LINKFLAGS) wordfreq.o $(USRLIB) $(SYSLIB) -o wordfreq
 
+wordfreq_new:	wordfreq_new.o $(LIB)
+	$(LINK) $(LINKFLAGS) wordfreq_new.o $(USRLIB) $(SYSLIB) -o wordfreq_new
+
 cwordfreq:	cwordfreq.o $(LIB)
 	$(LINK) $(LINKFLAGS) cwordfreq.o $(USRLIB) $(SYSLIB) -o cwordfreq
 
+cwordfreq_new:	cwordfreq_new.o $(LIB)
+	$(LINK) $(LINKFLAGS) cwordfreq_new.o $(USRLIB) $(SYSLIB) -o cwordfreq_new
+
 rmat:	rmat.o $(LIB)
 	$(LINK) $(LINKFLAGS) rmat.o $(USRLIB) $(SYSLIB) -o rmat
+
+rmat_new:	rmat_new.o $(LIB)
+	$(LINK) $(LINKFLAGS) rmat_new.o $(USRLIB) $(SYSLIB) -o rmat_new
 
 crmat:	crmat.o $(LIB)
 	$(LINK) $(LINKFLAGS) crmat.o $(USRLIB) $(SYSLIB) -o crmat

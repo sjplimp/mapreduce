@@ -1,0 +1,13 @@
+# Linux/MPI Makefile for MapReduce examples, g++, MPI
+
+CC =		gcc
+CPP =		g++
+CCFLAGS =	-g -O -I../new -DMPICH_IGNORE_CXX_SEEK
+LINK =		g++
+LINKFLAGS =	-g -O -L../new
+USRLIB =	-lmrmpi -lmpich
+SYSLIB =	-lpthread
+
+LIB =		../src/libmrmpi.a
+
+include Makefile.common
