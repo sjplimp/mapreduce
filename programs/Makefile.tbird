@@ -1,14 +1,14 @@
 # Tbird Makefile for MapReduce tools
 
 CC =		mpic++ 
-CCFLAGS =	-O2 -I../src  
+CCFLAGS =	-O2 -I../new
 #CCFLAGS +=     -DKDDTIME
 
 LINK =		mpic++
-LINKFLAGS =	-O2 -L../src -lmrmpi
-USRLIB =	-L../src -lmrmpi
+LINKFLAGS =	-O2 -L../new -lmrmpi
+USRLIB =	-L../new -lmrmpi
 SYSLIB =	
-LIB =		../src/libmrmpi.a
+LIB =		../new/libmrmpi.a
 DEPFLAGS =      -M
 
 

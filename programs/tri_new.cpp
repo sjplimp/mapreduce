@@ -67,7 +67,7 @@ int main(int narg, char **args)
   mr->verbosity = 1;
   mr->timer = 1;
   //mr->memsize = 1;
-  mr->memsize = 1024;
+  mr->memsize = 128;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
@@ -145,7 +145,7 @@ int main(int narg, char **args)
 // maps and reduces
 
 // read portion of input file
-// all procs trim last line (between newline and NULL)
+// all procs trim last line(s) (between newline and NULL)
 // 1st proc trims header line(s)
 // emit one KV per edge: key = (vi,vj), value = None
 
