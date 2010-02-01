@@ -65,7 +65,11 @@ void Memory::sfree(void *ptr)
 
 void *Memory::srealloc(void *ptr, int n, const char *name)
 {
-  if (n == 0) return NULL;
+  if (n == 0) {
+    sfree(ptr);
+    return NULL;
+  }
+
   ptr = realloc(ptr,n);
   if (ptr == NULL) {
     char str[128];
