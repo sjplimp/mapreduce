@@ -2173,9 +2173,10 @@ void MapReduce::kmv_stats(int level)
   }
 }
 
-/* ---------------------------------------------------------------------- */
-/* Report total file-read/write stats over all Spool, KeyValue, KeyMultiValue.
- */
+/* ----------------------------------------------------------------------
+   print total file read/write stats
+------------------------------------------------------------------------- */
+
 void MapReduce::total_stats(bool reset)
 {
   double tmp[6] = {Spool::trsize, Spool::twsize,
@@ -2209,9 +2210,11 @@ void MapReduce::total_stats(bool reset)
            max[4]/megabyte, max[5]/megabyte);
     printf("          Spool files (total):  %.2lf MB read; %.2lf MB written\n",
            tot[0]/megabyte, tot[1]/megabyte);
-    printf("       KeyValue files (total):  %.2lf MB read; %.2lf MB written\n", 
+    printf("       KeyValue files (total):  "
+	   "%.2lf MB read; %.2lf MB written\n", 
            tot[2]/megabyte, tot[3]/megabyte);
-    printf("  KeyMultiValue files (total):  %.2lf MB read; %.2lf MB written\n", 
+    printf("  KeyMultiValue files (total):  "
+	   "%.2lf MB read; %.2lf MB written\n", 
            tot[4]/megabyte, tot[5]/megabyte);
     printf("                Total:  %.2lf MB read; %.2lf MB written\n", 
            (tot[0] + tot[2] + tot[4])/megabyte,
