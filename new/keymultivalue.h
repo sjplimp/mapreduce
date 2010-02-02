@@ -36,7 +36,7 @@ class KeyMultiValue {
   uint64_t spool_rsize;            // total bytes read from spool files
   uint64_t spool_wsize;            // total bytes written to spool files
   
-  KeyMultiValue(MPI_Comm, char *, int, int, int, int);
+  KeyMultiValue(MPI_Comm, char *, uint64_t, int, int, int);
   ~KeyMultiValue();
 
   void copy(KeyMultiValue *);
@@ -48,7 +48,7 @@ class KeyMultiValue {
 
   void clone(class KeyValue *);
   void collapse(char *, int, class KeyValue *);
-  void convert(class KeyValue *, char *, int);
+  void convert(class KeyValue *, char *, uint64_t);
 
  private:
   int me;
@@ -71,7 +71,7 @@ class KeyMultiValue {
   int alignsize;                // current size of page with alignment
 
   char *page;                   // in-memory page
-  int pagesize;                 // size of page
+  uint64_t pagesize;            // size of page
 
   // virtual pages
 
@@ -104,10 +104,10 @@ class KeyMultiValue {
 
   Unique *uniques;      // list of data for unique keys
   int nunique;          // current # of unique keys
-  int maxunique;        // max # of unique keys that can be held in Uniques
+  uint64_t maxunique;   // max # of unique keys that can be held in Uniques
   char *ukeys;          // unique keys, one after the other
   int ukeyoffset;       // current size of all keys in ukeys
-  int maxukeys;         // max size of all keys in ukeys
+  uint64_t maxukeys;    // max size of all keys in ukeys
 
   // hash table for unique keys
 

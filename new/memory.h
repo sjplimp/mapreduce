@@ -23,10 +23,10 @@ class Memory {
   Memory(MPI_Comm);
   ~Memory();
 
-  void *smalloc(int, const char *);
-  void *smalloc_align(int, int, const char *);
+  void *smalloc(size_t, const char *);
+  void *smalloc_align(size_t, int, const char *);
   void sfree(void *);
-  void *srealloc(void *, int, const char *);
+  void *srealloc(void *, size_t, const char *);
 
  private:
   class Error *error;

@@ -67,8 +67,8 @@ class Spool {
   // file info
 
   char filename[MRMPI_FILENAMESIZE];    // filename to store Spool if needed
-  int fileflag;                 // 1 if file exists, 0 if not
-  FILE *fp;                     // file ptr
+  int fileflag;                         // 1 if file exists, 0 if not
+  FILE *fp;                             // file ptr
 
   // private methods
 

@@ -37,7 +37,7 @@ double KeyValue::trsize = 0.;
 /* ---------------------------------------------------------------------- */
 
 KeyValue::KeyValue(MPI_Comm comm_caller, 
-		   char *memblock, int memsize, int memtoggle, 
+		   char *memblock, uint64_t memsize, int memtoggle, 
 		   int memkalign, int memvalign, int counter)
 {
   comm = comm_caller;

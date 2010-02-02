@@ -105,12 +105,12 @@ class MapReduce {
   int instance_me;         // which instances_ever I am
   int allocated;
   double time_start,time_stop;
-  uint64_t rsize,wsize;
   class Memory *memory;
   class Error *error;
 
-  // spool statistics
+  // read/write stats
 
+  uint64_t rsize,wsize;            // bytes read/written by an operation
   uint64_t spool_rsize;            // total bytes read from spool files
   uint64_t spool_wsize;            // total bytes written to spool files
 
@@ -121,8 +121,9 @@ class MapReduce {
   char *mem2;            // remaining half of memblock
   char *memavail;        // ptr to which of mem0/mem1 is available
   int memtoggle;         // 0 if mem0 is available, 1 if mem1
-  int memquarter;        // size of quarter of memory block
-  int memhalf;           // size of half of memory block
+  uint64_t memfull;      // size of full memory block
+  uint64_t memhalf;      // size of half of memory block
+  uint64_t memquarter;   // size of quarter of memory block
 
   int twolenbytes;                 // byte length of two ints
   int kalign,valign;               // finalized alignments for keys/value

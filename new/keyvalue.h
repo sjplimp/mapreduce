@@ -35,7 +35,7 @@ class KeyValue {
   static double twsize;        // total bytes written to file for all KeyValues
   int fileflag;                      // 1 if file exists, 0 if not
 
-  KeyValue(MPI_Comm, char *, int, int, int, int, int);
+  KeyValue(MPI_Comm, char *, uint64_t, int, int, int, int);
   ~KeyValue();
 
   void copy(KeyValue *);
@@ -66,7 +66,7 @@ class KeyValue {
   int alignsize;                // current size of page with alignment
 
   char *page;                   // in-memory page
-  int pagesize;                 // size of page
+  uint64_t pagesize;            // size of page
 
   // virtual pages
 

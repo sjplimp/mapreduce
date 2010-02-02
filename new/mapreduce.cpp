@@ -270,9 +270,9 @@ void MapReduce::allocate()
   // allocate one big block of aligned memory
 
   if (memsize <= 0) error->all("Invalid memsize setting");
-  size_t nbytes = memsize * 1024*1024;
-  memblock = (char *) memory->smalloc_align(nbytes,ALIGNFILE,"MR:memblock");
-  memset(memblock,0,nbytes);
+  memfull = ((size_t) memsize) * 1024*1024;
+  memblock = (char *) memory->smalloc_align(memfull,ALIGNFILE,"MR:memblock");
+  memset(memblock,0,memfull);
 
   // check key,value alignment factors
 
@@ -297,8 +297,8 @@ void MapReduce::allocate()
   // mem2 = ptr to remaining half as scratch space
   // no need to align subsections because nbytes is Mbyte multiple
 
-  memquarter = nbytes/4;
-  memhalf = nbytes/2;
+  memhalf = memfull/2;
+  memquarter = memfull/4;
   mem0 = memblock;
   mem1 = &memblock[memquarter];
   mem2 = &memblock[memhalf];

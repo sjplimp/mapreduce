@@ -42,7 +42,7 @@ double KeyMultiValue::trsize = 0.;
 /* ---------------------------------------------------------------------- */
 
 KeyMultiValue::KeyMultiValue(MPI_Comm comm_caller,
-			     char *memblock, int memsize,
+			     char *memblock, uint64_t memsize,
 			     int memkalign, int memvalign, int counter)
 {
   comm = comm_caller;
@@ -388,7 +388,7 @@ void KeyMultiValue::collapse(char *key, int keybytes, KeyValue *kv)
    called by MR::convert()
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
+void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
 {
   int i,ichunk,spoolflag,spooled,nnew,nbits;
   char sfile[MRMPI_FILENAMESIZE];
@@ -419,7 +419,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
   double keyave = 1.0*ksize_kv/nkv;
 
   maxunique = 
-    static_cast<int> (memsize / (sizeof(Unique) + sizeof(int) + keyave));
+    static_cast<uint64_t> (memsize / (sizeof(Unique) + sizeof(int) + keyave));
   if (maxunique == 0) error->one("Cannot hold any unique keys in memory");
 
   nbuckets = 1;
@@ -427,7 +427,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
   nbuckets /= 2;
   hashmask = nbuckets-1;
 
-  int offset = 0;
+  uint64_t offset = 0;
   uniques = (Unique *) &memunique[offset];
   offset += maxunique*sizeof(Unique);
   buckets = (int *) &memunique[offset];
@@ -438,7 +438,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
   // loop over partitions of KV pairs
   // 1 partition = portion of KV pairs whose unique keys fit in memory
   // partitions that exceed this induce splitting of KV to spool files
-  // first parittion is entire KV which may create more partitions
+  // first partition is entire KV which may create more partitions
 
   npartition = 1;
   partitions[0].nkv = nkv;
@@ -485,7 +485,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
     spooled = kv2unique(ipartition,spoolflag);
 
     // if not used, delete seen and unseen spools
-    // will happen if unique keys for paritition fit in memory
+    // this happens if unique keys for partition fit in memory
     
     if (spoolflag && spooled == 0) {
       spool_rsize += seen->rsize + unseen->rsize;
@@ -494,7 +494,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, int memsize)
       delete unseen;
     }
 
-    // spooling occurred so need to split partition KVs
+    // spooling occurred so need to create partitions of KVs
     // spool file "seen" becomes spool file for 1st subset
     // spool file "unseen" is split into spool files for new partitions
     // estimate nnew = # of needed new partitions by seen/unseen file sizes
