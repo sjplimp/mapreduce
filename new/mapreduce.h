@@ -178,7 +178,7 @@ class MapReduce {
   void merge(int, class Spool *, class Spool *, class Spool *);
   int extract(int, char *, char *&, int &);
 
-  void stats(char *, int, int);
+  void stats(const char *, int, int);
   void histogram(int, double *, double &, double &, double &,
 		 int, int *, int *);
   void start_timer();

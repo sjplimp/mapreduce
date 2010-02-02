@@ -2232,7 +2232,7 @@ void MapReduce::total_stats(bool reset)
    stats for either KV or KMV
 ------------------------------------------------------------------------- */
 
-void MapReduce::stats(char *heading, int which, int level)
+void MapReduce::stats(const char *heading, int which, int level)
 {
   if (timer) {
     if (timer == 1) {
