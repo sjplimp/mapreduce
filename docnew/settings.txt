@@ -14,16 +14,23 @@ verbosity = 0 (none) or 1 (summary) or 2 (histogrammed)
 timer = 0 (none) or 1 (summary) or 2 (histogrammed)
 memsize = N = number of Mbytes of memory
 keyalign = N = byte-alignment of keys
-valuealign = N = byte-alignment of values :pre
+valuealign = N = byte-alignment of values
+fpath = string :pre
 
-They are set in the following manner from C++:
+All the settings except {fpath} are set in the following manner from
+C++:
 
 MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
 mr->verbosity = 1; :pre
 
+Because {fpath} takes a string argument, it is set with
+the following function:
+
+mr->set_fpath(char *string); :pre
+
 See the "C interface"_interface_c.html and "Python
-interface"_interface_python.html doc pages for how to set them from C
-and Python.
+interface"_interface_python.html doc pages for how to set the various
+settings from C and Python.
 
 As documented below, some of these settings can be changed at any
 time.  Others only have effect if they are changed before the
@@ -33,7 +40,7 @@ objects.
 :line
 
 The {mapstyle} setting determines how the N map tasks are assigned to
-the P processors by the "map()"_method.
+the P processors by the "map()"_map.html method.
 
 A value of 0 means split the tasks into "chunks" so that processor 0
 is given tasks from 0 to N/P, proc 1 is given tasks from N/P to 2N/P,
@@ -166,3 +173,29 @@ after that, they will have no effect.
 
 The default value for {keyalign} and {valuealign} is 4, meaning 4-byte
 alignment of keys and values.
+
+:line
+
+The {fpath} setting determines the pathname for all internal files
+created by MapReduce when it runs in out-of-core mode.  Note that it
+is not a pathname for data files read by the "map()"_map.html method.
+Those should be specified directly as part of the filename.
+
+Internal out-of-core files are created as fpath/mrmpi.kmv.N.P.  "Kmv"
+is for files of key/multivalue, and may be "kva" or "kvb" for
+key/value pairs, or "spl" for spool files which are created by the
+"collate()"_collate.html method.  N is an internal counter which the
+MR-MPI library keeps track of.  P is the processor ID.
+
+Setting {fpath} may be useful for specifying a disk local to each
+processor, or for a parallel file system that each processor can
+access.
+
+This setting can only be changed before the first KeyValue or
+KeyMultiValue object is created by the MapReduce object.  If changed
+after that, it will have no effect.
+
+The default value for {fpath} is ".", which means the current working
+directory.
+
+:line

@@ -89,6 +89,7 @@ email: sjplimp at sandia.gov, kddevin at sandia.gov.
   "MapReduce::sort_multivalues()"_sort_multivalues.html :l
   "MapReduce::kv_stats()"_stats.html :l
   "MapReduce::kmv_stats()"_stats.html :l
+  "MapReduce::cummulative_stats()"_stats.html :l
   "KeyValue::add()"_kv_add.html :l
   "Settings and defaults"_settings.html :l,ule
 
