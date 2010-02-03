@@ -27,6 +27,7 @@ class MapReduce {
   int memsize;      // # of Mbytes for each KV and KMV
   int keyalign;     // align keys to this byte count
   int valuealign;   // align values to this byte count
+  char *fpath;
 
   class KeyValue *kv;              // single KV stored by MR
   class KeyMultiValue *kmv;        // single KMV stored by MR
@@ -37,6 +38,7 @@ class MapReduce {
   static int instances_ever;       // total # of MRs ever instantiated
                                    // grows as created, never shrinks
   static int mpi_finalize_flag;    // 1 if MR library should finalize MPI
+  static uint64_t cssize,crsize;   // total send/recv bytes for all comm
 
   // library API
 
@@ -86,7 +88,9 @@ class MapReduce {
 
   void kv_stats(int);
   void kmv_stats(int);
-  void total_stats(bool);
+  void cummulative_stats(int, int);
+
+  void set_fpath(char *);
 
   // query functions
 
@@ -108,11 +112,8 @@ class MapReduce {
   class Memory *memory;
   class Error *error;
 
-  // read/write stats
-
-  uint64_t rsize,wsize;            // bytes read/written by an operation
-  uint64_t spool_rsize;            // total bytes read from spool files
-  uint64_t spool_wsize;            // total bytes written to spool files
+  uint64_t rsize_one,wsize_one;     // file read/write bytes for one operation
+  uint64_t crsize_one,cssize_one;   // send/recv comm bytes for one operation
 
   // memory partitions
 
@@ -169,7 +170,7 @@ class MapReduce {
   void copy_kv(KeyValue *);
   void copy_kmv(KeyMultiValue *);
   void allocate();
-  void memswap();
+  void memswap(char *);
 
   uint64_t map_file(int, int, char **,
 		    void (*)(int, char *, int, class KeyValue *, void *),
@@ -179,11 +180,13 @@ class MapReduce {
   void merge(int, class Spool *, class Spool *, class Spool *);
   int extract(int, char *, char *&, int &);
 
-  void stats(const char *, int, int);
+  void stats(const char *, int);
   void histogram(int, double *, double &, double &, double &,
 		 int, int *, int *);
-  void start_timer();
+  char *file_create(int, int);
+  void file_stats(int);
   int roundup(int, int);
+  void start_timer();
 };
 
 }

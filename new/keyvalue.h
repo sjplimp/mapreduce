@@ -17,7 +17,6 @@
 #include "mpi.h"
 #include "stdio.h"
 #include "stdint.h"
-#include "spool.h"
 
 namespace MAPREDUCE_NS {
 
@@ -29,13 +28,11 @@ class KeyValue {
   uint64_t ksize;                    // exact size of all key data
   uint64_t vsize;                    // exact size of all value data
   uint64_t tsize;                    // total exact size of entire KV
-  uint64_t rsize;                    // total bytes read from file
-  uint64_t wsize;                    // total bytes written to file
-  static double trsize;        // total bytes read from file for all KeyValues
-  static double twsize;        // total bytes written to file for all KeyValues
   int fileflag;                      // 1 if file exists, 0 if not
 
-  KeyValue(MPI_Comm, char *, uint64_t, int, int, int, int);
+  static uint64_t rsize,wsize;       // total read/write bytes for all KV files
+
+  KeyValue(MPI_Comm, char *, uint64_t, int, int, char *);
   ~KeyValue();
 
   void copy(KeyValue *);
@@ -86,7 +83,7 @@ class KeyValue {
 
   // file info
 
-  char filename[MRMPI_FILENAMESIZE];       // filename to store KV if needed
+  char *filename;               // filename to store KV if needed
   FILE *fp;                     // file ptr
 
   // private methods

@@ -19,9 +19,13 @@
 #include "keyvalue.h"
 #include "memory.h"
 #include "error.h"
-#include "spool.h"
 
 using namespace MAPREDUCE_NS;
+
+// allocate space for static class variables and initialize them
+
+uint64_t KeyValue::rsize = 0;
+uint64_t KeyValue::wsize = 0;
 
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
@@ -31,14 +35,11 @@ using namespace MAPREDUCE_NS;
 #define ALIGNFILE 512              // same as in mapreduce.cpp
 #define PAGECHUNK 16
 
-double KeyValue::twsize = 0.;
-double KeyValue::trsize = 0.;
-
 /* ---------------------------------------------------------------------- */
 
 KeyValue::KeyValue(MPI_Comm comm_caller, 
-		   char *memblock, uint64_t memsize, int memtoggle, 
-		   int memkalign, int memvalign, int counter)
+		   char *memblock, uint64_t memsize, 
+		   int memkalign, int memvalign, char *memfile)
 {
   comm = comm_caller;
   int me;
@@ -47,8 +48,9 @@ KeyValue::KeyValue(MPI_Comm comm_caller,
   memory = new Memory(comm);
   error = new Error(comm);
 
-  if (memtoggle == 0) sprintf(filename,"%s/mrmpi.kva.%d.%d",MRMPI_LOCALDISK,counter,me);
-  else sprintf(filename,"%s/mrmpi.kvb.%d.%d",MRMPI_LOCALDISK,counter,me);
+  int n = strlen(memfile) + 1;
+  filename = new char[n];
+  strcpy(filename,memfile);
   fileflag = 0;
   fp = NULL;
 
@@ -72,7 +74,6 @@ KeyValue::KeyValue(MPI_Comm comm_caller,
   twolenbytes = 2*sizeof(int);
 
   nkv = ksize = vsize = tsize = 0;
-  rsize = wsize = 0;
   init_page();
 }
 
@@ -85,6 +86,7 @@ KeyValue::~KeyValue()
 
   memory->sfree(pages);
   if (fileflag) remove(filename);
+  delete [] filename;
 }
 
 /* ----------------------------------------------------------------------
@@ -525,14 +527,12 @@ void KeyValue::write_page()
       error->one(msg);
     }
     fileflag = 1;
-    wsize = 0;
   }
 
   uint64_t fileoffset = pages[npage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(page,pages[npage].filesize,1,fp);
   wsize += pages[npage].filesize;
-  twsize += pages[npage].filesize;
 }
 
 /* ----------------------------------------------------------------------
@@ -546,14 +546,12 @@ void KeyValue::read_page(int ipage, int writeflag)
     if (writeflag) fp = fopen(filename,"r+b");
     else fp = fopen(filename,"rb");
     if (fp == NULL) error->one("Could not open KeyValue file for reading");
-    rsize = wsize = 0;
   }
 
   uint64_t fileoffset = pages[ipage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fread(page,pages[ipage].filesize,1,fp);
   rsize += pages[ipage].filesize;
-  trsize += pages[ipage].filesize;
 }
 
 /* ----------------------------------------------------------------------

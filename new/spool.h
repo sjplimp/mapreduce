@@ -16,21 +16,14 @@
 
 #include "stdio.h"
 
-#define _MRMPI_QUOTE(x) #x
-#define MRMPI_QUOTE(x) _MRMPI_QUOTE(x)
-#define MRMPI_LOCALDISK MRMPI_QUOTE(LOCALDISK)
-#define MRMPI_FILENAMESIZE 124
-
 namespace MAPREDUCE_NS {
 
 class Spool {
  public:
   uint64_t nkv;                      // # of KV entries in entire spool file
   uint64_t esize;                    // size of all entries (with alignment)
-  uint64_t rsize;                    // total bytes read from file
-  uint64_t wsize;                    // total bytes written to file
-  static double trsize;              // total bytes read from all spool files
-  static double twsize;              // total bytes written to all spool files
+
+  static uint64_t rsize,wsize;       // total r/w bytes for all Sp files
 
   Spool(char *, int, class Memory *, class Error *);
   ~Spool();
@@ -66,9 +59,9 @@ class Spool {
 
   // file info
 
-  char filename[MRMPI_FILENAMESIZE];    // filename to store Spool if needed
-  int fileflag;                         // 1 if file exists, 0 if not
-  FILE *fp;                             // file ptr
+  char *filename;               // filename to store Spool if needed
+  int fileflag;                 // 1 if file exists, 0 if not
+  FILE *fp;                     // file ptr
 
   // private methods
 

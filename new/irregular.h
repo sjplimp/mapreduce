@@ -15,6 +15,7 @@
 #define IRREGULAR_H
 
 #include "mpi.h"
+#include "stdint.h"
 
 namespace MAPREDUCE_NS {
 
@@ -22,6 +23,8 @@ class Irregular {
  public:
   Irregular(MPI_Comm);
   ~Irregular();
+
+  uint64_t cssize,crsize;    // total send/recv bytes for one exchange
 
   void pattern(int, int *);
   int size(int);

@@ -25,6 +25,11 @@
 
 using namespace MAPREDUCE_NS;
 
+// allocate space for static class variables and initialize them
+
+uint64_t KeyMultiValue::rsize = 0;
+uint64_t KeyMultiValue::wsize = 0;
+
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
@@ -36,14 +41,11 @@ using namespace MAPREDUCE_NS;
 #define PAGECHUNK 16
 #define SPOOLMBYTES 1
 
-double KeyMultiValue::twsize = 0.;
-double KeyMultiValue::trsize = 0.;
-
 /* ---------------------------------------------------------------------- */
 
 KeyMultiValue::KeyMultiValue(MPI_Comm comm_caller,
 			     char *memblock, uint64_t memsize,
-			     int memkalign, int memvalign, int counter)
+			     int memkalign, int memvalign, char *memfile)
 {
   comm = comm_caller;
   MPI_Comm_rank(comm,&me);
@@ -51,7 +53,9 @@ KeyMultiValue::KeyMultiValue(MPI_Comm comm_caller,
   memory = new Memory(comm);
   error = new Error(comm);
 
-  sprintf(filename,"%s/mrmpi.kmv.%d.%d",MRMPI_LOCALDISK,counter,me);
+  int n = strlen(memfile) + 1;
+  filename = new char[n];
+  strcpy(filename,memfile);
   fileflag = 0;
   fp = NULL;
 
@@ -75,7 +79,7 @@ KeyMultiValue::KeyMultiValue(MPI_Comm comm_caller,
   twolenbytes = 2*sizeof(int);
   threelenbytes = 3*sizeof(int);
 
-  nkmv = ksize = vsize = tsize = rsize = wsize = 0;
+  nkmv = ksize = vsize = tsize = 0;
   init_page();
 }
 
@@ -88,6 +92,7 @@ KeyMultiValue::~KeyMultiValue()
 
   memory->sfree(pages);
   if (fileflag) remove(filename);
+  delete [] filename;
 }
 
 /* ----------------------------------------------------------------------
@@ -157,7 +162,6 @@ void KeyMultiValue::complete()
 
 int KeyMultiValue::request_info(char **ptr)
 {
-  rsize = wsize = 0;
   *ptr = page;
   return npage;
 }
@@ -388,10 +392,13 @@ void KeyMultiValue::collapse(char *key, int keybytes, KeyValue *kv)
    called by MR::convert()
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
+void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
+			    char *fpath)
 {
   int i,ichunk,spoolflag,spooled,nnew,nbits;
-  char sfile[MRMPI_FILENAMESIZE];
+
+  int n = strlen(fpath) + 32;
+  char *sfile = new char[n];
 
   maxpartition = PARTITIONCHUNK;
   partitions = (Partition *) 
@@ -405,7 +412,6 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
   nchunk = 0;
 
   int fcount = 0;
-  spool_rsize = spool_wsize = 0;
 
   // partition memunique to hold unique keys
   // each unique key requires:
@@ -458,9 +464,9 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
 	partitions[ipartition].ksize > maxukeys) {
       spoolflag = 1;
 
-      sprintf(sfile,"%s/mrmpi.sp.%d.%d",MRMPI_LOCALDISK,fcount++,me);
+      sprintf(sfile,"%s/mrmpi.spl.%d.%d",fpath,fcount++,me);
       seen = new Spool(sfile,memspool,memory,error);
-      sprintf(sfile,"%s/mrmpi.sp.%d.%d",MRMPI_LOCALDISK,fcount++,me);
+      sprintf(sfile,"%s/mrmpi.spl.%d.%d",fpath,fcount++,me);
       unseen = new Spool(sfile,memspool,memory,error);
       seen_ksize = unseen_ksize = 0;
     }
@@ -488,8 +494,6 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
     // this happens if unique keys for partition fit in memory
     
     if (spoolflag && spooled == 0) {
-      spool_rsize += seen->rsize + unseen->rsize;
-      spool_wsize += seen->wsize + unseen->wsize;
       delete seen;
       delete unseen;
     }
@@ -501,11 +505,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
     // nnew = next larger power-of-2 so can use hash bits for splitting unseen
 
     if (spooled) {
-      if (partitions[ipartition].sp) {
-	spool_rsize += partitions[ipartition].sp->rsize;
-	spool_wsize += partitions[ipartition].sp->wsize;
-	delete partitions[ipartition].sp;
-      }
+      if (partitions[ipartition].sp) delete partitions[ipartition].sp;
 
       nnew = unseen->nkv/seen->nkv + 1;
       nbits = 0;
@@ -549,14 +549,12 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
 
 	for (i = npartition; i < npartition+nnew; i++) {
 	  partitions[i].kv = NULL;
-	  sprintf(sfile,"%s/mrmpi.sp.%d.%d",MRMPI_LOCALDISK,fcount++,me);
+	  sprintf(sfile,"%s/mrmpi.spl.%d.%d",fpath,fcount++,me);
 	  partitions[i].sp = new Spool(sfile,memspool,memory,error);
 	  partitions[i].sp->assign(chunks[ichunk++]);
 	}
 	
 	unseen2spools(nnew,nbits,partitions[ipartition].sortbit);
-	spool_rsize += unseen->rsize;
-	spool_wsize += unseen->wsize;
 	delete unseen;
 	npartition += nnew;
       }
@@ -595,17 +593,13 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
 
 	for (i = 0; i < nset; i++) {
 	  sets[i].kv = NULL;
-	  sprintf(sfile,"%s/mrmpi.sp.%d.%d",MRMPI_LOCALDISK,fcount++,me);
+	  sprintf(sfile,"%s/mrmpi.spl.%d.%d",fpath,fcount++,me);
 	  sets[i].sp = new Spool(sfile,memspool,memory,error);
 	  sets[i].sp->assign(chunks[ichunk++]);
 	}
 
 	unique2spools(ipartition);
-	if (partitions[ipartition].sp) {
-	  spool_rsize += partitions[ipartition].sp->rsize;
-	  spool_wsize += partitions[ipartition].sp->wsize;
-	  delete partitions[ipartition].sp;
-	}
+	if (partitions[ipartition].sp) delete partitions[ipartition].sp;
       }
 
       // scan KV pairs in a set to populate KMV page(s) with KV values
@@ -614,11 +608,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
       if (sets[iset].sp) sets[iset].sp->assign(chunks[0]);
       if (!sets[iset].extended) kv2kmv(iset);
       else kv2kmv_extended(iset);
-      if (sets[iset].sp) {
-	spool_rsize += sets[iset].sp->rsize;
-	spool_wsize += sets[iset].sp->wsize;
-	delete sets[iset].sp;
-      }
+      if (sets[iset].sp) delete sets[iset].sp;
 
       // write KMV page to disk unless very last one
       
@@ -642,6 +632,7 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize)
   memory->sfree(sets);
   for (i = 0; i < nchunk; i++) memory->sfree(chunks[i]);
   memory->sfree(chunks);
+  delete [] sfile;
 }
 
 /* ----------------------------------------------------------------------
@@ -1399,7 +1390,6 @@ void KeyMultiValue::write_page()
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(page,pages[npage].filesize,1,fp);
   wsize += pages[npage].filesize;
-  twsize += pages[npage].filesize;
 }
 
 /* ----------------------------------------------------------------------
@@ -1420,7 +1410,6 @@ void KeyMultiValue::read_page(int ipage, int writeflag)
   fseek(fp,fileoffset,SEEK_SET);
   fread(page,pages[ipage].filesize,1,fp);
   rsize += pages[ipage].filesize;
-  trsize += pages[ipage].filesize;
 }
 
 /* ----------------------------------------------------------------------

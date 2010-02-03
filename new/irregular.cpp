@@ -218,13 +218,21 @@ int Irregular::size(int n)
 
   nsize = n;
 
+  cssize = crsize = 0;
   nsendmax = 0;
+
   for (int i = 0; i < nsend+self; i++) {
     sendsize[i] = nsize * sendcount[i];
-    if (i < nsend) nsendmax = MAX(nsendmax,sendsize[i]);
+    if (i < nsend) {
+      nsendmax = MAX(nsendmax,sendsize[i]);
+      cssize += sendsize[i];
+    }
   }
 
-  for (int i = 0; i < nrecv; i++) recvsize[i] = nsize * recvcount[i];
+  for (int i = 0; i < nrecv; i++) {
+    recvsize[i] = nsize * recvcount[i];
+    crsize += recvsize[i];
+  }
   nbytesrecv = nsize * ndatumrecv;
 
   return nbytesrecv;
@@ -261,13 +269,18 @@ int Irregular::size(int *slength, int *soffset, int *rlength)
     sendoffset = soffset;
   }
 
+  cssize = crsize = 0;
   nsendmax = 0;
+
   int m = 0;
   for (int i = 0; i < nsend+self; i++) {
     sendsize[i] = 0;
     for (int j = 0; j < sendcount[i]; j++)
       sendsize[i] += sendsizedatum[sendindices[m++]];
-    if (i < nsend) nsendmax = MAX(nsendmax,sendsize[i]);
+    if (i < nsend) {
+      nsendmax = MAX(nsendmax,sendsize[i]);
+      cssize += sendsize[i];
+    }
   }
 
   nbytesrecv = 0;
@@ -276,6 +289,7 @@ int Irregular::size(int *slength, int *soffset, int *rlength)
     recvsize[i] = 0;
     for (int j = 0; j < recvcount[i]; j++) recvsize[i] += rlength[m++];
     nbytesrecv += recvsize[i];
+    crsize += recvsize[i];
   }
   if (self) nbytesrecv += sendsize[nsend];
 

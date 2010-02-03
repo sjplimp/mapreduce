@@ -17,7 +17,6 @@
 #include "mpi.h"
 #include "stdio.h"
 #include "stdint.h"
-#include "spool.h"
 
 namespace MAPREDUCE_NS {
 
@@ -27,16 +26,11 @@ class KeyMultiValue {
   uint64_t ksize;                  // exact size of all key data
   uint64_t vsize;                  // exact size of all multivalue data
   uint64_t tsize;                  // total exact size of entire KMV
-  uint64_t rsize;                  // total bytes read from file
-  uint64_t wsize;                  // total bytes written to file
-  static double trsize;     // total bytes read from file for all KeyMultiValue
-  static double twsize;     // total bytes written to file for all KeyMultiValue
   int fileflag;                    // 1 if file exists, 0 if not
 
-  uint64_t spool_rsize;            // total bytes read from spool files
-  uint64_t spool_wsize;            // total bytes written to spool files
+  static uint64_t rsize,wsize;     // total read/write bytes for all KMV files
   
-  KeyMultiValue(MPI_Comm, char *, uint64_t, int, int, int);
+  KeyMultiValue(MPI_Comm, char *, uint64_t, int, int, char *);
   ~KeyMultiValue();
 
   void copy(KeyMultiValue *);
@@ -48,7 +42,7 @@ class KeyMultiValue {
 
   void clone(class KeyValue *);
   void collapse(char *, int, class KeyValue *);
-  void convert(class KeyValue *, char *, uint64_t);
+  void convert(class KeyValue *, char *, uint64_t, char *);
 
  private:
   int me;
@@ -117,7 +111,7 @@ class KeyMultiValue {
 
   // file info
 
-  char filename[MRMPI_FILENAMESIZE];    // filename to store KV if needed
+  char *filename;       // filename to store KMV if needed
   FILE *fp;             // file ptr
 
   // partitions of KV data
@@ -133,7 +127,7 @@ class KeyMultiValue {
   Partition *partitions;
   int npartition,maxpartition;
 
-  Spool *seen,*unseen;
+  class Spool *seen,*unseen;
   int seen_ksize,unseen_ksize;
 
   // sets of unique keys

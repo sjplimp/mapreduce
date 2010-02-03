@@ -20,11 +20,13 @@
 
 using namespace MAPREDUCE_NS;
 
+// allocate space for static class variables and initialize them
+
+uint64_t Spool::rsize = 0;
+uint64_t Spool::wsize = 0;
+
 #define ALIGNFILE 512              // same as in mapreduce.cpp
 #define PAGECHUNK 16
-
-double Spool::twsize = 0;
-double Spool::trsize = 0;
 
 /* ---------------------------------------------------------------------- */
 
@@ -34,6 +36,8 @@ Spool::Spool(char *memfile, int memsize,
   memory = memory_caller;
   error = error_caller;
 
+  int n = strlen(memfile) + 1;
+  filename = new char[n];
   strcpy(filename,memfile);
   fileflag = 0;
   fp = NULL;
@@ -42,7 +46,6 @@ Spool::Spool(char *memfile, int memsize,
   pages = NULL;
   npage = maxpage = 0;
 
-  rsize = wsize = 0;
   nentry = size = 0;
 }
 
@@ -52,6 +55,7 @@ Spool::~Spool()
 {
   memory->sfree(pages);
   if (fileflag) remove(filename);
+  delete [] filename;
 }
 
 /* ----------------------------------------------------------------------
@@ -174,7 +178,6 @@ void Spool::write_page()
 
   fwrite(page,pages[npage].filesize,1,fp);
   wsize += pages[npage].filesize;
-  twsize += pages[npage].filesize;
 }
 
 /* ----------------------------------------------------------------------
@@ -190,7 +193,6 @@ void Spool::read_page(int ipage)
 
   fread(page,pages[ipage].filesize,1,fp);
   rsize += pages[ipage].filesize;
-  trsize += pages[ipage].filesize;
 }
 
 /* ----------------------------------------------------------------------
