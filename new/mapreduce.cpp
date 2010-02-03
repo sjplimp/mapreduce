@@ -2248,6 +2248,20 @@ void MapReduce::cummulative_stats(int level, int reset)
 }
 
 /* ----------------------------------------------------------------------
+   change fpath, but only if allocation has not occurred
+------------------------------------------------------------------------- */
+
+void MapReduce::set_fpath(char *str)
+{
+  if (allocated) return;
+
+  delete [] fpath;
+  int n = strlen(str) + 1;
+  fpath = new char[n];
+  strcpy(fpath,str);
+}
+
+/* ----------------------------------------------------------------------
    stats for one operation and its resulting KV or KMV
    which = 0 for KV, which = 1 for KMV
    output timer, KV/KMV, comm, I/O, or nothing depending on settings
@@ -2347,20 +2361,6 @@ void MapReduce::stats(const char *heading, int which)
 }
 
 /* ----------------------------------------------------------------------
-   change fpath, but only if allocation has not occurred
-------------------------------------------------------------------------- */
-
-void MapReduce::set_fpath(char *str)
-{
-  if (allocated) return;
-
-  delete [] fpath;
-  int n = strlen(str) + 1;
-  fpath = new char[n];
-  strcpy(fpath,str);
-}
-
-/* ----------------------------------------------------------------------
    round N up to multiple of nalign and return it
 ------------------------------------------------------------------------- */
 
@@ -2420,4 +2420,44 @@ int MapReduce::roundup(int n, int nalign)
   if (n % nalign == 0) return n;
   n = (n/nalign + 1) * nalign;
   return n;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void MapReduce::histogram(int n, double *data, 
+			  double &ave, double &max, double &min,
+			  int nhisto, int *histo, int *histotmp)
+{
+  min = 1.0e20;
+  max = -1.0e20;
+  ave = 0.0;
+  for (int i = 0; i < n; i++) {
+    ave += data[i];
+    if (data[i] < min) min = data[i];
+    if (data[i] > max) max = data[i];
+  }
+
+  int ntotal;
+  MPI_Allreduce(&n,&ntotal,1,MPI_INT,MPI_SUM,comm);
+  double tmp;
+  MPI_Allreduce(&ave,&tmp,1,MPI_DOUBLE,MPI_SUM,comm);
+  ave = tmp/ntotal;
+  MPI_Allreduce(&min,&tmp,1,MPI_DOUBLE,MPI_MIN,comm);
+  min = tmp;
+  MPI_Allreduce(&max,&tmp,1,MPI_DOUBLE,MPI_MAX,comm);
+  max = tmp;
+
+  for (int i = 0; i < nhisto; i++) histo[i] = 0;
+
+  int m;
+  double del = max - min;
+  for (int i = 0; i < n; i++) {
+    if (del == 0.0) m = 0;
+    else m = static_cast<int> ((data[i]-min)/del * nhisto);
+    if (m > nhisto-1) m = nhisto-1;
+    histo[m]++;
+  }
+
+  MPI_Allreduce(histo,histotmp,nhisto,MPI_INT,MPI_SUM,comm);
+  for (int i = 0; i < nhisto; i++) histo[i] = histotmp[i];
 }

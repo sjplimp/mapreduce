@@ -181,12 +181,12 @@ class MapReduce {
   int extract(int, char *, char *&, int &);
 
   void stats(const char *, int);
-  void histogram(int, double *, double &, double &, double &,
-		 int, int *, int *);
   char *file_create(int, int);
   void file_stats(int);
   int roundup(int, int);
   void start_timer();
+  void histogram(int, double *, double &, double &, double &,
+		 int, int *, int *);
 };
 
 }
