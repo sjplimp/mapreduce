@@ -184,8 +184,9 @@ Those should be specified directly as part of the filename.
 Internal out-of-core files are created as fpath/mrmpi.kmv.N.P.  "Kmv"
 is for files of key/multivalue, and may be "kva" or "kvb" for
 key/value pairs, or "spl" for spool files which are created by the
-"collate()"_collate.html method.  N is an internal counter which the
-MR-MPI library keeps track of.  P is the processor ID.
+"collate()"_collate.html or "convert()"_convert.html or sorting
+methods.  N is an internal counter which the MR-MPI library keeps
+track of.  P is the processor ID.
 
 Setting {fpath} may be useful for specifying a disk local to each
 processor, or for a parallel file system that each processor can
