@@ -136,7 +136,7 @@ void genwords(int itask, KeyValue *kv, void *ptr)
   // Compute number of instances of the word to emit.
   int N = *((int *) ptr);
   uint64_t nwords = (1 << N);
-  static uint64_t progress = 0;
+  static uint64_t progress = 0, nextprint = FREQ;
 
   int nprocs, me;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
@@ -148,8 +148,10 @@ void genwords(int itask, KeyValue *kv, void *ptr)
     sprintf(key, "%llu", i);
     kv->add((char *) &proc, sizeof(int), key, strlen(key)+1);
     progress++;
-    if (ME == 0 && !(progress%FREQ)) 
+    if (ME == 0 && progress > nextprint) {
       printf("%d     genwords %llu\n", ME, progress);
+      nextprint += FREQ;
+    }
   }
 }
 
@@ -157,10 +159,12 @@ void genwords(int itask, KeyValue *kv, void *ptr)
 int identity(char *key, int keybytes)
 {
   int p = *((int *) key);
-  static uint64_t progress = 0;
+  static uint64_t progress = 0, nextprint = FREQ;
   progress++;
-  if (ME == 0 && !(progress%FREQ)) 
+  if (ME == 0 && progress > nextprint) {
     printf("%d     identity %llu\n", ME, progress);
+    nextprint += FREQ;
+  }
   return p;
 }
 
@@ -198,10 +202,12 @@ void balance(char *key, int keybytes, char *multivalue,
 void sum(char *key, int keybytes, char *multivalue,
 	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  static uint64_t progress = 0;
+  static uint64_t progress = 0, nextprint = FREQ;
   progress++;
-  if (ME == 0 && !(progress%FREQ)) 
+  if (ME == 0 && progress > nextprint) {
     printf("%d     sum %llu\n", ME, progress);
+    nextprint += FREQ;
+  }
   kv->add(key,keybytes,(char *) &nvalues,sizeof(int));
 }
 
@@ -214,10 +220,12 @@ void globalsum(char *key, int keybytes, char *multivalue,
 	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   int sum = 0; 
-  static uint64_t progress = 0;
+  static uint64_t progress = 0, nextprint = FREQ;
   progress++;
-  if (ME == 0 && !(progress%FREQ)) 
+  if (ME == 0 && progress > nextprint) {
     printf("%d     globalsum %llu\n", ME, progress);
+    nextprint += FREQ;
+  }
   for (int i = 0; i < nvalues; i++) sum += *(((int *) multivalue)+i);
   kv->add(key,keybytes,(char *) &sum,sizeof(int));
 }
