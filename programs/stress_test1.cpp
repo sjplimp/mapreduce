@@ -13,10 +13,19 @@
 
 // MapReduce test_big program in C++
 // Syntax: test_big -n N -m memsize
-// (1) generates #processor * 2^N words; uses MR memsize = M.
-// (2) assigns words to processors (key = processor ID; value = word)
-// (3) collates by processor
-// (4) performs wordcount with local compress followed by global reduce.
+// (1) Generates #processor * 2^N words; uses MR memsize = M.
+//     Words are the numbers 0 to 2^N-1 represented as strings.
+// (2) Assigns words to processors (key = processor ID; value = word)
+// (3) Collates by processor
+//     Tests lots of data re-shuffling; only (2^N)/P words remain on
+//     each processor; the rest move to new processors.
+// (4) Reduce emits words on each processor.
+//     Tests large multivalue for a single key.  
+// (5) Perform local wordcount with compress.
+//     Note that the local compress is usually a good idea, but for the
+//     input of this problem, it has no effect.
+// (6) Perform global wordcount with collate followed by reduce.
+//     Tests reduce with many keys with small multivalues.
 //  Output should be
 //  nwords = #proc * 2^N : nunique = 2^N :  time
 
