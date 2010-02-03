@@ -17,6 +17,8 @@
 // (2) assigns words to processors (key = processor ID; value = word)
 // (3) collates by processor
 // (4) performs wordcount with local compress followed by global reduce.
+//  Output should be
+//  nwords = #proc * 2^N : nunique = 2^N :  time
 
 #include "mpi.h"
 #include "stdio.h"
@@ -130,14 +132,15 @@ void genwords_thenbalance(int itask, KeyValue *kv, void *ptr)
   int N = *((int *) ptr);
   uint64_t nwords = (1 << N);
 
-  int nprocs;
+  int nprocs, me;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
   for (uint64_t i = 0; i < nwords; i++) {
-    int proc = i % nprocs;
+    int proc = (i+me) % nprocs;
     char key[32];
     sprintf(key, "%llu", i);
-    kv->add((char *) &proc, sizeof(int), key, strlen(key));
+    kv->add((char *) &proc, sizeof(int), key, strlen(key)+1);
   }
 }
 
@@ -153,6 +156,10 @@ int identity(char *key, int keybytes)
 void balance(char *key, int keybytes, char *multivalue,
 	     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
+  int me;
+  MPI_Comm_rank(MPI_COMM_WORLD, &me);
+  static int ncalls = 0;
+
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
@@ -164,6 +171,9 @@ void balance(char *key, int keybytes, char *multivalue,
   }
 
   END_BLOCK_LOOP
+
+  ncalls++;
+  assert(ncalls == 1);  // balance should be called only once per processor.
 }
 
 /* ----------------------------------------------------------------------
