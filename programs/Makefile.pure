@@ -1,0 +1,16 @@
+# Mac/MPI Makefile for MapReduce programs
+
+PURE_CC =	purify -best-effort -follow-child-processes=yes \
+                          -cache-dir=/tmp/purify \
+                          -chain-length=20 
+CC =		g++34 -m64 -Wall -DNEW_OUT_OF_CORE
+CCFLAGS =	-g -I../new $(shell mpic++ --showme:compile)
+LINK =		$(PURE_CC) $(CC)
+LINKFLAGS =	-g 
+USRLIB =	-L../new -lmrmpi $(shell mpic++ --showme:link) 
+SYSLIB =	
+LIB =		../new/libmrmpi.a
+DEPFLAGS = -M
+
+include Makefile.common
+
