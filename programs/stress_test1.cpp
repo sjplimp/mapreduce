@@ -25,14 +25,15 @@
 
 #undef LOCALCOMPRESS
 
-#include "mpi.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
-#include "sys/stat.h"
+#include <mpi.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
+#include <assert.h>
 
 using namespace MAPREDUCE_NS;
 
