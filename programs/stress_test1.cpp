@@ -38,7 +38,8 @@
 using namespace MAPREDUCE_NS;
 
 void genwords(int, KeyValue *, void *);
-void balance(char *, int, char *, int, int *, KeyValue *, void *);
+void redistribute_by_processor(char *, int, char *, int, int *, 
+                               KeyValue *, void *);
 int identity(char *, int);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 void globalsum(char *, int, char *, int, int *, KeyValue *, void *);
@@ -91,10 +92,10 @@ int main(int narg, char **args)
   uint64_t nwords = mr->map(nprocs, &genwords, &N);
 
   // Redistribute the words equally among the processors.  
-  if (me == 0) {printf("KDD:  balance...collate\n"); fflush(stdout);}
+  if (me == 0) {printf("KDD:  redistribute...collate\n"); fflush(stdout);}
   mr->collate(&identity);  // Collates by processor
-  if (me == 0) {printf("KDD:  balance...reduce\n"); fflush(stdout);}
-  mr->reduce(&balance, NULL);
+  if (me == 0) {printf("KDD:  redistribute...reduce\n"); fflush(stdout);}
+  mr->reduce(&redistribute_by_processor, NULL);
 
 
 #ifdef LOCALCOMPRESS
@@ -124,7 +125,7 @@ int main(int narg, char **args)
   if (me == 0) printf("nwords = %llu : nunique = %llu : Time = %f\n", nwords, nunique, tstop - tstart);
 
 #ifdef NEW_OUT_OF_CORE
-  mr->total_stats(false);
+  mr->cummulative_stats(2, 0);
 #endif
   delete mr;
 
@@ -171,7 +172,7 @@ int identity(char *key, int keybytes)
 
 
 ///////////////////////////////////////////////////////////////////////////
-void balance(char *key, int keybytes, char *multivalue,
+void redistribute_by_processor(char *key, int keybytes, char *multivalue,
 	     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   static int ncalls = 0;
@@ -187,12 +188,13 @@ void balance(char *key, int keybytes, char *multivalue,
   }
 
   progress += nvalues;
-  if (ME == 0) printf("%d     balance %llu words...\n", ME, progress);
+  if (ME == 0) printf("%d     redistribute %llu words...\n", ME, progress);
 
   END_BLOCK_LOOP
 
   ncalls++;
-  assert(ncalls == 1);  // balance should be called only once per processor.
+  assert(ncalls == 1);  // redistribute_by_processor should be called 
+                        // only once per processor.
 }
 
 /* ----------------------------------------------------------------------

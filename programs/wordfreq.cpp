@@ -158,7 +158,7 @@ int main(int narg, char **args)
   }
 
 #ifdef NEW_OUT_OF_CORE
-  mr->total_stats(true);
+  mr->cummulative_stats(2, 1);
 #endif
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -215,7 +215,7 @@ int main(int narg, char **args)
 #endif // POSTPROCESS
 
 #ifdef NEW_OUT_OF_CORE
-  mr->total_stats(false);
+  mr->cummulative_stats(2, 0);
 #endif
   delete mr;
 
@@ -345,7 +345,7 @@ void genwords_thenbalance(int itask, KeyValue *kv, void *ptr)
 
   for (uint64_t w = minword; w < maxword; w++) {
     char key[32];
-    sprintf(key, "%ld\0", w);
+    sprintf(key, "%llu", w);
     for (uint64_t i = 0; i < ncopies; i++) {
       int proc = count % np;
       count++;
@@ -400,7 +400,7 @@ void genwords_fileequiv(int itask, KeyValue *kv, void *ptr)
 
   for (uint64_t w = minword; w < maxword; w++) {
     char key[32];
-    sprintf(key, "%ld\0", w);
+    sprintf(key, "%llu", w);
     for (uint64_t i = 0; i < ncopies; i++) {
       kv->add(key, strlen(key)+1, NULL, 0);
     }
@@ -427,7 +427,7 @@ void genwords_wordpertask(int itask, KeyValue *kv, void *ptr)
 
   // Emit 2**(N-m) copies of itask.
   char key[32];
-  sprintf(key, "%d\0", itask);
+  sprintf(key, "%d", itask);
   uint64_t ncopies = (1<<(N-m));
   for (uint64_t i = 0; i < ncopies; i++) {
     kv->add(key, strlen(key)+1, NULL, 0);
@@ -449,7 +449,7 @@ void genwords_wordpertask_thenbalance(int itask, KeyValue *kv, void *ptr)
 
   // Emit 2**(N-m) copies of itask.
   char key[32];
-  sprintf(key, "%d\0", itask);
+  sprintf(key, "%d", itask);
   uint64_t ncopies = (1<<(N-m));
   for (uint64_t i = 0; i < ncopies; i++) {
     int proc = count % np;
