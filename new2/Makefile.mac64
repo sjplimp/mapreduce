@@ -1,0 +1,14 @@
+# MPI-based Makefile using mpic++ and mpicc.
+
+# Define a directory to use as local disk.
+LOCALDISK = .
+
+CC =		mpic++ -m64 -Wall
+#CCFLAGS =	-O2
+CCFLAGS =	-g
+DEPFLAGS =	-M
+ARCHIVE =	ar
+ARFLAGS =	-rc
+
+include Makefile.common
+

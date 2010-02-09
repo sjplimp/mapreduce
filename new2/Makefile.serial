@@ -1,0 +1,13 @@
+# Serial Makefile for MapReduce library, g++, no MPI
+
+# Define a directory to use as local disk.
+LOCALDISK = .
+
+CC =		g++
+CCFLAGS =	-g -O -I../mpistubs
+DEPFLAGS =	-M
+ARCHIVE =	ar
+ARFLAGS =	-rc
+
+include Makefile.common
+
