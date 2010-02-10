@@ -1719,7 +1719,7 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 
 void MapReduce::sort_kv(int flag)
 {
-  int i,j,n,nkey,keybytes,valuebytes,nspool,nentry;
+  int i,j,nkey,keybytes,valuebytes,nspool,nentry;
   int dummy1,dummy2,dummy3;
   char *ptr,*key,*value;
   char *mem2a,*mem2b,*mem2c;
@@ -2301,61 +2301,56 @@ void MapReduce::stats(const char *heading, int which)
 
   file_stats(1);
 
-  if (cssize_one || crsize_one) {
-    uint64_t rall,sall;
-    MPI_Allreduce(&cssize_one,&sall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-    MPI_Allreduce(&crsize_one,&rall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-    double mbyte = 1024.0*1024.0;
-    if (me == 0) printf("%s Comm = %.3g Mb send, %.3g Mb recv\n",heading,
+  uint64_t rall,sall,wall;
+  double mbyte = 1024.0*1024.0;
+
+  MPI_Allreduce(&cssize_one,&sall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&crsize_one,&rall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  if (me == 0) printf("%s Comm = %.3g Mb send, %.3g Mb recv\n",heading,
 			sall/mbyte,rall/mbyte);
-    if (verbosity == 2) {
-      int histo[10],histotmp[10];
-      double ave,max,min;
-      double tmp = cssize_one/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Send (Mb):  %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
-      tmp = crsize_one/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Recv (Mb):  %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
+  if (verbosity == 2) {
+    int histo[10],histotmp[10];
+    double ave,max,min;
+    double tmp = cssize_one/mbyte;
+    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+    if (me == 0) {
+      printf("  Send (Mb):  %g ave %g max %g min\n",ave,max,min);
+      printf("  Histogram: ");
+      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+      printf("\n");
+    }
+    tmp = crsize_one/mbyte;
+    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+    if (me == 0) {
+      printf("  Recv (Mb):  %g ave %g max %g min\n",ave,max,min);
+      printf("  Histogram: ");
+      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+      printf("\n");
     }
   }
 
-  if (rsize_one || wsize_one) {
-    uint64_t rall,wall;
-    MPI_Allreduce(&rsize_one,&rall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-    MPI_Allreduce(&wsize_one,&wall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-    double mbyte = 1024.0*1024.0;
-    if (me == 0) printf("%s I/O = %.3g Mb read, %.3g Mb write\n",heading,
+  MPI_Allreduce(&rsize_one,&rall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&wsize_one,&wall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  if (me == 0) printf("%s I/O = %.3g Mb read, %.3g Mb write\n",heading,
 			rall/mbyte,wall/mbyte);
-    if (verbosity == 2) {
-      int histo[10],histotmp[10];
-      double ave,max,min;
-      double tmp = rsize_one/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Read (Mb):   %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
-      tmp = wsize_one/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Write (Mb):  %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
+  if (verbosity == 2) {
+    int histo[10],histotmp[10];
+    double ave,max,min;
+    double tmp = rsize_one/mbyte;
+    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+    if (me == 0) {
+      printf("  Read (Mb):   %g ave %g max %g min\n",ave,max,min);
+      printf("  Histogram: ");
+      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+      printf("\n");
+    }
+    tmp = wsize_one/mbyte;
+    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+    if (me == 0) {
+      printf("  Write (Mb):  %g ave %g max %g min\n",ave,max,min);
+      printf("  Histogram: ");
+      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+      printf("\n");
     }
   }
 }
