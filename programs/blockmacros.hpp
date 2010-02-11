@@ -18,10 +18,11 @@
 
 #define CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)  \
   int bbb_nblocks = 1; \
+  uint64_t bbb_nvalues_total = nvalues; \
   MapReduce *bbb_mr = NULL; \
   if (!(multivalue)) { \
     bbb_mr = (MapReduce *) (valuebytes); \
-    bbb_nblocks = bbb_mr->multivalue_blocks(); \
+    bbb_nvalues_total = bbb_mr->multivalue_blocks(bbb_nblocks); \
   } 
 
 #define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)  \
