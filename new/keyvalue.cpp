@@ -245,7 +245,8 @@ void KeyValue::add(char *key, int keybytes, char *value, int valuebytes)
 
   // size of KV pair cannot exceed int size
 
-  if (kvbytes < 0) error->one("Single key/value pair exceeds int size");
+  if (nptr-iptr > INTMAX)
+    error->one("Single key/value pair exceeds int size");
 
   // page is full, write to disk
   // full page = pagesize exceeded or INTMAX KV pairs

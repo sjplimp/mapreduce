@@ -500,9 +500,13 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
 
     // spoolflag = 0 if KV keys all fit in memory even if all unique
     // spoolflag = 1 if may need to split into seen & unseen spools
+    // one KV key requires nbytes = these quantities:
+    //   1 unique = ukeyoffset
+    //   key size = keybytes
+    //   aligment factor = ualignm1 at most
 
     spoolflag = 0;
-    if (partitions[ipartition].nkv*ukeyoffset + 
+    if (partitions[ipartition].nkv*(ukeyoffset+ualignm1) + 
 	partitions[ipartition].ksize > ustop-ustart) {
       spoolflag = 1;
 
@@ -748,7 +752,7 @@ int KeyMultiValue::kv2unique(int ipartition, int spoolflag)
 	unext += ukeyoffset + keybytes;
 	unext = ROUNDUP(unext,ualignm1);
 
-	if (unext >= ustop) {
+	if (unext > ustop) {
 	  spooled = 1;
 	  unseen->add(ptr-ptr_start,ptr_start);
 	  unseen_ksize += keybytes;
@@ -1026,8 +1030,8 @@ void KeyMultiValue::unique2kmv_extended(int iset)
   uptr = sets[iset].first;
 
   iptr = ptr;
-  iptr += twolenbytes;
-  kptr = ROUNDUP(iptr,kalignm1);
+  kptr = iptr + twolenbytes;
+  kptr = ROUNDUP(kptr,kalignm1);
   ptr = kptr + uptr->keybytes;
 
   intptr = (int *) iptr;
