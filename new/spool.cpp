@@ -140,9 +140,6 @@ void Spool::add(int nbytes, char *entry)
     }
   }
 
-  int kb = *((int *) entry);
-  int vb = *((int *) &entry[4]);
-
   memcpy(&page[size],entry,nbytes);
   size += nbytes;
   nentry++;

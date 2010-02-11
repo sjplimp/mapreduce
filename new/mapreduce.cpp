@@ -55,6 +55,7 @@ int compare_standalone(const void *, const void *);
 #define VALUECHUNK 128
 #define MBYTES 100
 #define ALIGNKV 4
+#define INTMAX 0x7FFFFFFF
 
 enum{KVFILE,KMVFILE,SORTFILE};
 
@@ -172,7 +173,7 @@ void MapReduce::defaults()
   keyalign = valuealign = ALIGNKV;
 
   twolenbytes = 2*sizeof(int);
-  blockvalid = 0;
+  kmv_block_valid = 0;
 
   allocated = 0;
   memblock = NULL;
@@ -275,6 +276,8 @@ void MapReduce::allocate()
   while (tmp < valign) tmp *= 2;
   if (tmp != valign) error->all("Invalid alignment setting");
 
+  // talign = max of (kalign,valign,int)
+
   talign = MAX(kalign,valign);
   talign = MAX(talign,sizeof(int));
 
@@ -282,8 +285,9 @@ void MapReduce::allocate()
   valignm1 = valign - 1;
   talignm1 = talign - 1;
 
-  // mem0,mem1 = ptrs to first 2 quarters of memblock for KV & KMVs
-  // mem2 = ptr to remaining half as scratch space
+  // mem0,mem1,mem2,mem3 = ptrs to quarters of memblock
+  // mem0 and mem1 used for KV and KMV pages
+  // mem2 and mem3 used for scratch space
   // no need to align subsections because nbytes is Mbyte multiple
 
   memhalf = memfull/2;
@@ -291,8 +295,8 @@ void MapReduce::allocate()
   mem0 = memblock;
   mem1 = &memblock[memquarter];
   mem2 = &memblock[memhalf];
+  mem3 = &memblock[memhalf+memquarter];
   memavail = mem0;
-  memtoggle = 0;
   allocated = 1;
 }
 
@@ -303,13 +307,8 @@ void MapReduce::allocate()
 
 void MapReduce::memswap(char *fname)
 {
-  if (memavail == mem0) {
-    memavail = mem1;
-    memtoggle = 1;
-  } else {
-    memavail = mem0;
-    memtoggle = 0;
-  }
+  if (memavail == mem0) memavail = mem1;
+  else memavail = mem0;
   delete [] fname;
 }
 
@@ -350,10 +349,11 @@ uint64_t MapReduce::add(MapReduce *mr)
 
 uint64_t MapReduce::aggregate(int (*hash)(char *, int))
 {
-  int i,nbytes,dummy1,dummy2,dummy3;
+  int i,nbytes;
   int nkey_send,nkey_recv;
   int keybytes,valuebytes,keybytes_align,valuebytes_align;
   int maxsend,maxrecv,maxbytes;
+  uint64_t dummy1,dummy2,dummy3;
   char *ptr,*ptr_start,*key;
 
   if (kv == NULL) error->all("Cannot aggregate without KeyValue");
@@ -578,14 +578,10 @@ uint64_t MapReduce::collate(int (*hash)(char *, int))
    appcompress() returns single key/value to new KV
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
-						 int, int *, KeyValue *, 
-						 void *),
+uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
+						 int *, KeyValue *, void *),
 			     void *appptr)
 {
-  int dummy1,dummy2,dummy3;
-  char *keycopy;
-
   if (kv == NULL) error->all("Cannot compress without KeyValue");
   if (timer) start_timer();
   if (verbosity) file_stats(0);
@@ -602,12 +598,14 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
   kv = new KeyValue(comm,memavail,memquarter,kalign,valign,fname);
   memswap(fname);
 
-  int nkey,keybytes,mvaluebytes,nvalues;
+  int nkey,nvalues,keybytes,mvaluebytes;
+  uint64_t dummy1,dummy2,dummy3;
   int *valuesizes;
   char *ptr,*key,*multivalue;
 
   char *page;
   int npage = kmv->request_info(&page);
+  char *page_hold = page;
 
   for (int ipage = 0; ipage < npage; ipage++) {
     nkey = kmv->request_page(ipage,0,dummy1,dummy2,dummy3);
@@ -615,17 +613,17 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
     ptr = page;
 
     for (int i = 0; i < nkey; i++) {
-      keybytes = *((int *) ptr);
-      ptr += sizeof(int);
-      mvaluebytes = *((int *) ptr);
-      ptr += sizeof(int);
       nvalues = *((int *) ptr);
       ptr += sizeof(int);
 
       if (nvalues > 0) {
+	keybytes = *((int *) ptr);
+	ptr += sizeof(int);
+	mvaluebytes = *((int *) ptr);
+	ptr += sizeof(int);
 	valuesizes = (int *) ptr;
-	ptr += nvalues*sizeof(int);
-
+	ptr += ((uint64_t) nvalues) * sizeof(int);
+	
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 	ptr += keybytes;
@@ -637,24 +635,22 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
 	appcompress(key,keybytes,multivalue,nvalues,valuesizes,kv,appptr);
 
       } else {
-	nblock_kmv = -nvalues;
-	
+	keybytes = *((int *) ptr);
+	ptr += sizeof(int);
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 
-	// make copy of key because subsequent calls to
-	// multivalue_block() will overwrite page
+	// set KMV page to mem2 so key will not be overwritten
+	// when multivalue_block() loads new pages of values
 
-	keycopy = new char[keybytes];
-	memcpy(keycopy,key,keybytes);
-
-	block_header_page = ipage;
-	blockvalid = 1;
-	appcompress(keycopy,keybytes,NULL,nvalues,(int *) this,kv,appptr);
-	blockvalid = 0;
-	ipage += nblock_kmv;
-
-	delete [] keycopy;
+	kmv->reset_page(mem2);
+	kmv_block_valid = 1;
+	kmv_key_page = ipage;
+	kmv_nvalue_total = kmv->multivalue_blocks(ipage,kmv_nblock);
+	appcompress(key,keybytes,NULL,0,(int *) this,kv,appptr);
+	kmv_block_valid = 0;
+	ipage += kmv_nblock;
+	kmv->reset_page(page_hold);
       }
     }
   }
@@ -662,7 +658,6 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *,
   // insure KMV file is closed, if last request_page() was for extended page
 
   kmv->close_file();
-
   kv->complete();
 
   delete kmv;
@@ -713,9 +708,9 @@ uint64_t MapReduce::convert()
 
 uint64_t MapReduce::gather(int numprocs)
 {
-  int i,flag,npage,nkey;
+  int i,flag,npage;
   char *buf;
-  int sizes[4];
+  uint64_t sizes[4];
   MPI_Status status;
   MPI_Request request;
 
@@ -747,7 +742,7 @@ uint64_t MapReduce::gather(int numprocs)
       for (int ipage = 0; ipage < npage; ipage++) {
 	MPI_Irecv(buf,memquarter,MPI_BYTE,iproc,1,comm,&request);
 	MPI_Send(&flag,0,MPI_INT,iproc,0,comm);
-	MPI_Recv(sizes,4,MPI_INT,iproc,0,comm,&status);
+	MPI_Recv(sizes,4,MPI_UNSIGNED_LONG,iproc,0,comm,&status);
 	crsize += sizes[3];
 	MPI_Wait(&request,&status);
 	kv->add(sizes[0],buf,sizes[1],sizes[2],sizes[3]);
@@ -764,10 +759,12 @@ uint64_t MapReduce::gather(int numprocs)
     for (int ipage = 0; ipage < npage; ipage++) {
       sizes[0] = kv->request_page(ipage,sizes[1],sizes[2],sizes[3]);
       MPI_Recv(&flag,0,MPI_INT,iproc,0,comm,&status);
-      MPI_Send(sizes,4,MPI_INT,iproc,0,comm);
+      MPI_Send(sizes,4,MPI_UNSIGNED_LONG,iproc,0,comm);
       MPI_Send(buf,sizes[3],MPI_BYTE,iproc,1,comm);
       cssize += sizes[3];
     }
+
+    // leave empty KV on vacated procs
 
     delete kv;
     char *fname = file_create(KVFILE,instance_me);
@@ -1247,13 +1244,15 @@ void MapReduce::map_file_wrapper(int imap, KeyValue *kv)
 
   uint64_t readstart = itask*filesize/ntask;
   uint64_t readnext = (itask+1)*filesize/ntask;
+  if (readnext - readstart + filemap.delta + 1 > INTMAX)
+    error->one("Single file read exceeds int size");
   int readsize = readnext - readstart + filemap.delta;
   readsize = MIN(readsize,filesize-readstart);
 
   // read from appropriate file
   // terminate string with NULL
 
-  char *str = new char[readsize+1];
+  char *str = (char *) memory->smalloc(readsize+1,"MR:fileread");
   FILE *fp = fopen(filemap.filename[filemap.whichfile[imap]],"rb");
   fseek(fp,readstart,SEEK_SET);
   fread(str,1,readsize,fp);
@@ -1299,7 +1298,7 @@ void MapReduce::map_file_wrapper(int imap, KeyValue *kv)
 
   int strsize = strstop - strstart + 1;
   filemap.appmapfile(imap,&str[strstart],strsize,kv,filemap.appptr);
-  delete [] str;
+  memory->sfree(str);
 }
 
 /* ----------------------------------------------------------------------
@@ -1357,8 +1356,8 @@ uint64_t MapReduce::map(MapReduce *mr,
     }
   }
 
-  int nkey,dummy1,dummy2,dummy3;
-  int keybytes,valuebytes;
+  int nkey,keybytes,valuebytes;
+  uint64_t dummy1,dummy2,dummy3;
   char *page,*ptr,*key,*value;
   int npage = kv_src->request_info(&page);
 
@@ -1401,13 +1400,10 @@ uint64_t MapReduce::map(MapReduce *mr,
    each proc processes its owned KMV pairs
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
-					     int, int *, KeyValue *, void *),
+uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
+					     int *, KeyValue *, void *),
 			   void *appptr)
 {
-  int dummy1,dummy2,dummy3;
-  char *keycopy;
-
   if (kmv == NULL) error->all("Cannot reduce without KeyMultiValue");
   if (timer) start_timer();
   if (verbosity) file_stats(0);
@@ -1416,12 +1412,14 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
   kv = new KeyValue(comm,memavail,memquarter,kalign,valign,fname);
   memswap(fname);
 
-  int nkey,keybytes,mvaluebytes,nvalues;
+  int nkey,nvalues,keybytes,mvaluebytes;
+  uint64_t dummy1,dummy2,dummy3;
   int *valuesizes;
   char *ptr,*key,*multivalue;
 
   char *page;
   int npage = kmv->request_info(&page);
+  char *page_hold = page;
 
   for (int ipage = 0; ipage < npage; ipage++) {
     nkey = kmv->request_page(ipage,0,dummy1,dummy2,dummy3);
@@ -1429,16 +1427,16 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
     ptr = page;
 
     for (int i = 0; i < nkey; i++) {
-      keybytes = *((int *) ptr);
-      ptr += sizeof(int);
-      mvaluebytes = *((int *) ptr);
-      ptr += sizeof(int);
       nvalues = *((int *) ptr);
       ptr += sizeof(int);
 
       if (nvalues > 0) {
+	keybytes = *((int *) ptr);
+	ptr += sizeof(int);
+	mvaluebytes = *((int *) ptr);
+	ptr += sizeof(int);
 	valuesizes = (int *) ptr;
-	ptr += nvalues*sizeof(int);
+	ptr += ((uint64_t) nvalues) * sizeof(int);
 	
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
@@ -1451,27 +1449,22 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *,
 	appreduce(key,keybytes,multivalue,nvalues,valuesizes,kv,appptr);
 
       } else {
-	nvalues = *((int *) ptr);
+	keybytes = *((int *) ptr);
 	ptr += sizeof(int);
-	nblock_kmv = *((int *) ptr);
-	ptr += sizeof(int);
-	
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 
-	// make copy of key because subsequent calls to
-	// multivalue_block() will overwrite page
+	// set KMV page to mem2 so key will not be overwritten
+	// when multivalue_block() loads new pages of values
 
-	keycopy = new char[keybytes];
-	memcpy(keycopy,key,keybytes);
-
-	block_header_page = ipage;
-	blockvalid = 1;
-	appreduce(keycopy,keybytes,NULL,nvalues,(int *) this,kv,appptr);
-	blockvalid = 0;
-	ipage += nblock_kmv;
-
-	delete [] keycopy;
+	kmv->reset_page(mem2);
+	kmv_block_valid = 1;
+	kmv_key_page = ipage;
+	kmv_nvalue_total = kmv->multivalue_blocks(ipage,kmv_nblock);
+	appreduce(key,keybytes,NULL,0,(int *) this,kv,appptr);
+	kmv_block_valid = 0;
+	ipage += kmv_nblock;
+	kmv->reset_page(page_hold);
       }
     }
   }
@@ -1522,42 +1515,44 @@ uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
 }
 
 /* ----------------------------------------------------------------------
-   query # of blocks in a single KMV that spans multiple pages
+   query total # of values and # of value blocks in a single multi-page KMV
    called from user myreduce() or mycompress() function
 ------------------------------------------------------------------------- */
 
-int MapReduce::multivalue_blocks()
+uint64_t MapReduce::multivalue_blocks(int &nblock)
 {
-  if (!blockvalid) error->one("Invalid call to multivalue_blocks()");
-  return nblock_kmv;
+  if (!kmv_block_valid) error->one("Invalid call to multivalue_blocks()");
+  nblock = kmv_nblock;
+  return kmv_nvalue_total;
 }
 
 /* ----------------------------------------------------------------------
    query info for 1 block of a single KMV that spans multiple pages
    called from user myreduce() or mycompress() function
+   iblock = 0 to nblock_kmv-1
 ------------------------------------------------------------------------- */
 
 int MapReduce::multivalue_block(int iblock, 
 				char **pmultivalue, int **pvaluesizes)
 {
-  int dummy1,dummy2,dummy3;
+  if (!kmv_block_valid) error->one("Invalid call to multivalue_block()");
+  if (iblock < 0 || iblock >= kmv_nblock)
+    error->one("Invalid page request to multivalue_block()");
 
-  if (!blockvalid) error->one("Invalid call to multivalue_block()");
-  if (iblock < 0 || iblock >= nblock_kmv)
-    error->one("Invalid call to multivalue_block()");
-
+  uint64_t dummy1,dummy2,dummy3;
   char *page;
+
   kmv->request_info(&page);
-  kmv->request_page(block_header_page+iblock+1,0,dummy1,dummy2,dummy3);
+  kmv->request_page(kmv_key_page+iblock+1,0,dummy1,dummy2,dummy3);
 
-  int nvalue = *((int *) page);
-  *pvaluesizes = (int *) &page[sizeof(int)];
+  char *ptr = page;
+  int nvalues = *((int *) ptr);
+  ptr += sizeof(int);
+  *pvaluesizes = (int *) ptr;
+  ptr += nvalues*sizeof(int);
+  *pmultivalue = ROUNDUP(ptr,valignm1);
 
-  char *ptr = &page[(nvalue+1)*sizeof(int)];
-  ptr = ROUNDUP(ptr,valignm1);
-  *pmultivalue = ptr;
-
-  return nvalue;
+  return nvalues;
 }
 
 /* ----------------------------------------------------------------------
@@ -1615,7 +1610,6 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 						       char *, int))
 {
   int i,j,k;
-  int dummy1,dummy2,dummy3;
 
   if (kmv == NULL) error->all("Cannot sort_multivalues without KeyMultiValue");
   if (timer) start_timer();
@@ -1626,14 +1620,15 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 
   int maxn = 0;
   int *order = NULL;
-  soffset = NULL;
+  int *soffset = NULL;
 
   compare = appcompare;
   mrptr = this;
 
-  int nkey,keybytes,mvaluebytes,nvalues;
-  char *ptr,*multivalue;
+  int nkey,nvalues,keybytes,mvaluebytes;
+  uint64_t dummy1,dummy2,dummy3;
   int *valuesizes;
+  char *ptr,*multivalue,*ptr2;
 
   for (int ipage = 0; ipage < npage; ipage++) {
     nkey = kmv->request_page(ipage,1,dummy1,dummy2,dummy3);
@@ -1641,20 +1636,20 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
     ptr = page;
 
     for (int i = 0; i < nkey; i++) {
+      nvalues = *((int *) ptr);
+      ptr += sizeof(int);
+
+      if (nvalues <= 0)
+	error->one("Cannot yet sort multivalues for a "
+		   "multiple block KeyMultiValue");
+
       keybytes = *((int *) ptr);
       ptr += sizeof(int);
       mvaluebytes = *((int *) ptr);
       ptr += sizeof(int);
-      nvalues = *((int *) ptr);
-      ptr += sizeof(int);
-
-      if (nvalues == 0)
-	error->one("Cannot yet sort multivalues for a "
-		   "multiple block KeyMultiValue");
-
       valuesizes = (int *) ptr;
-      ptr += nvalues*sizeof(int);
-
+      ptr += ((uint64_t) nvalues) * sizeof(int);
+      
       ptr = ROUNDUP(ptr,kalignm1);
       ptr += keybytes;
       ptr = ROUNDUP(ptr,valignm1);
@@ -1678,19 +1673,19 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 
       // sort values within multivalue via qsort()
       
-      sptr = multivalue;
-      slength = valuesizes;
+      //sptr = multivalue;
+      //slength = valuesizes;
       qsort(order,nvalues,sizeof(int),compare_standalone);
       
       // reorder the multivalue, using memavail as scratch space
 
-      ptr = memavail;
+      ptr2 = memavail;
       for (j = 0; j < nvalues; j++) {
 	k = order[j];
-	memcpy(ptr,&sptr[soffset[k]],slength[k]);
-	ptr += slength[k];
+	//memcpy(ptr2,&sptr[soffset[k]],slength[k]);
+	ptr2 += slength[k];
       }
-      memcpy(multivalue,memavail,ptr-memavail);
+      memcpy(multivalue,memavail,mvaluebytes);
     }
 
     // overwrite the changed KMV page
@@ -1719,8 +1714,9 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 
 void MapReduce::sort_kv(int flag)
 {
-  int i,j,n,nkey,keybytes,valuebytes,nspool,nentry;
-  int dummy1,dummy2,dummy3;
+  int i,j,n;
+  int nkey,keybytes,valuebytes,nspool,nentry;
+  uint64_t offset,dummy1,dummy2,dummy3;
   char *ptr,*key,*value;
   char *mem2a,*mem2b,*mem2c;
   int *order;
@@ -1753,18 +1749,19 @@ void MapReduce::sort_kv(int flag)
 
     nkey = kv->request_page(ipage,dummy1,dummy2,dummy3);
 
-    // setup 3 int arrays from memavail (guaranteed to be large enough)
+    // setup 3 arrays from mem2 (guaranteed to be large enough)
     // order = ordering of keys or values in KV, initially 0 to N-1
-    // soffset = start of each key or value
     // slength = length of each key or value
+    // dptr = datum ptr = ptr to each key or value
 
-    order = (int *) memavail;
-    soffset = (int *) &memavail[nkey*sizeof(int)];
-    slength = (int *) &memavail[2*nkey*sizeof(int)];
+    offset = ((uint64_t) nkey) * sizeof(int);
+    order = (int *) mem2;
+    slength = (int *) &mem2[offset];
+    dptr = (char **) &mem2[2*offset];
 
     ptr = page;
 
-    for (i = 0; i < nkey; i++) {
+    for (int i = 0; i < nkey; i++) {
       order[i] = i;
       
       keybytes = *((int *) ptr);
@@ -1780,28 +1777,28 @@ void MapReduce::sort_kv(int flag)
       ptr = ROUNDUP(ptr,talignm1);
       
       if (flag == 0) {
-	soffset[i] = key - page;
 	slength[i] = keybytes;
+	dptr[i] = key;
       } else {
-	soffset[i] = value - page;
 	slength[i] = valuebytes;
+	dptr[i] = value;
       }
     }
 
     // sort keys or values via qsort()
+    // simply creates new order array
 
     mrptr = this;
-    sptr = page;
     qsort(order,nkey,sizeof(int),compare_standalone);
 
-    // soffset = start of each KV pair
+    // dptr = start of each KV pair
     // slength = length of entire KV pair
 
     char *ptr_start;
     ptr = page;
 
-    for (i = 0; i < nkey; i++) {
-      soffset[i] = ptr - page;
+    for (int i = 0; i < nkey; i++) {
+      dptr[i] = ptr;
       
       ptr_start = ptr;
       keybytes = *((int *) ptr);
@@ -1817,31 +1814,32 @@ void MapReduce::sort_kv(int flag)
       slength[i] = ptr - ptr_start;
     }
 
-    // if single page, sort into mem2, copy back to page
-    // if multiple pages, write page to a spool file
+    // if single page, reorder KV pairs into memavail
+    // if multiple pages, write page back to disk using memavail for spool
 
     if (npage == 1) {
-      ptr = mem2;
-      for (i = 0; i < nkey; i++) {
+      ptr = memavail;
+      for (int i = 0; i < nkey; i++) {
 	j = order[i];
-	memcpy(ptr,&sptr[soffset[j]],slength[j]);
+	memcpy(ptr,dptr[j],slength[j]);
 	ptr += slength[j];
       }
-      memcpy(page,mem2,ptr-mem2);
+      kv->reset_page(memavail);
+      memswap(NULL);
 
     } else {
       sp = spools[ipage];
-      sp->assign(mem2a);
-      for (i = 0; i < nkey; i++) {
+      sp->assign(memavail);
+      for (int i = 0; i < nkey; i++) {
 	j = order[i];
-	sp->add(slength[j],&sptr[soffset[j]]);
+	sp->add(slength[j],dptr[j]);
       }
       sp->complete();
     }
   }
 
   // if single page, all done
-
+  
   if (npage == 1) return;
 
   // perform merge sort on pairs of spool files
@@ -1850,7 +1848,7 @@ void MapReduce::sort_kv(int flag)
   int isrc = 0;
   int idest = npage;
 
-  for (i = 0; i < npage-1; i++) {
+  for (int i = 0; i < npage-1; i++) {
     spools[isrc]->assign(mem2a);
     spools[isrc+1]->assign(mem2b);
     spools[idest]->assign(mem2c);
@@ -1957,8 +1955,9 @@ void MapReduce::merge(int flag, Spool *s1, Spool *s2, Spool *dest)
 }
 
 /* ----------------------------------------------------------------------
-   extract key from a Spool entry
-   return key and keybytes
+   extract datum from a KV pair beginning at ptr_start
+   flag = 0, return key and keybytes as str and nbytes
+   flag = 1, return value and valuebytes as str and nbytes
    also return byte increment to next entry
 ------------------------------------------------------------------------- */
 
@@ -2005,7 +2004,7 @@ int compare_standalone(const void *iptr, const void *jptr)
 
 int MapReduce::compare_wrapper(int i, int j)
 {
-  return compare(&sptr[soffset[i]],slength[i],&sptr[soffset[j]],slength[j]);
+  return compare(dptr[i],slength[i],dptr[j],slength[j]);
 }
 
 /* ----------------------------------------------------------------------
@@ -2105,7 +2104,7 @@ void MapReduce::kmv_stats(int level)
 }
 
 /* ----------------------------------------------------------------------
-   print cummulative file read/write and comm stats
+   print cummulative comm and file read/write stats
 ------------------------------------------------------------------------- */
 
 void MapReduce::cummulative_stats(int level, int reset)
@@ -2122,24 +2121,27 @@ void MapReduce::cummulative_stats(int level, int reset)
 
   MPI_Allreduce(csize,allcsize,2,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
-  if (me == 0) printf("Cummulative comm stats = %.3g Mb send, %.3g Mb recv\n", 
-		      allcsize[0]/mbyte,allcsize[1]/mbyte);
-  if (level == 2) {
-    tmp = csize[0]/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Send (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = csize[1]/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Recv (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
+  if (allcsize[0] || allcsize[1]) {
+    if (me == 0) printf("Cummulative comm stats = "
+			"%.3g Mb send, %.3g Mb recv\n", 
+			allcsize[0]/mbyte,allcsize[1]/mbyte);
+    if (level == 2) {
+      tmp = csize[0]/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  Send (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+      tmp = csize[1]/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  Recv (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
     }
   }
 
@@ -2152,87 +2154,93 @@ void MapReduce::cummulative_stats(int level, int reset)
 
   MPI_Allreduce(size,allsize,6,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
-  if (me == 0) printf("Cummulative internal file I/O stats = "
-		      "%.3g Mb read, %.3g Mb write\n", 
-		      (allsize[0]+allsize[2]+allsize[4])/mbyte,
-		      (allsize[1]+allsize[3]+allsize[5])/mbyte);
-  if (level == 2) {
-    tmp = (size[0]+size[2]+size[4])/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Read (Mb):  %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = (size[1]+size[3]+size[5])/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Write (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-  }
+  int flag = 0;
+  if (allsize[0] || allsize[1] || allsize[2]) flag = 1;
+  if (allsize[3] || allsize[4] || allsize[5]) flag = 1;
 
-  if (me == 0) printf("  KV files: %.3g Mb read, %.3g Mb write\n",
-		      allsize[0]/mbyte,allsize[1]/mbyte);
-  if (level == 2) {
-    tmp = size[0]/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("    Read (Mb):  %g ave %g max %g min\n",ave,max,min);
-      printf("    Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
+  if (flag) {
+    if (me == 0) printf("Cummulative internal file I/O stats = "
+			"%.3g Mb read, %.3g Mb write\n", 
+			(allsize[0]+allsize[2]+allsize[4])/mbyte,
+			(allsize[1]+allsize[3]+allsize[5])/mbyte);
+    if (level == 2) {
+      tmp = (size[0]+size[2]+size[4])/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  Read (Mb):  %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+      tmp = (size[1]+size[3]+size[5])/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  Write (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
     }
-    tmp = size[1]/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("    Write (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("    Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
+    
+    if (me == 0) printf("  KV files: %.3g Mb read, %.3g Mb write\n",
+			allsize[0]/mbyte,allsize[1]/mbyte);
+    if (level == 2) {
+      tmp = size[0]/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("    Read (Mb):  %g ave %g max %g min\n",ave,max,min);
+	printf("    Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+      tmp = size[1]/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("    Write (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("    Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
     }
-  }
-  if (me == 0) printf("  KMV files: %.3g Mb read, %.3g Mb write\n",
-		      allsize[2]/mbyte,allsize[3]/mbyte);
-  if (level == 2) {
-    tmp = size[2]/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("    Read (Mb):  %g ave %g max %g min\n",ave,max,min);
-      printf("    Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
+    if (me == 0) printf("  KMV files: %.3g Mb read, %.3g Mb write\n",
+			allsize[2]/mbyte,allsize[3]/mbyte);
+    if (level == 2) {
+      tmp = size[2]/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("    Read (Mb):  %g ave %g max %g min\n",ave,max,min);
+	printf("    Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+      tmp = size[3]/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("    Write (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("    Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
     }
-    tmp = size[3]/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("    Write (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("    Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-  }
-  if (me == 0) printf("  Spool files: %.3g Mb read, %.3g Mb write\n",
-		      allsize[4]/mbyte,allsize[5]/mbyte);
-  if (level == 2) {
-    tmp = size[4]/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("    Read (Mb):  %g ave %g max %g min\n",ave,max,min);
-      printf("    Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = size[5]/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("    Write (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("    Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
+    if (me == 0) printf("  Spool files: %.3g Mb read, %.3g Mb write\n",
+			allsize[4]/mbyte,allsize[5]/mbyte);
+    if (level == 2) {
+      tmp = size[4]/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("    Read (Mb):  %g ave %g max %g min\n",ave,max,min);
+	printf("    Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+      tmp = size[5]/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("    Write (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("    Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
     }
   }
 
@@ -2306,51 +2314,55 @@ void MapReduce::stats(const char *heading, int which)
 
   MPI_Allreduce(&cssize_one,&sall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&crsize_one,&rall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  if (me == 0) printf("%s Comm = %.3g Mb send, %.3g Mb recv\n",heading,
+  if (sall || rall) {
+    if (me == 0) printf("%s Comm = %.3g Mb send, %.3g Mb recv\n",heading,
 			sall/mbyte,rall/mbyte);
-  if (verbosity == 2) {
-    int histo[10],histotmp[10];
-    double ave,max,min;
-    double tmp = cssize_one/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Send (Mb):  %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = crsize_one/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Recv (Mb):  %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
+    if (verbosity == 2) {
+      int histo[10],histotmp[10];
+      double ave,max,min;
+      double tmp = cssize_one/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  Send (Mb):  %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+      tmp = crsize_one/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  Recv (Mb):  %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
     }
   }
 
   MPI_Allreduce(&rsize_one,&rall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&wsize_one,&wall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  if (me == 0) printf("%s I/O = %.3g Mb read, %.3g Mb write\n",heading,
+  if (rall || wall) {
+    if (me == 0) printf("%s I/O = %.3g Mb read, %.3g Mb write\n",heading,
 			rall/mbyte,wall/mbyte);
-  if (verbosity == 2) {
-    int histo[10],histotmp[10];
-    double ave,max,min;
-    double tmp = rsize_one/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Read (Mb):   %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = wsize_one/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Write (Mb):  %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
+    if (verbosity == 2) {
+      int histo[10],histotmp[10];
+      double ave,max,min;
+      double tmp = rsize_one/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  Read (Mb):   %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+      tmp = wsize_one/mbyte;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  Write (Mb):  %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
     }
   }
 }
@@ -2364,7 +2376,7 @@ char *MapReduce::file_create(int flag, int counter)
   int n = strlen(fpath) + 32;
   char *fname = new char[n];
   if (flag == KVFILE) {
-    if (memtoggle == 0)
+    if (memavail == mem0)
       sprintf(fname,"%s/mrmpi.kva.%d.%d",fpath,counter,me);
     else
       sprintf(fname,"%s/mrmpi.kvb.%d.%d",fpath,counter,me);
@@ -2410,7 +2422,7 @@ void MapReduce::start_timer()
    round N up to multiple of nalign and return it
 ------------------------------------------------------------------------- */
 
-int MapReduce::roundup(int n, int nalign)
+uint64_t MapReduce::roundup(uint64_t n, int nalign)
 {
   if (n % nalign == 0) return n;
   n = (n/nalign + 1) * nalign;

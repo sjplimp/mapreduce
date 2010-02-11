@@ -28,15 +28,17 @@ class KeyMultiValue {
   uint64_t tsize;                  // total exact size of entire KMV
   int fileflag;                    // 1 if file exists, 0 if not
 
-  static uint64_t rsize,wsize;     // total read/write bytes for all KMV files
+  static uint64_t rsize,wsize;     // total file read/write for all KMVs
   
   KeyMultiValue(MPI_Comm, char *, uint64_t, int, int, char *);
   ~KeyMultiValue();
 
+  void reset_page(char *);
   void copy(KeyMultiValue *);
   void complete();
   int request_info(char **);
-  int request_page(int, int, int &, int &, int &);
+  int request_page(int, int, uint64_t &, uint64_t &, uint64_t &);
+  uint64_t multivalue_blocks(int, int &);
   void overwrite_page(int);
   void close_file();
 
@@ -52,17 +54,19 @@ class KeyMultiValue {
 
   int kalign,valign;                 // alignment for keys & multivalues
   int talign;                        // alignment of entire KMV pair
-  int kalignm1,valignm1,talignm1;    // alignments-1 for masking
+  int ualign;                        // alignment of Unique
+  int kalignm1,valignm1;             // alignments-1 for masking
+  int talignm1,ualignm1;
   int twolenbytes;                   // size of key & value lengths
-  int threelenbytes;                 // size of key & value & nvalue lengths
+  int threelenbytes;                 // size of nvalue & key & value lengths
 
   // in-memory page
 
-  int nkey;                     // # of KMV pairs in page
-  int nvalue;                   // # of values in multivalues in page
-  int keysize;                  // exact size of key data in page
-  int valuesize;                // exact size of multivalue data in page
-  int alignsize;                // current size of page with alignment
+  int nkey;                          // # of KMV pairs in page
+  uint64_t nvalue;                   // # of values in all KMV mvalues in page
+  uint64_t keysize;                  // exact size of key data in page
+  uint64_t valuesize;                // exact size of multivalue data in page
+  uint64_t alignsize;                // current size of page with alignment
 
   char *page;                   // in-memory page
   uint64_t pagesize;            // size of page
@@ -70,44 +74,44 @@ class KeyMultiValue {
   // virtual pages
 
   struct Page {
-    int nkey;                   // # of KV pairs
-    int keysize;                // exact size of keys 
-    int valuesize;              // exact size of multivalues
-    int exactsize;              // exact size of all data in page
-    int alignsize;              // rounded-up exactsize with alignment
-    int filesize;               // rounded-up alignsize for file I/O
+    uint64_t keysize;           // exact size of keys 
+    uint64_t valuesize;         // exact size of multivalues
+    uint64_t exactsize;         // exact size of all data in page
+    uint64_t alignsize;         // aligned size of all data in page
+    uint64_t filesize;          // rounded-up alignsize for file I/O
     uint64_t fileoffset;        // summed filesize of all previous pages
+    uint64_t nvalue_total;      // total # of values for multi-page KMV header
+    int nkey;                   // # of KMV pairs
+    int nblock;                 // # of value blocks for multi-page KMV header
   };
 
   Page *pages;                  // list of pages
-  int npage;                    // # of pages in entire KV
+  int npage;                    // # of pages in entire KMV
   int maxpage;                  // max # of pages currently allocated
 
   // unique keys
 
-  struct Unique {
-    int keyoffset;      // offset in ukeys of this key
-    int keybytes;       // size of this key
-    int soffset;        // offset to start of value sizes
-    int voffset;        // offset to start of values
-    int nvalue;         // # of values associated with this key
-    int mvbytes;        // total size of values associated with this key
-    int iset;
-    int next;           // index in uniques of next key in this hash bucket
-  };
+  int nunique;               // current # of unique keys
+  int ukeyoffset;            // offset from start of Unique to where key starts
 
-  Unique *uniques;      // list of data for unique keys
-  int nunique;          // current # of unique keys
-  uint64_t maxunique;   // max # of unique keys that can be held in Uniques
-  char *ukeys;          // unique keys, one after the other
-  int ukeyoffset;       // current size of all keys in ukeys
-  uint64_t maxukeys;    // max size of all keys in ukeys
+  struct Unique {
+    uint64_t nvalue;         // # of values associated with this key
+    uint64_t mvbytes;        // total size of values associated with this key
+    int *soffset;            // ptr to start of value sizes in KMV page
+    char *voffset;           // ptr to start of values in KMV page
+    Unique *next;            // ptr to next key in this hash bucket
+    int keybytes;            // size of this key
+    int set;                 // which KMV set this key will be part of
+  };
 
   // hash table for unique keys
 
-  int *buckets;         // index of 1st Unique entry in each bucket
+  Unique **buckets;     // ptr to 1st key in each bucket
   int nbuckets;         // # of hash buckets
-  int hashmask;         // bit mask for mapping into hash buckets
+  int hashmask;         // bit mask for mapping hashed key into hash buckets
+
+  char *ustart;         // ptr to where memory for Uniques starts
+  char *ustop;          // ptr to where memory for Uniques stops
 
   // file info
 
@@ -117,26 +121,27 @@ class KeyMultiValue {
   // partitions of KV data
 
   struct Partition {
-    uint64_t nkv;
-    int ksize;
-    int sortbit;
     class KeyValue *kv;
     class Spool *sp;
+    uint64_t nkv;
+    uint64_t ksize;
+    int sortbit;
   };
 
   Partition *partitions;
   int npartition,maxpartition;
 
   class Spool *seen,*unseen;
-  int seen_ksize,unseen_ksize;
+  uint64_t seen_ksize,unseen_ksize;
 
   // sets of unique keys
 
   struct Set {
-    int first,last;
-    int extended;
     class KeyValue *kv;
     class Spool *sp;
+    Unique *first;          // ptr to first Unique in set
+    int nunique;            // # of Uniques in set
+    int extended;           // 1 if set contains one Unique = multi-page KMV
   };
 
   Set *sets;
@@ -151,6 +156,8 @@ class KeyMultiValue {
   // private methods
 
   void add(char *, int, char *, int);
+  void collapse_one(char *, int, class KeyValue *, uint64_t);
+  void collapse_many(char *, int, class KeyValue *);
 
   int kv2unique(int, int);
   void unseen2spools(int, int, int);
@@ -163,13 +170,13 @@ class KeyMultiValue {
   void chunk_allocate(int);
 
   int hash(char *, int);
-  int find(int, char *, int, int &);
+  Unique *find(int, char *, int, Unique *&);
 
   void init_page();
   void create_page();
   void write_page();
   void read_page(int, int);
-  int roundup(int,int);
+  uint64_t roundup(uint64_t, int);
 };
 
 }

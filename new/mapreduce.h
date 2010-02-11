@@ -32,6 +32,8 @@ class MapReduce {
   class KeyValue *kv;              // single KV stored by MR
   class KeyMultiValue *kmv;        // single KMV stored by MR
 
+  // static variables across all MR objects
+
   static MapReduce *mrptr;         // holds a ptr to MR currently being used
   static int instances_now;        // total # of MRs currently instantiated
                                    // grows as created, shrinks as destroyed
@@ -79,7 +81,7 @@ class MapReduce {
 		  void *);
   uint64_t scrunch(int, char *, int);
 
-  int multivalue_blocks();
+  uint64_t multivalue_blocks(int &);
   int multivalue_block(int, char **, int **);
 
   uint64_t sort_keys(int (*)(char *, int, char *, int));
@@ -117,33 +119,34 @@ class MapReduce {
 
   // memory partitions
 
-  char *memblock;        // memsize block of memory for KVs and KMVs
-  char *mem0,*mem1;      // ptrs to first/second quarter of memblock
-  char *mem2;            // remaining half of memblock
-  char *memavail;        // ptr to which of mem0/mem1 is available
-  int memtoggle;         // 0 if mem0 is available, 1 if mem1
-  uint64_t memfull;      // size of full memory block
-  uint64_t memhalf;      // size of half of memory block
-  uint64_t memquarter;   // size of quarter of memory block
+  char *memblock;           // memsize block of memory for KVs and KMVs
+  char *mem0,*mem1;         // ptrs to each quarter of memblock
+  char *mem2,*mem3;
+  char *memavail;           // ptr to which of mem0/mem1 is available
+  uint64_t memfull;         // size of full memory block
+  uint64_t memhalf;         // size of half of memory block
+  uint64_t memquarter;      // size of quarter of memory block
 
-  int twolenbytes;                 // byte length of two ints
-  int kalign,valign;               // finalized alignments for keys/value
-  int talign;                      // alignment of entire KV or KMV pair
-  int kalignm1,valignm1,talignm1;  // alignments-1 for masking
+  int twolenbytes;          // byte length of two ints
+  int kalign,valign;        // finalized alignments for keys/values
+  int talign;               // alignment of entire KV or KMV pair
+  int kalignm1,valignm1;    // alignments-1 for masking
+  int talignm1;
 
   // sorting
 
   typedef int (CompareFunc)(char *, int, char *, int);
   CompareFunc *compare;
 
-  char *sptr;
-  int *soffset,*slength;
+  char **dptr;              // ptrs to datums being sorted
+  int *slength;             // lengths of each datum
 
-  // storage for reduce/compress of multi-block KMVs
+  // multi-block KMV info
 
-  int blockvalid;
-  int nblock_kmv;
-  int block_header_page;
+  int kmv_block_valid;        // 1 if user is processing a multi-block KMV pair
+  int kmv_key_page;           // which page the key info is on
+  int kmv_nblock;             // # of value pages in multi-block KMV
+  uint64_t kmv_nvalue_total;  // total # of values in multi-block KMV
 
   // file map()
 
@@ -183,7 +186,7 @@ class MapReduce {
   void stats(const char *, int);
   char *file_create(int, int);
   void file_stats(int);
-  int roundup(int, int);
+  uint64_t roundup(uint64_t, int);
   void start_timer();
   void histogram(int, double *, double &, double &, double &,
 		 int, int *, int *);

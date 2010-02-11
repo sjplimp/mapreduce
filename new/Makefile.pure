@@ -5,9 +5,6 @@ PURE_CC =	purify -best-effort -follow-child-processes=yes \
                           -chain-length=20 
 CC =  	     g++34 -Wall -m64 -DPURIFY_HATES_HASHLITTLE
 
-# Define a directory to use as local disk.
-LOCALDISK = .
-
 CCFLAGS =	-g $(shell mpic++ --showme:compile) 
 DEPFLAGS =	-M
 ARCHIVE =	ar 

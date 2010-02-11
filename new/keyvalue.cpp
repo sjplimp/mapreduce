@@ -34,6 +34,7 @@ uint64_t KeyValue::wsize = 0;
 
 #define ALIGNFILE 512              // same as in mapreduce.cpp
 #define PAGECHUNK 16
+#define INTMAX 0x7FFFFFFF
 
 /* ---------------------------------------------------------------------- */
 
@@ -87,6 +88,16 @@ KeyValue::~KeyValue()
   memory->sfree(pages);
   if (fileflag) remove(filename);
   delete [] filename;
+}
+
+/* ----------------------------------------------------------------------
+   reset KV page to another chunk of memory
+   done by caller when it is manipulating memory
+------------------------------------------------------------------------- */
+
+void KeyValue::reset_page(char *memblock)
+{
+  page = memblock;
 }
 
 /* ----------------------------------------------------------------------
@@ -190,12 +201,13 @@ int KeyValue::request_info(char **ptr)
 }
 
 /* ----------------------------------------------------------------------
-   ready a page of KV data
+   ready one page of KV data
    caller is looping over data in KV
 ------------------------------------------------------------------------- */
 
-int KeyValue::request_page(int ipage, int &keysize_page, int &valuesize_page,
-			   int &alignsize_page)
+int KeyValue::request_page(int ipage, uint64_t &keysize_page,
+			   uint64_t &valuesize_page,
+			   uint64_t &alignsize_page)
 {
   // load page from file if necessary
 
@@ -231,12 +243,17 @@ void KeyValue::add(char *key, int keybytes, char *value, int valuebytes)
   nptr = ROUNDUP(nptr,talignm1);
   int kvbytes = nptr - iptr;
 
-  // page is full, write to disk
+  // size of KV pair cannot exceed int size
 
-  if (alignsize + kvbytes > pagesize) {
+  if (kvbytes < 0) error->one("Single key/value pair exceeds int size");
+
+  // page is full, write to disk
+  // full page = pagesize exceeded or INTMAX KV pairs
+
+  if (alignsize + kvbytes > pagesize || nkey == INTMAX) {
     if (alignsize == 0) {
-      printf("KeyValue pair size/limit: %d %d\n",kvbytes,pagesize);
-      error->one("Single KeyValue pair exceeds page size");
+      printf("KeyValue pair size/limit: %d %u\n",kvbytes,pagesize);
+      error->one("Single key/value pair exceeds page size");
     }
 
     create_page();
@@ -284,8 +301,8 @@ void KeyValue::add(int n, char *key, int keybytes,
 void KeyValue::add(int n, char *key, int *keybytes,
 		   char *value, int *valuebytes)
 {
-  int koffset = 0;
-  int voffset = 0;
+  uint64_t koffset = 0;
+  uint64_t voffset = 0;
 
   for (int i = 0; i < n; i++) {
     add(&key[koffset],keybytes[i],&value[voffset],valuebytes[i]);
@@ -310,7 +327,9 @@ void KeyValue::add(KeyValue *kv)
 
   // which add() to call depends on same or different alignment
 
-  int nkey_other,keysize_other,valuesize_other,alignsize_other;
+  int nkey_other;
+  uint64_t keysize_other,valuesize_other,alignsize_other;
+
   char *page_other;
   int npage_other = kv->request_info(&page_other);
 
@@ -336,8 +355,8 @@ void KeyValue::add(int n, char *buf)
 {
   int keybytes,valuebytes;
 
-  int keysize_buf = 0;
-  int valuesize_buf = 0;
+  uint64_t keysize_buf = 0;
+  uint64_t valuesize_buf = 0;
   char *ptr = buf;
 
   for (int i = 0; i < n; i++) {
@@ -355,7 +374,7 @@ void KeyValue::add(int n, char *buf)
     ptr = ROUNDUP(ptr,talignm1);
   }
 
-  int alignsize_buf = ptr - buf;
+  uint64_t alignsize_buf = ptr - buf;
   add(n,buf,keysize_buf,valuesize_buf,alignsize_buf);
 }
 
@@ -367,21 +386,25 @@ void KeyValue::add(int n, char *buf)
 ------------------------------------------------------------------------- */
 
 void KeyValue::add(int n, char *buf,
-		   int keysize_buf, int valuesize_buf, int alignsize_buf)
+		   uint64_t keysize_buf, uint64_t valuesize_buf,
+		   uint64_t alignsize_buf)
 {
-  int keybytes,valuebytes,kvbytes,chunksize;
-  int nkeychunk,keychunk,valuechunk;
+  int nkeychunk,keybytes,valuebytes,kvbytes;
+  uint64_t keychunk,valuechunk,chunksize;
   char *ptr,*ptr_begin,*ptr_end,*ptr_start;
 
   // break data into chunks that fit into current and successive pages
+  // full page = pagesize exceeded or INTMAX KV pairs
   // search for breakpoint by scanning KV pairs
 
   ptr = buf;
+  int nlimit = INTMAX - nkey;
 
-  while (alignsize + alignsize_buf > pagesize) {
+  while (alignsize + alignsize_buf > pagesize || n > nlimit) {
     ptr_begin = ptr;
     ptr_end = ptr_begin + (pagesize-alignsize);
-    nkeychunk = keychunk = valuechunk = 0;
+    nkeychunk = 0;
+    keychunk = valuechunk = 0;
 
     while (1) {
       ptr_start = ptr;
@@ -397,6 +420,7 @@ void KeyValue::add(int n, char *buf,
       kvbytes = ptr - ptr_start;
 
       if (ptr > ptr_end) break;
+      if (nkeychunk == nlimit) break;
 
       nkeychunk++;
       keychunk += keybytes;
@@ -404,8 +428,8 @@ void KeyValue::add(int n, char *buf,
     }
 
     if (kvbytes > pagesize) {
-      printf("KeyValue pair size/limit: %d %d\n",kvbytes,pagesize);
-      error->one("Single KeyValue pair exceeds page size");
+      printf("KeyValue pair size/limit: %d %u\n",kvbytes,pagesize);
+      error->one("Single key/value pair exceeds page size");
     }
 
     ptr = ptr_start;
@@ -426,6 +450,7 @@ void KeyValue::add(int n, char *buf,
     keysize_buf -= keychunk;
     valuesize_buf -= valuechunk;
     alignsize_buf -= chunksize;
+    nlimit = INTMAX;
   }
 
   // add remainder to in-memory page
@@ -501,7 +526,8 @@ void KeyValue::create_page()
   pages[npage].nkey = nkey;
   pages[npage].keysize = keysize;
   pages[npage].valuesize = valuesize;
-  pages[npage].exactsize = nkey*twolenbytes + keysize + valuesize;
+  pages[npage].exactsize = ((uint64_t) nkey)*twolenbytes + 
+    keysize + valuesize;
   pages[npage].alignsize = alignsize;
   pages[npage].filesize = roundup(alignsize,ALIGNFILE);
 
@@ -558,7 +584,7 @@ void KeyValue::read_page(int ipage, int writeflag)
    round N up to multiple of nalign and return it
 ------------------------------------------------------------------------- */
 
-int KeyValue::roundup(int n, int nalign)
+uint64_t KeyValue::roundup(uint64_t n, int nalign)
 {
   if (n % nalign == 0) return n;
   n = (n/nalign + 1) * nalign;
