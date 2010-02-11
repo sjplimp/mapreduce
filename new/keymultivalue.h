@@ -107,8 +107,9 @@ class KeyMultiValue {
   // hash table for unique keys
 
   Unique **buckets;     // ptr to 1st key in each bucket
-  int nbuckets;         // # of hash buckets
   int hashmask;         // bit mask for mapping hashed key into hash buckets
+                        // nbuckets = hashmask + 1
+  uint64_t bucketbytes; // byte size of hash buckets
 
   char *ustart;         // ptr to where memory for Uniques starts
   char *ustop;          // ptr to where memory for Uniques stops

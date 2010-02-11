@@ -462,6 +462,8 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
   // each unique key requires roughly:
   //   1 Unique, 1 hash bucket, keyave bytes for the key itself
   // set nbuckets to power of 2 just smaller than estimate
+  // also limit nbuckets to INTMAX+1 = 2^31
+  //   since are using 32-bit hash and want hashmask & ibucket to be ints
   // set aside first portion of memunique for nbuckets
   // remainder for Unique data structs + keys
 
@@ -470,13 +472,16 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
   uint64_t estimate = static_cast<uint64_t> (memsize/oneave);
   if (estimate == 0) error->one("Cannot hold any unique keys in memory");
 
-  nbuckets = 1;
+  uint64_t nbuckets = 1;
   while (nbuckets <= estimate) nbuckets *= 2;
   nbuckets /= 2;
+  nbuckets = MIN(nbuckets,INTMAX);
+  if (nbuckets == INTMAX) nbuckets++;
   hashmask = nbuckets-1;
 
   buckets = (Unique **) memunique;
-  ustart = memunique + nbuckets*sizeof(Unique *);
+  bucketbytes = nbuckets*sizeof(Unique *);
+  ustart = memunique + bucketbytes;
   ustop = memunique + memsize;
   ukeyoffset = sizeof(Unique);
 
@@ -689,7 +694,7 @@ int KeyMultiValue::kv2unique(int ipartition, int spoolflag)
 
   nunique = 0;
   unext = ustart;
-  for (int i = 0; i < nbuckets; i++) buckets[i] = NULL;
+  memset(buckets,0,bucketbytes);
 
   int spooled = 0;
 
