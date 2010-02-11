@@ -52,7 +52,7 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->memsize = 2;
+  mr->memsize = 1;
   mr->verbosity = 2;
   mr->timer = 1;
 
