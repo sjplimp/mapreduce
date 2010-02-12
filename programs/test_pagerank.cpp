@@ -35,6 +35,7 @@
 #include "mrvector.h"
 #include <assert.h>
 #include <unistd.h>
+#include "blockmacros.hpp"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
@@ -469,6 +470,7 @@ int main(int narg, char **args)
   mr->timer = 0;
   mr->mapstyle = 1;  // mapstyle == 0 does not work for this code.
 #ifdef NEW_OUT_OF_CORE
+  mr->set_fpath(MYLOCALDISK);
   mr->memsize = memsize;
 #endif
 

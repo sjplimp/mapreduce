@@ -78,6 +78,10 @@ void test_local_disks()
   remove(filename);
 }
 
+#else
+
+#define MYLOCALDISK "."
+
 #endif
 
 /////////////////////////////////////////////////////////////////////////////

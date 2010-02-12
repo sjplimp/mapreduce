@@ -35,6 +35,7 @@
 #include "keyvalue.h"
 #include "mrmatrix.h"
 #include "mrvector.h"
+#include "blockmacros.hpp"
 #include <assert.h>
 
 using namespace MAPREDUCE_NS;
@@ -70,6 +71,9 @@ int main(int narg, char **args)
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
+#ifdef NEW_OUT_OF_CORE
+  mr->set_fpath(MYLOCALDISK);
+#endif
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   MRMatrix A(mr, N, M, args[1]);

@@ -30,6 +30,7 @@
 #include "keyvalue.h"
 #include "random_mars.h"
 #include "assert.h"
+#include "blockmacros.hpp"
 
 #include "test_cc_common.h"
 #include "ccnd.h"
@@ -161,6 +162,7 @@ int main(int narg, char **args)
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
 #ifdef NEW_OUT_OF_CORE
+  mr->set_fpath(MYLOCALDISK);
   mr->memsize = cc.maxmem;
 #endif
 

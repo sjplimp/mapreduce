@@ -39,7 +39,8 @@
 //              timeseriesfile.srcs:  64-bit source vtx in range [0:n-1]
 //              timeseriesfile.dests:  64-bit destination vtx in range [0:n-1]
 //              timeseriesfile.vmap:  for each vtx in [0:n-1], 
-//                                    64-bit host hashkey ID
+//                                    64- (when -e1) or 128-bit (when -e2) 
+//                                    host hashkey ID
 //         -ff file
 //              file with list of binary link files to read in (one per line)
 //         -f file1 file2 ...
@@ -59,6 +60,7 @@
 #include "renumber_graph.hpp"
 #include "read_fb_data.hpp"
 #include "shared.hpp"
+
 
 using namespace std;
 using namespace MAPREDUCE_NS;

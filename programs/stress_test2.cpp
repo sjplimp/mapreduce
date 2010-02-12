@@ -73,6 +73,9 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+#ifdef NEW_OUT_OF_CORE
+  mr->set_fpath(MYLOCALDISK); 
+#endif
   mr->verbosity = 1;
 // mr->timer = 1;
 

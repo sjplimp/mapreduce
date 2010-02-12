@@ -108,7 +108,7 @@ uint64_t uniquewordcount = 0;
   }
   double tend = MPI_Wtime();
 
-  printf("%d total words, %d unique words, %f seconds\n", 
+  printf("%ld total words, %ld unique words, %f seconds\n", 
          wordcount, uniquewordcount, tend - tstart);
   MPI_Finalize();
 }

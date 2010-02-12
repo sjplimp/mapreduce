@@ -78,7 +78,7 @@ stress_test1:	stress_test1.o $(LIB)
 
 clean:
 	rm *.o *.d
-	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp stress_tet1 wordfreq
+	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp stress_test1 stress_test2 wordfreq
 
 # Rules
 

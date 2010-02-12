@@ -155,6 +155,7 @@ void ReadFBData::run(
   mrraw->verbosity = 0;
 
 #ifdef NEW_OUT_OF_CORE
+  mrraw->set_fpath(MYLOCALDISK);
   mrraw->memsize = MRMEMSIZE;
 #endif
   MPI_Barrier(MPI_COMM_WORLD);

@@ -16,6 +16,7 @@
 #include "mrmatrix.h"
 #include "mrvector.h"
 #include "mrall.h"
+#include "blockmacros.hpp"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
@@ -35,6 +36,9 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+#ifdef NEW_OUT_OF_CORE
+  mr->set_fpath(MYLOCALDISK);
+#endif
   mr->verbosity = 0;
 
   int gsum = MRGlobalSum(mr, me);

@@ -132,6 +132,7 @@ int main(int narg, char **args)
 // mr->verbosity = 1;
 // mr->timer = 1;
 #ifdef NEW_OUT_OF_CORE
+  mr->set_fpath(MYLOCALDISK);
   mr->memsize=memsize;
 #endif
 

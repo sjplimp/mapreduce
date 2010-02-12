@@ -467,6 +467,7 @@ bool SSSP<VERTEX, EDGE>::run()
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
 #ifdef NEW_OUT_OF_CORE
+  mrpath->set_fpath(MYLOCALDISK); 
   mrpath->memsize = MRMEMSIZE;
 #endif
 

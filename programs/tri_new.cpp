@@ -9,6 +9,7 @@
 #include "string.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
+#include "blockmacros.hpp"
 
 using namespace MAPREDUCE_NS;
 
@@ -64,6 +65,7 @@ int main(int narg, char **args)
   strcpy(outfile,args[2]);
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+  mr->set_fpath(MYLOCALDISK);
   mr->verbosity = 1;
   mr->timer = 1;
   //mr->memsize = 1;
