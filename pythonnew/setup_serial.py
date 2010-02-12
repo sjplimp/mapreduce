@@ -8,13 +8,13 @@ from distutils.core import setup, Extension
 
 import os, glob
 path = os.path.dirname(os.getcwd())
-libfiles = glob.glob("%s/src/*.cpp" % path) + \
+libfiles = glob.glob("%s/new/*.cpp" % path) + \
            glob.glob("%s/mpistubs/*.cpp" % path)
 
 mrmpi_library = Extension("_mrmpi_serial",
                           sources = libfiles,
                           define_macros = [("MPICH_IGNORE_CXX_SEEK",1)],
-                          include_dirs = ["../src", "../mpistubs"],
+                          include_dirs = ["../new", "../mpistubs"],
                           )
 
 setup(name = "mrmpi_serial",

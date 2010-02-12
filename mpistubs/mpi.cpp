@@ -88,6 +88,14 @@ void MPI_Type_size(MPI_Datatype datatype, int *size)
 
 /* ---------------------------------------------------------------------- */
 
+void MPI_Get_processor_name(char *name, int *len)
+{
+  strcpy(name,"Proc 0");
+  *len = strlen(name);
+}
+
+/* ---------------------------------------------------------------------- */
+
 double MPI_Wtime()
 {
   double time;

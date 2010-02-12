@@ -30,11 +30,6 @@ class mrmpi:
       except:
         raise StandardError,"Could not load MR-MPI dynamic library"
 
-    # hardwire keyalign and valuealign to 1 because of pickling
-
-    self.lib.MR_set_keyalign(self.mr,1)
-    self.lib.MR_set_valuealign(self.mr,1)
-
     # setup callbacks
     
     self.lib.MR_create.restype = c_void_p
@@ -76,6 +71,11 @@ class mrmpi:
     elif type(comm) == types.FloatType:
       self.mr = self.lib.MR_create_mpi_finalize()
     else: raise StandardError,"Could not create an MR library instance"
+
+    # hardwire keyalign and valuealign to 1 because of pickling
+
+    self.lib.MR_set_keyalign(self.mr,1)
+    self.lib.MR_set_valuealign(self.mr,1)
 
   def __del__(self):
     if self.mr: self.lib.MR_destroy(self.mr)

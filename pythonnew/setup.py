@@ -8,12 +8,12 @@ from distutils.core import setup, Extension
 
 import os, glob
 path = os.path.dirname(os.getcwd())
-libfiles = glob.glob("%s/src/*.cpp" % path)
+libfiles = glob.glob("%s/new/*.cpp" % path)
 
 mrmpi_library = Extension("_mrmpi",
                           sources = libfiles,
                           define_macros = [("MPICH_IGNORE_CXX_SEEK",1)],
-                          include_dirs = ["../src"],
+                          include_dirs = ["../new"],
                           library_dirs = ["/usr/local/lib"],
                           # works with MPICH on Linux
                           libraries = ["mpich","rt"],

@@ -59,6 +59,7 @@ void MPI_Comm_rank(MPI_Comm comm, int *me);
 void MPI_Comm_size(MPI_Comm comm, int *nprocs);
 void MPI_Abort(MPI_Comm comm, int errorcode);
 void MPI_Type_size(MPI_Datatype datatype, int *size);
+void MPI_Get_processor_name(char *name, int *len);
 double MPI_Wtime();
 
 void MPI_Send(void *buf, int count, MPI_Datatype datatype,
