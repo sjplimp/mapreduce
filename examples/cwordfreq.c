@@ -70,7 +70,7 @@ int main(int narg, char **args)
   count.n = 0;
   count.limit = 10;
   count.flag = 0;
-  MR_map_kv(mr,&output,&count);
+  MR_map_kv(mr,mr,&output,&count);
   
   MR_gather(mr,1);
   MR_sort_values(mr,&ncompare);
@@ -78,7 +78,7 @@ int main(int narg, char **args)
   count.n = 0;
   count.limit = 10;
   count.flag = 1;
-  MR_map_kv(mr,&output,&count);
+  MR_map_kv(mr,mr,&output,&count);
 
   MR_destroy(mr);
 
