@@ -2,16 +2,17 @@ SRC = 		mrvector.cpp mrmatrix.cpp test_matvec.cpp \
 		test_pagerank.cpp \
 		ccnd.cpp test_cc.cpp test_cc_common.cpp test_ccnd.cpp \
 		random_mars.cpp \
-		link2graph.cpp link2graph_weighted.cpp \
+		link2graph_weighted.cpp \
 		mrglobalsum.cpp test_gs.cpp \
 	        tri.cpp tri_new.cpp \
-		sssp.cpp
+		sssp.cpp \
+		wordfreq.cpp stress_test1.cpp stress_test2.cpp
 
 OBJ = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted sssp wordfreq stress_test1
+all:	matvec pagerank gs ccd ccnd link2graph_weighted sssp wordfreq stress_test1 stress_test2
 
 # Connected Components without distances; two versions of the 
 # algorithm (original Cohen + more scalable Plimpton) can be run 
@@ -43,11 +44,6 @@ matvec:	test_matvec.o mrmatrix.o mrvector.o $(LIB)
 		$(USRLIB) $(SYSLIB) -o matvec
 
 # Program to convert data to MapReduce graph and/or MatrixMarket file.
-link2graph:	link2graph.o $(LIB)
-		$(LINK) $(LINKFLAGS) link2graph.o \
-			$(USRLIB) $(SYSLIB) -o link2graph
-
-# Program to convert data to MapReduce graph and/or MatrixMarket file.
 link2graph_weighted:	link2graph_weighted.o $(LIB)
 		$(LINK) $(LINKFLAGS) link2graph_weighted.o \
 			$(USRLIB) $(SYSLIB) -o link2graph_weighted
@@ -69,6 +65,11 @@ wordfreq:	wordfreq.o $(LIB)
 		$(LINK) $(LINKFLAGS) wordfreq.o \
 			$(USRLIB) $(SYSLIB) -o wordfreq
 
+# Program to compute wordcount of power-law numbers.
+stress_test2:	stress_test2.o $(LIB)
+		$(LINK) $(LINKFLAGS) stress_test2.o \
+			$(USRLIB) $(SYSLIB) -o stress_test2
+
 
 # Program to compute wordcount of files; simpler input.
 stress_test1:	stress_test1.o $(LIB)
@@ -77,7 +78,7 @@ stress_test1:	stress_test1.o $(LIB)
 
 clean:
 	rm *.o *.d
-	rm matvec pagerank gs ccd ccnd link2graph tri link2graph_weighted sssp
+	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp stress_tet1 wordfreq
 
 # Rules
 

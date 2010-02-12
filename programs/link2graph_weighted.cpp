@@ -644,7 +644,8 @@ void hfile_write(char *key, int keybytes, char *multivalue,
   int i;
   FILE *fp = (FILE *) ptr;
 
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   if (keybytes == 16) {
@@ -687,7 +688,8 @@ void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
   iVERTEX *vi = (iVERTEX *) key;
 
   // First, find the negative int, which is -degree of Vi.
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
@@ -732,7 +734,8 @@ void matrix_write_weights(char *key, int keybytes, char *multivalue,
   FILE *fp = (FILE *) ptr;
   iVERTEX *vi = (iVERTEX *) key;
 
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   iEDGE *edge = (iEDGE *) multivalue;
@@ -794,7 +797,8 @@ void time_series_write(char *key, int keybytes, char *multivalue,
   FILE **fp = (FILE **) ptr;
   iVERTEX vi = *((iVERTEX *) key);
 
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   iEDGE *edge = (iEDGE *) multivalue;

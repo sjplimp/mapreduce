@@ -456,7 +456,7 @@ static void reduce3a(char *key, int keybytes, char *multivalue,
   MapReduce *mr = NULL;
   if (multivalue == NULL) {
     mr = (MapReduce *) valuebytes;
-    nblocks = mr->multivalue_blocks();
+    uint64_t total_nvalues = mr->multivalue_blocks(nblocks);
   }
 #endif
 
@@ -539,7 +539,7 @@ static void reduce3b(char *key, int keybytes, char *multivalue,
   MapReduce *mr = NULL;
   if (multivalue == NULL) {
     mr = (MapReduce *) valuebytes;
-    nblocks = mr->multivalue_blocks();
+    uint64_t total_nvalues = mr->multivalue_blocks(nblocks);
   }
 #endif
   

@@ -1,19 +1,19 @@
-/* ----------------------------------------------------------------------
-   MR-MPI = MapReduce-MPI library
-   http://www.cs.sandia.gov/~sjplimp/mapreduce.html
-   Steve Plimpton, sjplimp@sandia.gov, Sandia National Laboratories
-
-   Copyright (2009) Sandia Corporation.  Under the terms of Contract
-   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under 
-   the modified Berkeley Software Distribution (BSD) License.
-
-   See the README file in the top-level MapReduce directory.
-------------------------------------------------------------------------- */
-
 // MapReduce word frequency example in C++
-// Syntax: wordfreq file1 file2 ...
-//     or  wordfreq -n #  
+//  Syntax: wordfreq [-b] [-c] file1 file2 ...
+//      or  wordfreq [-b] [-c] [-f {tpw,equiv,def}] -n #\n");
+//  where
+//      -b ==> redistribute words to processors before doing wordcount
+//             (can help load balance when reading from files or doing 
+//              non-default generation)
+//      -c ==> locally compress data before doing global word count.
+//      -f {tpw,equiv,def} ==> type of generation to do;
+//             tpw = task per word = generate only one word's occurrences in a 
+//                                   single map task
+//             equiv = file equivalent = N+1 tasks with words generated
+//                                   equivalent to reading N+1 files.
+//             def = default = equal number of words per processor generated.
+//      -n # ==> generate (#+1)*2^# words.
+//
 // (1) reads all files, parses into words separated by whitespace 
 //     or generates Eric Goodman's input of (2**(N+1)-1) words (-n option).
 // (2) counts occurrence of each word in all files
@@ -21,6 +21,9 @@
 //
 // Based on wordfreq.cpp in the example directory.  Modified for experiments
 // with out-of-core MapReduce.
+//
+// Limitations:  each word can occur no more than 2^31-1 times without 
+// causing integer overflow in functions sum and globalsum.
 
 #include "mpi.h"
 #include "stdio.h"
@@ -30,24 +33,20 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
-
-#define BALANCED
-#define FILEEQUIV
+#include "genPowerLaw.hpp"
 
 using namespace MAPREDUCE_NS;
 
-void fileread(int, KeyValue *, void *);
-void fileread_thenbalance(int, KeyValue *, void *);
-void genwords_fileequiv(int, KeyValue *, void *);
-void genwords_wordpertask_thenbalance(int, KeyValue *, void *);
-void genwords_wordpertask(int, KeyValue *, void *);
-void genwords_thenbalance(int, KeyValue *, void *);
-void balance(char *, int, char *, int, int *, KeyValue *, void *);
-int identity(char *, int);
-void sum(char *, int, char *, int, int *, KeyValue *, void *);
-void globalsum(char *, int, char *, int, int *, KeyValue *, void *);
+typedef void MAPFN(int, KeyValue*, void*);
+typedef void MAPFN2(int, char *, int, char *, int, KeyValue *, void *);
+typedef void REDUCEFN(char*, int, char*, int, int*, KeyValue*, void*);
+MAPFN fileread;
+MAPFN fileread_redistrib;
+MAPFN2 output;
+REDUCEFN sum;
+REDUCEFN globalsum;
+REDUCEFN sanitycheck;
 int ncompare(char *, int, char *, int);
-void output(int, char *, int, char *, int, KeyValue *, void *);
 
 struct Count {
   int n,limit,flag;
@@ -70,91 +69,118 @@ int main(int narg, char **args)
     fflush(stdout);
   }
 
-  if (narg <= 1) {
-    if (me == 0) printf("Syntax: wordfreq file1 file2 ...\nor wordfreq -n #\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
+  bool readfiles = true;
+  bool redistribute_flag = false;
+  bool local_compress = false;
+  enum GenPowerLawEnum gen_flag = GEN_DEFAULT;
+  int N = -1;
+  int memsize = 2000;
+  const char *optstring = "bcf:m:n:";
+
+  char ch;
+  while ((ch = getopt(narg, args, optstring)) != -1) {
+    switch (ch) {
+    case 'b':
+      redistribute_flag = true;
+      break;
+    case 'c':
+      local_compress = true;
+      break;
+    case 'f':
+      readfiles = false;
+      if (strcmp(optarg, "tpw") == 0) 
+        gen_flag = GEN_TASKPERWORD;
+      else if (strcmp(optarg, "equiv") == 0)
+        gen_flag = GEN_FILEEQUIV;
+      else if (strcmp(optarg, "def") != 0) {
+        printf("Invalid generation option %s\n", optarg);
+        MPI_Abort(MPI_COMM_WORLD, -1);
+      }
+      break;
+    case 'm':
+      memsize = atoi(optarg);
+      break;
+    case 'n':
+      readfiles = false;
+      N = atoi(optarg);
+      break;
+    case '?':
+      printf("Invalid option -%c\n", optopt);
+      MPI_Abort(MPI_COMM_WORLD, -1);
+      break;
+    }
   }
 
-  int N = -1;
-  bool readfiles = true;
-  if (strcmp(args[1], "-n") == 0) {
-    readfiles = false;
-    N = atoi(args[2]);
+  if (!readfiles && N < 0) {
+    if (me == 0) printf("Error:  Must specify -n # to generate numbers\n");
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+  if ((narg < 2) || (readfiles && (narg-optind) < 2)) {
+    if (me == 0) printf("Syntax: wordfreq [-b] [-m memsize] file1 file2 ...\nor\n"
+                        "        wordfreq [-b] [-m memsize] [-f={tpw,equiv,def}] -n #\n");
+    MPI_Abort(MPI_COMM_WORLD, -1);
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
 // mr->verbosity = 1;
 // mr->timer = 1;
 #ifdef NEW_OUT_OF_CORE
-  mr->memsize=2000;
+  mr->memsize=memsize;
 #endif
+
+  MAPFN *genmap;
+  int nmaptasks;
+  void *mapptr;
+  if (readfiles) {
+    mapptr = &args[optind];
+    nmaptasks = narg-optind;
+    if (redistribute_flag) genmap = &fileread_redistrib;
+    else genmap = &fileread;
+    if (me == 0) 
+      printf("Input:  FileRead Redistribute %d\n", redistribute_flag);
+  } else {
+    switch (gen_flag) {
+    case GEN_TASKPERWORD:
+      mapptr = &N;
+      nmaptasks = (1<<(N+1))-1; 
+      if (redistribute_flag) genmap = genPowerLaw_TaskPerWord_Redistrib;
+      else genmap = genPowerLaw_TaskPerWord;
+      if (me == 0) 
+        printf("Input:  Generate TaskPerWord  Redistribute %d\n", 
+               redistribute_flag);
+      break;
+    case GEN_FILEEQUIV:
+      nmaptasks = N+1;
+      mapptr = &N;
+      if (redistribute_flag) genmap = genPowerLaw_FileEquiv_Redistrib;
+      else genmap = genPowerLaw_FileEquiv;
+      if (me == 0) 
+        printf("Input:  Generate FileEquiv  Redistribute %d\n", 
+               redistribute_flag);
+      break;
+    default:
+      mapptr = &N;
+      nmaptasks = nprocs;
+      if (redistribute_flag) genmap = genPowerLaw_Redistrib;
+      else genmap = genPowerLaw;
+      if (me == 0) 
+        printf("Input:  Generate Default  Redistribute %d\n", 
+               redistribute_flag);
+      break;
+    }
+  }
 
   if (me == 0) {printf("Beginning map...\n"); fflush(stdout);}
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  int nwords;
-  if (readfiles) {
-#ifndef BALANCED
-    nwords = mr->map(narg-1,&fileread,&args[1]);
-#else
-    if (nprocs == 1) // No balancing needed
-      nwords = mr->map(narg-1,&fileread,&args[1]);
-    else {
-      nwords = mr->map(narg-1,&fileread_thenbalance,&args[1]);
-      if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
-      mr->collate(&identity);  // Collates by processor
-      mr->reduce(&balance, NULL);
-    }
-#endif
-  }
-  else {
-#ifdef FILEEQUIV
-#ifndef BALANCED
-    // Automatically generate the words using Eric Goodman's scheme.
-    // This version has identical initial distribuion as the file-based input.
-    nwords = mr->map(N+1, &genwords_fileequiv, &N);
-#else
-    if (nprocs == 1) // No balancing needed
-      // Automatically generate the words using Eric Goodman's scheme.
-      // This version has identical initial distribuion as the file-based input.
-      nwords = mr->map(N+1, &genwords_fileequiv, &N);
-    else {
-      // Automatically generate the words using Eric Goodman's scheme.
-      // This version has identical initial distribuion as the file-based input.
-      // Then redistribute the words equally among the processors.  They will
-      // no longer be grouped by word, but they will be balanced on the procs.
-      nwords = mr->map(N+1, &genwords_thenbalance, &N);
-      if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
-      mr->collate(&identity);  // Collates by processor
-      mr->reduce(&balance, NULL);
-    }
-#endif
-#else
-
-    int nuniqueword = (1<<(N+1))-1; 
-#ifndef BALANCED
-    // This version has better spread of initial data across all procs when,
-    // e.g., the number of processors is much larger than the number of files.
-    // Funny, I thought this method would be better than the fileequiv
-    // method, but as the number of processors increases, it is actually
-    // worse (in terms of execution time).  I haven't investigated whether
-    // the problem is load-imbalance or more communication (or something
-    // else), though.  But for in-core MR-MPI with N=22 on 128 processors,
-    // the fileequiv method took ~3.2 seconds, while the wordpertask method
-    // takes ~14 seconds.
-    nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
-#else
-    if (nprocs == 1) // No balancing needed
-      nwords = mr->map(nuniqueword,&genwords_wordpertask,&N);
-    else {
-      nwords = mr->map(nuniqueword,&genwords_wordpertask_thenbalance,&N);
-      if (me == 0) {printf("Beginning balance...\n"); fflush(stdout);}
-      mr->collate(&identity);  // Collates by processor
-      mr->reduce(&balance, NULL);
-    }
-#endif
-#endif
+  // Generate words and (optionally) redistribute them to processors.
+  uint64_t nwords;
+  nwords = mr->map(nmaptasks,genmap,mapptr);
+  if (redistribute_flag) {
+    if (me == 0) {printf("Beginning redistribution...\n"); fflush(stdout);}
+    mr->collate(&genPowerLaw_IdentityHash);  // Collates by processor
+    mr->reduce(&genPowerLaw_RedistributeReduce, NULL);
   }
 
 #ifdef NEW_OUT_OF_CORE
@@ -166,64 +192,95 @@ int main(int narg, char **args)
 
   if (me == 0) {printf("Beginning wordcount...\n"); fflush(stdout);}
 
-#define LOCALCOMPRESS
-#ifdef LOCALCOMPRESS
-  // Perform a local compression of the data first to reduce the amount
-  // of communication that needs to be done.
-  // This compression builds local hash tables, and requires an additional
-  // pass over the data..
-  int nunique = mr->compress(&sum,NULL);  // Do word-count locally first
-  if (nprocs > 1) {
-    mr->collate(NULL);        // Hash keys and local counts to processors
-    nunique = mr->reduce(&globalsum,NULL); // Compute global sums for each key
+  uint64_t nunique;
+  if (local_compress) {
+    // Perform a local compression of the data first to reduce the amount
+    // of communication that needs to be done.
+    // This compression builds local hash tables, and requires an additional
+    // pass over the data..
+    if (me == 0) {printf("          compress...\n"); fflush(stdout);}
+    nunique = mr->compress(&sum,NULL);  // Do word-count locally first
+    if (nprocs > 1) {
+      mr->collate(NULL);        // Hash keys and local counts to processors
+      if (me == 0) {printf("          reduce...\n"); fflush(stdout);}
+      nunique = mr->reduce(&globalsum,NULL); // Compute global sums for each key
+    }
   }
-#else
-  // Do not do a local compression but, rather, do a global aggregate only.
-  mr->collate(NULL);    
-  int nunique = mr->reduce(&sum,NULL);
-#endif
+  else {
+    // Do not do a local compression but, rather, do a global aggregate only.
+    mr->collate(NULL);    
+    if (me == 0) {printf("          reduce...\n"); fflush(stdout);}
+    nunique = mr->reduce(&sum,NULL);
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
+#ifdef NEW_OUT_OF_CORE
+  mr->cummulative_stats(2, 0);
+#endif
+
 #ifdef POSTPROCESS
   if (me == 0) {printf("Beginning post-processing...\n"); fflush(stdout);}
-  mr->sort_values(&ncompare);
+#ifdef NEW_OUT_OF_CORE
+  MapReduce *mrout = mr->copy();
+#else
+  MapReduce *mrout = new MapReduce(*mr);
+#endif
+  mrout->sort_values(&ncompare);
 
   Count count;
   count.n = 0;
   count.limit = 10;
   count.flag = 0;
 #ifdef NEW_OUT_OF_CORE
-  mr->map(mr, &output, &count);
+  mrout->map(mrout, &output, &count);
 #else
-  mr->map(mr->kv,&output,&count);
+  mrout->map(mrout->kv,&output,&count);
 #endif
   
-  mr->gather(1);
-  mr->sort_values(&ncompare);
+  mrout->gather(1);
+  mrout->sort_values(&ncompare);
 
   count.n = 0;
   count.limit = 10;
   count.flag = 1;
 #ifdef NEW_OUT_OF_CORE
-  mr->map(mr, &output,&count);
+  mrout->map(mrout, &output,&count);
 #else
-  mr->map(mr->kv,&output,&count);
+  mrout->map(mrout->kv,&output,&count);
 #endif
+
+  delete mrout;
 
 #endif // POSTPROCESS
 
-#ifdef NEW_OUT_OF_CORE
-  mr->cummulative_stats(2, 0);
+#define SANITY_TEST
+#ifdef SANITY_TEST
+  // Check that the sum of the word counts for all words = nwords.
+  // mr contains key = word, value = occurrence count for word.
+  // Compute sum of occurrence counts.
+  if (me == 0) {printf("Beginning sanity check...\n"); fflush(stdout);}
+  uint64_t mynwords = 0, gnwords;
+  mr->clone();
+  mr->reduce(&sanitycheck, (void *) &mynwords);
+  MPI_Allreduce(&mynwords, &gnwords, 1, MPI_UNSIGNED_LONG, 
+                MPI_SUM, MPI_COMM_WORLD);
+  if (me == 0)
+    if (nwords != gnwords) 
+      printf("SANITY TEST FAILED:  nwords = %llu  sum of counts = %llu\n",
+             nwords, gnwords);
+    else
+      printf("Sanity test OK.\n");
 #endif
+
   delete mr;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tpost = MPI_Wtime();
 
   if (me == 0) {
-    printf("%d total words, %d unique words\n",nwords,nunique);
+    printf("%llu total words, %llu unique words\n",nwords,nunique);
     if (readfiles)
       printf("Time for fileread:  %g (secs)\n", tread-tstart);
     else 
@@ -231,10 +288,10 @@ int main(int narg, char **args)
     printf("Time for wordcount: %g (secs)\n", tstop-tread);
     if (readfiles)
       printf("Total Time to process %d files on %d procs = %g (secs)\n",
-	     narg-1,nprocs,tstop-tstart);
+             narg-1,nprocs,tstop-tstart);
     else
       printf("Total Time to process with N=%d on %d procs = %g (secs)\n",
-	     N,nprocs,tstop-tstart);
+             N,nprocs,tstop-tstart);
     printf("Time for post-processing:  %g (secs)\n", tpost-tstop);
   }
 
@@ -281,7 +338,7 @@ void fileread(int itask, KeyValue *kv, void *ptr)
    for each word in file, emit key = processor, value = word
 ------------------------------------------------------------------------- */
 
-void fileread_thenbalance(int itask, KeyValue *kv, void *ptr)
+void fileread_redistrib(int itask, KeyValue *kv, void *ptr)
 {
   // filesize = # of bytes in file
 
@@ -315,148 +372,6 @@ void fileread_thenbalance(int itask, KeyValue *kv, void *ptr)
 
   delete [] text;
 }
-/* ----------------------------------------------------------------------
-   generate words using Eric Goodman's strategy.
-   Words are just number strings.
-   Generate 2**N 0s; 2**(N-1) 1s and 2s; 2**(N-2) 3s, 4s, 5s and 6s;
-            2**(N-3) 7s, 8s, 9s, 10s, 11s, 12s, 13s, and 14s; etc.
-   Maxword string is 2**(N+1)-1-1.
-   The initial distribution of words is identical to having read
-   Eric's files; the number of tasks == the number of files.
-   Emit a processor ID as key, so that can redistribute words evenly
-   by processor ID.
-   Emit the word as the value.
-------------------------------------------------------------------------- */
-
-void genwords_thenbalance(int itask, KeyValue *kv, void *ptr)
-{
-  // itask is the word to be emitted.
-  // Compute number of instances of the word to emit.
-  static int count = 0;
-  static int np;
-  if (!count) MPI_Comm_size(MPI_COMM_WORLD, &np);
-
-  int N = *((int *) ptr);
-
-  // Compute word range for this task.
-  uint64_t maxword = (1<<(itask+1))-1;
-  uint64_t minword = (1<<(itask))-1;
-  uint64_t ncopies = (1<<(N-itask));
-
-  for (uint64_t w = minword; w < maxword; w++) {
-    char key[32];
-    sprintf(key, "%llu", w);
-    for (uint64_t i = 0; i < ncopies; i++) {
-      int proc = count % np;
-      count++;
-      kv->add((char *) &proc, sizeof(int), key, strlen(key)+1);
-    }
-  }
-}
-
-int identity(char *key, int keybytes)
-{
-  int p = *((int *) key);
-  return p;
-}
-
-
-void balance(char *key, int keybytes, char *multivalue,
-	     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
-{
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
-  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
-
-  int offset = 0;
-  for (int i = 0; i < nvalues; i++) {
-    char *key = multivalue + offset;
-    kv->add(key, valuebytes[i], NULL, 0);
-    offset += valuebytes[i];
-  }
-
-  END_BLOCK_LOOP
-}
-
-/* ----------------------------------------------------------------------
-   generate words using Eric Goodman's strategy.
-   Words are just number strings.
-   Generate 2**N 0s; 2**(N-1) 1s and 2s; 2**(N-2) 3s, 4s, 5s and 6s;
-            2**(N-3) 7s, 8s, 9s, 10s, 11s, 12s, 13s, and 14s; etc.
-   Maxword string is 2**(N+1)-1-1.
-   The initial distribution of words is identical to having read
-   Eric's files; the number of tasks == the number of files.
-------------------------------------------------------------------------- */
-
-void genwords_fileequiv(int itask, KeyValue *kv, void *ptr)
-{
-  // itask is the word to be emitted.
-  // Compute number of instances of the word to emit.
-  int N = *((int *) ptr);
-
-  // Compute word range for this task.
-  uint64_t maxword = (1<<(itask+1))-1;
-  uint64_t minword = (1<<(itask))-1;
-  uint64_t ncopies = (1<<(N-itask));
-
-  for (uint64_t w = minword; w < maxword; w++) {
-    char key[32];
-    sprintf(key, "%llu", w);
-    for (uint64_t i = 0; i < ncopies; i++) {
-      kv->add(key, strlen(key)+1, NULL, 0);
-    }
-  }
-}
-/* ----------------------------------------------------------------------
-   generate words using Eric Goodman's strategy.
-   Words are just number strings.
-   Generate 2**N 0s; 2**(N-1) 1s and 2s; 2**(N-2) 3s, 4s, 5s and 6s;
-            2**(N-3) 7s, 8s, 9s, 10s, 11s, 12s, 13s, and 14s; etc.
-   Maxword string is 2**(N+1)-1-1.
-   All instances of one word are generated per map task.
-------------------------------------------------------------------------- */
-
-void genwords_wordpertask(int itask, KeyValue *kv, void *ptr)
-{
-  // itask is the word to be emitted.
-  // Compute number of instances of the word to emit.
-  int N = *((int *) ptr);
-  int m;
-
-  for (m = N; m >= 0; m--) 
-    if ((itask < (1<<(m+1))-1) && (itask >= (1<<m)-1)) break;
-
-  // Emit 2**(N-m) copies of itask.
-  char key[32];
-  sprintf(key, "%d", itask);
-  uint64_t ncopies = (1<<(N-m));
-  for (uint64_t i = 0; i < ncopies; i++) {
-    kv->add(key, strlen(key)+1, NULL, 0);
-  }
-}
-
-void genwords_wordpertask_thenbalance(int itask, KeyValue *kv, void *ptr)
-{
-  // itask is the word to be emitted.
-  // Compute number of instances of the word to emit.
-  static int count = 0;
-  static int np;
-  if (!count) MPI_Comm_size(MPI_COMM_WORLD, &np);
-  int N = *((int *) ptr);
-  int m;
-
-  for (m = N; m >= 0; m--) 
-    if ((itask < (1<<(m+1))-1) && (itask >= (1<<m)-1)) break;
-
-  // Emit 2**(N-m) copies of itask.
-  char key[32];
-  sprintf(key, "%d", itask);
-  uint64_t ncopies = (1<<(N-m));
-  for (uint64_t i = 0; i < ncopies; i++) {
-    int proc = count % np;
-    count++;
-    kv->add((char *) &proc, sizeof(int), key, strlen(key)+1);
-  }
-}
 
 /* ----------------------------------------------------------------------
    count word occurrence
@@ -464,9 +379,11 @@ void genwords_wordpertask_thenbalance(int itask, KeyValue *kv, void *ptr)
 ------------------------------------------------------------------------- */
 
 void sum(char *key, int keybytes, char *multivalue,
-	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+         int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  kv->add(key,keybytes,(char *) &nvalues,sizeof(int));
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
+  kv->add(key,keybytes,(char *) &total_nvalues,sizeof(uint64_t));
 }
 
 /* ----------------------------------------------------------------------
@@ -475,11 +392,18 @@ void sum(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void globalsum(char *key, int keybytes, char *multivalue,
-	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+         int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  int sum = 0; 
+  uint64_t sum = 0; 
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
+  BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
+
   for (int i = 0; i < nvalues; i++) sum += *(((int *) multivalue)+i);
-  kv->add(key,keybytes,(char *) &sum,sizeof(int));
+
+  END_BLOCK_LOOP
+
+  kv->add(key,keybytes,(char *) &sum,sizeof(uint64_t));
 }
 
 /* ----------------------------------------------------------------------
@@ -489,8 +413,8 @@ void globalsum(char *key, int keybytes, char *multivalue,
 
 int ncompare(char *p1, int len1, char *p2, int len2)
 {
-  int i1 = *(int *) p1;
-  int i2 = *(int *) p2;
+  uint64_t i1 = *(uint64_t *) p1;
+  uint64_t i2 = *(uint64_t *) p2;
   if (i1 > i2) return -1;
   else if (i1 < i2) return 1;
   else return 0;
@@ -502,13 +426,29 @@ int ncompare(char *p1, int len1, char *p2, int len2)
 ------------------------------------------------------------------------- */
 
 void output(int itask, char *key, int keybytes, char *value,
-	    int valuebytes, KeyValue *kv, void *ptr)
+            int valuebytes, KeyValue *kv, void *ptr)
 {
   Count *count = (Count *) ptr;
   count->n++;
   if (count->n > count->limit) return;
 
-  int n = *(int *) value;
-  if (count->flag) printf("%d %s\n",n,key);
-  else kv->add(key,keybytes,(char *) &n,sizeof(int));
+  uint64_t n = *(uint64_t *) value;
+  if (count->flag) printf("%llu %s\n",n,key);
+  else kv->add(key,keybytes,(char *) &n,sizeof(uint64_t));
+}
+
+/* ----------------------------------------------------------------------
+   For a sanity check, ensure that the sum of the wordcounts equals the
+   total number of words.  Compute the sum of the wordcounts on this 
+   processor.
+   Input:  KMV:  key = word, nvalues = 1, mvalue = wordcount for word
+   Output:  NONE
+   Side effect:  increment subtotal by mvalue.
+------------------------------------------------------------------------- */
+
+void sanitycheck(char *key, int keybytes, char *multivalue,
+                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  uint64_t *subtotal = (uint64_t *) ptr;
+  *subtotal += *((uint64_t *) multivalue);
 }

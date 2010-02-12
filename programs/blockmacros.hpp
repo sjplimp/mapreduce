@@ -16,13 +16,13 @@
 // Note:  This mechanism is a little clunky.  Make sure you DO NOT have a 
 // semicolon afer these macros.
 
-#define CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)  \
+#define CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, totalnvalues)  \
   int bbb_nblocks = 1; \
-  uint64_t bbb_nvalues_total = nvalues; \
+  total_nvalues = nvalues; \
   MapReduce *bbb_mr = NULL; \
   if (!(multivalue)) { \
     bbb_mr = (MapReduce *) (valuebytes); \
-    bbb_nvalues_total = bbb_mr->multivalue_blocks(bbb_nblocks); \
+    total_nvalues = bbb_mr->multivalue_blocks(bbb_nblocks); \
   } 
 
 #define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)  \

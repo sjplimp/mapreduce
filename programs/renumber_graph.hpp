@@ -116,7 +116,8 @@ void edge_label1(char *key, int keybytes, char *multivalue,
   iVERTEX id;
   int i, offset, found=0;
 
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
@@ -181,7 +182,8 @@ void edge_label2(char *key, int keybytes, char *multivalue,
   iVERTEX id;
 
   // Identify id = int ID of vertex key in mvalue list.
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues)
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
   offset = 0;
