@@ -171,6 +171,8 @@ void MapReduce::defaults()
   timer = 0;
   memsize = MBYTES;
   keyalign = valuealign = ALIGNKV;
+  nextra = 0;
+  collateflag = 0;
 
   twolenbytes = 2*sizeof(int);
   kmv_block_valid = 0;
@@ -553,6 +555,7 @@ uint64_t MapReduce::collate(int (*hash)(char *, int))
   if (timer) start_timer();
   if (verbosity) file_stats(0);
 
+  collateflag = 1;
   int verbosity_hold = verbosity;
   int timer_hold = timer;
   verbosity = timer = 0;
@@ -563,6 +566,8 @@ uint64_t MapReduce::collate(int (*hash)(char *, int))
   verbosity = verbosity_hold;
   timer = timer_hold;
   stats("Collate",1);
+  nextra = 0;
+  collateflag = 0;
 
   uint64_t nkeyall;
   MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
@@ -590,7 +595,7 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
   kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,fname);
   memswap(fname);
 
-  kmv->convert(kv,mem2,memhalf,fpath);
+  nextra = kmv->convert(kv,mem2,memhalf,fpath);
   kmv->complete();
 
   delete kv;
@@ -664,6 +669,7 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
   kmv = NULL;
 
   stats("Compress",0);
+  nextra = 0;
 
   uint64_t nkeyall;
   MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
@@ -688,13 +694,14 @@ uint64_t MapReduce::convert()
   kmv = new KeyMultiValue(comm,memavail,memquarter,kalign,valign,fname);
   memswap(fname);
 
-  kmv->convert(kv,mem2,memhalf,fpath);
+  nextra = kmv->convert(kv,mem2,memhalf,fpath);
   kmv->complete();
 
   delete kv;
   kv = NULL;
 
   stats("Convert",1);
+  if (!collateflag) nextra = 0;
 
   uint64_t nkeyall;
   MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
@@ -2015,15 +2022,23 @@ void MapReduce::kv_stats(int level)
 {
   if (kv == NULL) error->all("Cannot print stats without KeyValue");
 
+  double mbyte = 1024.0*1024.0;
+
+  int memextra;
   uint64_t nkeyall,keysizeall,valuesizeall;
   MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&kv->ksize,&keysizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&kv->vsize,&valuesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  double mbyte = 1024.0*1024.0;
+  MPI_Allreduce(&nextra,&memextra,1,MPI_INT,MPI_SUM,comm);
 
-  if (me == 0)
-    printf("%lu pairs, %.3g Mb keys, %.3g Mb values\n",
-	   nkeyall,keysizeall/mbyte,valuesizeall/mbyte);
+  if (me == 0) {
+    if (memextra)
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %d Mb extra mem\n",
+	     nkeyall,keysizeall/mbyte,valuesizeall/mbyte,memextra);
+    else
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values\n",
+	     nkeyall,keysizeall/mbyte,valuesizeall/mbyte);
+  }
 
   if (level == 2) {
     int histo[10],histotmp[10];
@@ -2052,6 +2067,16 @@ void MapReduce::kv_stats(int level)
       for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
       printf("\n");
     }
+    if (memextra) {
+      tmp = nextra;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  MemEx (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
+    }
   }
 }
 
@@ -2063,15 +2088,23 @@ void MapReduce::kmv_stats(int level)
 {
   if (kmv == NULL) error->all("Cannot print stats without KeyMultiValue");
 
+  double mbyte = 1024.0*1024.0;
+
+  int memextra;
   uint64_t nkeyall,keysizeall,valuesizeall;
   MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&kmv->ksize,&keysizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   MPI_Allreduce(&kmv->vsize,&valuesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  double mbyte = 1024.0*1024.0;
-
-  if (me == 0)
-    printf("%lu pairs, %.3g Mb keys, %.3g Mb values\n",
-	   nkeyall,keysizeall/mbyte,valuesizeall/mbyte);
+  MPI_Allreduce(&nextra,&memextra,1,MPI_INT,MPI_SUM,comm);
+  
+  if (me == 0) {
+    if (memextra)
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %d Mb extra mem\n",
+	     nkeyall,keysizeall/mbyte,valuesizeall/mbyte,memextra);
+    else
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values\n",
+	     nkeyall,keysizeall/mbyte,valuesizeall/mbyte);
+  }
 
   if (level == 2) {
     int histo[10],histotmp[10];
@@ -2099,6 +2132,16 @@ void MapReduce::kmv_stats(int level)
       printf("  Histogram: ");
       for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
       printf("\n");
+    }
+    if (memextra) {
+      tmp = nextra;
+      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+      if (me == 0) {
+	printf("  MemEx (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("  Histogram: ");
+	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+	printf("\n");
+      }
     }
   }
 }
@@ -2350,7 +2393,7 @@ void MapReduce::stats(const char *heading, int which)
       double tmp = rsize_one/mbyte;
       histogram(1,&tmp,ave,max,min,10,histo,histotmp);
       if (me == 0) {
-	printf("  Read (Mb):   %g ave %g max %g min\n",ave,max,min);
+	printf("  Read (Mb):  %g ave %g max %g min\n",ave,max,min);
 	printf("  Histogram: ");
 	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
 	printf("\n");
@@ -2358,7 +2401,7 @@ void MapReduce::stats(const char *heading, int which)
       tmp = wsize_one/mbyte;
       histogram(1,&tmp,ave,max,min,10,histo,histotmp);
       if (me == 0) {
-	printf("  Write (Mb):  %g ave %g max %g min\n",ave,max,min);
+	printf("  Write (Mb): %g ave %g max %g min\n",ave,max,min);
 	printf("  Histogram: ");
 	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
 	printf("\n");

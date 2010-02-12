@@ -44,7 +44,7 @@ class KeyMultiValue {
 
   void clone(class KeyValue *);
   void collapse(char *, int, class KeyValue *);
-  void convert(class KeyValue *, char *, uint64_t, char *);
+  int convert(class KeyValue *, char *, uint64_t, char *);
 
  private:
   int me;

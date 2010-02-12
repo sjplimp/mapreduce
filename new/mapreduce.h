@@ -133,6 +133,11 @@ class MapReduce {
   int kalignm1,valignm1;    // alignments-1 for masking
   int talignm1;
 
+  // extra Spool memory usage
+
+  int nextra;               // Mbs of extra Spool memory used by KMV
+  int collateflag;          // flag for when convert() is called from collate()
+
   // sorting
 
   typedef int (CompareFunc)(char *, int, char *, int);

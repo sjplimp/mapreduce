@@ -434,10 +434,11 @@ void KeyMultiValue::collapse_many(char *key, int keybytes, KeyValue *kv)
    convert a KV with non-unique keys into a KMV with unique keys
    each processor works on only its data
    called by MR::convert()
+   return high-water count for # of spool Mbytes used
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
-			    char *fpath)
+int KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
+			   char *fpath)
 {
   int i,ichunk,spoolflag,spooled,nnew,nbits;
 
@@ -668,13 +669,15 @@ void KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
     ipartition++;
   }
   
-  // clean up
+  // clean up memory
 
   memory->sfree(partitions);
   memory->sfree(sets);
   for (i = 0; i < nchunk; i++) memory->sfree(chunks[i]);
   memory->sfree(chunks);
   delete [] sfile;
+
+  return nchunk*SPOOLMBYTES;
 }
 
 /* ----------------------------------------------------------------------
@@ -1349,7 +1352,8 @@ void KeyMultiValue::kv2kmv_extended(int iset)
 }
 
 /* ----------------------------------------------------------------------
-   allocate chunks of memory for Spool files
+   allocate chunks of memory for N Spool files
+   only malloc more chunks if N > nchunk = high-water mark
 ------------------------------------------------------------------------- */
 
 void KeyMultiValue::chunk_allocate(int n)
