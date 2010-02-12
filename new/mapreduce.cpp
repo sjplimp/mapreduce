@@ -351,10 +351,8 @@ uint64_t MapReduce::add(MapReduce *mr)
 
 uint64_t MapReduce::aggregate(int (*hash)(char *, int))
 {
-  int i,nbytes;
-  int nkey_send,nkey_recv;
-  int keybytes,valuebytes,keybytes_align,valuebytes_align;
-  int maxsend,maxrecv,maxbytes;
+  int i,nbytes,nkey_send,nkey_recv;
+  int keybytes,valuebytes,maxsend,maxrecv,maxbytes;
   uint64_t dummy1,dummy2,dummy3;
   char *ptr,*ptr_start,*key;
 
@@ -448,6 +446,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
 
     // use mem2 for received KVs if large enough (2x more than page)
     // else use bufkv
+    // NOTE: nbytes is an int, not a uint64 ??
 
     nbytes = irregular->size(sendsizes,NULL,recvsizes);
     if (nbytes <= memhalf) page_recv = mem2;
@@ -715,7 +714,7 @@ uint64_t MapReduce::convert()
 
 uint64_t MapReduce::gather(int numprocs)
 {
-  int i,flag,npage;
+  int flag,npage;
   char *buf;
   uint64_t sizes[4];
   MPI_Status status;
@@ -1616,7 +1615,7 @@ uint64_t MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
 uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int, 
 						       char *, int))
 {
-  int i,j,k;
+  int j,k;
 
   if (kmv == NULL) error->all("Cannot sort_multivalues without KeyMultiValue");
   if (timer) start_timer();
@@ -1721,7 +1720,7 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 
 void MapReduce::sort_kv(int flag)
 {
-  int i,j,n;
+  int j;
   int nkey,keybytes,valuebytes,nspool,nentry;
   uint64_t offset,dummy1,dummy2,dummy3;
   char *ptr,*key,*value;
