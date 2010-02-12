@@ -59,7 +59,7 @@ class mrmpi:
     
     MAP_MR_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
                             POINTER(c_char),c_int,c_void_p,c_void_p)
-    self.map_mr_def = MAP_KV_FUNC(self.map_mr_callback)
+    self.map_mr_def = MAP_MR_FUNC(self.map_mr_callback)
 
     REDUCEFUNC = CFUNCTYPE(c_void_p,POINTER(c_char),c_int,
                            POINTER(c_char),c_int,POINTER(c_int),
