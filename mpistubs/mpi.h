@@ -24,6 +24,7 @@
 #define MPI_CHAR 4
 #define MPI_BYTE 5
 #define MPI_DOUBLE_INT 6
+#define MPI_UNSIGNED_LONG 7
 
 #define MPI_SUM 1
 #define MPI_MAX 2
@@ -57,6 +58,7 @@ void MPI_Finalize();
 void MPI_Comm_rank(MPI_Comm comm, int *me);
 void MPI_Comm_size(MPI_Comm comm, int *nprocs);
 void MPI_Abort(MPI_Comm comm, int errorcode);
+void MPI_Type_size(MPI_Datatype datatype, int *size);
 double MPI_Wtime();
 
 void MPI_Send(void *buf, int count, MPI_Datatype datatype,
