@@ -1,11 +1,12 @@
 // MapReduce word frequency example in C++
-//  Syntax: wordfreq [-b] [-c] file1 file2 ...
-//      or  wordfreq [-b] [-c] [-f {tpw,equiv,def}] -n #\n");
+//  Syntax: wordfreq [-b] [-c] [-p] file1 file2 ...
+//      or  wordfreq [-b] [-c] [-p] [-f {tpw,equiv,def}] -n #\n");
 //  where
 //      -b ==> redistribute words to processors before doing wordcount
 //             (can help load balance when reading from files or doing 
 //              non-default generation)
 //      -c ==> locally compress data before doing global word count.
+//      -p ==> generate post-processing histograms
 //      -f {tpw,equiv,def} ==> type of generation to do;
 //             tpw = task per word = generate only one word's occurrences in a 
 //                                   single map task
@@ -72,10 +73,11 @@ int main(int narg, char **args)
   bool readfiles = true;
   bool redistribute_flag = false;
   bool local_compress = false;
+  bool postprocess = false;
   enum GenPowerLawEnum gen_flag = GEN_DEFAULT;
   int N = -1;
   int memsize = 2000;
-  const char *optstring = "bcf:m:n:";
+  const char *optstring = "bcf:m:n:p";
 
   char ch;
   while ((ch = getopt(narg, args, optstring)) != -1) {
@@ -104,6 +106,9 @@ int main(int narg, char **args)
       readfiles = false;
       N = atoi(optarg);
       break;
+    case 'p':
+      postprocess = true;
+      break;
     case '?':
       printf("Invalid option -%c\n", optopt);
       MPI_Abort(MPI_COMM_WORLD, -1);
@@ -116,8 +121,10 @@ int main(int narg, char **args)
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
   if ((narg < 2) || (readfiles && (narg-optind) < 2)) {
-    if (me == 0) printf("Syntax: wordfreq [-b] [-m memsize] file1 file2 ...\nor\n"
-                        "        wordfreq [-b] [-m memsize] [-f={tpw,equiv,def}] -n #\n");
+    if (me == 0) 
+      printf("Syntax: wordfreq [-b] [-c] [-p] [-m memsize] file1 file2 ..."
+             "\nor\n"
+             "        wordfreq [-b] [-c] [-p] [-m memsize] [-f={tpw,equiv,def}] -n #\n");
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
 
@@ -170,7 +177,7 @@ int main(int narg, char **args)
     }
   }
 
-  if (me == 0) {printf("Beginning map...\n"); fflush(stdout);}
+  if (me == 0) {printf("Begin map...\n"); fflush(stdout);}
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
@@ -178,8 +185,9 @@ int main(int narg, char **args)
   uint64_t nwords;
   nwords = mr->map(nmaptasks,genmap,mapptr);
   if (redistribute_flag) {
-    if (me == 0) {printf("Beginning redistribution...\n"); fflush(stdout);}
+    if (me == 0) {printf("Begin redistribution...collate\n"); fflush(stdout);}
     mr->collate(&genPowerLaw_IdentityHash);  // Collates by processor
+    if (me == 0) {printf("                    ...reduce\n"); fflush(stdout);}
     mr->reduce(&genPowerLaw_RedistributeReduce, NULL);
   }
 
@@ -190,7 +198,7 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tread = MPI_Wtime();
 
-  if (me == 0) {printf("Beginning wordcount...\n"); fflush(stdout);}
+  if (me == 0) {printf("Begin wordcount...\n"); fflush(stdout);}
 
   uint64_t nunique;
   if (local_compress) {
@@ -198,18 +206,18 @@ int main(int narg, char **args)
     // of communication that needs to be done.
     // This compression builds local hash tables, and requires an additional
     // pass over the data..
-    if (me == 0) {printf("          compress...\n"); fflush(stdout);}
+    if (me == 0) {printf("               ...compress\n"); fflush(stdout);}
     nunique = mr->compress(&sum,NULL);  // Do word-count locally first
     if (nprocs > 1) {
       mr->collate(NULL);        // Hash keys and local counts to processors
-      if (me == 0) {printf("          reduce...\n"); fflush(stdout);}
+      if (me == 0) {printf("               ...reduce\n"); fflush(stdout);}
       nunique = mr->reduce(&globalsum,NULL); // Compute global sums for each key
     }
   }
   else {
     // Do not do a local compression but, rather, do a global aggregate only.
     mr->collate(NULL);    
-    if (me == 0) {printf("          reduce...\n"); fflush(stdout);}
+    if (me == 0) {printf("               ...reduce\n"); fflush(stdout);}
     nunique = mr->reduce(&sum,NULL);
   }
 
@@ -220,58 +228,79 @@ int main(int narg, char **args)
   mr->cummulative_stats(2, 0);
 #endif
 
-#ifdef POSTPROCESS
-  if (me == 0) {printf("Beginning post-processing...\n"); fflush(stdout);}
+  if (postprocess) {
+    if (me == 0) {printf("Begin post-process...copy\n"); fflush(stdout);}
 #ifdef NEW_OUT_OF_CORE
-  MapReduce *mrout = mr->copy();
+    MapReduce *mrout = mr->copy();
 #else
-  MapReduce *mrout = new MapReduce(*mr);
+    MapReduce *mrout = new MapReduce(*mr);
 #endif
-  mrout->sort_values(&ncompare);
+    if (me == 0) {printf("                  ...sort_values\n");fflush(stdout);}
+    mrout->sort_values(&ncompare);
 
-  Count count;
-  count.n = 0;
-  count.limit = 10;
-  count.flag = 0;
+    Count count;
+    count.n = 0;
+    count.limit = 10;
+    count.flag = 0;
+    if (me == 0) {printf("                  ...map\n");fflush(stdout);}
 #ifdef NEW_OUT_OF_CORE
-  mrout->map(mrout, &output, &count);
+    mrout->map(mrout, &output, &count);
 #else
-  mrout->map(mrout->kv,&output,&count);
+    mrout->map(mrout->kv, &output, &count);
 #endif
   
-  mrout->gather(1);
-  mrout->sort_values(&ncompare);
-
-  count.n = 0;
-  count.limit = 10;
-  count.flag = 1;
+    if (me == 0) {printf("                  ...gather\n");fflush(stdout);}
+    mrout->gather(1);
+    if (me == 0) {printf("                  ...sort_values\n");fflush(stdout);}
+    mrout->sort_values(&ncompare);
+  
+    count.n = 0;
+    count.limit = 10;
+    count.flag = 1;
+    if (me == 0) {printf("                  ...map\n");fflush(stdout);}
 #ifdef NEW_OUT_OF_CORE
-  mrout->map(mrout, &output,&count);
+    mrout->map(mrout, &output, &count);
 #else
-  mrout->map(mrout->kv,&output,&count);
+    mrout->map(mrout->kv, &output, &count);
 #endif
 
-  delete mrout;
+    delete mrout;
+  }  // if postprocess
 
-#endif // POSTPROCESS
 
 #define SANITY_TEST
 #ifdef SANITY_TEST
-  // Check that the sum of the word counts for all words = nwords.
-  // mr contains key = word, value = occurrence count for word.
-  // Compute sum of occurrence counts.
-  if (me == 0) {printf("Beginning sanity check...\n"); fflush(stdout);}
-  uint64_t mynwords = 0, gnwords;
+  if (me == 0) {printf("Begin sanity check...clone\n"); fflush(stdout);}
   mr->clone();
-  mr->reduce(&sanitycheck, (void *) &mynwords);
-  MPI_Allreduce(&mynwords, &gnwords, 1, MPI_UNSIGNED_LONG, 
-                MPI_SUM, MPI_COMM_WORLD);
+  if (me == 0) {printf("                  ...reduce\n"); fflush(stdout);}
+
+  if (readfiles) {
+    // Check that the sum of the word counts for all words = nwords.
+    // mr contains key = word, value = occurrence count for word.
+    // Compute sum of occurrence counts.
+    uint64_t mynwords = 0, gnwords;
+    mr->reduce(&sanitycheck, (void *) &mynwords);
+    MPI_Allreduce(&mynwords, &gnwords, 1, MPI_UNSIGNED_LONG, 
+                  MPI_SUM, MPI_COMM_WORLD);
   if (me == 0)
     if (nwords != gnwords) 
       printf("SANITY TEST FAILED:  nwords = %llu  sum of counts = %llu\n",
              nwords, gnwords);
     else
       printf("Sanity test OK.\n");
+  }
+  else {
+    // We generated the words using the PowerLaw distribution, so
+    // we can check the accuracy of each word's count.
+    uint64_t gerrors = 0;
+    genPowerLaw_SanityStruct a(N);
+    mr->reduce(&genPowerLaw_SanityTest, (void *) &a);
+    MPI_Allreduce(&(a.nerrors), &gerrors, 1, MPI_UNSIGNED_LONG, 
+                  MPI_SUM, MPI_COMM_WORLD);
+    if (me == 0)
+      if (gerrors > 0) printf("SANITY TEST FAILED:  %llu ERRORS\n", gerrors);
+      else printf("Sanity test OK.\n");
+  }
 #endif
 
   delete mr;
@@ -399,7 +428,7 @@ void globalsum(char *key, int keybytes, char *multivalue,
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
-  for (int i = 0; i < nvalues; i++) sum += *(((int *) multivalue)+i);
+  for (int i = 0; i < nvalues; i++) sum += *(((uint64_t *) multivalue)+i);
 
   END_BLOCK_LOOP
 
