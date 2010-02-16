@@ -210,6 +210,7 @@ int main(int narg, char **args)
     if (me == 0) {printf("               ...compress\n"); fflush(stdout);}
     nunique = mr->compress(&sum,NULL);  // Do word-count locally first
     if (nprocs > 1) {
+      if (me == 0) {printf("               ...collate\n"); fflush(stdout);}
       mr->collate(NULL);        // Hash keys and local counts to processors
       if (me == 0) {printf("               ...reduce\n"); fflush(stdout);}
       nunique = mr->reduce(&globalsum,NULL); // Compute global sums for each key
@@ -217,6 +218,7 @@ int main(int narg, char **args)
   }
   else {
     // Do not do a local compression but, rather, do a global aggregate only.
+    if (me == 0) {printf("               ...collate\n"); fflush(stdout);}
     mr->collate(NULL);    
     if (me == 0) {printf("               ...reduce\n"); fflush(stdout);}
     nunique = mr->reduce(&sum,NULL);
