@@ -24,6 +24,8 @@ using namespace MAPREDUCE_NS;
 
 uint64_t Spool::rsize = 0;
 uint64_t Spool::wsize = 0;
+double Spool::rtime = 0.0;
+double Spool::wtime = 0.0;
 
 #define ALIGNFILE 512              // same as in mapreduce.cpp
 #define PAGECHUNK 16
@@ -89,6 +91,9 @@ void Spool::complete()
     nkv += pages[ipage].nentry;
     esize += pages[ipage].size;
   }
+
+  printf("SP Created %s: %d pages, %u entries, %g Mb\n",
+	 filename,npage,nkv,esize/1024.0/1024.0);
 }
 
 /* ----------------------------------------------------------------------
@@ -173,7 +178,9 @@ void Spool::write_page()
     fileflag = 1;
   }
 
+  double timestart = MPI_Wtime();
   fwrite(page,pages[npage].filesize,1,fp);
+  wtime += MPI_Wtime() - timestart;
   wsize += pages[npage].filesize;
 }
 
@@ -188,7 +195,9 @@ void Spool::read_page(int ipage)
     if (fp == NULL) error->one("Could not open Spool file for reading");
   }
 
+  double timestart = MPI_Wtime();
   fread(page,pages[ipage].filesize,1,fp);
+  rtime += MPI_Wtime() - timestart;
   rsize += pages[ipage].filesize;
 }
 

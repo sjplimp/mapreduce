@@ -38,6 +38,7 @@ int MapReduce::instances_ever = 0;
 int MapReduce::mpi_finalize_flag = 0;
 uint64_t MapReduce::cssize = 0;
 uint64_t MapReduce::crsize = 0;
+double MapReduce::commtime = 0.0;
 
 // prototypes for non-class functions
 
@@ -432,6 +433,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
     // insure recvsizes and arrays are big enough for incoming data
     // add received KV pairs to kvnew
 
+    double timestart = MPI_Wtime();
     irregular->pattern(nkey_send,proclist);
 
     nkey_recv = irregular->size(sizeof(int)) / sizeof(int);
@@ -460,6 +462,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
     irregular->exchange(page_send,page_recv);
     cssize += irregular->cssize;
     crsize += irregular->crsize;
+    commtime += MPI_Wtime() - timestart;
 
     // add received KV pairs to kvnew
 
@@ -737,6 +740,8 @@ uint64_t MapReduce::gather(int numprocs)
   // lo procs are those with ID < numprocs
   // lo procs recv from set of hi procs with same (ID % numprocs)
 
+  double timestart = MPI_Wtime();
+
   if (me < numprocs) {
     kv->append();
     buf = memavail;
@@ -778,6 +783,7 @@ uint64_t MapReduce::gather(int numprocs)
     memswap(fname);
   }
 
+  commtime += MPI_Wtime() - timestart;
   kv->complete();
 
   stats("Gather",0);
@@ -2023,20 +2029,25 @@ void MapReduce::kv_stats(int level)
 
   double mbyte = 1024.0*1024.0;
 
-  int memextra;
-  uint64_t nkeyall,keysizeall,valuesizeall;
+  int npages,memextra;
+  uint64_t nkeyall,ksizeall,vsizeall,tsizeall;
   MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kv->ksize,&keysizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kv->vsize,&valuesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->ksize,&ksizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->vsize,&vsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->tsize,&tsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->npage,&npages,1,MPI_INT,MPI_SUM,comm);
   MPI_Allreduce(&nextra,&memextra,1,MPI_INT,MPI_SUM,comm);
 
   if (me == 0) {
     if (memextra)
-      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %d Mb extra mem\n",
-	     nkeyall,keysizeall/mbyte,valuesizeall/mbyte,memextra);
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %.3g Mb, "
+	     "%d pages, %d Mb exmem\n",
+	     nkeyall,ksizeall/mbyte,vsizeall/mbyte,
+	     tsizeall/mbyte,npages,memextra);
     else
-      printf("%lu pairs, %.3g Mb keys, %.3g Mb values\n",
-	     nkeyall,keysizeall/mbyte,valuesizeall/mbyte);
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %.3g Mb, "
+	     "%d pages\n",
+	     nkeyall,ksizeall/mbyte,vsizeall/mbyte,tsizeall/mbyte,npages);
   }
 
   if (level == 2) {
@@ -2070,7 +2081,7 @@ void MapReduce::kv_stats(int level)
       tmp = nextra;
       histogram(1,&tmp,ave,max,min,10,histo,histotmp);
       if (me == 0) {
-	printf("  MemEx (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("  ExMem (Mb): %g ave %g max %g min\n",ave,max,min);
 	printf("  Histogram: ");
 	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
 	printf("\n");
@@ -2089,20 +2100,25 @@ void MapReduce::kmv_stats(int level)
 
   double mbyte = 1024.0*1024.0;
 
-  int memextra;
-  uint64_t nkeyall,keysizeall,valuesizeall;
+  int npages,memextra;
+  uint64_t nkeyall,ksizeall,vsizeall,tsizeall;
   MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kmv->ksize,&keysizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kmv->vsize,&valuesizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->ksize,&ksizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->vsize,&vsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->tsize,&tsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->npage,&npages,1,MPI_INT,MPI_SUM,comm);
   MPI_Allreduce(&nextra,&memextra,1,MPI_INT,MPI_SUM,comm);
   
   if (me == 0) {
     if (memextra)
-      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %d Mb extra mem\n",
-	     nkeyall,keysizeall/mbyte,valuesizeall/mbyte,memextra);
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %.3g Mb, "
+	     "%d pages, %d Mb exmem\n",
+	     nkeyall,ksizeall/mbyte,vsizeall/mbyte,
+	     tsizeall/mbyte,npages,memextra);
     else
-      printf("%lu pairs, %.3g Mb keys, %.3g Mb values\n",
-	     nkeyall,keysizeall/mbyte,valuesizeall/mbyte);
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %.3g Mb, "
+	     "%d pages\n",
+	     nkeyall,ksizeall/mbyte,vsizeall/mbyte,tsizeall/mbyte,npages);
   }
 
   if (level == 2) {
@@ -2136,7 +2152,7 @@ void MapReduce::kmv_stats(int level)
       tmp = nextra;
       histogram(1,&tmp,ave,max,min,10,histo,histotmp);
       if (me == 0) {
-	printf("  MemEx (Mb): %g ave %g max %g min\n",ave,max,min);
+	printf("  ExMem (Mb): %g ave %g max %g min\n",ave,max,min);
 	printf("  Histogram: ");
 	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
 	printf("\n");
@@ -2159,14 +2175,18 @@ void MapReduce::cummulative_stats(int level, int reset)
   // communication
 
   uint64_t csize[2] = {cssize,crsize};
-  uint64_t allcsize[2] = {0,0};
-
+  uint64_t allcsize[2];
   MPI_Allreduce(csize,allcsize,2,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+
+  double ctime[1] = {commtime};
+  double allctime[1];
+  MPI_Allreduce(ctime,allctime,1,MPI_DOUBLE,MPI_SUM,comm);
 
   if (allcsize[0] || allcsize[1]) {
     if (me == 0) printf("Cummulative comm stats = "
-			"%.3g Mb send, %.3g Mb recv\n", 
-			allcsize[0]/mbyte,allcsize[1]/mbyte);
+			"%.3g Mb send, %.3g Mb recv, %.3g secs\n", 
+			allcsize[0]/mbyte,allcsize[1]/mbyte,
+			allctime[0]/nprocs);
     if (level == 2) {
       tmp = csize[0]/mbyte;
       histogram(1,&tmp,ave,max,min,10,histo,histotmp);
@@ -2192,9 +2212,14 @@ void MapReduce::cummulative_stats(int level, int reset)
   uint64_t size[6] = {KeyValue::rsize,KeyValue::wsize,
 		      KeyMultiValue::rsize,KeyMultiValue::wsize,
 		      Spool::rsize,Spool::wsize};
-  uint64_t allsize[6] = {0,0,0,0,0,0};
-
+  uint64_t allsize[6];
   MPI_Allreduce(size,allsize,6,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+
+  double time[6] = {KeyValue::rtime,KeyValue::wtime,
+		    KeyMultiValue::rtime,KeyMultiValue::wtime,
+		    Spool::rtime,Spool::wtime};
+  double alltime[6];
+  MPI_Allreduce(time,alltime,6,MPI_DOUBLE,MPI_SUM,comm);
 
   int flag = 0;
   if (allsize[0] || allsize[1] || allsize[2]) flag = 1;
@@ -2202,9 +2227,12 @@ void MapReduce::cummulative_stats(int level, int reset)
 
   if (flag) {
     if (me == 0) printf("Cummulative internal file I/O stats = "
-			"%.3g Mb read, %.3g Mb write\n", 
+			"%.3g Mb read, %.3g Mb write, "
+			"%.3g sec read, %.3g sec write\n", 
 			(allsize[0]+allsize[2]+allsize[4])/mbyte,
-			(allsize[1]+allsize[3]+allsize[5])/mbyte);
+			(allsize[1]+allsize[3]+allsize[5])/mbyte,
+			(alltime[0]+alltime[2]+alltime[4])/nprocs,
+			(alltime[1]+alltime[3]+alltime[5])/nprocs);
     if (level == 2) {
       tmp = (size[0]+size[2]+size[4])/mbyte;
       histogram(1,&tmp,ave,max,min,10,histo,histotmp);

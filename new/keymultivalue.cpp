@@ -29,6 +29,8 @@ using namespace MAPREDUCE_NS;
 
 uint64_t KeyMultiValue::rsize = 0;
 uint64_t KeyMultiValue::wsize = 0;
+double KeyMultiValue::rtime = 0.0;
+double KeyMultiValue::wtime = 0.0;
 
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
@@ -504,6 +506,8 @@ int KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
 
   while (ipartition < npartition) {
 
+    printf("PARTITION process %d of %d on proc %d\n",ipartition,npartition,me);
+
     // spoolflag = 0 if KV keys all fit in memory even if all unique
     // spoolflag = 1 if may need to split into seen & unseen spools
     // one KV key requires nbytes = these quantities:
@@ -550,6 +554,9 @@ int KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
       delete unseen;
     }
 
+    printf("  PART spool results: %d spoolflag, %d spooled\n",
+	   spoolflag,spooled);
+
     // spooling occurred so need to create partitions of KVs
     // spool file "seen" becomes spool file for 1st subset
     // spool file "unseen" is split into spool files for new partitions
@@ -563,6 +570,9 @@ int KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
       nbits = 0;
       while ((1 << nbits) < nnew) nbits++;
       nnew = 1 << nbits;
+
+      printf("  PART split results: %u seen, %u unseen, %d nbits, %d nnew\n",
+	     seen->nkv,unseen->nkv,nbits,nnew);
 
       if (npartition+nnew >= maxpartition) {
 	while (maxpartition < npartition+nnew) maxpartition += PARTITIONCHUNK;
@@ -599,7 +609,7 @@ int KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
 	  partitions[i].sp->assign(chunks[ichunk++]);
 	}
 	
-	unseen2spools(nnew,nbits,partitions[ipartition].sortbit);
+	unseen2partitions(nnew,nbits,partitions[ipartition].sortbit);
 	delete unseen;
 	npartition += nnew;
       }
@@ -616,6 +626,8 @@ int KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
 
     for (int iset = 0; iset < nset; iset++) {
 
+      printf("  SET process %d of %d on proc %d\n",iset,nset,me);
+
       // loop over unique keys to structure KMV pages
       // if iset = 0:
       //   loop over all unique keys and create nsets and sets data struct
@@ -629,8 +641,11 @@ int KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
       if (sets[iset].extended) unique2kmv_extended(iset);
       else if (iset > 0) unique2kmv_set(iset);
 
+      printf("    SET spool results: %d spooled, %d extended\n",
+	     spooled,sets[iset].extended);
+
       // multiple KMV pages were induced by scan of all unique keys
-      // split KV partition into one sub-spool per set via unique2spools
+      // split KV partition into one sub-spool per set via partition2sets()
 
       if (spooled) {
 	chunk_allocate(nset+1);
@@ -645,7 +660,7 @@ int KeyMultiValue::convert(KeyValue *kv, char *memunique, uint64_t memsize,
 	  sets[i].sp->assign(chunks[ichunk++]);
 	}
 
-	unique2spools(ipartition);
+	partition2sets(ipartition);
 	if (partitions[ipartition].sp) delete partitions[ipartition].sp;
       }
 
@@ -798,7 +813,7 @@ int KeyMultiValue::kv2unique(int ipartition, int spoolflag)
    new partitions are from Npartition to Npartition + nnew
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::unseen2spools(int nnew, int nbits, int sortbit)
+void KeyMultiValue::unseen2partitions(int nnew, int nbits, int sortbit)
 {
   int i,nentry,keybytes,valuebytes,ispool;
   uint32_t ubucket;
@@ -846,7 +861,7 @@ void KeyMultiValue::unseen2spools(int nnew, int nbits, int sortbit)
       ispool = (ubucket >> shift) & mask;
 
       if (ispool < 0 || ispool >= nnew)
-	error->one("Internal error in unseen2spools");
+	error->one("Internal error in unseen2partitions");
 
       spools[ispool]->add(ptr-ptr_start,ptr_start);
       sp_ksize[ispool] += keybytes;
@@ -891,7 +906,8 @@ int KeyMultiValue::unique2kmv_all()
   ptr = page;
 
   // loop over all unique keys
-  // when forced to spool, store index of spool file in uptr->set
+  // create new set when page size exceeded by single- or multi-page KMV pairs
+  // uptr->set = assignment of key to set
 
   uptr = (Unique *) ustart;
   newflag = 1;
@@ -925,7 +941,7 @@ int KeyMultiValue::unique2kmv_all()
 
     // single-page KMV pair
     // if space remains in page and nkey < INTMAX, add it to this set
-    // else close set and add it to new set
+    // else close set and add it as first KMV to new set
     // if added to set 0:
     //   induce structure on first KMV page and modify unique info accordingly
 
@@ -1118,7 +1134,7 @@ void KeyMultiValue::unique2kmv_set(int iset)
    split partition file (KV or spool) into one spool file per set (KMV page)
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::unique2spools(int ipartition)
+void KeyMultiValue::partition2sets(int ipartition)
 {
   int i,nentry;
   int nkey_kv,keybytes,valuebytes,ibucket,ispool;
@@ -1161,11 +1177,11 @@ void KeyMultiValue::unique2spools(int ipartition)
 
       ibucket = hash(key,keybytes);
       uptr = find(ibucket,key,keybytes,udummy);
-      if (!uptr) error->one("Internal find error in unique2spools");
+      if (!uptr) error->one("Internal find error in partition2sets");
 
       ispool = uptr->set;
       if (ispool < 0 || ispool >= nset)
-	error->one("Internal spool error in unique2spools");
+	error->one("Internal spool error in partition2sets");
       spools[ispool]->add(ptr-ptr_start,ptr_start);
     }
   }
@@ -1460,9 +1476,11 @@ void KeyMultiValue::write_page()
     fileflag = 1;
   }
 
+  double timestart = MPI_Wtime();
   uint64_t fileoffset = pages[npage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(page,pages[npage].filesize,1,fp);
+  wtime += MPI_Wtime() - timestart;
   wsize += pages[npage].filesize;
 }
 
@@ -1480,9 +1498,11 @@ void KeyMultiValue::read_page(int ipage, int writeflag)
       error->one("Could not open KeyMultiValue file for reading");
   }
 
+  double timestart = MPI_Wtime();
   uint64_t fileoffset = pages[ipage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fread(page,pages[ipage].filesize,1,fp);
+  rtime += MPI_Wtime() - timestart;
   rsize += pages[ipage].filesize;
 }
 

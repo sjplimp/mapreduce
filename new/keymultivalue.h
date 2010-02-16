@@ -22,13 +22,15 @@ namespace MAPREDUCE_NS {
 
 class KeyMultiValue {
  public:
-  uint64_t nkmv;                   // # of KMV pairs in entire KMV on this proc
-  uint64_t ksize;                  // exact size of all key data
-  uint64_t vsize;                  // exact size of all multivalue data
-  uint64_t tsize;                  // total exact size of entire KMV
-  int fileflag;                    // 1 if file exists, 0 if not
+  uint64_t nkmv;                // # of KMV pairs in entire KMV on this proc
+  uint64_t ksize;               // exact size of all key data
+  uint64_t vsize;               // exact size of all multivalue data
+  uint64_t tsize;               // total exact size of entire KMV
 
-  static uint64_t rsize,wsize;     // total file read/write for all KMVs
+  int npage;                    // # of pages in entire KMV
+
+  static uint64_t rsize,wsize;  // total file read/write for all KMVs
+  static double rtime,wtime;    // total file read/write time for all KMVs
   
   KeyMultiValue(MPI_Comm, char *, uint64_t, int, int, char *);
   ~KeyMultiValue();
@@ -86,7 +88,6 @@ class KeyMultiValue {
   };
 
   Page *pages;                  // list of pages
-  int npage;                    // # of pages in entire KMV
   int maxpage;                  // max # of pages currently allocated
 
   // unique keys
@@ -116,6 +117,7 @@ class KeyMultiValue {
 
   // file info
 
+  int fileflag;         // 1 if file exists, 0 if not
   char *filename;       // filename to store KMV if needed
   FILE *fp;             // file ptr
 
@@ -161,11 +163,11 @@ class KeyMultiValue {
   void collapse_many(char *, int, class KeyValue *);
 
   int kv2unique(int, int);
-  void unseen2spools(int, int, int);
+  void unseen2partitions(int, int, int);
   int unique2kmv_all();
   void unique2kmv_extended(int);
   void unique2kmv_set(int);
-  void unique2spools(int);
+  void partition2sets(int);
   void kv2kmv(int);
   void kv2kmv_extended(int);
   void chunk_allocate(int);

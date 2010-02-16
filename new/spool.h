@@ -23,7 +23,8 @@ class Spool {
   uint64_t nkv;                      // # of KV entries in entire spool file
   uint64_t esize;                    // size of all entries (with alignment)
 
-  static uint64_t rsize,wsize;       // total r/w bytes for all Sp files
+  static uint64_t rsize,wsize;       // total file r/w bytes for all SPs
+  static double rtime,wtime;         // total file r/w time for all SPs
 
   Spool(char *, int, class Memory *, class Error *);
   ~Spool();

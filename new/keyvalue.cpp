@@ -26,6 +26,8 @@ using namespace MAPREDUCE_NS;
 
 uint64_t KeyValue::rsize = 0;
 uint64_t KeyValue::wsize = 0;
+double KeyValue::rtime = 0.0;
+double KeyValue::wtime = 0.0;
 
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
@@ -112,7 +114,7 @@ void KeyValue::copy(KeyValue *kv)
   if (kv == this) error->all("Cannot perform KeyValue copy on self");
 
   // pages will be loaded into other KV's memory
-  // write_page() will write them from that page to my spool file
+  // write_page() will write them from that page to my file
 
   char *page_hold = page;
   int npage_other = kv->request_info(&page);
@@ -556,9 +558,11 @@ void KeyValue::write_page()
     fileflag = 1;
   }
 
+  double timestart = MPI_Wtime();
   uint64_t fileoffset = pages[npage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fwrite(page,pages[npage].filesize,1,fp);
+  wtime += MPI_Wtime() - timestart;
   wsize += pages[npage].filesize;
 }
 
@@ -575,9 +579,11 @@ void KeyValue::read_page(int ipage, int writeflag)
     if (fp == NULL) error->one("Could not open KeyValue file for reading");
   }
 
+  double timestart = MPI_Wtime();
   uint64_t fileoffset = pages[ipage].fileoffset;
   fseek(fp,fileoffset,SEEK_SET);
   fread(page,pages[ipage].filesize,1,fp);
+  rtime += MPI_Wtime() - timestart;
   rsize += pages[ipage].filesize;
 }
 

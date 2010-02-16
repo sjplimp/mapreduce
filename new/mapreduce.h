@@ -41,6 +41,7 @@ class MapReduce {
                                    // grows as created, never shrinks
   static int mpi_finalize_flag;    // 1 if MR library should finalize MPI
   static uint64_t cssize,crsize;   // total send/recv bytes for all comm
+  static double commtime;          // total time for all comm
 
   // library API
 

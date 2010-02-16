@@ -24,13 +24,15 @@ class KeyValue {
   friend class MapReduce;
 
  public:
-  uint64_t nkv;                      // # of KV pairs in entire KV on this proc
-  uint64_t ksize;                    // exact size of all key data
-  uint64_t vsize;                    // exact size of all value data
-  uint64_t tsize;                    // total exact size of entire KV
-  int fileflag;                      // 1 if file exists, 0 if not
+  uint64_t nkv;                   // # of KV pairs in entire KV on this proc
+  uint64_t ksize;                 // exact size of all key data
+  uint64_t vsize;                 // exact size of all value data
+  uint64_t tsize;                 // total exact size of entire KV
 
-  static uint64_t rsize,wsize;       // total file read/write bytes for all KVs
+  int npage;                      // # of pages in entire KV
+
+  static uint64_t rsize,wsize;    // total file read/write bytes for all KVs
+  static double rtime,wtime;      // total file read/write time for all KMVs
 
   KeyValue(MPI_Comm, char *, uint64_t, int, int, char *);
   ~KeyValue();
@@ -79,11 +81,11 @@ class KeyValue {
   };
 
   Page *pages;                  // list of pages
-  int npage;                    // # of pages in entire KV
   int maxpage;                  // max # of pages currently allocated
 
   // file info
 
+  int fileflag;                 // 1 if file exists, 0 if not
   char *filename;               // filename to store KV if needed
   FILE *fp;                     // file ptr
 
