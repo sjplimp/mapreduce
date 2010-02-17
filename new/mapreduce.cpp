@@ -209,6 +209,10 @@ MapReduce *MapReduce::copy()
   mrnew->timer = timer;
   mrnew->memsize = memsize;
 
+  int n = strlen(fpath) + 1;
+  mrnew->fpath = new char[n];
+  strcpy(mrnew->fpath,fpath);
+
   if (allocated) {
     mrnew->keyalign = kalign;
     mrnew->valuealign = valign;
