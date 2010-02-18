@@ -38,8 +38,8 @@ double KeyMultiValue::wtime = 0.0;
 #define ROUNDUP(A,B) (char *) (((uint64_t) A + B) & ~B);
 
 #define ALIGNFILE 512              // same as in mapreduce.cpp
-#define PARTITIONCHUNK 1
-#define SETCHUNK 1
+#define PARTITIONCHUNK 16
+#define SETCHUNK 16
 #define PAGECHUNK 16
 #define SPOOLMBYTES 1
 #define INTMAX 0x7FFFFFFF
