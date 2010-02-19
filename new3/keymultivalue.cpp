@@ -447,7 +447,8 @@ void KeyMultiValue::convert(KeyValue *kv)
   chunks = NULL;
   nchunk = maxchunk = 0;
 
-  // estimate = # of unique keys that can be stored in 2 pages of memunique
+  // estimate = # of unique keys that can be stored
+  //   in 2 contiguous pages = memunique
   // each unique key requires roughly:
   //   1 Unique, 1 hash bucket, keyave bytes for the key itself
   // set nbuckets to power of 2 just smaller than estimate
