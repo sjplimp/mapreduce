@@ -668,7 +668,6 @@ void KeyMultiValue::kv2unique(int ipartition)
       if (unext <= ustop) {
 	if (uprev) uprev->next = uptr;
 	else buckets[ibucket] = uptr;
-	
 	uptr->nvalue = 1;
 	uptr->mvbytes = valuebytes;
 	uptr->next = NULL;
@@ -891,6 +890,19 @@ int KeyMultiValue::unique2kmv_all()
   }
 
   if (nset == 1) return 0;
+
+  // setup new Spool for each set
+  // ptrs in set 0 are reset to just new Spool
+
+  Spool *sp;
+  for (int i = 0; i < nset; i++) {
+    sp = new Spool(mr,memory,error);
+    sp->set_page(memspool,chunk_allocate());
+    sets[i].kv = NULL;
+    sets[i].sp = sp;
+    sets[i].sp2 = NULL;
+  }
+
   return 1;
 }
 
@@ -998,12 +1010,10 @@ void KeyMultiValue::partition2sets(int ipartition)
   char *ptr,*ptr_start,*key;
   Unique *uptr,*udummy;
 
+  // destination Spools for all KV pairs in partition
+
   Spool **spools = new Spool*[nset];
-  for (i = 0; i < nset; i++) {
-    Spool *sp = new Spool(mr,memory,error);
-    sp->set_page(memspool,chunk_allocate());
-    spools[i] = sets[i].sp = sp;
-  }
+  for (i = 0; i < nset; i++) spools[i] = sets[i].sp;
 
   // loop over KV pairs in this partition
   // source of KV pairs can be a KV, KV + Spool, Spool, or Spool + Spool2
@@ -1119,6 +1129,7 @@ void KeyMultiValue::kv2kmv(int iset)
       ibucket = hash(key,keybytes);
       uptr = find(ibucket,key,keybytes,udummy);
       if (!uptr) error->one("Internal find error in kv2kmv");
+      if (uptr->set != iset) error->one("Internal set error in kv2kmv");
 
       valuesizes = uptr->soffset;
       valuesizes[uptr->nvalue++] = valuebytes;
