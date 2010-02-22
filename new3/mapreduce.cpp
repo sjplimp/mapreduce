@@ -985,7 +985,7 @@ uint64_t MapReduce::map(char *file,
 
   // clean up file list
 
-  for (int i = 0; i < nmap; i++) delete files[i];
+  for (int i = 0; i < nmap; i++) delete [] files[i];
   memory->sfree(files);
 
   kv->complete(0);
@@ -1410,7 +1410,7 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
 	multivalue = ptr;
 	ptr += mvaluebytes;
 	ptr = ROUNDUP(ptr,talignm1);
-	
+
 	appreduce(key,keybytes,multivalue,nvalues,valuesizes,kv,appptr);
 
       } else {

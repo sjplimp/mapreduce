@@ -1065,7 +1065,7 @@ void KeyMultiValue::partition2sets(int ipartition)
 
     if (ipage == npage_kv-1 && twosource) {
       twosource = 0;
-      ipage = 0;
+      ipage = -1;
       if (kv) {
 	npage_kv = sp->request_info(&page_kv);
 	kv = NULL;
@@ -1143,7 +1143,7 @@ void KeyMultiValue::kv2kmv(int iset)
 
     if (ipage == npage_kv-1 && twosource) {
       twosource = 0;
-      ipage = 0;
+      ipage = -1;
       if (kv) {
 	npage_kv = sp->request_info(&page_kv);
 	kv = NULL;
@@ -1205,13 +1205,21 @@ void KeyMultiValue::kv2kmv_extended(int iset)
   int ncount = 0;
 
   KeyValue *kv = sets[iset].kv;
+  Spool *sp = sets[iset].sp;
+  Spool *sp2 = sets[iset].sp2;
+
+  int twosource = 0;
+  if (kv && sp) twosource = 1;
+  if (sp && sp2) twosource = 1;
 
   int npage_kv;
   char *page_kv;
-  npage_kv = kv->request_info(&page_kv);
+  if (kv) npage_kv = kv->request_info(&page_kv);
+  else npage_kv = sp->request_info(&page_kv);
 
   for (int ipage = 0; ipage < npage_kv; ipage++) {
-    nkey_kv = kv->request_page(ipage,kdummy,vdummy,adummy);
+    if (kv) nkey_kv = kv->request_page(ipage,kdummy,vdummy,adummy);
+    else nkey_kv = sp->request_page(ipage);
     ptr = page_kv;
 
     for (int i = 0; i < nkey_kv; i++) {
@@ -1255,6 +1263,20 @@ void KeyMultiValue::kv2kmv_extended(int iset)
       memcpy(multivalue,value,valuebytes);
       multivalue += valuebytes;
       valuesizes[ncount++] = valuebytes;
+
+      // switch KV source from KV to Spool or Spool to Spool2
+
+      if (ipage == npage_kv-1 && twosource) {
+	twosource = 0;
+	ipage = -1;
+	if (kv) {
+	  npage_kv = sp->request_info(&page_kv);
+	  kv = NULL;
+	} else {
+	  npage_kv = sp2->request_info(&page_kv);
+	  sp = sp2;
+	}
+      }
     }
   }
 
