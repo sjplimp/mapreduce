@@ -152,6 +152,8 @@ class KeyMultiValue {
 
   // chunks of memory for new KVs
 
+  char *readpage;               // do all reading from this page
+
   int memspool;                 // size of memory chunks
   int nchunk;                   // chunks in use
   int maxchunk;                 // total chunks allocated

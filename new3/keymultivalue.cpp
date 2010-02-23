@@ -482,6 +482,11 @@ void KeyMultiValue::convert(KeyValue *kv)
   if (ustop-ustart < ukeyoffset)
     error->one("Cannot hold any unique keys in memory");
 
+  // use KV's memory page for all file reading, release it at end
+
+  readpage = kv->page;
+  int kv_memtag = kv->memtag;
+
   // loop over partitions of KV pairs
   // partition = portion of KV pairs whose unique keys fit in memory
   // first partition is entire KV which may be split into more partitions
@@ -575,10 +580,7 @@ void KeyMultiValue::convert(KeyValue *kv)
       nchunk--;
       delete partitions[ipartition].sp2;
     }
-    if (partitions[ipartition].kv) {
-      mr->myfree(kv->memtag);
-      delete kv;
-    }
+    if (partitions[ipartition].kv) delete kv;
 
     ipartition++;
   }
@@ -586,6 +588,7 @@ void KeyMultiValue::convert(KeyValue *kv)
   // clean up memory
 
   mr->myfree(uniquetag);
+  mr->myfree(kv_memtag);
   memory->sfree(partitions);
   memory->sfree(sets);
   for (int i = 0; i < maxchunk; i++) memory->sfree(chunks[i]);
@@ -622,7 +625,8 @@ void KeyMultiValue::kv2unique(int ipartition)
 
   KeyValue *kv = partitions[ipartition].kv;
   Spool *sp = partitions[ipartition].sp;
-  
+  if (sp) sp->set_page(pagesize,readpage);
+
   int npage_kv;
   char *page_kv;
   if (kv) npage_kv = kv->request_info(&page_kv);
@@ -1023,6 +1027,8 @@ void KeyMultiValue::partition2sets(int ipartition)
   KeyValue *kv = partitions[ipartition].kv;
   Spool *sp = partitions[ipartition].sp;
   Spool *sp2 = partitions[ipartition].sp2;
+  if (sp) sp->set_page(pagesize,readpage);
+  if (sp2) sp2->set_page(pagesize,readpage);
 
   twosource = 0;
   if (kv && sp) twosource = 1;
@@ -1099,6 +1105,8 @@ void KeyMultiValue::kv2kmv(int iset)
   KeyValue *kv = sets[iset].kv;
   Spool *sp = sets[iset].sp;
   Spool *sp2 = sets[iset].sp2;
+  if (sp) sp->set_page(pagesize,readpage);
+  if (sp2) sp2->set_page(pagesize,readpage);
 
   twosource = 0;
   if (kv && sp) twosource = 1;
@@ -1207,6 +1215,8 @@ void KeyMultiValue::kv2kmv_extended(int iset)
   KeyValue *kv = sets[iset].kv;
   Spool *sp = sets[iset].sp;
   Spool *sp2 = sets[iset].sp2;
+  if (sp) sp->set_page(pagesize,readpage);
+  if (sp2) sp2->set_page(pagesize,readpage);
 
   int twosource = 0;
   if (kv && sp) twosource = 1;
