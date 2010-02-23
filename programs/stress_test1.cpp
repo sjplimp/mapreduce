@@ -78,7 +78,7 @@ int main(int narg, char **args)
 #ifdef NEW_OUT_OF_CORE
   mr->set_fpath(MYLOCALDISK); 
 #endif
-  mr->verbosity = 2;
+//  mr->verbosity = 1;
   mr->timer = 1;
 
   int N = atoi(args[2]);
@@ -96,10 +96,13 @@ int main(int narg, char **args)
   uint64_t nwords = mr->map(nprocs, &genwords, &N);
 
   // Redistribute the words equally among the processors.  
-  if (me == 0) {printf("KDD:  redistribute...collate\n"); fflush(stdout);}
-  //mr->collate(&identity);  // Collates by processor
+//  if (me == 0) {printf("KDD:  redistribute...collate\n"); fflush(stdout);}
+//  mr->collate(&identity);  // Collates by processor
+  if (me == 0) {printf("KDD:  redistribute...aggregate\n"); fflush(stdout);}
   mr->aggregate(&identity);
+  if (me == 0) {printf("KDD:  redistribute...convert\n"); fflush(stdout);}
   mr->convert();
+
   if (me == 0) {printf("KDD:  redistribute...reduce\n"); fflush(stdout);}
   mr->reduce(&redistribute_by_processor, NULL);
 
@@ -131,9 +134,9 @@ int main(int narg, char **args)
   mr->clone();
   if (me == 0) {printf("KDD:  sanity test...reduce\n"); fflush(stdout);}
   uint64_t errors = 0, gerrors = 0;
-  //mr->reduce(&sanitytest, (void *) &errors);
-  //MPI_Allreduce(&errors, &gerrors, 1, MPI_UNSIGNED_LONG,
-  //              MPI_SUM, MPI_COMM_WORLD);
+  mr->reduce(&sanitytest, (void *) &errors);
+  MPI_Allreduce(&errors, &gerrors, 1, MPI_UNSIGNED_LONG,
+                MPI_SUM, MPI_COMM_WORLD);
   if (me == 0) 
     if (gerrors > 0) printf("SANITY TEST FAILED: %llu ERRORS\n", gerrors);
     else printf("Sanity test OK.\n");

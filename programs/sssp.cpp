@@ -557,7 +557,6 @@ bool SSSP<VERTEX, EDGE>::run()
 
   if (write_files) {
     char filename[254];
-#define KEEP_OUTPUT
 #ifdef KEEP_OUTPUT
     // Custom filenames for each source -- lots of big files.
     // All files written to NFS.
