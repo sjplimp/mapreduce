@@ -152,7 +152,7 @@ void ReadFBData::run(
   // pass remaining list of filenames to map()
 
   MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
-  mrraw->verbosity = 2;
+  mrraw->verbosity = 0;
 
 #ifdef NEW_OUT_OF_CORE
   mrraw->set_fpath(MYLOCALDISK);
