@@ -4,11 +4,13 @@ CC =		g++
 #CCFLAGS =	-g -I../new -DMPICH_IGNORE_CXX_SEEK -DNEW_OUT_OF_CORE
 #CCFLAGS =	-g -I../new2 -DMPICH_IGNORE_CXX_SEEK -DNEW_OUT_OF_CORE
 CCFLAGS =	-g -I../new3 -DMPICH_IGNORE_CXX_SEEK -DNEW_OUT_OF_CORE
+#CCFLAGS =	-g -I../new4 -DMPICH_IGNORE_CXX_SEEK -DNEW_OUT_OF_CORE
 LINK =		g++
 LINKFLAGS =	-g  
 #USRLIB =	-L../new -lmrmpi
 #USRLIB =	-L../new2 -lmrmpi
 USRLIB =	-L../new3 -lmrmpi
+#USRLIB =	-L../new4 -lmrmpi
 SYSLIB =	-lmpich -lpthread -lrt
 DEPFLAGS =      -M
 
