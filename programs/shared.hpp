@@ -100,6 +100,10 @@ public:
     output << e.v << " " << e.wt;
     return output;
   };
+  friend bool operator!=(const EDGE16& lhs, const EDGE16& rhs) {
+    if ((lhs.wt != rhs.wt) || (lhs.v != rhs.v)) return true;
+    return false;
+  };
 };
 
 // Edge with destination vertex (8-bytes) and edge weight
@@ -111,6 +115,10 @@ public:
   friend std::ostream& operator<<(std::ostream& output, const EDGE08& e) {
     output << e.v << " " << e.wt;
     return output;
+  };
+  friend bool operator!=(const EDGE08& lhs, const EDGE08& rhs) {
+    if ((lhs.wt != rhs.wt) || (lhs.v != rhs.v)) return true;
+    return false;
   };
 };
 
@@ -124,6 +132,10 @@ public:
     output << e.v << " " << e.wt;
     return output;
   }
+  friend bool operator!=(const iEDGE& lhs, const iEDGE& rhs) {
+    if ((lhs.wt != rhs.wt) || (lhs.v != rhs.v)) return true;
+    return false;
+  };
 };
 
 // Label needed for renumbering vertices from hashkey IDs to [1:N].

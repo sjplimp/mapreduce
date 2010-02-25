@@ -5,14 +5,14 @@ SRC = 		mrvector.cpp mrmatrix.cpp test_matvec.cpp \
 		link2graph_weighted.cpp \
 		mrglobalsum.cpp test_gs.cpp \
 	        tri.cpp tri_new.cpp \
-		sssp.cpp \
+		sssp_v2.cpp sssp.cpp \
 		wordfreq.cpp stress_test1.cpp stress_test2.cpp
 
 OBJ = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank gs ccd ccnd link2graph_weighted sssp wordfreq stress_test1 stress_test2
+all:	matvec pagerank gs ccd ccnd link2graph_weighted sssp sssp_v2 wordfreq stress_test1 stress_test2
 
 # Connected Components without distances; two versions of the 
 # algorithm (original Cohen + more scalable Plimpton) can be run 
@@ -53,6 +53,11 @@ sssp:		sssp.o $(LIB)
 		$(LINK) $(LINKFLAGS) sssp.o \
 			$(USRLIB) $(SYSLIB) -o sssp
 
+# Program to compute single-source shortest paths.
+sssp_v2:	sssp_v2.o $(LIB)
+		$(LINK) $(LINKFLAGS) sssp_v2.o \
+			$(USRLIB) $(SYSLIB) -o sssp_v2
+
 # Program to count triangles in a graph.
 tri:	tri.o $(LIB)
 	$(LINK) $(LINKFLAGS) tri.o $(USRLIB) $(SYSLIB) -o tri
@@ -78,7 +83,7 @@ stress_test1:	stress_test1.o $(LIB)
 
 clean:
 	rm *.o *.d
-	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp stress_test1 stress_test2 wordfreq
+	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp sssp_v2 stress_test1 stress_test2 wordfreq
 
 # Rules
 
