@@ -118,7 +118,7 @@ void ReadMMData::run(
   MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
   mrraw->verbosity = 0;
 #ifdef NEW_OUT_OF_CORE
-  mrraw->set_fpath(MYLOCALDISK);
+  mrraw->set_fpath((char *) MYLOCALDISK);
   mrraw->memsize = MRMEMSIZE;
 #endif
 
@@ -159,9 +159,9 @@ void ReadMMData::run(
   timeUnique = MPI_Wtime() - tmap;
 
   if (me == 0) {
-    printf("ReadMM:  Number of edges:            %ld\n", *nrawedges);
-    printf("ReadMM:  Number of unique edges:     %ld\n", *nedges);
-    printf("ReadMM:  Number of unique vertices:  %ld\n", *nverts);
+    cout << "ReadMM:  Number of edges:            " << *nrawedges << endl;
+    cout << "ReadMM:  Number of unique edges:     " << *nedges << endl;
+    cout << "ReadMM:  Number of unique vertices:  " << *nverts << endl;
   }
 }
 

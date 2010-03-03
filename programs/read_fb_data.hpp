@@ -155,7 +155,7 @@ void ReadFBData::run(
   mrraw->verbosity = 0;
 
 #ifdef NEW_OUT_OF_CORE
-  mrraw->set_fpath(MYLOCALDISK);
+  mrraw->set_fpath((char *) MYLOCALDISK);
   mrraw->memsize = MRMEMSIZE;
 #endif
   MPI_Barrier(MPI_COMM_WORLD);
@@ -204,9 +204,9 @@ void ReadFBData::run(
   timeUnique = MPI_Wtime() - tmap;
 
   if (me == 0) {
-    printf("ReadFB:  Number of edges:            %ld\n", *nrawedges);
-    printf("ReadFB:  Number of unique edges:     %ld\n", *nedges);
-    printf("ReadFB:  Number of unique vertices:  %ld\n", *nverts);
+    cout << "ReadFB:  Number of edges:            " << *nrawedges << endl;
+    cout << "ReadFB:  Number of unique edges:     " << *nedges << endl;
+    cout << "ReadFB:  Number of unique vertices:  " << *nverts << endl;
   }
 }
 

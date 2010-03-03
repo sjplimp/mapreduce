@@ -24,7 +24,7 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-#define MAX_NUM_EXPERIMENTS 1
+#define MAX_NUM_EXPERIMENTS 50
 
 /////////////////////////////////////////////////////////////////////////////
 // Class used to pass distance information through the MapReduce system.
@@ -249,7 +249,8 @@ void output_distances(char *key, int keybytes, char *multivalue,
 {
   ofstream *fp = (ofstream *) ptr;
 //  FILE *fp = (FILE *) ptr;
-  EDGE *e = (EDGE *) multivalue;
+  DISTANCE<VERTEX,EDGE> *d = (DISTANCE<VERTEX,EDGE> *) multivalue;
+  EDGE *e = &(d->e);
 //  VERTEX *vi = (VERTEX *) key;
 
   if (nvalues > 1) {
@@ -259,12 +260,12 @@ void output_distances(char *key, int keybytes, char *multivalue,
   }
   
 // FOR GREG
-  if (e->wt < FLT_MAX-1.)
+//  if (e->wt < FLT_MAX-1.)
     *fp << *((VERTEX *)key) << "   " << e->wt << endl;
-  else
-    *fp << *((VERTEX *)key) << "   " << -1. << endl;
+//  else
+//    *fp << *((VERTEX *)key) << "   " << -1. << endl;
 
-//  *fp << *((VERTEX *)key) << "   " << *e << endl;
+//    *fp << *((VERTEX *)key) << "   " << *e << endl;
 
 //  if (keybytes == 16)
 //    fprintf(fp, "%lld %lld    %lld %lld  %ld\n",
@@ -479,7 +480,7 @@ bool SSSP<VERTEX, EDGE>::run()
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
 #ifdef NEW_OUT_OF_CORE
-  mrpath->set_fpath(MYLOCALDISK); 
+  mrpath->set_fpath((char *) MYLOCALDISK); 
   mrpath->memsize = MRMEMSIZE;
 #endif
 
@@ -573,6 +574,7 @@ bool SSSP<VERTEX, EDGE>::run()
 
   if (write_files) {
     char filename[254];
+    MapReduce *mrtmp = mrvert->copy();
 #define KEEP_OUTPUT
 #ifdef KEEP_OUTPUT
     // Custom filenames for each source -- lots of big files.
@@ -596,10 +598,11 @@ bool SSSP<VERTEX, EDGE>::run()
     ofstream fp;
     fp.open(filename);
   
-    mrvert->clone();
-    mrvert->reduce(output_distances<VERTEX,EDGE>, (void *) &fp);
+    mrtmp->clone();
+    mrtmp->reduce(output_distances<VERTEX,EDGE>, (void *) &fp);
 
     fp.close();
+    delete mrtmp;
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
