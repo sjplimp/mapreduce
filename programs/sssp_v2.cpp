@@ -474,7 +474,7 @@ bool SSSP<VERTEX, EDGE>::run()
     return false;  // no unique source remains; quit execution and return.
 
   // Initialize vertex distances.
-  mrvert->map(mrvert, &initialize_vertex_distances<VERTEX, EDGE>, NULL);
+  mrvert->map(mrvert, initialize_vertex_distances<VERTEX, EDGE>, NULL);
 // cout << "    KDDKDD MRVERT->NKV " << mrvert->kv->nkv << endl;
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
@@ -511,7 +511,7 @@ bool SSSP<VERTEX, EDGE>::run()
 
 // cout << " KDDKDD MOVING TO MRVERT " << endl;
     mrvert->kv->append();
-    mrpath->map(mrpath, &move_to_new_mr, mrvert);
+    mrpath->map(mrpath, move_to_new_mr, mrvert);
     mrvert->kv->complete();
 
 // printf("    KDDKDD3 MRVERT %d   MRPATH %d\n", mrvert->kv->nkv, mrpath->kv->nkv);
@@ -519,7 +519,7 @@ bool SSSP<VERTEX, EDGE>::run()
     // emit new distances into mrpath.
     uint64_t tmp_nv = 0, tmp_ne = 0;
     mrpath->kv->append();
-    tmp_nv = mrvert->compress(&pick_shortest_distances<VERTEX, EDGE>, mrpath);
+    tmp_nv = mrvert->compress(pick_shortest_distances<VERTEX, EDGE>, mrpath);
     mrpath->kv->complete();
 // printf("    KDDKDD4 MRVERT %d   MRPATH %d\n", mrvert->kv->nkv, mrpath->kv->nkv);
 
@@ -529,12 +529,12 @@ bool SSSP<VERTEX, EDGE>::run()
       done = 0;
 // cout << " KDDKDD MOVING TO MREDGE " << endl;
       mredge->kv->append();
-      mrpath->map(mrpath, &move_to_new_mr, mredge);
+      mrpath->map(mrpath, move_to_new_mr, mredge);
       mredge->kv->complete();
 // printf("    KDDKDD5 MREDGE %d   MRPATH %d\n", mredge->kv->nkv, mrpath->kv->nkv);
 
       mrpath->kv->append();
-      tmp_ne = mredge->compress(&update_adjacent_distances<VERTEX, EDGE>, mrpath);
+      tmp_ne = mredge->compress(update_adjacent_distances<VERTEX, EDGE>, mrpath);
       mrpath->kv->complete();
 // printf("    KDDKDD6 MREDGE %d   MRPATH %d\n", mredge->kv->nkv, mrpath->kv->nkv);
     }
