@@ -419,9 +419,10 @@ void KeyValue::add(char *ptr)
   int keybytes = *((int *) ptr);
   int valuebytes = *((int *) (ptr+sizeof(int)));;
   ptr += twolenbytes;
-  char *key = ROUNDUP(ptr,kalignm1);
-  key += keybytes;
-  char *value = ROUNDUP(key,valignm1);
+  ptr = ROUNDUP(ptr,kalignm1);
+  char *key = ptr;
+  ptr += keybytes;
+  char *value = ROUNDUP(ptr,valignm1);
   add(key,keybytes,value,valuebytes);
 }
 
