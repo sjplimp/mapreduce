@@ -1,0 +1,14 @@
+# MPI-based Makefile using mpic++ and mpicc.
+
+PURE_CC =	purify -best-effort -follow-child-processes=yes \
+                          -cache-dir=/tmp/purify \
+                          -chain-length=20 
+CC =  	     g++34 -Wall -m64 -DPURIFY_HATES_HASHLITTLE
+
+CCFLAGS =	-g $(shell mpic++ --showme:compile) 
+DEPFLAGS =	-M
+ARCHIVE =	ar 
+ARFLAGS =	r
+
+include Makefile.common
+
