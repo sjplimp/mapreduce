@@ -71,6 +71,7 @@ void Spool::set_page(uint64_t memsize, char *memblock)
 
 /* ----------------------------------------------------------------------
    complete the Spool after data has been added to it
+   always write page to disk, unlike KV and KMV which can stay in memory
 ------------------------------------------------------------------------- */
 
 void Spool::complete()
