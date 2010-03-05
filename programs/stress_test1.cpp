@@ -44,7 +44,8 @@ int identity(char *, int);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 void globalsum(char *, int, char *, int, int *, KeyValue *, void *);
 void sanitytest(char *, int, char *, int, int *, KeyValue *, void *);
-
+int strcompare(char *, int, char *, int);
+void checksort(uint64_t, char *, int, char *, int, KeyValue *, void *);
 
 static int ME;
 static uint64_t FREQ;
@@ -78,7 +79,7 @@ int main(int narg, char **args)
 #ifdef NEW_OUT_OF_CORE
   mr->set_fpath(MYLOCALDISK); 
 #endif
-//  mr->verbosity = 1;
+  mr->verbosity = 2;
   mr->timer = 1;
 
   int N = atoi(args[2]);
@@ -100,9 +101,11 @@ int main(int narg, char **args)
 //  mr->collate(&identity);  // Collates by processor
   if (me == 0) {printf("KDD:  redistribute...aggregate\n"); fflush(stdout);}
   mr->aggregate(&identity);
+  //mr->sort_values(strcompare);
+  //char *buf = new char[16];
+  //mr->map(mr,checksort,buf,1);
   if (me == 0) {printf("KDD:  redistribute...convert\n"); fflush(stdout);}
   mr->convert();
-
   if (me == 0) {printf("KDD:  redistribute...reduce\n"); fflush(stdout);}
   mr->reduce(&redistribute_by_processor, NULL);
 
@@ -289,4 +292,34 @@ void sanitytest(char *key, int keybytes, char *multivalue,
   if (*((uint64_t*)multivalue) != nprocs) (*error)++;
 
   END_BLOCK_LOOP
+}
+
+/* ----------------------------------------------------------------------
+------------------------------------------------------------------------- */
+
+int strcompare(char *key1, int k1len, char *key2, int k2len)
+{
+  int i1 = atoi(key1);
+  int i2 = atoi(key2);
+  if (i1 < i2) return -1;
+  if (i1 > i2) return 1;
+  return 0;
+}
+
+/* ----------------------------------------------------------------------
+------------------------------------------------------------------------- */
+
+void checksort(uint64_t itask, char *key, int keybytes,
+	       char *value, int valuebytes,  KeyValue *kv, void *ptr)
+{
+  char *old = (char *) ptr;
+  if (itask) {
+    int i1 = atoi(old);
+    int i2 = atoi(value);
+    if (i1 > i2)
+      printf("BAD SORT %u %d: %d %d\n",ME,itask,i1,i2);
+    //if (ME == 0) printf("AAA %u %s %s\n",itask,old,value);
+  }
+  strcpy(old,value);
+  //printf("AAA %d %d %d %s %d\n",itask,*(int *)key,keybytes,value,valuebytes);
 }
