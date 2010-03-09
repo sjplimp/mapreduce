@@ -39,12 +39,6 @@ class MapReduce {
   class KeyValue *kv;              // single KV stored by MR
   class KeyMultiValue *kmv;        // single KMV stored by MR
 
-  int fcounter_kv;    // file counters for various intermediate files
-  int fcounter_kmv;
-  int fcounter_sort;
-  int fcounter_part;
-  int fcounter_set;
-
   // static variables across all MR objects
 
   static MapReduce *mrptr;         // holds a ptr to MR currently being used
@@ -152,6 +146,17 @@ class MapReduce {
   int kalignm1,valignm1;    // alignments-1 for masking
   int talignm1;
 
+  // file info
+
+  uint64_t fsize;           // current aggregate size of disk files
+  uint64_t fsizemax;        // hi-water mark for fsize
+
+  int fcounter_kv;          // file counters for various intermediate files
+  int fcounter_kmv;
+  int fcounter_sort;
+  int fcounter_part;
+  int fcounter_set;
+
   // sorting
 
   typedef int (CompareFunc)(char *, int, char *, int);
@@ -206,6 +211,7 @@ class MapReduce {
   void file_stats(int);
   uint64_t roundup(uint64_t, int);
   void start_timer();
+  void write_histo(double, char *);
   void histogram(int, double *, double &, double &, double &,
 		 int, int *, int *);
 
@@ -215,6 +221,7 @@ class MapReduce {
   char *mymalloc(int, uint64_t &, int &);
   void myfree(int);
   int memquery(int &, int &);
+  void hiwater(int, uint64_t);
 };
 
 }

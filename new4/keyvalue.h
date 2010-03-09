@@ -28,6 +28,7 @@ class KeyValue {
   uint64_t ksize;                 // exact size of all key data
   uint64_t vsize;                 // exact size of all value data
   uint64_t esize;                 // exact size of all data in KV
+  uint64_t fsize;                 // size of KV file
   int msize;                      // size of largest KV pair across all procs
 
   char *page;                     // memory page
@@ -43,7 +44,7 @@ class KeyValue {
   void truncate(int, int, uint64_t);
   void copy(KeyValue *);
   void append();
-  void complete(int);
+  void complete();
   int request_info(char **);
   int request_page(int, uint64_t &, uint64_t &, uint64_t &);
 

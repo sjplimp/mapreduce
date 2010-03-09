@@ -26,6 +26,7 @@ class KeyMultiValue {
   uint64_t ksize;               // exact size of all key data
   uint64_t vsize;               // exact size of all multivalue data
   uint64_t esize;               // total exact size of entire KMV
+  uint64_t fsize;               // size of KMV file
 
   char *page;                   // in-memory page
   int memtag;                   // page ID
@@ -37,7 +38,7 @@ class KeyMultiValue {
 
   void set_page();
   void copy(KeyMultiValue *);
-  void complete(int);
+  void complete();
   int request_info(char **);
   int request_page(int, int, uint64_t &, uint64_t &, uint64_t &);
   uint64_t multivalue_blocks(int, int &);

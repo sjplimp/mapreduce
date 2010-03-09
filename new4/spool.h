@@ -22,6 +22,7 @@ class Spool {
  public:
   uint64_t nkv;                      // # of KV entries in entire spool file
   uint64_t esize;                    // size of all entries (with alignment)
+  uint64_t fsize;                    // size of spool file
 
   char *page;                        // in-memory page
   int npage;                         // # of pages in Spool

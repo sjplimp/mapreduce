@@ -78,7 +78,7 @@ KeyMultiValue::KeyMultiValue(MapReduce *mr_caller,
   twolenbytes = 2*sizeof(int);
   threelenbytes = 3*sizeof(int);
 
-  nkmv = ksize = vsize = esize = 0;
+  nkmv = ksize = vsize = esize = fsize = 0;
   init_page();
 }
 
@@ -87,7 +87,10 @@ KeyMultiValue::KeyMultiValue(MapReduce *mr_caller,
 KeyMultiValue::~KeyMultiValue()
 {
   memory->sfree(pages);
-  if (fileflag) remove(filename);
+  if (fileflag) {
+    remove(filename);
+    mr->hiwater(1,fsize);
+  }
   delete [] filename;
 }
 
@@ -129,23 +132,22 @@ void KeyMultiValue::copy(KeyMultiValue *kmv)
 
   nkey = kmv->request_page(npage_other-1,0,keysize,valuesize,alignsize);
   memcpy(page_hold,page,alignsize);
-  complete(0);
+  complete();
   page = page_hold;
 }
 
 /* ----------------------------------------------------------------------
    complete the KMV after data has been added to it
    called by MR methods after creating & populating a KMV
-   forceflag = 1 if want to force KV to be written to disk
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::complete(int forceflag)
+void KeyMultiValue::complete()
 {
   create_page();
 
   // if disk file exists, write last page, close file
 
-  if (fileflag || forceflag) {
+  if (fileflag) {
     write_page();
     fclose(fp);
     fp = NULL;
@@ -162,6 +164,11 @@ void KeyMultiValue::complete(int forceflag)
     ksize += pages[ipage].keysize;
     vsize += pages[ipage].valuesize;
     esize += pages[ipage].exactsize;
+  }
+
+  if (fileflag) {
+    fsize = pages[npage-1].fileoffset + pages[npage-1].filesize;
+    mr->hiwater(0,fsize);
   }
 }
 

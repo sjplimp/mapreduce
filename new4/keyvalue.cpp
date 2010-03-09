@@ -39,7 +39,6 @@ enum{KVFILE,KMVFILE,SORTFILE,PARTFILE,SETFILE};   // same as in mapreduce.cpp
 KeyValue::KeyValue(MapReduce *mr_caller, int memkalign, int memvalign,
 		   Memory *memory_caller, Error *error_caller,
 		   MPI_Comm comm_caller)
-
 {
   mr = mr_caller;
   memory = memory_caller;
@@ -67,7 +66,7 @@ KeyValue::KeyValue(MapReduce *mr_caller, int memkalign, int memvalign,
 
   twolenbytes = 2*sizeof(int);
 
-  nkv = ksize = vsize = esize = 0;
+  nkv = ksize = vsize = esize = fsize = 0;
   init_page();
 }
 
@@ -76,7 +75,10 @@ KeyValue::KeyValue(MapReduce *mr_caller, int memkalign, int memvalign,
 KeyValue::~KeyValue()
 {
   memory->sfree(pages);
-  if (fileflag) remove(filename);
+  if (fileflag) {
+    remove(filename);
+    mr->hiwater(1,fsize);
+  }
   delete [] filename;
 }
 
@@ -146,7 +148,7 @@ void KeyValue::copy(KeyValue *kv)
   nkey = kv->request_page(npage_other-1,keysize,valuesize,alignsize);
   memcpy(page_hold,page,alignsize);
   msize = kv->msize;
-  complete(0);
+  complete();
   page = page_hold;
 }
 
@@ -162,8 +164,12 @@ void KeyValue::append()
   int ipage = npage-1;
 
   // read last page from file if necessary
+  // decrement MR filesize as if file were being deleted
 
-  if (fileflag) read_page(ipage,1);
+  if (fileflag) {
+    read_page(ipage,1);
+    mr->hiwater(1,fsize);
+  }
 
   // set in-memory settings from virtual page settings
 
@@ -172,7 +178,7 @@ void KeyValue::append()
   valuesize = pages[ipage].valuesize;
   alignsize = pages[ipage].alignsize;
 
-  // delete the page from pages data structures since will append to it
+  // delete last page from pages data structures since will append to it
 
   npage--;
 }
@@ -180,16 +186,15 @@ void KeyValue::append()
 /* ----------------------------------------------------------------------
    complete the KV after data has been added to it
    called by MR methods after creating & populating a KV
-   forceflag = 1 if want to force KV to be written to disk
 ------------------------------------------------------------------------- */
 
-void KeyValue::complete(int forceflag)
+void KeyValue::complete()
 {
   create_page();
 
   // if disk file exists, write last page, close file
 
-  if (fileflag || forceflag) {
+  if (fileflag) {
     write_page();
     fclose(fp);
     fp = NULL;
@@ -200,12 +205,17 @@ void KeyValue::complete(int forceflag)
 
   // set sizes for entire KV
 
-  nkv = ksize = vsize = esize = 0;
+  nkv = ksize = vsize = esize = fsize = 0;
   for (int ipage = 0; ipage < npage; ipage++) {
     nkv += pages[ipage].nkey;
     ksize += pages[ipage].keysize;
     vsize += pages[ipage].valuesize;
     esize += pages[ipage].exactsize;
+  }
+
+  if (fileflag) {
+    fsize = pages[npage-1].fileoffset + pages[npage-1].filesize;
+    mr->hiwater(0,fsize);
   }
 
   // msize is max across all procs, for entire KV

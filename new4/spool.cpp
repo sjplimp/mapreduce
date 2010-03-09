@@ -42,7 +42,7 @@ Spool::Spool(int style,
   pages = NULL;
   npage = maxpage = 0;
 
-  nkv = esize = 0;
+  nkv = esize = fsize = 0;
   nkey = size = 0;
 }
 
@@ -51,7 +51,10 @@ Spool::Spool(int style,
 Spool::~Spool()
 {
   memory->sfree(pages);
-  if (fileflag) remove(filename);
+  if (fileflag) {
+    remove(filename);
+    mr->hiwater(1,fsize);
+  }
   delete [] filename;
 }
 
@@ -82,11 +85,14 @@ void Spool::complete()
 
   // set sizes for entire spool file
 
-  nkv = esize = 0;
+  nkv = esize = fsize = 0;
   for (int ipage = 0; ipage < npage; ipage++) {
     nkv += pages[ipage].nkey;
     esize += pages[ipage].size;
+    fsize += pages[ipage].filesize;
   }
+
+  mr->hiwater(0,fsize);
 
 #ifdef SPOOL_DEBUG
   printf("SP Created %s: %d pages, %u entries, %g Mb\n",

@@ -174,7 +174,7 @@ void MapReduce::defaults()
 
   mapstyle = 0;
   verbosity = 0;
-  all2all = 0;
+  all2all = 1;
   timer = 0;
   memsize = MBYTES;
   minpage = 0;
@@ -196,6 +196,7 @@ void MapReduce::defaults()
   memused = NULL;
   memcount = NULL;
   npage = 0;
+  fsize = 0;
 
   kv = NULL;
   kmv = NULL;
@@ -290,7 +291,7 @@ uint64_t MapReduce::add(MapReduce *mr)
 
   kv->append();
   kv->add(mr->kv);
-  kv->complete(0);
+  kv->complete();
 
   stats("Add",0);
 
@@ -455,7 +456,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
   myfree(kv->memtag);
   delete kv;
   kv = kvnew;
-  kv->complete(0);
+  kv->complete();
 
   stats("Aggregate",0);
 
@@ -480,7 +481,7 @@ uint64_t MapReduce::clone()
   kmv->set_page();
 
   kmv->clone(kv);
-  kmv->complete(0);
+  kmv->complete();
 
   myfree(kv->memtag);
   delete kv;
@@ -510,7 +511,7 @@ uint64_t MapReduce::collapse(char *key, int keybytes)
   kmv->set_page();
 
   kmv->collapse(key,keybytes,kv);
-  kmv->complete(0);
+  kmv->complete();
 
   myfree(kv->memtag);
   delete kv;
@@ -577,7 +578,7 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
   // KMV will delete kv and free its memory
 
   kmv->convert(kv);
-  kmv->complete(0);
+  kmv->complete();
 
   kv = new KeyValue(this,kalign,valign,memory,error,comm);
   kv->set_page();
@@ -642,7 +643,7 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
     }
   }
 
-  kv->complete(0);
+  kv->complete();
   myfree(memtag);
 
   // delete KMV
@@ -682,12 +683,12 @@ uint64_t MapReduce::convert()
   // KMV will delete kv and free its memory
 
   kmv->convert(kv);
-  kmv->complete(0);
+  kmv->complete();
 
   kv = NULL;
 
   stats("Convert",1);
-  fcounter_part = fcounter_set = 0;
+  if (!collateflag) fcounter_part = fcounter_set = 0;
 
   uint64_t nkeyall;
   MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
@@ -770,7 +771,7 @@ uint64_t MapReduce::gather(int numprocs)
   }
 
   commtime += MPI_Wtime() - timestart;
-  kv->complete(0);
+  kv->complete();
 
   stats("Gather",0);
 
@@ -870,7 +871,7 @@ uint64_t MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
 
   } else error->all("Invalid mapstyle setting");
 
-  kv->complete(0);
+  kv->complete();
 
   stats("Map",0);
 
@@ -1024,7 +1025,7 @@ uint64_t MapReduce::map(char *file,
   for (int i = 0; i < nmap; i++) delete [] files[i];
   memory->sfree(files);
 
-  kv->complete(0);
+  kv->complete();
 
   stats("Map",0);
 
@@ -1385,7 +1386,7 @@ uint64_t MapReduce::map(MapReduce *mr,
     delete kv_src;
   }
   kv = kv_dest;
-  kv->complete(0);
+  kv->complete();
 
   stats("Map",0);
 
@@ -1471,7 +1472,7 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
     }
   }
 
-  kv->complete(0);
+  kv->complete();
   myfree(memtag);
 
   // delete KMV
@@ -1805,7 +1806,7 @@ void MapReduce::sort_kv(int flag)
        merge(flag,src1,src1ptr,src2,src2ptr,1,destptr);
        if (!src1) delete spools[i-2];
        if (!src2) delete spools[i-1];
-       kv->complete(0);
+       kv->complete();
      }
    }
 
@@ -2073,32 +2074,9 @@ void MapReduce::kv_stats(int level)
 	   nkeyall,ksizeall/mbyte,vsizeall/mbyte,esizeall/mbyte,npages);
 
   if (level == 2) {
-    int histo[10],histotmp[10];
-    double ave,max,min;
-    double tmp = kv->nkv;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  KV pairs:   %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = kv->ksize/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Kdata (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = kv->vsize/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Vdata (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
+    write_histo((double) kv->nkv,"  KV pairs:");
+    write_histo(kv->ksize/mbyte,"  Kdata (Mb):");
+    write_histo(kv->vsize/mbyte,"  Vdata (Mb):");
   }
 }
 
@@ -2126,32 +2104,9 @@ void MapReduce::kmv_stats(int level)
 	     nkeyall,ksizeall/mbyte,vsizeall/mbyte,esizeall/mbyte,npages);
 
   if (level == 2) {
-    int histo[10],histotmp[10];
-    double ave,max,min;
-    double tmp = kmv->nkmv;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  KMV pairs:  %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = kmv->ksize/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Kdata (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
-    tmp = kmv->vsize/mbyte;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Vdata (Mb): %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
+    write_histo((double) kmv->nkmv,"  KMV pairs:");
+    write_histo(kmv->ksize/mbyte,"  Kdata (Mb):");
+    write_histo(kmv->vsize/mbyte,"  Vdata (Mb):");
   }
 }
 
@@ -2161,9 +2116,6 @@ void MapReduce::kmv_stats(int level)
 
 void MapReduce::cummulative_stats(int level, int reset)
 {
-  int histo[10],histotmp[10];
-  double tmp,ave,max,min;
-
   double mbyte = 1024.0*1024.0;
 
   // communication
@@ -2182,22 +2134,8 @@ void MapReduce::cummulative_stats(int level, int reset)
 			allcsize[0]/mbyte,allcsize[1]/mbyte,
 			allctime[0]/nprocs);
     if (level == 2) {
-      tmp = csize[0]/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Send (Mb): %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
-      tmp = csize[1]/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Recv (Mb): %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
+      write_histo(csize[0]/mbyte,"  Send (Mb):");
+      write_histo(csize[1]/mbyte,"  Recv (Mb):");
     }
   }
 
@@ -2212,22 +2150,8 @@ void MapReduce::cummulative_stats(int level, int reset)
 			allsize[0]/mbyte,allsize[1]/mbyte);
 
     if (level == 2) {
-      tmp = size[0]/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Read (Mb):  %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
-      tmp = size[1]/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Write (Mb): %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
+      write_histo(size[0]/mbyte,"  Read (Mb):");
+      write_histo(size[1]/mbyte,"  Write (Mb):");
     }
   }
 
@@ -2252,7 +2176,7 @@ void MapReduce::set_fpath(char *str)
 }
 
 /* ----------------------------------------------------------------------
-   print memory page stats for MR
+   print memory page and disk file stats for MR
 ------------------------------------------------------------------------- */
 
 void MapReduce::mr_stats(int level)
@@ -2261,22 +2185,17 @@ void MapReduce::mr_stats(int level)
 
   int npages;
   MPI_Allreduce(&npage,&npages,1,MPI_INT,MPI_SUM,comm);
+  uint64_t fsizemaxall;
+  MPI_Allreduce(&fsizemax,&fsizemaxall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
 
   if (me == 0)
-    printf("MapReduce stats = %d pages, %.3g Mb\n",
-	     npages,npages*pagesize/mbyte);
+    printf("MapReduce stats = %d pages, %.3g Mb mem, "
+	   "%.3g Mb hi-water for files\n",
+	   npages,npages*pagesize/mbyte,fsizemaxall/mbyte);
 
   if (level == 2) {
-    int histo[10],histotmp[10];
-    double ave,max,min;
-    double tmp = npage;
-    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-    if (me == 0) {
-      printf("  Pages:      %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
-      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-      printf("\n");
-    }
+    if (npages) write_histo((double) npage,"  Pages:");
+    if (fsizemaxall) write_histo(fsizemax/mbyte,"  HiWater:");
   }
 }
 
@@ -2291,21 +2210,12 @@ void MapReduce::stats(const char *heading, int which)
   if (timer) {
     if (timer == 1) {
       MPI_Barrier(comm);
-      time_stop = MPI_Wtime();
       if (me == 0) printf("%s time (secs) = %g\n",
-			  heading,time_stop-time_start);
+			  heading,MPI_Wtime()-time_start);
     } else if (timer == 2) {
-      time_stop = MPI_Wtime();
-      int histo[10],histotmp[10];
-      double ave,max,min;
-      double tmp = time_stop-time_start;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("%s time (secs) = %g ave %g max %g min\n",heading,ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
+      char str[64];
+      sprintf(str,"%s time (secs) =",heading);
+      write_histo(MPI_Wtime()-time_start,str);
     }
   }
 
@@ -2329,24 +2239,8 @@ void MapReduce::stats(const char *heading, int which)
     if (me == 0) printf("%s Comm = %.3g Mb send, %.3g Mb recv\n",heading,
 			sall/mbyte,rall/mbyte);
     if (verbosity == 2) {
-      int histo[10],histotmp[10];
-      double ave,max,min;
-      double tmp = cssize_one/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Send (Mb):  %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
-      tmp = crsize_one/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Recv (Mb):  %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
+      write_histo(cssize_one/mbyte,"  Send (Mb):");
+      write_histo(crsize_one/mbyte,"  Recv (Mb):");
     }
   }
 
@@ -2356,24 +2250,22 @@ void MapReduce::stats(const char *heading, int which)
     if (me == 0) printf("%s I/O = %.3g Mb read, %.3g Mb write\n",heading,
 			rall/mbyte,wall/mbyte);
     if (verbosity == 2) {
-      int histo[10],histotmp[10];
-      double ave,max,min;
-      double tmp = rsize_one/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Read (Mb):  %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
-      tmp = wsize_one/mbyte;
-      histogram(1,&tmp,ave,max,min,10,histo,histotmp);
-      if (me == 0) {
-	printf("  Write (Mb): %g ave %g max %g min\n",ave,max,min);
-	printf("  Histogram: ");
-	for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
-	printf("\n");
-      }
+      write_histo(rsize_one/mbyte,"  Read (Mb):");
+      write_histo(wsize_one/mbyte,"  Write (Mb):");
+    }
+  }
+
+  int partall,setall,sortall;
+  MPI_Allreduce(&fcounter_part,&partall,1,MPI_INT,MPI_SUM,comm);
+  MPI_Allreduce(&fcounter_set,&setall,1,MPI_INT,MPI_SUM,comm);
+  MPI_Allreduce(&fcounter_sort,&sortall,1,MPI_INT,MPI_SUM,comm);
+  if (partall || setall || sortall) {
+    if (me == 0) printf("%s Files = %d partition, %d set, %d sort\n",
+			heading,partall,setall,sortall);
+    if (verbosity == 2) {
+      if (partall) write_histo((double) fcounter_part,"  Partfiles:");
+      if (setall) write_histo((double) fcounter_set,"  Setfiles:");
+      if (sortall) write_histo((double) fcounter_sort,"  Sortfiles:");
     }
   }
 }
@@ -2442,6 +2334,23 @@ uint64_t MapReduce::roundup(uint64_t n, int nalign)
   if (n % nalign == 0) return n;
   n = (n/nalign + 1) * nalign;
   return n;
+}
+
+/* ----------------------------------------------------------------------
+   write a histogram of value to screen with title
+------------------------------------------------------------------------- */
+
+void MapReduce::write_histo(double value, char *title)
+{
+  int histo[10],histotmp[10];
+  double ave,max,min;
+  histogram(1,&value,ave,max,min,10,histo,histotmp);
+  if (me == 0) {
+    printf("%-13s %g ave %g max %g min\n",title,ave,max,min);
+    printf("%-13s","  Histogram:");
+    for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+    printf("\n");
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -2629,4 +2538,17 @@ int MapReduce::memquery(int &maxcontig, int &max)
   if (maxpage == 0) max = -1;
   else max = maxpage-npage;
   return n;
+}
+
+/* ----------------------------------------------------------------------
+   set hi-water mark for file sizes on disk
+   flag = 0, file of fsize was written to disk
+   flag = 1, file of fsize was deleted from disk
+------------------------------------------------------------------------- */
+
+void MapReduce::hiwater(int flag, uint64_t size)
+{
+  if (flag == 0) fsize += size;
+  if (flag == 1) fsize -= size;
+  fsizemax = MAX(fsizemax,fsize);
 }
