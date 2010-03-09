@@ -306,6 +306,12 @@ void MR_set_verbosity(void *MRptr, int value)
   mr->verbosity = value;
 }
 
+void MR_set_all2all(void *MRptr, int value)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->all2all = value;
+}
+
 void MR_set_timer(void *MRptr, int value)
 {
   MapReduce *mr = (MapReduce *) MRptr;

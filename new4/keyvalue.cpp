@@ -639,3 +639,38 @@ uint64_t KeyValue::roundup(uint64_t n, int nalign)
   n = (n/nalign + 1) * nalign;
   return n;
 }
+
+/* ----------------------------------------------------------------------
+   print one line for each KV pair, for debugging
+   have to edit print statement appropriately
+------------------------------------------------------------------------- */
+
+void KeyValue::print()
+{
+  int keybytes,valuebytes;
+  uint64_t dummy1,dummy2,dummy3;
+  char *key,*value,*ptr_start;
+
+  for (int ipage = 0; ipage < npage; ipage++) {
+    int n = request_page(ipage,dummy1,dummy2,dummy3);
+    char *ptr = page;
+    for (int i = 0; i < n; i++) {
+      ptr_start = ptr;
+      keybytes = *((int *) ptr);
+      valuebytes = *((int *) (ptr+sizeof(int)));;
+
+      ptr += twolenbytes;
+      ptr = ROUNDUP(ptr,kalignm1);
+      key = ptr;
+      ptr += keybytes;
+      ptr = ROUNDUP(ptr,valignm1);
+      value = ptr;
+      ptr += valuebytes;
+      ptr = ROUNDUP(ptr,talignm1);
+
+      printf("KV pair: proc %d, size %d %d %d, key %d, value %s\n",
+	     me,keybytes,valuebytes,ptr-ptr_start,*((int *) key),value);
+    }
+  }
+}
+

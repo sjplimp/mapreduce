@@ -173,6 +173,7 @@ void MapReduce::defaults()
 
   mapstyle = 0;
   verbosity = 0;
+  all2all = 0;
   timer = 0;
   memsize = MBYTES;
   minpage = 0;
@@ -308,10 +309,14 @@ uint64_t MapReduce::add(MapReduce *mr)
 
 uint64_t MapReduce::aggregate(int (*hash)(char *, int))
 {
-  int i,nbytes,nkey_send,nkey_recv,memtag;
-  int keybytes,valuebytes,maxsend,maxrecv,maxbytes;
-  uint64_t dummy1,dummy2,dummy3;
-  char *ptr,*ptr_start,*key;
+  int i,nkey_send,keybytes,valuebytes,nkey_recv;
+  int start,stop,done,mydone;
+  int memtag_cdpage,memtag_epage,memtag_fpage,memtag_gpage;
+  uint64_t dummy,dummy1,dummy2,dummy3;
+  double timestart,fraction,minfrac;
+  char *ptr,*key;
+  int *proclist,*kvsizes,*reorder;
+  char **kvptrs;
 
   if (kv == NULL) error->all("Cannot aggregate without KeyValue");
   if (timer) start_timer();
@@ -322,19 +327,23 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
     return kv->nkv;
   }
 
+  // new KV that will be created
+
   KeyValue *kvnew = new KeyValue(this,kalign,valign,memory,error,comm);
   kvnew->set_page();
 
-  Irregular *irregular = new Irregular(comm);
+  // irregular communicator
 
-  int *proclist = NULL;
-  int *sendsizes = NULL;
-  int *recvsizes = NULL;
-  char *bufkv = NULL;
-  maxsend = maxrecv = maxbytes = 0;
+  Irregular *irregular = new Irregular(all2all,memory,error,comm);
+
+  // pages of workspace memory, including extra allocated pages
 
   uint64_t twopage;
-  char *mem2 = mymalloc(2,twopage,memtag);
+  char *apage = kv->page;
+  char *cdpage = mymalloc(2,twopage,memtag_cdpage);
+  char *epage = mymalloc(1,dummy,memtag_epage);
+  char *fpage = mymalloc(1,dummy,memtag_fpage);
+  char *gpage = mymalloc(1,dummy,memtag_gpage);
 
   // maxpage = max # of pages in any proc's KV
 
@@ -353,23 +362,20 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
       nkey_send = kv->request_page(ipage,dummy1,dummy2,dummy3);
     else nkey_send = 0;
 
-    // allocate send lists
+    // set ptrs to workspace memory
 
-    if (maxsend < nkey_send) {
-      memory->sfree(proclist);
-      memory->sfree(sendsizes);
-      maxsend = nkey_send;
-      proclist = (int *) memory->smalloc(maxsend*sizeof(int),"MR:proclist");
-      sendsizes = (int *) memory->smalloc(maxsend*sizeof(int),"MR:sendsizes");
-    }
+    proclist = (int *) epage;
+    kvsizes = &proclist[nkey_send];
+    reorder = &proclist[2 * ((uint64_t) nkey_send)];
+    kvptrs = (char **) fpage;
 
     // hash each key to a proc ID
-    // via either user-provided hash function or hashlittle()
+    // via user-provided hash function or hashlittle()
 
     ptr = page_send;
 
     for (i = 0; i < nkey_send; i++) {
-      ptr_start = ptr;
+      kvptrs[i] = ptr;
       keybytes = *((int *) ptr);
       valuebytes = *((int *) (ptr+sizeof(int)));;
 
@@ -381,59 +387,69 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
       ptr += valuebytes;
       ptr = ROUNDUP(ptr,talignm1);
 
-      sendsizes[i] = ptr - ptr_start;
+      kvsizes[i] = ptr - kvptrs[i];
       if (hash) proclist[i] = hash(key,keybytes) % nprocs;
       else proclist[i] = hashlittle(key,keybytes,nprocs) % nprocs;
     }
 
-    // redistribute KV pairs
-    // same irregular pattern works for recvsizes and KV data
-    // insure recvsizes and arrays are big enough for incoming data
+    // perform irregular comm of each proc's page of KV pairs
     // add received KV pairs to kvnew
+    // no proc can receive more than 2 pages at once, else scale back
+    // iterate until entire page is communicated by every proc
 
-    double timestart = MPI_Wtime();
-    irregular->pattern(nkey_send,proclist);
+    start = 0;
+    stop = nkey_send;
 
-    nkey_recv = irregular->size(sizeof(int)) / sizeof(int);
-    if (nkey_recv > maxrecv) {
-      memory->sfree(recvsizes);
-      maxrecv = nkey_recv;
-      recvsizes = (int *) memory->smalloc(maxrecv*sizeof(int),"MR:recvsizes");
+    done = 0;
+    while (!done) {
+
+      // attempt to communicate all KVs from start to stop
+      // if overflows any proc, then scale back stop until succeed
+      // if setup returns any fraction < 1.0, reset stop and try again
+      // 0.9 is a conservative round-down factor
+      // NOTE: is scale back guaranteed to eventually be successful?
+      //       is this loop guaranteed to make progress (comm something)?
+      //       what if all procs want to send 1 big datum to proc 0 but
+      //         call cannot do it together?
+      //         then all might round down to 0 ??
+
+      timestart = MPI_Wtime();
+
+      while (1) {
+	nkey_recv = irregular->setup(stop-start,&proclist[start],
+				     &kvsizes[start],&reorder[start],
+				     twopage,fraction);
+
+	MPI_Allreduce(&fraction,&minfrac,1,MPI_DOUBLE,MPI_MIN,comm);
+	if (minfrac < 1.0) 
+	  stop = static_cast<int> (start + 0.9*minfrac*(stop-start));
+	else break;
+      }
+
+      irregular->exchange(stop-start,&proclist[start],&kvptrs[start],
+			  &kvsizes[start],&reorder[start],gpage,cdpage);
+      cssize += irregular->cssize;
+      crsize += irregular->crsize;
+      commtime += MPI_Wtime() - timestart;
+
+      kvnew->add(nkey_recv,cdpage);
+
+      // set start/stop to remainder of page and iterate
+      // if all procs are at end of page, then done
+
+      start = stop;
+      stop = nkey_send;
+      if (start == stop) mydone = 1;
+      else mydone = 0;
+      MPI_Allreduce(&mydone,&done,1,MPI_INT,MPI_MIN,comm);
     }
-    irregular->exchange((char *) sendsizes,(char *) recvsizes);
-    cssize += irregular->cssize;
-    crsize += irregular->crsize;
-
-    // use max available mem for received KVs
-    // will be at least 2x more than page size
-    // else need to perform irregular comm in stages
-    // NOTE: nbytes is an int, not a uint64 ??
-
-    nbytes = irregular->size(sendsizes,NULL,recvsizes);
-    if (nbytes <= twopage) page_recv = mem2;
-    else if (nbytes <= maxbytes) page_recv = bufkv;
-    else {
-      memory->sfree(bufkv);
-      maxbytes = nbytes;
-      bufkv = (char *) memory->smalloc(maxbytes,"MR:bufkv");
-      page_recv = bufkv;
-    }
-    irregular->exchange(page_send,page_recv);
-    cssize += irregular->cssize;
-    crsize += irregular->crsize;
-    commtime += MPI_Wtime() - timestart;
-
-    // add received KV pairs to kvnew
-
-    kvnew->add(nkey_recv,page_recv);
   }
 
-  memory->sfree(proclist);
-  memory->sfree(sendsizes);
-  memory->sfree(recvsizes);
-  memory->sfree(bufkv);
   delete irregular;
-  myfree(memtag);
+  myfree(memtag_cdpage);
+  myfree(memtag_epage);
+  myfree(memtag_fpage);
+  myfree(memtag_gpage);
 
   myfree(kv->memtag);
   delete kv;
@@ -2062,7 +2078,7 @@ void MapReduce::kv_stats(int level)
     histogram(1,&tmp,ave,max,min,10,histo,histotmp);
     if (me == 0) {
       printf("  KV pairs:   %g ave %g max %g min\n",ave,max,min);
-      printf("  Histogram: ");
+      printf("  Hikeystogram: ");
       for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
       printf("\n");
     }

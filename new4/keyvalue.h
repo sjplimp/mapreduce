@@ -51,6 +51,8 @@ class KeyValue {
   void add(int, char *, int, char *, int);
   void add(int, char *, int *, char *, int *);
 
+  void print();
+
  private:
   MapReduce *mr;
   MPI_Comm comm;

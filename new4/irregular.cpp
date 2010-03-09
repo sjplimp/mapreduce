@@ -20,400 +20,277 @@
 
 using namespace MAPREDUCE_NS;
 
+#define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
-enum{UNSET,SET};
-enum{NONE,SAME,VARYING};
+#define INTMAX 0x7FFFFFFF
 
 /* ---------------------------------------------------------------------- */
 
-Irregular::Irregular(MPI_Comm caller)
+Irregular::Irregular(int all2all_caller, Memory *memory_caller,
+		     Error *error_caller, MPI_Comm comm_caller)
 {
-  comm = caller;
+  all2all = all2all_caller;
+
+  memory = memory_caller;
+  error = error_caller;
+  comm = comm_caller;
   MPI_Comm_rank(comm,&me);
   MPI_Comm_size(comm,&nprocs);
 
-  memory = new Memory(comm);
-  error = new Error(comm);
+  sendbytes = new int[nprocs];
+  sdispls = new int[nprocs];
+  recvbytes = new int[nprocs];
+  rdispls = new int[nprocs];
+  senddatums = new int[nprocs];
+  one = new int[nprocs];
+  for (int i = 0; i < nprocs; i++) one[i] = 1;
 
-  init();
-  patternflag = UNSET;
-  sizestyle = NONE;
+  sendprocs = new int[nprocs];
+  recvprocs = new int[nprocs];
+  request = new MPI_Request[nprocs];
+  status = new MPI_Status[nprocs];
 }
 
 /* ---------------------------------------------------------------------- */
 
 Irregular::~Irregular()
 {
-  delete memory;
-  delete error;
-  deallocate();
-}
+  delete [] sendbytes;
+  delete [] sdispls;
+  delete [] recvbytes;
+  delete [] rdispls;
+  delete [] senddatums;
+  delete [] one;
 
-/* ---------------------------------------------------------------------- */
-
-void Irregular::init()
-{
-  sendproc = sendcount = sendsize = sendindices = NULL;
-  sendoffset = NULL;
-  sendoffsetflag = 0;
-  recvproc = recvcount = recvsize = NULL;
-  request = NULL;
-  status = NULL;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void Irregular::deallocate()
-{
-  delete [] sendproc;
-  delete [] sendcount;
-  delete [] sendsize;
-  memory->sfree(sendindices);
-  if (sendoffsetflag) memory->sfree(sendoffset);
-
-  delete [] recvproc;
-  delete [] recvcount;
-  delete [] recvsize;
-
+  delete [] sendprocs;
+  delete [] recvprocs;
   delete [] request;
   delete [] status;
 }
 
 /* ----------------------------------------------------------------------
-  n = # of datums contributed by this proc
-  proclist = which proc each datum is to be sent to
+   setup irregular communication for all2all or custom
+   n = # of datums contributed by this proc
+   proclist = which proc each datum is to be sent to
+   sizes = byte count of each datum
+   recvlimit = max allowed size of received data
+   return # of datums I recv
+   set fraction = 1.0 if can recv all datums without exceeding two limits
+   else set it to estimated fraction I can recv
+   limit #1 = total volume of send data exceeds INTMAX
+   limit #2 = total volume of recv data exceeds min(recvlimit,INTMAX)
+   2nd limit also insures # of received datums cannot exceed INTMAX
+   extra data is setup for custom communication:
+     sendprocs = list of nsend procs to send to
+     recvprocs = list of nrecv procs to recv from
+     reorder = contiguous send indices for each send, self copy is last
 ------------------------------------------------------------------------- */
 
-void Irregular::pattern(int n, int *proclist)
+int Irregular::setup(int n, int *proclist, int *sizes, int *reorder,
+		     uint64_t recvlimit, double &fraction)
 {
-  if (patternflag == SET) {
-    deallocate();
-    init();
+  recvlimit = MIN(recvlimit,INTMAX);
+
+  // compute sendbytes and sdispls
+
+  for (int i = 0; i < nprocs; i++) sendbytes[i] = 0;
+  for (int i = 0; i < n; i++) sendbytes[proclist[i]] += sizes[i];
+
+  sdispls[0] = 0;
+  uint64_t sendtotal = sendbytes[0];
+  for (int i = 1; i < nprocs; i++) {
+    sdispls[i] = sdispls[i-1] + sendbytes[i-1];
+    sendtotal += sendbytes[i];
   }
 
-  patternflag = SET;
-  sizestyle = NONE;
+  // error return if any proc's send total > INTMAX
 
-  ndatumsend = n;
-
-  // list = 1 for procs I send to, including self
-  // nrecv = # of messages I receive, not including self
-  // self = 0 if no data for self, 1 if there is
-
-  int *list = new int[nprocs];
-  int *counts = new int[nprocs];
-
-  for (int i = 0; i < nprocs; i++) {
-    list[i] = 0;
-    counts[i] = 1;
+  uint64_t sendtotalmax;
+  MPI_Allreduce(&sendtotal,&sendtotalmax,1,MPI_UNSIGNED_LONG,MPI_MAX,comm);
+  if (sendtotalmax > INTMAX) {
+    fraction = ((double) INTMAX) / sendtotal;
+    return 0;
   }
 
-  for (int i = 0; i < n; i++) list[proclist[i]] = 1;
-  MPI_Reduce_scatter(list,&nrecv,counts,MPI_INT,MPI_SUM,comm);
+  // compute recvbytes and rdispls
 
-  self = 0;
-  if (list[me]) self = 1;
-  if (self) nrecv--;
+  MPI_Alltoall(sendbytes,1,MPI_INT,recvbytes,1,MPI_INT,comm);
 
-  // storage for recv info, not including self
+  rdispls[0] = 0;
+  uint64_t recvtotal = recvbytes[0];
+  for (int i = 1; i < nprocs; i++) {
+    rdispls[i] = rdispls[i-1] + recvbytes[i-1];
+    recvtotal += recvbytes[i];
+  }
 
-  recvproc = new int[nrecv];
-  recvcount = new int[nrecv];
-  recvsize = new int[nrecv];
-  request = new MPI_Request[nrecv];
-  status = new MPI_Status[nrecv];
-
-  // list = # of datums to send to each proc, including self
-  // nsend = # of messages I send, not including self
+  // error return if any proc's recv total > min(recvlimit,INTMAX)
   
-  for (int i = 0; i < nprocs; i++) list[i] = 0;
-  for (int i = 0; i < n; i++) list[proclist[i]]++;
+  uint64_t recvtotalmax;
+  MPI_Allreduce(&recvtotal,&recvtotalmax,1,MPI_UNSIGNED_LONG,MPI_MAX,comm);
+  if (recvtotalmax > recvlimit) {
+    fraction = ((double) recvlimit) / recvtotal;
+    return 0;
+  }
 
-  nsend = 0;
-  for (int i = 0; i < nprocs; i++) if (list[i] > 0) nsend++;
-  if (self) nsend--;
+  // successful setup
+  // compute senddatums
+  // nrecv = total # of datums I receive, guaranteed to be < INTMAX
 
-  // storage for send info, including self
+  cssize = sendtotal - sendbytes[me];
+  crsize = recvtotal - recvbytes[me];
 
-  sendproc = new int[nsend+self];
-  sendcount = new int[nsend+self];
-  sendsize = new int[nsend+self];
-  sendindices = (int *) memory->smalloc(n*sizeof(int),"IR:sendindices");
+  for (int i = 0; i < nprocs; i++) senddatums[i] = 0;
+  for (int i = 0; i < n; i++) senddatums[proclist[i]]++;
+  MPI_Reduce_scatter(senddatums,&ndatum,one,MPI_INT,MPI_SUM,comm);
 
-  // setup sendprocs and sendcounts, including self
-  // each proc begins with iproc > me, and continues until iproc = me
-  // list ends up with pointer to which send that proc is associated with
+  // if all2all, done
 
+  if (all2all) {
+    fraction = 1.0;
+    return ndatum;
+  }
+
+  // if custom, setup additional data strucs
+  // sendprocs,recvprocs = lists of procs to send to and recv from
+  // begin lists with iproc > me and wrap around
+  // reorder = contiguous send indices for each proc I send to
+  // let s0 = senddatums[sendprocs[0]], s1 = senddatums[sendprocs[1]], etc
+  // reorder[0:s0-1] = indices of datums in 1st message
+  // reorder[s0:s0+s1-1] = indices of datums in 2nd message, etc
+  // proc2send[i] = which send (0 to nsend-1) goes to proc I
+  // offset[i] = running offset into reorder for each send (0 to nsend-1)
+
+  int *proc2send = new int[nprocs];
+
+  nsend = nrecv = 0;
   int iproc = me;
-  int isend = 0;
-  for (int i = 0; i < nprocs; i++) {
+  for (int i = 1; i < nprocs; i++) {
     iproc++;
     if (iproc == nprocs) iproc = 0;
-    if (list[iproc] > 0) {
-      sendproc[isend] = iproc;
-      sendcount[isend] = list[iproc];
-      list[iproc] = isend;
-      isend++;
+    if (sendbytes[iproc]) {
+      proc2send[iproc] = nsend;
+      sendprocs[nsend++] = iproc;
     }
+    if (recvbytes[iproc]) recvprocs[nrecv++] = iproc;
   }
 
-  // post all receives for datum counts
+  if (sendbytes[me]) {
+    self = 1;
+    proc2send[me] = nsend;
+  } else self = 0;
+  
+  int *offset = new int[nprocs];
+  offset[0] = 0;
+  for (int i = 1; i <= nsend; i++)
+    offset[i] = offset[i-1] + senddatums[sendprocs[i-1]];
 
-  for (int i = 0; i < nrecv; i++)
-    MPI_Irecv(&recvcount[i],1,MPI_INT,MPI_ANY_SOURCE,0,comm,&request[i]);
+  int j;
+  for (int i = 0; i < n; i++) {
+    j = proclist[i];
+    reorder[offset[proc2send[j]]++] = i;
+  }
 
-  // barrier to insure receives are posted
+  delete [] proc2send;
+  delete [] offset;
 
-  MPI_Barrier(comm);
+  fraction = 1.0;
+  return ndatum;
+}
 
-  // send each datum count, packing buf with needed datums
+/* ----------------------------------------------------------------------
+   perform irregular communication via all2all or custom
+   n = # of datums contributed by this proc
+   proclist (for all2all) = which proc each datum is to be sent to
+   sizes = byte count of each datum
+   reorder (for custom) = contiguous send indices for each send
+   copy = buffer to pack send datums into
+   recv = buffer to recv all aatums into
+------------------------------------------------------------------------- */
 
-  for (int i = 0; i < nsend; i++)
-    MPI_Send(&sendcount[i],1,MPI_INT,sendproc[i],0,comm);
+void Irregular::exchange(int n, int *proclist, char **ptrs, int *sizes, 
+			 int *reorder, char *copy, char *recv)
+{
+  if (all2all) exchange_all2all(n,proclist,ptrs,sizes,copy,recv);
+  else exchange_custom(n,reorder,ptrs,sizes,copy,recv);
+}
 
-  // insure all MPI_ANY_SOURCE messages are received
-  // set recvproc
+/* ----------------------------------------------------------------------
+   wrapper on MPI_Alltoallv()
+   first copy datums from ptrs into copy buf in correct order via proclist
+------------------------------------------------------------------------- */
 
-  if (nrecv) MPI_Waitall(nrecv,request,status);
-  for (int i = 0; i < nrecv; i++) recvproc[i] = status[i].MPI_SOURCE;
+void Irregular::exchange_all2all(int n, int *proclist, char **ptrs,
+				 int *sizes, char *copy, char *recv)
+{
+  int i,iproc;
 
-  // ndatumrecv = total datums received, including self
-
-  ndatumrecv = 0;
-  for (int i = 0; i < nrecv; i++)
-    ndatumrecv += recvcount[i];
-  if (self) ndatumrecv += sendcount[nsend];
-
-  // setup sendindices, including self
-  // counts = offset into sendindices for each proc I send to
-  // let sc0 = sendcount[0], sc1 = sendcount[1], etc
-  // sendindices[0:sc0-1] = indices of datums in 1st message
-  // sendindices[sc0:sc0+sc1-1] = indices of datums in 2nd message, etc
-
-  counts[0] = 0;
-  for (int i = 1; i < nsend+self; i++)
-    counts[i] = counts[i-1] + sendcount[i-1];
+  char **cptrs = new char*[nprocs];
+  for (i = 0; i < nprocs; i++)
+    cptrs[i] = &copy[sdispls[i]];
 
   for (int i = 0; i < n; i++) {
-    isend = list[proclist[i]];
-    sendindices[counts[isend]++] = i;
+    iproc = proclist[i];
+    memcpy(cptrs[iproc],ptrs[i],sizes[i]);
+    cptrs[iproc] += sizes[i];
   }
 
-  // clean up
-
-  delete [] counts;
-  delete [] list;
+  MPI_Alltoallv(copy,sendbytes,sdispls,MPI_BYTE,
+		recv,recvbytes,rdispls,MPI_BYTE,comm);
 }
 
 /* ----------------------------------------------------------------------
-  n = size of each received datum
-  return total size in bytes of received data on this proc
+   custom all2all communication
+   post all receives
+   copying datums for one send into copy buf in correct order via indices
+   copy self data while waiting for receives
+   indices are 0 to N-1, contiguous for each proc to send to, self copy is last
 ------------------------------------------------------------------------- */
 
-int Irregular::size(int n)
+void Irregular::exchange_custom(int n, int *indices, char **ptrs, int *sizes,
+				char *copy, char *recv)
 {
-  if (patternflag == UNSET) error->all("Irregular pattern was not set");
-  sizestyle = SAME;
+  int i,j,iproc;
+  char *ptr;
 
-  nsize = n;
-
-  cssize = crsize = 0;
-  nsendmax = 0;
-
-  for (int i = 0; i < nsend+self; i++) {
-    sendsize[i] = nsize * sendcount[i];
-    if (i < nsend) {
-      nsendmax = MAX(nsendmax,sendsize[i]);
-      cssize += sendsize[i];
-    }
-  }
-
-  for (int i = 0; i < nrecv; i++) {
-    recvsize[i] = nsize * recvcount[i];
-    crsize += recvsize[i];
-  }
-  nbytesrecv = nsize * ndatumrecv;
-
-  return nbytesrecv;
-}
-
-/* ----------------------------------------------------------------------
-  slength,rlength = size of each datum to send and recv
-  soffset = offset into eventual buffer of send data for each datum
-  soffset can be NULL, in which case will build sendoffset from slength
-  return total size in bytes of received data on this proc
-------------------------------------------------------------------------- */
-
-int Irregular::size(int *slength, int *soffset, int *rlength)
-{
-  if (patternflag == UNSET) error->all("Irregular pattern was not set");
-  sizestyle = VARYING;
-
-  // store local copy of pointers to send lengths/offsets
-  // if soffset not provided, create local copy from slength
-
-  sendsizedatum = slength;
-
-  if (soffset == NULL) {
-    sendoffsetflag = 1;
-    sendoffset = (int *) memory->smalloc(ndatumsend*sizeof(int),"IR:sendoffset");
-
-    if (ndatumsend) sendoffset[0] = 0;
-    for (int i = 1; i < ndatumsend; i++)
-      sendoffset[i] = sendoffset[i-1] + sendsizedatum[i-1];
-
-  } else {
-    if (sendoffsetflag) memory->sfree(sendoffset);
-    sendoffsetflag = 0;
-    sendoffset = soffset;
-  }
-
-  cssize = crsize = 0;
-  nsendmax = 0;
-
-  int m = 0;
-  for (int i = 0; i < nsend+self; i++) {
-    sendsize[i] = 0;
-    for (int j = 0; j < sendcount[i]; j++)
-      sendsize[i] += sendsizedatum[sendindices[m++]];
-    if (i < nsend) {
-      nsendmax = MAX(nsendmax,sendsize[i]);
-      cssize += sendsize[i];
-    }
-  }
-
-  nbytesrecv = 0;
-  m = 0;
-  for (int i = 0; i < nrecv; i++) {
-    recvsize[i] = 0;
-    for (int j = 0; j < recvcount[i]; j++) recvsize[i] += rlength[m++];
-    nbytesrecv += recvsize[i];
-    crsize += recvsize[i];
-  }
-  if (self) nbytesrecv += sendsize[nsend];
-
-  return nbytesrecv;
-}
-
-/* ----------------------------------------------------------------------
-  wrapper on 2 versions of exchange
-------------------------------------------------------------------------- */
-
-void Irregular::exchange(char *sendbuf, char *recvbuf)
-{
-  if (sizestyle == SAME) exchange_same(sendbuf,recvbuf);
-  else if (sizestyle == VARYING) exchange_varying(sendbuf,recvbuf);
-  else error->all("Irregular size was not set");
-}
-
-/* ----------------------------------------------------------------------
-  sendbuf = data to send
-  recvbuf = buffer to recv all data into
-  requires nsize,nsendmax,recvsize,sendsize be setup by size(int)
-------------------------------------------------------------------------- */
-
-void Irregular::exchange_same(char *sendbuf, char *recvbuf)
-{
   // post all receives
 
   int recvoffset = 0;
   for (int irecv = 0; irecv < nrecv; irecv++) {
-    MPI_Irecv(&recvbuf[recvoffset],recvsize[irecv],MPI_BYTE,
-    	      recvproc[irecv],0,comm,&request[irecv]);
-    recvoffset += recvsize[irecv];
+    iproc = recvprocs[irecv];
+    MPI_Irecv(&recv[rdispls[iproc]],recvbytes[iproc],MPI_BYTE,
+    	      iproc,0,comm,&request[irecv]);
   }
-
-  // malloc buf for largest send
-
-  char *buf = (char *) memory->smalloc(nsendmax,"IR:buf");
 
   // barrier to insure receives are posted
 
   MPI_Barrier(comm);
 
-  // send each message, packing buf with needed datums
+  // send each message, packing copy buf with needed datums
 
-  int m = 0;
+  int index = 0;
   for (int isend = 0; isend < nsend; isend++) {
-    int bufoffset = 0;
-    for (int i = 0; i < sendcount[isend]; i++) {
-      memcpy(&buf[bufoffset],&sendbuf[nsize*sendindices[m++]],nsize);
-      bufoffset += nsize;
+    iproc = sendprocs[isend];
+    ptr = copy;
+    n = senddatums[iproc];
+    for (i = 0; i < n; i++) {
+      j = indices[index++];
+      memcpy(ptr,ptrs[j],sizes[j]);
+      ptr += sizes[j];
     }
-    MPI_Send(buf,sendsize[isend],MPI_BYTE,sendproc[isend],0,comm);
-  }       
-
-  // copy self data directly from sendbuf to recvbuf
-
-  if (self)
-    for (int i = 0; i < sendcount[nsend]; i++) {
-      memcpy(&recvbuf[recvoffset],&sendbuf[nsize*sendindices[m++]],nsize);
-      recvoffset += nsize;
-    }
-
-  // free send buffer
-
-  memory->sfree(buf);
-
-  // wait on all incoming messages
-
-  if (nrecv) MPI_Waitall(nrecv,request,status);
-}
-
-/* ----------------------------------------------------------------------
-  sendbuf = data to send
-  recvbuf = buffer to recv all data into
-  requires nsendmax,recvsize,sendsize,sendoffset,sendsizedatum
-    be setup by size(int *, int *)
-------------------------------------------------------------------------- */
-
-void Irregular::exchange_varying(char *sendbuf, char *recvbuf)
-{
-  // post all receives
-
-  int recvoffset = 0;
-  for (int irecv = 0; irecv < nrecv; irecv++) {
-    MPI_Irecv(&recvbuf[recvoffset],recvsize[irecv],MPI_BYTE,
-    	      recvproc[irecv],0,comm,&request[irecv]);
-    recvoffset += recvsize[irecv];
+    MPI_Send(copy,sendbytes[iproc],MPI_BYTE,iproc,0,comm);
   }
 
-  // malloc buf for largest send
-
-  char *buf = (char *) memory->smalloc(nsendmax,"IR:buf");
-
-  // barrier to insure receives are posted
-
-  MPI_Barrier(comm);
-
-  // send each message, packing buf with needed datums
-
-  int index;
-  int m = 0;
-  for (int isend = 0; isend < nsend; isend++) {
-    int bufoffset = 0;
-    for (int i = 0; i < sendcount[isend]; i++) {
-      index = sendindices[m++];
-      memcpy(&buf[bufoffset],&sendbuf[sendoffset[index]],sendsizedatum[index]);
-      bufoffset += sendsizedatum[index];
-    }
-    MPI_Send(buf,sendsize[isend],MPI_BYTE,sendproc[isend],0,comm);
-  }
-
-  // copy self data directly from sendbuf to recvbuf
+  // copy self data directly to recv buf
 
   if (self)
-    for (int i = 0; i < sendcount[nsend]; i++) {
-      index = sendindices[m++];
-      memcpy(&recvbuf[recvoffset],&sendbuf[sendoffset[index]],
-	     sendsizedatum[index]);
-      recvoffset += sendsizedatum[index];
+    ptr = &recv[rdispls[me]];
+    n = senddatums[me];
+    for (i = 0; i < n; i++) {
+      j = indices[index++];
+      memcpy(ptr,ptrs[j],sizes[j]);
+      ptr += sizes[j];
     }
-
-  // free send buffer
-
-  memory->sfree(buf);
 
   // wait on all incoming messages
 

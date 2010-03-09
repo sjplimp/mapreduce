@@ -27,6 +27,7 @@ class MapReduce {
  public:
   int mapstyle;       // 0 = chunks, 1 = strided, 2 = master/slave
   int verbosity;      // 0 = none, 1 = totals, 2 = proc histograms
+  int all2all;        // 0 = irregular comm, 1 = use MPI_Alltoallv()
   int timer;          // 0 = none, 1 = summary, 2 = proc histograms
   int memsize;        // # of Mbytes per page
   int minpage;        // # of pages that will be pre-allocated per proc >= 0

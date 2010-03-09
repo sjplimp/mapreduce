@@ -21,55 +21,44 @@ namespace MAPREDUCE_NS {
 
 class Irregular {
  public:
-  Irregular(MPI_Comm);
+  Irregular(int, class Memory *, class Error *, MPI_Comm);
   ~Irregular();
 
   uint64_t cssize,crsize;    // total send/recv bytes for one exchange
 
-  void pattern(int, int *);
-  int size(int);
-  int size(int *, int *, int *);
-  void exchange(char *, char *);
+  int setup(int, int *, int *, int *, uint64_t, double &);
+  void exchange(int, int *, char **, int *, int *, char *, char *);
 
  private:
   int me,nprocs;
+  int all2all;
   class Memory *memory;
   class Error *error;
-
-  int patternflag;           // UNSET,SET
-  int sizestyle;             // NONE,SAME,VARYING
-
-  int self;                  // 0 = no data to copy to self, 1 = yes
-
-  int ndatumsend;            // # of datums to send w/ self
-  int ndatumrecv;            // # of datums to recv w/ self
-  int nbytesrecv;            // total bytes in received data w/ self
-  int nsend;                 // # of messages to send w/out self
-  int nrecv;                 // # of messages to recv w/out self
-  int nsendmax;              // # of bytes in largest send message, w/out self
-
-  int *sendproc;             // list of procs to send to w/out self
-  int *sendcount;            // # of datums to send to each proc w/ self
-  int *sendsize;             // # of bytes to send to each proc w/ self
-  int *sendindices;          // indices of datums to send to each proc w/ self
-
-  int nsize;                 // size of every datum in bytes (SAME)
-  int *sendsizedatum;        // bytes in each datum to send w/ self (VARYING)
-  int *sendoffset;           // byte offset to where each datum starts w/ self
-  int sendoffsetflag;        // 1 if allocated sendoffset, 0 if passed in
-
-  int *recvproc;             // list of procs to recv from w/out self
-  int *recvcount;            // # of datums to recv from each proc w/out self
-  int *recvsize;             // # of bytes to recv from each proc w/out self
-
-  MPI_Request *request;      // MPI requests for posted recvs
-  MPI_Status *status;        // MPI statuses for Waitall
   MPI_Comm comm;             // MPI communicator for all communication
 
-  void init();
-  void deallocate();
-  void exchange_same(char *, char *);
-  void exchange_varying(char *, char *);
+  // all2all and custom settings
+
+  int *sendbytes;            // bytes to send to each proc, including self
+  int *sdispls;              // proc offset into clumped send buffer
+  int *recvbytes;            // bytes to recv from each proc, including self
+  int *rdispls;              // proc offset into recv buffer
+  int *senddatums;           // # of datums to send each proc, including self
+  int *one;                  // 1 for each proc, for MPI call
+  int ndatum;                // # of total datums I recv, including self
+
+  // custom settings
+
+  int self;                  // 0 = no data to copy to self, 1 = yes
+  int nsend;                 // # of messages to send w/out self
+  int nrecv;                 // # of messages to recv w/out self
+  int *sendprocs;            // list of procs to send to w/out self
+  int *recvprocs;            // list of procs to recv from w/out self
+  MPI_Request *request;      // MPI requests for posted recvs
+  MPI_Status *status;        // MPI statuses for Waitall
+
+  void exchange_all2all(int, int *, char **, int *, char *, char *);
+  void exchange_custom(int, int *, char **, int *, char *, char *);
+
 };
 
 }
