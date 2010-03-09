@@ -474,17 +474,11 @@ void KeyMultiValue::convert(KeyValue *kv)
     error->one("Cannot hold any unique keys in memory");
 
   // use KV's memory page for all file reading, release it at end
-  // spool_memory() requests MR pages, sets up memory allocation for Spool pages
+  // spool_memory() requests MR pages, sets up memory allocs for Spool pages
 
   readpage = kv->page;
   int kv_memtag = kv->memtag;
   spool_memory(kv);
-
-  // initialize counts for first KMV page
-
-  nkey = 0;
-  nvalue = keysize = valuesize = 0;
-  alignsize = 0;
 
   // loop over partitions of KV pairs
   // partition = portion of KV pairs whose unique keys fit in memory
@@ -547,15 +541,10 @@ void KeyMultiValue::convert(KeyValue *kv)
       if (sets[iset].extended) kv2kmv_extended(iset);
       else kv2kmv(iset);
 
-      // write KMV page to disk in 2 cases:
-      // a) not the last set, regular or extended
-      //    since page is full (regular) or last page of values (extended)
-      //    last regular set with partly full page is filled by next partition
-      // b) extended set with more pages to come
+      // write KMV page to disk unless very last one
       // complete() will write last page, regular or extended
 
-      if (iset < nset-1 || 
-	  (sets[iset].extended && ipartition < npartition-1)) {
+      if (iset < nset-1 || ipartition < npartition-1) {
 	create_page();
 	write_page();
 	npage++;
@@ -747,7 +736,6 @@ void KeyMultiValue::kv2unique(int ipartition)
    scan all unique keys to identify subsets to spool
    determine nset = # of subsets, nset = 1 initially
      each set stores first Unique and number of uniques in set
-   current KMV page may be partially filled from previous partition
    if one KMV pair exceeds single page, flag its set as extended
    also structure the first KMV page for set 0 unless it is extended
    return 1 if multiple sets induced, else 0
@@ -763,11 +751,10 @@ int KeyMultiValue::unique2kmv_all()
 
   // loop over all unique keys
   // create new set when page size exceeded by single- or multi-page KMV pairs
-  // uptr->set = assignment of key to set
+  // uptr->set = which set the key is assigned to
 
   uptr = (Unique *) ustart;
-  ptr = &page[alignsize];
-  setsize = alignsize;
+  ptr = page;
   newflag = 1;
 
   for (int i = 0; i < nunique; i++) {
@@ -776,6 +763,7 @@ int KeyMultiValue::unique2kmv_all()
       sets[nset-1].first = uptr;
       sets[nset-1].nunique = i;
       sets[nset-1].extended = 0;
+      setsize = 0;
     }
     
     iptr = ptr;
@@ -805,26 +793,19 @@ int KeyMultiValue::unique2kmv_all()
  
     if (multiflag == 0) {
       if (setsize + onesize > pagesize || nkey == INTMAX) {
-	if (i > 0) {
-	  sets[nset-1].nunique = i - sets[nset-1].nunique;
+	sets[nset-1].nunique = i - sets[nset-1].nunique;
 
-	  if (nset == maxset) {
-	    maxset += SETCHUNK;
-	    sets = (Set *) 
-	      memory->srealloc(sets,maxset*sizeof(Set),"KMV:sets");
-	  }
-	  nset++;
-
-	  sets[nset-1].first = uptr;
-	  sets[nset-1].nunique = i;
-	  sets[nset-1].extended = 0;
-	  setsize = 0;
-	} else {
-	  create_page();
-	  write_page();
-	  npage++;
-	  init_page();
+	if (nset == maxset) {
+	  maxset += SETCHUNK;
+	  sets = (Set *) 
+	    memory->srealloc(sets,maxset*sizeof(Set),"KMV:sets");
 	}
+	nset++;
+	
+	sets[nset-1].first = uptr;
+	sets[nset-1].nunique = i;
+	sets[nset-1].extended = 0;
+	setsize = 0;
       }
 
       uptr->set = nset-1;
@@ -851,19 +832,11 @@ int KeyMultiValue::unique2kmv_all()
       }
 
     // multi-page KMV pair
-    // if current KMV page is partly filled, write it out
     // if current set is just this KMV, close it as extended set
     // else close it as regular set and add new set as extended set
     // set newflag if more uniques exist, so new set will be initialized
 
     } else {
-      if (nkey) {
-	create_page();
-	write_page();
-	npage++;
-	init_page();
-      }
-
       if (uptr == sets[nset-1].first) {
 	sets[nset-1].nunique = 1;
 	sets[nset-1].extended = 1;
@@ -890,7 +863,6 @@ int KeyMultiValue::unique2kmv_all()
 	}
 	nset++;
 	newflag = 1;
-	setsize = 0;
       }
     }
 
@@ -1221,8 +1193,8 @@ void KeyMultiValue::kv2kmv_extended(int iset)
   int ncount = 0;
 
   KeyValue *kv = sets[iset].kv;
-  Spool *sp = partitions[iset].sp;
-  Spool *sp2 = partitions[iset].sp2;
+  Spool *sp = sets[iset].sp;
+  Spool *sp2 = sets[iset].sp2;
   if (sp) sp->set_page(pagesize,readpage);
   if (sp2) sp2->set_page(pagesize,readpage);
 

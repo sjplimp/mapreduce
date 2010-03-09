@@ -209,6 +209,7 @@ class MapReduce {
   void histogram(int, double *, double &, double &, double &,
 		 int, int *, int *);
 
+  void mr_stats(int);
   void allocate();
   void allocate_page(int);
   char *mymalloc(int, uint64_t &, int &);

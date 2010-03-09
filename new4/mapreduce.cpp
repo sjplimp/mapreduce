@@ -158,6 +158,7 @@ MapReduce::~MapReduce()
   delete kmv;
 
   instances_now--;
+  if (verbosity) mr_stats(verbosity);
   if (instances_now == 0 && verbosity) cummulative_stats(verbosity,1);
   if (mpi_finalize_flag && instances_now == 0) MPI_Finalize();
 }
@@ -2078,7 +2079,7 @@ void MapReduce::kv_stats(int level)
     histogram(1,&tmp,ave,max,min,10,histo,histotmp);
     if (me == 0) {
       printf("  KV pairs:   %g ave %g max %g min\n",ave,max,min);
-      printf("  Hikeystogram: ");
+      printf("  Histogram: ");
       for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
       printf("\n");
     }
@@ -2248,6 +2249,35 @@ void MapReduce::set_fpath(char *str)
   int n = strlen(str) + 1;
   fpath = new char[n];
   strcpy(fpath,str);
+}
+
+/* ----------------------------------------------------------------------
+   print memory page stats for MR
+------------------------------------------------------------------------- */
+
+void MapReduce::mr_stats(int level)
+{
+  double mbyte = 1024.0*1024.0;
+
+  int npages;
+  MPI_Allreduce(&npage,&npages,1,MPI_INT,MPI_SUM,comm);
+
+  if (me == 0)
+    printf("MapReduce stats = %d pages, %.3g Mb\n",
+	     npages,npages*pagesize/mbyte);
+
+  if (level == 2) {
+    int histo[10],histotmp[10];
+    double ave,max,min;
+    double tmp = npage;
+    histogram(1,&tmp,ave,max,min,10,histo,histotmp);
+    if (me == 0) {
+      printf("  Pages:      %g ave %g max %g min\n",ave,max,min);
+      printf("  Histogram: ");
+      for (int i = 0; i < 10; i++) printf(" %d",histo[i]);
+      printf("\n");
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------
