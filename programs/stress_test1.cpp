@@ -81,6 +81,7 @@ int main(int narg, char **args)
 #endif
   mr->verbosity = 2;
   mr->timer = 1;
+  mr->all2all = 1;
 
   int N = atoi(args[2]);
   if (N > 3) FREQ = (1 << (N-3));
@@ -144,14 +145,11 @@ int main(int narg, char **args)
     if (gerrors > 0) printf("SANITY TEST FAILED: %llu ERRORS\n", gerrors);
     else printf("Sanity test OK.\n");
 
+  delete mr;
+
   if (me == 0) 
     printf("nwords = %llu : nunique = %llu : Time = %f\n", 
             nwords, nunique, tstop - tstart);
-
-#ifdef NEW_OUT_OF_CORE
-  mr->cummulative_stats(2, 0);
-#endif
-  delete mr;
 
   MPI_Finalize();
 }

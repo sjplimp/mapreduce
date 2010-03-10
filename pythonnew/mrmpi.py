@@ -308,6 +308,9 @@ class mrmpi:
   def verbosity(self,value):
     self.lib.MR_set_verbosity(self.mr,value)
 
+  def all2all(self,value):
+    self.lib.MR_set_all2all(self.mr,value)
+
   def timer(self,value):
     self.lib.MR_set_timer(self.mr,value)
 
