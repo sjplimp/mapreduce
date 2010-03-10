@@ -173,8 +173,8 @@ void MapReduce::defaults()
   error = new Error(comm);
 
   mapstyle = 0;
-  verbosity = 0;
   all2all = 1;
+  verbosity = 0;
   timer = 0;
   memsize = MBYTES;
   minpage = 0;
@@ -223,6 +223,7 @@ MapReduce *MapReduce::copy()
   MapReduce *mrnew = new MapReduce(comm);
 
   mrnew->mapstyle = mapstyle;
+  mrnew->all2all = all2all;
   mrnew->verbosity = verbosity;
   mrnew->timer = timer;
   mrnew->memsize = memsize;
@@ -2486,18 +2487,6 @@ char *MapReduce::mymalloc(int numpage, uint64_t &size, int &tag)
 
   for (ipage = 0; ipage < numpage; ipage++) memused[tag+ipage] = numpage;
   size = numpage*pagesize;
-
-  /*
-  printf("MEM npage %d %d %d\n",npage,numpage,tag);
-  printf("MEM memused:");
-  for (int i = 0; i < npage; i++)
-    printf(" %d",memused[i]);
-  printf("\n");
-  printf("MEM memcount:");
-  for (int i = 0; i < npage; i++)
-    printf(" %d",memcount[i]);
-  printf("\n");
-  */
 
   return memptr[tag];
 }
