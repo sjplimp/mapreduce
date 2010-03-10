@@ -122,12 +122,15 @@ different methods varies; 1 to 7 is typical.  See <A HREF = "interface_c++.html"
 section</A> for a summary of memory page requirements.
 </P>
 <P>The minimum allowed value for the <I>memsize</I> setting is 1, meaning 1 Mb
-pages.  The maximum value is unlimited, but you should not allow the
-total memory allocated by the MapReduce objects you create to exceed
-the physical memory on your processor (or node, if several processors
-share physical memory).  If you do this, then many systems will
-allocate virtual memory, which will typically cause MapReduce
-operations to run very slowly and thrash the disk.
+pages.
+</P>
+<P>IMPORTANT NOTE: The maximum value is unlimited, but you should insure
+the total memory consumed by all pages allocated by all the MapReduce
+objects you create, does not exceed the physical memory available
+(which may be shared by several processors if running on a multi-core
+node).  If you do this, then many systems will allocate virtual
+memory, which will typically cause MR-MPI library operations to run
+very slowly and thrash the disk.
 </P>
 <P>If the data owned by a processor in its collection of KeyValue or
 KeyMultiValue pairs fits within one page, then no disk I/O is
