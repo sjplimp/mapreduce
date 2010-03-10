@@ -24,10 +24,10 @@ program</A>.
 <P>Arguments to the library's <A HREF = "map.html">map()</A> and <A HREF = "reduce.html">reduce()</A>
 methods include function pointers to serial "mymap" and "myreduce"
 functions in your code (named anything you wish), which will be
-"called back" from the library as it performs the parallel map and
+"called back to" from the library as it performs the parallel map and
 reduce operations.
 </P>
-<P>A typical MapReduce program involves these steps:
+<P>A typical simple MapReduce program involves these steps:
 </P>
 <PRE>MapReduce *mr = new MapReduce(MPI_COMM_WORLD);   // instantiate an MR object
 mr->map(nfiles,&mymap);                          // parallel map

@@ -21,8 +21,8 @@ int MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, 
 <PRE>int MapReduce::map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
 int MapReduce::map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
 </PRE>
-<PRE>int MapReduce::map(MapReduce *mr2, void (*mymap)(int, char *, int, char *, int, KeyValue *, void *), void *ptr)
-int MapReduce::map(MapReduce *mr2, void (*mymap)(int, char *, int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
+<PRE>int MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr)
+int MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
 </PRE>
 <P>This calls the map() method of a MapReduce object.  A function pointer
 to a mapping function you write is specified as an argument.  This
@@ -80,7 +80,7 @@ invoked:
 <PRE>void mymap(int itask, KeyValue *kv, void *ptr)
 void mymap(int itask, char *file, KeyValue *kv, void *ptr)
 void mymap(int itask, char *str, int size, KeyValue *kv, void *ptr)
-void mymap(int itask, char *key, int keybytes, char *value, int valuebytes, KeyValue *kv, void *ptr) 
+void mymap(uint64_t itask, char *key, int keybytes, char *value, int valuebytes, KeyValue *kv, void *ptr) 
 </PRE>
 <P>In all cases, the final 2 arguments passed to your function are a
 pointer to a KeyValue object (kv) stored internally by the MapReduce
@@ -131,9 +131,10 @@ with the character immediately preceeding a sepstr (followed by a
 different byte strings if you specify sepchar = 'A' vs sepstr = "A".
 </P>
 <P>In the fourth case, itask will have a value from 0 <= itask < nkey,
-where nkey is the number of key/value pairs in the specified MapReduce
-object.  Key and value are the byte strings for a single key/value
-pair and are of length keybytes and valuebytes respectively.
+where nkey is a unsigned 64-bit int and is the number of key/value
+pairs in the specified MapReduce object.  Key and value are the byte
+strings for a single key/value pair and are of length keybytes and
+valuebytes respectively.
 </P>
 <P>The MapReduce library assigns map tasks to processors.  Options for
 how it does this can be controlled by <A HREF = "settings.html">MapReduce

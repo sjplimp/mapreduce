@@ -11,14 +11,17 @@
 </H3>
 <P>These are internal library variables that can be set by your program:
 </P>
-<PRE>mapstyle = 0 (chunk) or 1 (stride) or 2 (master/slave)
-verbosity = 0 (none) or 1 (summary) or 2 (histogrammed)
-timer = 0 (none) or 1 (summary) or 2 (histogrammed)
-memsize = N = number of Mbytes of memory
-keyalign = N = byte-alignment of keys
-valuealign = N = byte-alignment of values
-fpath = string 
-</PRE>
+<UL><LI>mapstyle = 0 (chunk) or 1 (stride) or 2 (master/slave)
+<LI>all2all = 0 (irregular communication) or 1 (use MPI_Alltoallv)
+<LI>verbosity = 0 (none) or 1 (summary) or 2 (histogrammed)
+<LI>timer = 0 (none) or 1 (summary) or 2 (histogrammed)
+<LI>memsize = N = number of Mbytes per page of memory
+<LI>minpage = N = # of pages to pre-allocate per processor
+<LI>maxpage = N = max # of pages allocatable per processor
+<LI>keyalign = N = byte-alignment of keys
+<LI>valuealign = N = byte-alignment of values
+<LI>fpath = string 
+</UL>
 <P>All the settings except <I>fpath</I> are set in the following manner from
 C++:
 </P>
@@ -66,6 +69,22 @@ performs no mapping tasks.
 </P>
 <HR>
 
+<P>The <I>all2all</I> setting determines how point-to-point communication is
+done when the <A HREF = "aggregate.html">aggregate()</A> method is invoked, either
+by itself or as part of a <A HREF = "collate.html">collate()</A>.
+</P>
+<P>A value of 0 means custom routines for irregular communication are
+used.  A value of 1 means the MPI_Alltoallv() function from the MPI
+library is used.  The results should be identical.  Which is faster
+depends on the MPI library implementation of the MPI standard on a
+particular machine.
+</P>
+<P>This setting can be changed at any time.
+</P>
+<P>The default value for <I>all2all</I> is 1.
+</P>
+<HR>
+
 <P>The <I>verbosity</I> setting determines how much diagnostic output each
 library call prints to the screen.  A value of 0 means "none".  A
 value of 1 means a "summary" of the results across all processors is
@@ -94,47 +113,73 @@ each processor, so that you can detect computational imbalance.
 </P>
 <HR>
 
-<P>The <I>memsize</I> setting determines how much memory (in Mbytes) is used
-by the MapReduce object to perform its various operations.  It is a
-per-processor setting.  The minimium setting is 1 Mbytes; the maximum
-as 4096 = 4 Gbytes.  If the data owned by a processor exceeds this
-limit, then it writes its portion of the data to a file and reads it
-back in for subsequent operations.  These intermediate files are
-created on a per-processor basis and are deleted when the MapReduce
-object is deleted, e.g. at the end of the user program.
+<P>The <I>memsize</I> setting determines the page size (in Mbytes) of each
+page of memory allocated by the MapReduce object to perform its
+operations.  Once allocated, pages are never deallocated until the
+MapReduce object is deleted, but pages are reused by successive
+operations performed by the library.  The number of pages required by
+different methods varies; 1 to 7 is typical.  See <A HREF = "interface_c++.html">this
+section</A> for a summary of memory page requirements.
 </P>
-<P>The specificed chunk of memory is split into 4 pieces so that one or
-more copies of KeyValue and KeyMultiValue objects can exist at the
-same time as various operations are performed.  Thus if the default
-setting of 100 Mbytes is used, a KeyValue object will be created and
-written to a file in 25 Mbyte chunks, when a <A HREF = "map.html">map()</A> method
-is invoked.
+<P>The minimum allowed value for the <I>memsize</I> setting is 1, meaning 1 Mb
+pages.  The maximum value is unlimited, but you should not allow the
+total memory allocated by the MapReduce objects you create to exceed
+the physical memory on your processor (or node, if several processors
+share physical memory).  If you do this, then many systems will
+allocate virtual memory, which will typically cause MapReduce
+operations to run very slowly and thrash the disk.
 </P>
-<P>If you make this setting small, then processing a large data set will
-induce many small reads and writes to disk.  If you make it large,
-then the reads and writes will happen in large chunks, which generally
-yields better I/O performance.  However, past a few MBytes in size,
-there may be little gain in I/O performance.  the intermediate files
-are created in the directory from which you invoke your MapReduce
-program.  Depending on a parallel machine's disk system, this may mean
-many processors write/read simultaneously to the same directory.
+<P>If the data owned by a processor in its collection of KeyValue or
+KeyMultiValue pairs fits within one page, then no disk I/O is
+performed; the MR-MPI library runs in-core.  If data exceeds the page
+size, then it is written to temporary disk files and read back in for
+subsequent operations; the MR-MPI library runs out-of-core.  See <A HREF = "technical.html#ooc">this
+section</A> for more discussion of out-of-core
+operations.  These files are created on a per-processor basis and are
+deleted when no longer needed.  Thus if you delete all MapReduce
+objects that you have instantiated, no such files should exist at the
+end of the user program.  If you should need to clean them up
+yourselves (e.g. your program crashes), see the discussion of the
+<I>fpath</I> setting which describes how they are named and where they
+reside.
 </P>
-<P>You should ensure this setting is no larger than the physical memory
-available to a processor, else memory allocations may fail or occur in
-slow virtual memory.  On a machine where many processors share the
-same memory, e.g a multicore node, you should insure the sum of the
-memory chunks for all processors does not exceed physical memory.
-Note that the <I>memsize</I> setting is a rough lower bound of the memory
-that will be used by various MapReduce operations.  You should
-probably be conservative by a factor of 2x to insure other smaller
-memory allocations do not exceed available memory.  See the <A HREF = "technical.html">Technical
-Details</A> for more discussion of this topic.
+<P>If you set <I>memsize</I> small, then processing a large data set will
+induce many reads and writes to disk.  If you make it large, then the
+reads and writes will happen in large chunks, which generally yields
+better I/O performance.  However, past a few MBytes in size, there may
+be little gain in I/O performance.
 </P>
 <P>This setting can only be changed before the first KeyValue or
 KeyMultiValue object is created by the MapReduce object.  If changed
 after that, it will have no effect.
 </P>
-<P>The default value for <I>memsize</I> is 100, meaning 100 Mbytes.
+<P>The default value for <I>memsize</I> is 64, meaning 64 Mbyte pages.
+</P>
+<HR>
+
+<P>The <I>minpage</I> setting determines how many memory pages each processor
+pre-allocates when the MapReduce object performs its first operation.
+<I>Minpage</I> can be set to a number >= 0.
+</P>
+<P>This setting can only be changed before the first KeyValue or
+KeyMultiValue object is created by the MapReduce object.  If changed
+after that, it will have no effect.
+</P>
+<P>The default value for <I>minpage</I> is 0.
+</P>
+<HR>
+
+<P>The <I>maxpage</I> setting determines the maximum number of pages a
+processor can ever allocate when performing MapReduce operations.
+Normally this will be no more than 7; see the discussion in <A HREF = "techincal.html#ooc">this
+section</A> for more details.  <I>Maxpage</I> can be set to
+a number >= 0.  A value of 0 means there is no limit; new pages are
+allocated whenever they are needed.
+</P>
+<P>This setting can be changed at any time, though previously-allocated
+pages are not deleted if <I>maxpage</I> is set to a smaller number.
+</P>
+<P>The default value for <I>maxpage</I> is 0.
 </P>
 <HR>
 
@@ -178,17 +223,19 @@ alignment of keys and values.
 </P>
 <HR>
 
-<P>The <I>fpath</I> setting determines the pathname for all internal files
-created by MapReduce when it runs in out-of-core mode.  Note that it
-is not a pathname for data files read by the <A HREF = "map.html">map()</A> method.
-Those should be specified directly as part of the filename.
+<P>The <I>fpath</I> setting determines the pathname for all disk files created
+by the MR-MPI library when it runs in <A HREF = "technical.html#ooc">out-of-core
+mode</A>.  Note that it is not a pathname for user
+data files read by the <A HREF = "map.html">map()</A> method.  Those should be
+specified directly as part of the filename.
 </P>
-<P>Internal out-of-core files are created as fpath/mrmpi.kmv.N.P.  "Kmv"
-is for files of key/multivalue, and may be "kva" or "kvb" for
-key/value pairs, or "spl" for spool files which are created by the
-<A HREF = "collate.html">collate()</A> or <A HREF = "convert.html">convert()</A> or sorting
-methods.  N is an internal counter which the MR-MPI library keeps
-track of.  P is the processor ID.
+<P>Out-of-core disk files are created with names like
+"fpath/mrmpi.kv,N,M,P" where "kv" is an file-type string ("kv", or
+"kmv" or "sort" or "part" or "set"), N is a number unique to each
+MapReduce object, M is a file counter, and P is the processor ID.
+fpath/mrmpi.kmv.N.P.  Sort files are created by the sorting methods.
+Part and set files are created by <A HREF = "collate.html">collate()</A> or
+<A HREF = "convert.html">convert()</A> methods.
 </P>
 <P>Setting <I>fpath</I> may be useful for specifying a disk local to each
 processor, or for a parallel file system that each processor can

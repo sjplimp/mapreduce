@@ -10,12 +10,15 @@ Settings and defaults :h3
 These are internal library variables that can be set by your program:
 
 mapstyle = 0 (chunk) or 1 (stride) or 2 (master/slave)
+all2all = 0 (irregular communication) or 1 (use MPI_Alltoallv)
 verbosity = 0 (none) or 1 (summary) or 2 (histogrammed)
 timer = 0 (none) or 1 (summary) or 2 (histogrammed)
-memsize = N = number of Mbytes of memory
+memsize = N = number of Mbytes per page of memory
+minpage = N = # of pages to pre-allocate per processor
+maxpage = N = max # of pages allocatable per processor
 keyalign = N = byte-alignment of keys
 valuealign = N = byte-alignment of values
-fpath = string :pre
+fpath = string :ul
 
 All the settings except {fpath} are set in the following manner from
 C++:
@@ -64,6 +67,22 @@ The default value for {mapstyle} is 0.
 
 :line
 
+The {all2all} setting determines how point-to-point communication is
+done when the "aggregate()"_aggregate.html method is invoked, either
+by itself or as part of a "collate()"_collate.html.
+
+A value of 0 means custom routines for irregular communication are
+used.  A value of 1 means the MPI_Alltoallv() function from the MPI
+library is used.  The results should be identical.  Which is faster
+depends on the MPI library implementation of the MPI standard on a
+particular machine.
+
+This setting can be changed at any time.
+
+The default value for {all2all} is 1.
+
+:line
+
 The {verbosity} setting determines how much diagnostic output each
 library call prints to the screen.  A value of 0 means "none".  A
 value of 1 means a "summary" of the results across all processors is
@@ -92,47 +111,73 @@ The default value for {timer} is 0.
 
 :line
 
-The {memsize} setting determines how much memory (in Mbytes) is used
-by the MapReduce object to perform its various operations.  It is a
-per-processor setting.  The minimium setting is 1 Mbytes; the maximum
-as 4096 = 4 Gbytes.  If the data owned by a processor exceeds this
-limit, then it writes its portion of the data to a file and reads it
-back in for subsequent operations.  These intermediate files are
-created on a per-processor basis and are deleted when the MapReduce
-object is deleted, e.g. at the end of the user program.
+The {memsize} setting determines the page size (in Mbytes) of each
+page of memory allocated by the MapReduce object to perform its
+operations.  Once allocated, pages are never deallocated until the
+MapReduce object is deleted, but pages are reused by successive
+operations performed by the library.  The number of pages required by
+different methods varies; 1 to 7 is typical.  See "this
+section"_interface_c++.html for a summary of memory page requirements.
 
-The specificed chunk of memory is split into 4 pieces so that one or
-more copies of KeyValue and KeyMultiValue objects can exist at the
-same time as various operations are performed.  Thus if the default
-setting of 100 Mbytes is used, a KeyValue object will be created and
-written to a file in 25 Mbyte chunks, when a "map()"_map.html method
-is invoked.
+The minimum allowed value for the {memsize} setting is 1, meaning 1 Mb
+pages.  The maximum value is unlimited, but you should not allow the
+total memory allocated by the MapReduce objects you create to exceed
+the physical memory on your processor (or node, if several processors
+share physical memory).  If you do this, then many systems will
+allocate virtual memory, which will typically cause MapReduce
+operations to run very slowly and thrash the disk.
 
-If you make this setting small, then processing a large data set will
-induce many small reads and writes to disk.  If you make it large,
-then the reads and writes will happen in large chunks, which generally
-yields better I/O performance.  However, past a few MBytes in size,
-there may be little gain in I/O performance.  the intermediate files
-are created in the directory from which you invoke your MapReduce
-program.  Depending on a parallel machine's disk system, this may mean
-many processors write/read simultaneously to the same directory.
+If the data owned by a processor in its collection of KeyValue or
+KeyMultiValue pairs fits within one page, then no disk I/O is
+performed; the MR-MPI library runs in-core.  If data exceeds the page
+size, then it is written to temporary disk files and read back in for
+subsequent operations; the MR-MPI library runs out-of-core.  See "this
+section"_technical.html#ooc for more discussion of out-of-core
+operations.  These files are created on a per-processor basis and are
+deleted when no longer needed.  Thus if you delete all MapReduce
+objects that you have instantiated, no such files should exist at the
+end of the user program.  If you should need to clean them up
+yourselves (e.g. your program crashes), see the discussion of the
+{fpath} setting which describes how they are named and where they
+reside.
 
-You should ensure this setting is no larger than the physical memory
-available to a processor, else memory allocations may fail or occur in
-slow virtual memory.  On a machine where many processors share the
-same memory, e.g a multicore node, you should insure the sum of the
-memory chunks for all processors does not exceed physical memory.
-Note that the {memsize} setting is a rough lower bound of the memory
-that will be used by various MapReduce operations.  You should
-probably be conservative by a factor of 2x to insure other smaller
-memory allocations do not exceed available memory.  See the "Technical
-Details"_technical.html for more discussion of this topic.
+If you set {memsize} small, then processing a large data set will
+induce many reads and writes to disk.  If you make it large, then the
+reads and writes will happen in large chunks, which generally yields
+better I/O performance.  However, past a few MBytes in size, there may
+be little gain in I/O performance.
 
 This setting can only be changed before the first KeyValue or
 KeyMultiValue object is created by the MapReduce object.  If changed
 after that, it will have no effect.
 
-The default value for {memsize} is 100, meaning 100 Mbytes.
+The default value for {memsize} is 64, meaning 64 Mbyte pages.
+
+:line
+
+The {minpage} setting determines how many memory pages each processor
+pre-allocates when the MapReduce object performs its first operation.
+{Minpage} can be set to a number >= 0.
+
+This setting can only be changed before the first KeyValue or
+KeyMultiValue object is created by the MapReduce object.  If changed
+after that, it will have no effect.
+
+The default value for {minpage} is 0.
+
+:line
+
+The {maxpage} setting determines the maximum number of pages a
+processor can ever allocate when performing MapReduce operations.
+Normally this will be no more than 7; see the discussion in "this
+section"_techincal.html#ooc for more details.  {Maxpage} can be set to
+a number >= 0.  A value of 0 means there is no limit; new pages are
+allocated whenever they are needed.
+
+This setting can be changed at any time, though previously-allocated
+pages are not deleted if {maxpage} is set to a smaller number.
+
+The default value for {maxpage} is 0.
 
 :line
 
@@ -176,17 +221,19 @@ alignment of keys and values.
 
 :line
 
-The {fpath} setting determines the pathname for all internal files
-created by MapReduce when it runs in out-of-core mode.  Note that it
-is not a pathname for data files read by the "map()"_map.html method.
-Those should be specified directly as part of the filename.
+The {fpath} setting determines the pathname for all disk files created
+by the MR-MPI library when it runs in "out-of-core
+mode"_technical.html#ooc.  Note that it is not a pathname for user
+data files read by the "map()"_map.html method.  Those should be
+specified directly as part of the filename.
 
-Internal out-of-core files are created as fpath/mrmpi.kmv.N.P.  "Kmv"
-is for files of key/multivalue, and may be "kva" or "kvb" for
-key/value pairs, or "spl" for spool files which are created by the
-"collate()"_collate.html or "convert()"_convert.html or sorting
-methods.  N is an internal counter which the MR-MPI library keeps
-track of.  P is the processor ID.
+Out-of-core disk files are created with names like
+"fpath/mrmpi.kv,N,M,P" where "kv" is an file-type string ("kv", or
+"kmv" or "sort" or "part" or "set"), N is a number unique to each
+MapReduce object, M is a file counter, and P is the processor ID.
+fpath/mrmpi.kmv.N.P.  Sort files are created by the sorting methods.
+Part and set files are created by "collate()"_collate.html or
+"convert()"_convert.html methods.
 
 Setting {fpath} may be useful for specifying a disk local to each
 processor, or for a parallel file system that each processor can

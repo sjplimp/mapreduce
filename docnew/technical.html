@@ -106,9 +106,9 @@ used for computation.
 <A NAME = "memory"></A><H4>Memory requirements for KeyValue and KeyMultiValue objects 
 </H4>
 <P>KeyValue and KeyMultiValue objects are described in <A HREF = "interface_c++.html">this
-section</A>.  A MapReduce object contains a single
-KeyValue object (KV) or a single KeyMultiValue object (KMV), depending
-on which methods you have invoked.
+section</A>.  A MapReduce object contains either a
+single KeyValue object (KV) or a single KeyMultiValue object (KMV),
+depending on which methods you have invoked.
 </P>
 <P>The memory cost for storing key/value pairs in a KV is as follows.
 The key and value each have a byte length.  Two integers are also
@@ -119,99 +119,109 @@ section</A>.  Thus the total size of a KV is the memory for
 the key/value datums plus 2 integers per pair plus any extra alignment
 bytes.
 </P>
-<P>Recall that a KMV contains key/multi-value pairs where the number of
-pairs is typically the number of unique keys in the original KV.  The
-memory cost for storing key/multi-value pairs in a KMV is as follows.
-The key and multi-value each have a byte length.  For the multi-value,
+<P>A KMV contains key/multi-value pairs where the number of pairs is
+typically the number of unique keys in the original KV.  The memory
+cost for storing key/multi-value pairs in a KMV is as follows.  The
+key and multi-value each have a byte length.  For the multi-value,
 this is the sum of individual value lengths.  Again, there may also be
 additional bytes added to align the key and multi-value on byte
 boundaries in memory; see the <I>keyalign</I> and <I>valuealign</I> settings,
 discussed in <A HREF = "settings.html">this section</A>.  Three integers are also
 stored: the key and multi-value length, and the number of values N in
-the multi-value.  An N-length integer array is also stored for the
+the multi-value.  An N-length array of integers is also stored for the
 length of each value in the multi-value.  Thus the total size of a KMV
 is the memory for the key/multi-value datums plus 3 integers per pair
-plus 1 integer per value in the multi-value plus any extra alignment
+plus 1 integer per value in the original KV plus any extra alignment
 bytes.
 </P>
 <P>Note that memory for key data in a KMV is typically less than in the
 original KV, since the KMV only stores unique keys.  The memory for
 multi-value data is the same as the value data in the original KV,
-since all the KV values are contained in the multi-values.
+since all the original KV values are contained in the multi-values.
 </P>
 <P>Note that in parallel, for a KV or KMV, each processor stores the
-above data only for the fraction of key/value pairs it generated
-during a <A HREF = "map.html">map()</A> operation or acquired during other
-operations, like a <A HREF = "collate.html">collate()</A>.  If this is imbalanced,
-one processor may own and process datums more than other processors.
+above data for only a fraction of key/value pairs it generated during
+a <A HREF = "map.html">map()</A> operation or acquired during other operations, like
+a <A HREF = "collate.html">collate()</A>.  If this is imbalanced, one processor may
+own and process datums more than other processors.
 </P>
-<P>If KV or KMV data on a processor exceeds the <I>memsize</I> setting,
-discussed <A HREF = "settings.html">here</A>, then data is written to temporary disk
-files, on a per-processor basis.
+<P>If KV or KMV data on a processor exceeds the page size determined by
+the <I>memsize</I> setting, discussed <A HREF = "settings.html">here</A>, then data is
+written to temporary disk files, on a per-processor basis.
 </P>
 <HR>
 
 <A NAME = "ooc"></A><H4>Out-of-core operation 
 </H4>
-<P>All the MR-MPI methods can be invoked on data sets larger than fit in
-the aggregate memory of the processors being used.  When the data on
-any single processor exceeds its local memory limit, as set by the
-<I>memsize</I> <A HREF = "settings.html">setting</A>, that processor will write data to a
-temporary disk file, and later read it back in.
+<P>If the KV or KMV pairs of a data set owned by a processor fit within a
+single page of memory, whose size is determined by the <I>memsize</I>
+<A HREF = "setting.html">setting</A>, then the MR-MPI library operates on the data
+in-core; no disk files are written or read.
 </P>
-<P>For many data sets and MapReduce operations, the out-of-core
-capability of the MR-MPI library means you can effectively process
-arbitrarily large data sets.  To first order, you can think of the
-<I>memsize</I> setting as a hard limit on the amount of memory a processor
-will use during any MR-MPI operation.  However, there are 4 caveats.
-The first 2 may be overcome in future versions of the MR-MPI library.
+<P>When the data on any single processor exceeds the page size, that
+processor will write data, one page at a time, to one or more
+temporary disk files, and later read it back in as needed, again one
+page at a time.  Thus all the MR-MPI methods can be invoked on data
+sets larger than fit in the aggregate memory of the processors being
+used.  The only real limitation in this case is available disk space.
 </P>
-<P>(1) The <A HREF = "convert.html">convert()</A> portion of a <A HREF = "collate.html">collate()</A>
-operation performs an on-processor reorganization of the data in a KV
-to produce a KMV.  For large data sets this requires breaking up a
-disk file of data into smaller files, so that each holds data that
-will contribute to one chunk of the eventual KMV file.  Each smaller
-file requires an in-memory buffer to store data that is written/read
-to/from the file.  Since it is hard to predict how many smaller files
-will be needed, the allocation of these buffers is done on-the-fly,
-using extra memory beyond the <I>memsize</I> allocation.  If a large number
-of small files is needed, it's possible these extra buffers will
-exceed available memory, which will generate an error.
+<P>All of the MR-MPI methods, except one, perform their operations within
+a fixed number of memory pages.  This includes memory needed for
+message passing calls to the MPI library, e.g. buffers used to send
+and receive data.  Any large data exchanges are performed with
+pre-posted receives (MPI_Irecv) into user-space memory, which do not
+require additional internal MPI library memory.
 </P>
-<P>(2) The <A HREF = "aggregate.html">aggregate()</A> portion of a
-<A HREF = "collate.html">collate()</A> operation migrates data between processors.
-The MPI_Send() and MPI_Recv() functions from the MPI library that do
-this, use additional memory behind the scenes for message buffering.
-Since the MR-MPI library pre-posts receives for large messages, this
-additional memory overhead should generally be small.  One exception
-is the case where one (or a few) processors will end up holding the
-majority of KV data at the end of the <A HREF = "aggregate.html">aggregate()</A>
-operation.  The processor needs to pre-allocate a large buffer to
-receive all the incoming data.  Once received, the data will be
-written to disk and the memory de-allocated.  But if the temporary
-receive buffer cannot be allocated out of the <I>memsize</I> chunk, it
-requires an extra allocation.  If this exceeds available memory, an
-error is generated.
+<P>The number of required pages ranges from 1 to 7, and is listed on
+<A HREF = "interface_c++.html">this page</A> for each MR-MPI library method.  This
+means, for example, that even if the page size is 1 Mb (smallest
+allowed value), and the data set size is 10 Gb per processor, and the
+<A HREF = "sort_keys.html">sort_keys()</A> method is invoked, which requires 5 pages
+per processor, that the operation will successfully complete, using
+only 5 Mb per processor.  Of course, there may be considerable disk
+I/O performed along the way.
 </P>
-<P>Note that if the data aggregation is so imbalanced that this memory
-issue arises, then even if the <A HREF = "aggregate.html">aggregate()</A> completes,
-it may mean subsequent MapReduce operations, such as a
-<A HREF = "reduce.html">reduce()</A>, will likely by load-imbalanced and perform
-poorly in a parallel sense.  So you may want to rethink how your
-key/value data is organized and partitioned across processors.
+<P>The one exception is the <A HREF = "convert.html">convert()</A> method, also called
+by the <A HREF = "collate.html">collate()</A> and <A HREF = "compress.html">commpress()</A>
+methods, which performs an on-processor reorganization of the data in
+a KV to produce a KMV.  For large data sets this requires breaking up
+the large KV data file into smaller files, each of which holds data
+that will contribute to one page of the eventual KMV file.  Each
+smaller file requires an in-memory buffer to store data that is
+written to the file.  The number of these smaller files, and hence the
+number of buffers, is hard to predict in advance or even bound.  It
+depends on the page size and the characteristics of the KV pairs,
+e.g. how many unique keys there are.  The number of extra allocated
+pages needed to store these buffers depends of the number of small
+files and the minimum buffer size, which is currently set at 16K bytes
+for reasonable disk I/O performance.  If a very large number of small
+files are needed to partition the KV data and the page size is small,
+then several extra memory pages may need to be allocated.  This is not
+normally the case, but the number of small files and number of
+allocated pages can be monitored if the <I>verbosity</I>
+<A HREF = "setting.html">setting</A> is non-zero.  Note that a larger page size will
+reduce the number of extra pages the <A HREF = "convert.html">convert()</A> method
+needs to allocate.
 </P>
-<P>(3) As discussed <A HREF = "settings.html">here</A>, a <I>memsize</I> setting of N Mbytes
-means that KV or KMV files are written in N/4 size chunks.  A single
-key/value pair must fit in a chunk.
+<P>IMPORTANT NOTE: You should choose a <I>memsize</I> <A HREF = "setting.html">setting</A>
+that insures the total memory consumed by all pages allocated by all
+the MapReduce objects you create, does not exceed the physical memory
+available (which may be shared by several processors if running on a
+multi-core node).  If you do this, then many systems will allocate
+virtual memory, which will typically cause MR-MPI library operations
+to run very slowly and thrash the disk.
 </P>
-<P>(4) There are numerous additional small allocations of memory made by
-the MR-MPI library.  E.g. the out-of-core disk files are stored as
-"pages" of data.  Each page requires some in-memory bookkeeping so it
-can be written and read.  Thus if a file grows to 1000s of pages, the
-corresponding in-memory bookkeeping structure will also become larger.
-For normal <I>memsize</I> settings, e.g. the 100 Mbyte default, these
-additional in-memory allocations should be small compared to the
-<I>memsize</I> allocation.
+<P>Also note that in addition to "pages", there are numerous additional
+small allocations of memory made by the MR-MPI library.  Here are two
+examples.  The <A HREF = "aggregate.html">aggregate()</A> method allocates vectors
+of length P = the number of processors.  Out-of-core disk files are
+stored as "pages" of data.  Each page requires some in-memory
+bookkeeping so it can be written and read.  Thus if a file grows to
+1000s of pages, the corresponding in-memory bookkeeping structure will
+also become larger.  For normal page sizes as determined by the
+<I>memsize</I> <A HREF = "setting.html">setting</A>, e.g. the 64 Mbyte default, these
+additional in-memory allocations should be small compared to the size
+of a single page.
 </P>
 <HR>
 

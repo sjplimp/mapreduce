@@ -22,10 +22,10 @@ program"_interface_python.html.
 Arguments to the library's "map()"_map.html and "reduce()"_reduce.html
 methods include function pointers to serial "mymap" and "myreduce"
 functions in your code (named anything you wish), which will be
-"called back" from the library as it performs the parallel map and
+"called back to" from the library as it performs the parallel map and
 reduce operations.
 
-A typical MapReduce program involves these steps:
+A typical simple MapReduce program involves these steps:
 
 MapReduce *mr = new MapReduce(MPI_COMM_WORLD);   // instantiate an MR object
 mr->map(nfiles,&mymap);                          // parallel map
