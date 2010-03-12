@@ -239,6 +239,7 @@ MapReduce *MapReduce::copy()
     mrnew->valuealign = valuealign;
   }
 
+  delete [] mrnew->fpath;
   int n = strlen(fpath) + 1;
   mrnew->fpath = new char[n];
   strcpy(mrnew->fpath,fpath);
