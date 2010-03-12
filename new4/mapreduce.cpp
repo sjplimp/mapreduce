@@ -197,6 +197,7 @@ void MapReduce::defaults()
   memcount = NULL;
   npage = 0;
   fsize = 0;
+  fsizemax = 0;
 
   kv = NULL;
   kmv = NULL;
@@ -2191,9 +2192,9 @@ void MapReduce::mr_stats(int level)
 
   if (me == 0)
     printf("MapReduce stats = %d pages, %.3g Mb mem, "
-	   "%.3g Mb hi-water for files\n",
-	   npages,npages*pagesize/mbyte,fsizemaxall/mbyte);
-
+    	   "%.3g Mb hi-water for files\n",
+    	   npages,npages*pagesize/mbyte,fsizemaxall/mbyte);
+    
   if (level == 2) {
     if (npages) write_histo((double) npage,"  Pages:");
     if (fsizemaxall) write_histo(fsizemax/mbyte,"  HiWater:");
