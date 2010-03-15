@@ -305,17 +305,23 @@ class mrmpi:
   def mapstyle(self,value):
     self.lib.MR_set_mapstyle(self.mr,value)
 
-  def verbosity(self,value):
-    self.lib.MR_set_verbosity(self.mr,value)
-
   def all2all(self,value):
     self.lib.MR_set_all2all(self.mr,value)
+
+  def verbosity(self,value):
+    self.lib.MR_set_verbosity(self.mr,value)
 
   def timer(self,value):
     self.lib.MR_set_timer(self.mr,value)
 
   def memsize(self,value):
     self.lib.MR_set_memsize(self.mr,value)
+
+  def minpage(self,value):
+    self.lib.MR_set_minpage(self.mr,value)
+
+  def maxpage(self,value):
+    self.lib.MR_set_maxpage(self.mr,value)
 
   def add(self,key,value):
     ckey = dumps(key,1)
