@@ -7,4 +7,3 @@ ARCHIVE =	ar
 ARFLAGS =	-rc
 
 include Makefile.common
-

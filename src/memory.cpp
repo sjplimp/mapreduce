@@ -11,6 +11,8 @@
    See the README file in the top-level MapReduce directory.
 ------------------------------------------------------------------------- */
 
+#define _XOPEN_SOURCE 600        // needed for posix_memalign() in stdlib.h
+
 #include "mpi.h"
 #include "stdlib.h"
 #include "stdio.h"
@@ -37,13 +39,32 @@ Memory::~Memory()
    safe malloc 
 ------------------------------------------------------------------------- */
 
-void *Memory::smalloc(int n, const char *name)
+void *Memory::smalloc(size_t n, const char *name)
 {
   if (n == 0) return NULL;
   void *ptr = malloc(n);
   if (ptr == NULL) {
     char str[128];
-    sprintf(str,"Failed to allocate %d bytes for array %s",n,name);
+    sprintf(str,"Failed to allocate %lu bytes for array %s",n,name);
+    error->one(str);
+  }
+  return ptr;
+}
+
+/* ----------------------------------------------------------------------
+   safe malloc with alignment
+------------------------------------------------------------------------- */
+
+void *Memory::smalloc_align(size_t n, int nalign, const char *name)
+{
+  if (n == 0) return NULL;
+  //void *ptr;
+  //int ierror = posix_memalign(&ptr,nalign,n);
+  //if (ierror) {
+  void *ptr = malloc(n);
+  if (ptr == NULL) {
+    char str[128];
+    sprintf(str,"Failed to allocate %lu bytes for array %s",n,name);
     error->one(str);
   }
   return ptr;
@@ -63,7 +84,7 @@ void Memory::sfree(void *ptr)
    safe realloc 
 ------------------------------------------------------------------------- */
 
-void *Memory::srealloc(void *ptr, int n, const char *name)
+void *Memory::srealloc(void *ptr, size_t n, const char *name)
 {
   if (n == 0) {
     sfree(ptr);
@@ -73,7 +94,7 @@ void *Memory::srealloc(void *ptr, int n, const char *name)
   ptr = realloc(ptr,n);
   if (ptr == NULL) {
     char str[128];
-    sprintf(str,"Failed to reallocate %d bytes for array %s",n,name);
+    sprintf(str,"Failed to reallocate %lu bytes for array %s",n,name);
     error->one(str);
   }
   return ptr;

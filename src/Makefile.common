@@ -1,7 +1,7 @@
 # Settings
 
-OBJ =	mapreduce.o cmapreduce.o keyvalue.o keymultivalue.o irregular.o \
-	hash.o memory.o error.o 
+OBJ =	mapreduce.o cmapreduce.o keyvalue.o keymultivalue.o spool.o \
+	irregular.o hash.o memory.o error.o 
 EXE = 	libmrmpi.a
 
 # Targets

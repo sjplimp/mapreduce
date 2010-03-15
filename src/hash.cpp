@@ -128,6 +128,8 @@ acceptable.  Do NOT use for cryptographic purposes.
 
 uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
 {
+#ifndef PURIFY_HATES_HASHLITTLE
+
   uint32_t a,b,c;                                          /* internal state */
   union { const void *ptr; size_t i; } u;     /* needed for Mac Powerbook G4 */
 
@@ -293,4 +295,39 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
 
   final(a,b,c);
   return c;
+
+#else  /* PURIFY_HATES_HASHLITTLE */
+/* I don't know what it is about Jenkins' hashlittle function, but
+ * it drives purify insane, even with VALGRIND defined.  It makes 
+ * purify unusable!!  The code execution doesn't even make sense.
+ * Below is a (probably) weaker hash function that at least allows 
+ * testing with purify.
+ */
+#define MAXINT_DIV_PHI  11400714819323198485U
+
+  uint32_t h, rest, *p, bytes, num_bytes;
+  char *byteptr;
+
+  num_bytes = length;
+
+  /* First hash the uint32_t-sized portions of the key */
+  h = 0;
+  for (p = (uint32_t *)key, bytes=num_bytes;
+       bytes >= (uint32_t) sizeof(uint32_t);
+       bytes-=sizeof(uint32_t), p++){
+    h = (h^(*p))*MAXINT_DIV_PHI;
+  }
+
+  /* Then take care of the remaining bytes, if any */
+  rest = 0;
+  for (byteptr = (char *)p; bytes > 0; bytes--, byteptr++){
+    rest = (rest<<8) | (*byteptr);
+  }
+
+  /* If extra bytes, merge the two parts */
+  if (rest)
+    h = (h^rest)*MAXINT_DIV_PHI;
+
+  return h;
+#endif /* PURIFY_HATES_HASHLITTLE */
 }
