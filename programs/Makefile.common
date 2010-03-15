@@ -80,7 +80,6 @@ stress_test2:	stress_test2.o $(LIB)
 stress_test1:	stress_test1.o $(LIB)
 		$(LINK) $(LINKFLAGS) stress_test1.o \
 			$(USRLIB) $(SYSLIB) -o stress_test1
-
 clean:
 	rm *.o *.d
 	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp sssp_v2 stress_test1 stress_test2 wordfreq
