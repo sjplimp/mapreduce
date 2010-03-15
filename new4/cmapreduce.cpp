@@ -288,28 +288,22 @@ void MR_cummulative_stats(void *MRptr, int level, int reset)
   mr->cummulative_stats(level,reset);
 }
 
-void MR_set_fpath(void *MRptr, char *str)
-{
-  MapReduce *mr = (MapReduce *) MRptr;
-  mr->set_fpath(str);
-}
-
 void MR_set_mapstyle(void *MRptr, int value)
 {
   MapReduce *mr = (MapReduce *) MRptr;
   mr->mapstyle = value;
 }
 
-void MR_set_verbosity(void *MRptr, int value)
-{
-  MapReduce *mr = (MapReduce *) MRptr;
-  mr->verbosity = value;
-}
-
 void MR_set_all2all(void *MRptr, int value)
 {
   MapReduce *mr = (MapReduce *) MRptr;
   mr->all2all = value;
+}
+
+void MR_set_verbosity(void *MRptr, int value)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->verbosity = value;
 }
 
 void MR_set_timer(void *MRptr, int value)
@@ -324,6 +318,18 @@ void MR_set_memsize(void *MRptr, int value)
   mr->memsize = value;
 }
 
+void MR_set_minpage(void *MRptr, int value)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->minpage = value;
+}
+
+void MR_set_maxpage(void *MRptr, int value)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->maxpage = value;
+}
+
 void MR_set_keyalign(void *MRptr, int value)
 {
   MapReduce *mr = (MapReduce *) MRptr;
@@ -334,6 +340,12 @@ void MR_set_valuealign(void *MRptr, int value)
 {
   MapReduce *mr = (MapReduce *) MRptr;
   mr->valuealign = value;
+}
+
+void MR_set_fpath(void *MRptr, char *str)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->set_fpath(str);
 }
 
 void MR_kv_add(void *KVptr, char *key, int keybytes,

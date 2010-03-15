@@ -104,14 +104,16 @@ void MR_kv_stats(void *MRptr, int level);
 void MR_kmv_stats(void *MRptr, int level);
 void MR_cummulative_stats(void *MRptr, int level, int reset);
 
-void MR_set_fpath(void *MRptr, char *str);
-
 void MR_set_mapstyle(void *MRptr, int value);
+void MR_set_all2all(void *MRptr, int value);
 void MR_set_verbosity(void *MRptr, int value);
 void MR_set_timer(void *MRptr, int value);
 void MR_set_memsize(void *MRptr, int value);
+void MR_set_minpage(void *MRptr, int value);
+void MR_set_maxpage(void *MRptr, int value);
 void MR_set_keyalign(void *MRptr, int value);
 void MR_set_valuealign(void *MRptr, int value);
+void MR_set_fpath(void *MRptr, char *str);
 
 void MR_kv_add(void *KVptr, char *key, int keybytes, 
 	       char *value, int valuebytes);
