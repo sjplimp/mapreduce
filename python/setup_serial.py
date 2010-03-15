@@ -18,7 +18,7 @@ mrmpi_library = Extension("_mrmpi_serial",
                           )
 
 setup(name = "mrmpi_serial",
-      version = "7Apr09",
+      version = "15Mar10",
       author = "Steve Plimpton",
       author_email = "sjplimp@sandia.gov",
       url = "http://www.cs.sandia.gov/mapreduce.html",

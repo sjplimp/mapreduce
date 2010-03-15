@@ -30,6 +30,8 @@ class mrmpi:
       except:
         raise StandardError,"Could not load MR-MPI dynamic library"
 
+    # setup callbacks
+    
     self.lib.MR_create.restype = c_void_p
     self.lib.MR_copy.restype = c_void_p
 
@@ -47,14 +49,17 @@ class mrmpi:
     
     MAPFUNC = CFUNCTYPE(c_void_p,c_int,c_void_p,c_void_p)
     self.map_def = MAPFUNC(self.map_callback)
+    
     MAP_FILE_LIST_FUNC = CFUNCTYPE(c_void_p,c_int,c_char_p,c_void_p,c_void_p)
     self.map_file_list_def = MAP_FILE_LIST_FUNC(self.map_file_list_callback)
+    
     MAP_FILE_STR_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
                                  c_void_p,c_void_p)
     self.map_file_str_def = MAP_FILE_STR_FUNC(self.map_file_str_callback)
-    MAP_KV_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
+    
+    MAP_MR_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
                             POINTER(c_char),c_int,c_void_p,c_void_p)
-    self.map_kv_def = MAP_KV_FUNC(self.map_kv_callback)
+    self.map_mr_def = MAP_MR_FUNC(self.map_mr_callback)
 
     REDUCEFUNC = CFUNCTYPE(c_void_p,POINTER(c_char),c_int,
                            POINTER(c_char),c_int,POINTER(c_int),
@@ -67,20 +72,29 @@ class mrmpi:
       self.mr = self.lib.MR_create_mpi_finalize()
     else: raise StandardError,"Could not create an MR library instance"
 
-  def copy(self):
-    cmr = self.lib.MR_copy(self.mr)
-    pymr = mrmpi()
-    self.lib.MR_destroy(pymr.mr)
-    pymr.mr = cmr
-    return pymr
+    # hardwire keyalign and valuealign to 1 because of pickling
+
+    self.lib.MR_set_keyalign(self.mr,1)
+    self.lib.MR_set_valuealign(self.mr,1)
+
+  def __del__(self):
+    if self.mr: self.lib.MR_destroy(self.mr)
 
   def destroy(self):
     self.lib.MR_destroy(self.mr)
     self.mr = None
     
-  def __del__(self):
-    if self.mr: self.lib.MR_destroy(self.mr)
+  def copy(self,mr):
+    cmr = self.lib.MR_copy(self.mr,mr.mr)
+    pymr = mrmpi()
+    self.lib.MR_destroy(pymr.mr)
+    pymr.mr = cmr
+    return pymr
 
+  def add(self,mr):
+    n = self.lib.MR_add(self.mr,mr.mr)
+    return n
+  
   def aggregate(self,hash=None):
     if hash:
       self.hash_caller = hash
@@ -208,17 +222,17 @@ class mrmpi:
     if self.map_argcount == 3: self.map_caller(itask,str,self)
     else: self.map_caller(itask,str,self,self.map_ptr)
     
-  def map_kv(self,mr,map,ptr=None,addflag=0):
+  def map_mr(self,mr,map,ptr=None,addflag=0):
     self.map_caller = map
     self.map_argcount = map.func_code.co_argcount
     self.map_ptr = ptr
     if not addflag:
-      n = self.lib.MR_map_kv(self.mr,mr.mr,self.map_kv_def,None)
+      n = self.lib.MR_map_mr(self.mr,mr.mr,self.map_mr_def,None)
     else:
-      n = self.lib.MR_map_kv_add(self.mr,mr.mr,self.map_kv_def,None,addflag)
+      n = self.lib.MR_map_mr_add(self.mr,mr.mr,self.map_mr_def,None,addflag)
     return n
 
-  def map_kv_callback(self,itask,ckey,keybytes,cvalue,valuebytes,kv,dummy):
+  def map_mr_callback(self,itask,ckey,keybytes,cvalue,valuebytes,kv,dummy):
     self.kv = kv
     key = loads(ckey[:keybytes])
     value = loads(cvalue[:valuebytes])
@@ -249,6 +263,17 @@ class mrmpi:
   def scrunch(self,nprocs,key):
     ckey = dumps(key,1)
     n = self.lib.scrunch(self.mr,nprocs,ckey,len(ckey))
+    return n
+
+  def multivalue_blocks(self):
+    n = self.lib.multivalue_blocks(self.mr)
+    return n
+
+  def multivalue_block(self,iblock,multivalue,valuesizes):
+    # might need to pass back a tuple of 3 things?
+    # doc these 2 funcs in Python interface
+    # check that reduce and compress callbacks can handle NULL case and MR ptr
+    n = self.lib.multivalue_block(self.mr,iblock,multivalue,valuesizes)
     return n
 
   def sort_keys(self,compare):
@@ -283,8 +308,14 @@ class mrmpi:
   def verbosity(self,value):
     self.lib.MR_set_verbosity(self.mr,value)
 
+  def all2all(self,value):
+    self.lib.MR_set_all2all(self.mr,value)
+
   def timer(self,value):
     self.lib.MR_set_timer(self.mr,value)
+
+  def memsize(self,value):
+    self.lib.MR_set_memsize(self.mr,value)
 
   def add(self,key,value):
     ckey = dumps(key,1)
@@ -320,6 +351,3 @@ class mrmpi:
       cvalues += cvalue
     self.lib.MR_kv_add_multi_dynamic(self.kv,n,
                                      ckeys,keybytes,cvalues,valuebytes)
-
-  def add_kv(self,mr):
-    self.lib.MR_kv_add_kv(self.mr,mr.mr)
