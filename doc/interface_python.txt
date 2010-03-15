@@ -394,10 +394,13 @@ mr.sort_multivalues(mycompare) # compare is a function called back from the
 mr.kv_stats(level)
 mr.kmv_stats(level) :pre
 
-mr.mapstyle(value)             # set the mapstyle to value
-mr.verbosity(value)            # set the verbosity to value
-mr.timer(value)                # set the timer to value
-mr.memsize(value)              # set the memsize to value :pre
+mr.mapstyle(value)             # set mapstyle to value
+mr.all2all(value)              # set all2all to value
+mr.verbosity(value)            # set verbosity to value
+mr.timer(value)                # set timer to value
+mr.memsize(value)              # set memsize to value :pre
+mr.minpage(value)              # set minpage to value :pre
+mr.maxpage(value)              # set maxpage to value :pre
 
 mr.add(key,value)                 # add single key and value
 mr.add_multi_static(keys,values)  # add list of keys and values
