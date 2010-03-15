@@ -17,6 +17,16 @@ The current version of MR-MPI is 13 April 2009.
 
 :line
 
+[1 Mar 2010]
+
+Final update to in-core version before releasing out-of-core version.
+This upgrade just tweaks a few small cosmetic things.
+
+This is the "list of changed files"_patches/files.1Mar10 from the 22
+Apr 2009 version.
+
+:line
+
 [22 Apr 2009]
 
 This upgrade adds 3 small features:
