@@ -29,7 +29,7 @@ Syntax: cwordfreq file1 file2 ...
 void fileread(int, void *, void *);
 void sum(char *, int, char *, int, int *, void *, void *);
 int ncompare(char *, int, char *, int);
-void output(int, char *, int, char *, int, void *, void *);
+void output(uint64_t, char *, int, char *, int, void *, void *);
 
 typedef struct {
   int n,limit,flag;
@@ -54,7 +54,6 @@ int main(int narg, char **args)
   }
 
   void *mr = MR_create(MPI_COMM_WORLD);
-  MR_set_memsize(mr,1);
   MR_set_verbosity(mr,2);
   MR_set_timer(mr,1);
 
@@ -157,7 +156,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
 
-void output(int itask, char *key, int keybytes, char *value,
+void output(uint64_t itask, char *key, int keybytes, char *value,
 	    int valuebytes, void *kv, void *ptr)
 {
   Count *count = (Count *) ptr;

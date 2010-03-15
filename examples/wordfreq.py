@@ -68,6 +68,8 @@ if len(sys.argv) < 2:
 files = sys.argv[1:]
 
 mr = mrmpi()
+mr.verbosity(2)
+mr.timer(1);
 
 pypar.barrier()
 tstart = pypar.time()

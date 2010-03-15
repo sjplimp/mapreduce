@@ -36,7 +36,7 @@ void nonzero(char *, int, char *, int, int *, void *, void *);
 void degree(char *, int, char *, int, int *, void *, void *);
 void histo(char *, int, char *, int, int *, void *, void *);
 int ncompare(char *, int, char *, int);
-void stats(int, char *, int, char *, int, void *, void *);
+void stats(uint64_t, char *, int, char *, int, void *, void *);
 
 typedef struct {            // RMAT params
   int nlevels,order;
@@ -99,6 +99,8 @@ int main(int narg, char **args)
   rmat.order = 1 << rmat.nlevels;
 
   void *mr = MR_create(MPI_COMM_WORLD);
+  MR_set_verbosity(mr,2);
+  MR_set_timer(mr,1);
 
   // loop until desired number of unique nonzero entries
 
@@ -154,7 +156,7 @@ int main(int narg, char **args)
   MR_gather(mr,1);
   MR_sort_keys(mr,&ncompare);
   int total = 0;
-  MR_map_kv(mr,mr,&stats,&total);
+  MR_map_mr(mr,mr,&stats,&total);
   if (me == 0) printf("%d rows with 0 nonzeroes\n",rmat.order-total);
 
   if (me == 0)
@@ -306,7 +308,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    print # of rows with a specific # of nonzeroes
 ------------------------------------------------------------------------- */
 
-void stats(int itask, char *key, int keybytes, char *value,
+void stats(uint64_t itask, char *key, int keybytes, char *value,
 	   int valuebytes, void *kv, void *ptr)
 {
   int *total = (int *) ptr;

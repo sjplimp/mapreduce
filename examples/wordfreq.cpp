@@ -30,7 +30,7 @@ using namespace MAPREDUCE_NS;
 void fileread(int, KeyValue *, void *);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
-void output(int, char *, int, char *, int, KeyValue *, void *);
+void output(uint64_t, char *, int, char *, int, KeyValue *, void *);
 
 struct Count {
   int n,limit,flag;
@@ -52,7 +52,6 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->memsize = 1;
   mr->verbosity = 2;
   mr->timer = 1;
 
@@ -158,7 +157,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
 
-void output(int itask, char *key, int keybytes, char *value,
+void output(uint64_t itask, char *key, int keybytes, char *value,
 	    int valuebytes, KeyValue *kv, void *ptr)
 {
   Count *count = (Count *) ptr;

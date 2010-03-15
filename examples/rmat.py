@@ -144,6 +144,8 @@ random.seed(seed+me)
 order = 1 << nlevels
 
 mr = mrmpi()
+mr.verbosity(2)
+mr.timer(1);
 
 # loop until desired number of unique nonzero entries
 

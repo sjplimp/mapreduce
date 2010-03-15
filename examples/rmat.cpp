@@ -37,7 +37,7 @@ void nonzero(char *, int, char *, int, int *, KeyValue *, void *);
 void degree(char *, int, char *, int, int *, KeyValue *, void *);
 void histo(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
-void stats(int, char *, int, char *, int, KeyValue *, void *);
+void stats(uint64_t, char *, int, char *, int, KeyValue *, void *);
 
 struct RMAT {            // RMAT params
   int nlevels,order;
@@ -100,7 +100,6 @@ int main(int narg, char **args)
   rmat.order = 1 << rmat.nlevels;
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->memsize = 1;
   mr->verbosity = 2;
   mr->timer = 1;
 
@@ -310,7 +309,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    print # of rows with a specific # of nonzeroes
 ------------------------------------------------------------------------- */
 
-void stats(int itask, char *key, int keybytes, char *value,
+void stats(uint64_t itask, char *key, int keybytes, char *value,
 	   int valuebytes, KeyValue *kv, void *ptr)
 {
   int *total = (int *) ptr;
