@@ -459,7 +459,8 @@ void KeyMultiValue::convert(KeyValue *kv)
   int uniquetag;
   char *memunique = mr->mymalloc(2,uniquesize,uniquetag);
 
-  double keyave = 1.0*kv->ksize/kv->nkv;
+  uint64_t n = MAX(kv->nkv,1);
+  double keyave = 1.0*kv->ksize/n;
   double oneave = keyave + sizeof(Unique) + sizeof(Unique *);
   uint64_t estimate = static_cast<uint64_t> (uniquesize/oneave);
   if (estimate == 0) error->one("Cannot hold any unique keys in memory");
@@ -629,7 +630,7 @@ void KeyMultiValue::kv2unique(int ipartition)
     if (kv) nkey_kv = kv->request_page(ipage,kdummy,vdummy,adummy);
     else nkey_kv = sp->request_page(ipage);
     ptr = page_kv;
-    
+
     for (i = 0; i < nkey_kv; i++) {
       keybytes = *((int *) ptr);
       valuebytes = *((int *) (ptr+sizeof(int)));;
