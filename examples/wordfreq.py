@@ -81,12 +81,12 @@ tstop = pypar.time()
 
 mr.sort_values(ncompare)
 count = [0,10,0]
-mr.map_kv(mr,output)
+mr.map_mr(mr,output)
 
 mr.gather(1)
 mr.sort_values(ncompare)
 count = [0,10,1]
-mr.map_kv(mr,output)
+mr.map_mr(mr,output)
 
 mr.destroy()
 

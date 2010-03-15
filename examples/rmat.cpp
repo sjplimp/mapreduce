@@ -100,8 +100,9 @@ int main(int narg, char **args)
   rmat.order = 1 << rmat.nlevels;
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  //mr->verbosity = 2;
-  //mr->timer = 1;
+  mr->memsize = 1;
+  mr->verbosity = 2;
+  mr->timer = 1;
 
   // loop until desired number of unique nonzero entries
 
@@ -135,7 +136,7 @@ int main(int narg, char **args)
       printf("ERROR: Could not open output file");
       MPI_Abort(MPI_COMM_WORLD,1);
     }
-    MapReduce *mr2 = new MapReduce(*mr);
+    MapReduce *mr2 = mr->copy();
     mr2->reduce(&output,&rmat);
     fclose(rmat.fp);
     delete mr2;
@@ -157,7 +158,7 @@ int main(int narg, char **args)
   mr->gather(1);
   mr->sort_keys(&ncompare);
   int total = 0;
-  mr->map(mr->kv,&stats,&total);
+  mr->map(mr,&stats,&total);
   if (me == 0) printf("%d rows with 0 nonzeroes\n",rmat.order-total);
 
   if (me == 0)

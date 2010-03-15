@@ -54,6 +54,9 @@ int main(int narg, char **args)
   }
 
   void *mr = MR_create(MPI_COMM_WORLD);
+  MR_set_memsize(mr,1);
+  MR_set_verbosity(mr,2);
+  MR_set_timer(mr,1);
 
   MPI_Barrier(MPI_COMM_WORLD);
   tstart = MPI_Wtime();
@@ -70,7 +73,7 @@ int main(int narg, char **args)
   count.n = 0;
   count.limit = 10;
   count.flag = 0;
-  MR_map_kv(mr,mr,&output,&count);
+  MR_map_mr(mr,mr,&output,&count);
   
   MR_gather(mr,1);
   MR_sort_values(mr,&ncompare);
@@ -78,7 +81,7 @@ int main(int narg, char **args)
   count.n = 0;
   count.limit = 10;
   count.flag = 1;
-  MR_map_kv(mr,mr,&output,&count);
+  MR_map_mr(mr,mr,&output,&count);
 
   MR_destroy(mr);
 

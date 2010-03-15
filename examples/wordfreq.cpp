@@ -52,6 +52,7 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
+  mr->memsize = 1;
   mr->verbosity = 2;
   mr->timer = 1;
 
@@ -71,7 +72,7 @@ int main(int narg, char **args)
   count.n = 0;
   count.limit = 10;
   count.flag = 0;
-  mr->map(mr->kv,&output,&count);
+  mr->map(mr,&output,&count);
   
   mr->gather(1);
   mr->sort_values(&ncompare);
@@ -79,7 +80,7 @@ int main(int narg, char **args)
   count.n = 0;
   count.limit = 10;
   count.flag = 1;
-  mr->map(mr->kv,&output,&count);
+  mr->map(mr,&output,&count);
 
   delete mr;
 
