@@ -11,18 +11,15 @@
 <LI>C interface provided, thus callable from any hi-level language: C++, C, Fortran, scripting language, etc
 <LI>Python wrapper provided, so MapReduce programs can be written in Python
 <LI>small, portable code base
-<LI>operates in serial or on any parallel platform that supports MPI 
+<LI>operates in serial or on any parallel platform that supports MPI
+<LI>operates in-core for data sets that fit in memory
+<LI>operates out-of-core for data sets that do not 
 </UL>
-<UL><LI>no fault tolerance
-<LI>no out-of-core capability 
+<UL><LI>no fault tolerance 
 </UL>
 <P>Fault tolerance is really an MPI issue, which future versions of MPI
 may address.  Since big parallel machines never crash, nor do their
 processors die, hopefully it's a non-issue for performing MapReduce
 operations.
-</P>
-<P>We plan to add an out-of-core capability to the MR-MPI library, though
-the fact that many big parallel machines do not have a disk per
-processor is a complicating factor.
 </P>
 </HTML>
