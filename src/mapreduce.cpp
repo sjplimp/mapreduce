@@ -344,7 +344,6 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
   // pages of workspace memory, including extra allocated pages
 
   uint64_t twopage;
-  char *apage = kv->page;
   char *cdpage = mymalloc(2,twopage,memtag_cdpage);
   char *epage = mymalloc(1,dummy,memtag_epage);
   char *fpage = mymalloc(1,dummy,memtag_fpage);
@@ -352,7 +351,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
 
   // maxpage = max # of pages in any proc's KV
 
-  char *page_send,*page_recv;
+  char *page_send;
   int npage_send = kv->request_info(&page_send);
   int maxpage;
   MPI_Allreduce(&npage_send,&maxpage,1,MPI_INT,MPI_MAX,comm);
@@ -1831,7 +1830,7 @@ void MapReduce::sort_onepage(int flag, int nkey_kv,
 			     char *pagesrc, char *pagedest, char *twopage)
 {
   int i,j;
-  int keybytes,valuebytes,nspool,nentry;
+  int keybytes,valuebytes;
   char *ptr,*key,*value;
 
   // setup 3 arrays from twopage of memory

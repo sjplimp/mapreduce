@@ -255,7 +255,6 @@ void Irregular::exchange_custom(int n, int *indices, char **ptrs, int *sizes,
 
   // post all receives
 
-  int recvoffset = 0;
   for (int irecv = 0; irecv < nrecv; irecv++) {
     iproc = recvprocs[irecv];
     MPI_Irecv(&recv[rdispls[iproc]],recvbytes[iproc],MPI_BYTE,
