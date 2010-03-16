@@ -17,7 +17,7 @@
 
 MapReduce-MPI Library :h2,c
 
-This document describes the 15 Mar 2010 version of the open-source
+This document describes the 15 March 2010 version of the open-source
 MapReduce-MPI (MR-MPI) library that implements the "MapReduce
 operation"_wiki popularized by Google on top of standard MPI message
 passing.  The library is designed for parallel execution on

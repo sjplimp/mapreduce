@@ -234,8 +234,8 @@ restrictive limits.
 </P>
 <P>Define:
 </P>
-<UL><LI>INTMAX = 2^31-1 = largest 32-bit signed int
-<LI>UINT64MAX = 2^64-1 = largest 64-bit unsigned int
+<UL><LI>INTMAX = 2^31 - 1 = largest 32-bit signed int
+<LI>UINT64MAX = 2^64 - 1 = largest 64-bit unsigned int
 <LI>pagesize = size (in bytes) of 1 page of memory 
 </UL>
 <P>Internal storage limits within library:
@@ -270,8 +270,8 @@ itself.
 <P>As discussed <A HREF = "#align">here</A>, a KeyValue pair requires 2 integers plus
 the key and value, plus alignment space.  For a 1-byte key and a
 0-byte value, this is a minimum of 12 bytes.  By storing no more than
-INTMAX KeyValue pairs on a page, this still allows for pagesizes of at
-least 24 Gb, more if KeyValue pairs are larger.
+INTMAX KeyValue pairs on a page, this still allows for pagesizes of
+nearly 24 Gb, more if KeyValue pair sizes are larger.
 </P>
 <P>The various INTMAX limits mean that user calls to the library, and
 library callbacks to user functions can use int parameters rather than
