@@ -15,7 +15,24 @@ current tarball from the <A HREF = "../download.html">download page</A>, which
 includes all the new features/fixes listed below, and rebuild the
 code.
 </P>
-<P>The current version of MR-MPI is 13 April 2009.
+<P>The current version of MR-MPI is 15 March 2010.
+</P>
+<HR>
+
+<P><B>15 Mar 2010</B>
+</P>
+<P>New release of MR-MPI library.  7102 lines of code in src dir.
+</P>
+<P>The new version adds the following features:
+</P>
+<UL><LI>in-core operation when data sets fits in one "page" of memory
+<LI>out-of-core operation otherwise
+<LI>each processor writes to temporary disk files in out-of-core mode
+<LI>user-settable size for a memory page via <A HREF = "doc/settings.html">memsize setting</A>
+<LI>64-bit integer compatible data set sizes, enabling huge data sets 
+</UL>
+<P>See <A HREF = "doc/technical.html#ooc">this section of the documentation</A> for
+further details.
 </P>
 <HR>
 
