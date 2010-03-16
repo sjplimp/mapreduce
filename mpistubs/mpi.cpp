@@ -351,3 +351,45 @@ void MPI_Gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
 
   memcpy(recvbuf,sendbuf,n);
 }
+
+/* ---------------------------------------------------------------------- */
+
+/* copy values from data1 to data2 */
+
+void MPI_Alltoall(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+		  void *recvbuf, int recvcount, MPI_Datatype recvtype,
+		  MPI_Comm comm)
+{
+  int n;
+  if (sendtype == MPI_INT) n = sendcount*sizeof(int);
+  else if (sendtype == MPI_FLOAT) n = sendcount*sizeof(float);
+  else if (sendtype == MPI_DOUBLE) n = sendcount*sizeof(double);
+  else if (sendtype == MPI_CHAR) n = sendcount*sizeof(char);
+  else if (sendtype == MPI_BYTE) n = sendcount*sizeof(char);
+  else if (sendtype == MPI_DOUBLE_INT) n = sendcount*sizeof(double_int);
+  else if (sendtype == MPI_UNSIGNED_LONG) n = sendcount*sizeof(uint64_t);
+
+  memcpy(recvbuf,sendbuf,n);
+}
+
+/* ---------------------------------------------------------------------- */
+
+/* copy values from data1 to data2 */
+
+void MPI_Alltoallv(void *sendbuf, int *sendcounts, int *sdispls,
+		   MPI_Datatype sendtype,
+		   void *recvbuf, int *recvcounts, int *rdispls,
+		   MPI_Datatype recvtype,
+		   MPI_Comm comm)
+{
+  int n;
+  if (sendtype == MPI_INT) n = sendcounts[0]*sizeof(int);
+  else if (sendtype == MPI_FLOAT) n = sendcounts[0]*sizeof(float);
+  else if (sendtype == MPI_DOUBLE) n = sendcounts[0]*sizeof(double);
+  else if (sendtype == MPI_CHAR) n = sendcounts[0]*sizeof(char);
+  else if (sendtype == MPI_BYTE) n = sendcounts[0]*sizeof(char);
+  else if (sendtype == MPI_DOUBLE_INT) n = sendcounts[0]*sizeof(double_int);
+  else if (sendtype == MPI_UNSIGNED_LONG) n = sendcounts[0]*sizeof(uint64_t);
+
+  memcpy(recvbuf,sendbuf,n);
+}
