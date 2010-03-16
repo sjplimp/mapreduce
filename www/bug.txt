@@ -30,7 +30,11 @@ user-settable size for a memory page via "memsize setting"_doc/settings.html
 64-bit integer compatible data set sizes, enabling huge data sets :ul
 
 See "this section of the documentation"_doc/technical.html#ooc for
-further details.
+further details on out-of-core operation.
+
+See "this section of the documentation"_doc/technical.html#limits for
+a discussion of the (very large) limits on data set sizes that the
+library can now process.
 
 :line
 
