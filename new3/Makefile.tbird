@@ -1,9 +1,0 @@
-# Tbird Makefile, CC, MPI
-
-CC =		mpic++
-CCFLAGS =	-O2 -DMPICH_IGNORE_CXX_SEEK
-DEPFLAGS =	-M
-ARCHIVE =	ar
-ARFLAGS =	-rc
-
-include Makefile.common
