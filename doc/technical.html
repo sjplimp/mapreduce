@@ -15,6 +15,7 @@ library and how it is implemented.  These topics are covered:
 <UL><LI><A HREF = "#align">Length and byte-alignment of keys and values</A>
 <LI><A HREF = "#memory">Memory requirements for KeyValue and KeyMultiValue objects</A>
 <LI><A HREF = "#ooc">Out-of-core operation</A>
+<LI><A HREF = "#limits">Fundamemtal library limits</A>
 <LI><A HREF = "#hash">Hash functions</A>
 <LI><A HREF = "#callback">Callback functions</A>
 <LI><A HREF = "#python">Python overhead</A>
@@ -222,6 +223,70 @@ also become larger.  For normal page sizes as determined by the
 <I>memsize</I> <A HREF = "setting.html">setting</A>, e.g. the 64 Mbyte default, these
 additional in-memory allocations should be small compared to the size
 of a single page.
+</P>
+<HR>
+
+<A NAME = "limits"></A><H4>Fundamemtal library limits 
+</H4>
+<P>Even in out-of-core mode, the MR-MPI library has limitations on the
+data set sizes it can process.  In practice, these are hopefully not
+restrictive limits.
+</P>
+<P>Define:
+</P>
+<UL><LI>INTMAX = 2^31-1 = largest 32-bit signed int
+<LI>UINT64MAX = 2^64-1 = largest 64-bit unsigned int
+<LI>pagesize = size (in bytes) of 1 page of memory 
+</UL>
+<P>Internal storage limits within library:
+</P>
+<P>KV = KeyValue, KMV = KeyMultiValue
+</P>
+<UL><LI>UINT64MAX = max byte count of KV or KMV data across all procs
+<LI>UINT64MAX = max # of KV or KMV pairs across all procs
+<LI>UINT64MAX = max # of values in a single KMV pair
+<LI>UINT64MAX = max pagesize
+<LI>min(pagesize,INTMAX) = max size of 1 KV pair
+<LI>INTMAX = max number of KV or KMV pairs in one page (on a processor)
+<LI>INTMAX = max # of values in single KMV pair, before split across pages
+<LI>INTMAX = max summed value size in single KMV pair, before split across pages 
+</UL>
+<P>Additional notes:
+</P>
+<P>The user sets the "pagesize" via the <I>memsize</I> setting, in Mbytes.
+The pagesize can exceed INTMAX, though it should not exceed the
+physical memory available.  See the <A HREF = "#ooc">discussion above</A> for more
+details.
+</P>
+<P>Since the data set size is written to disk, when the library operates
+in out-of-core mode, the data size cannot exceed available disk space,
+either on a per-processor basis (if each processor is writing to its
+own local disk), or in aggregate (e.g. for a parallel file system).
+Some MR-MPI operations convert data from one form to another (e.g. KV
+to KMV) or make intermediate copies of data (e.g. for sorting).  At a
+minimum this typically requires 2x the disk space of the data set
+itself.
+</P>
+<P>As discussed <A HREF = "#align">here</A>, a KeyValue pair requires 2 integers plus
+the key and value, plus alignment space.  For a 1-byte key and a
+0-byte value, this is a minimum of 12 bytes.  By storing no more than
+INTMAX KeyValue pairs on a page, this still allows for pagesizes of at
+least 24 Gb, more if KeyValue pairs are larger.
+</P>
+<P>The various INTMAX limits mean that user calls to the library, and
+library callbacks to user functions can use int parameters rather than
+uint64 parameters.  It also reduces storage requirements for
+individual KeyValue and KeyMultiValue pairs.  One exception is that
+all the library methods return a uint64 for the final number of
+KeyValue or KeyMultiValue pairs stored by the library.  Another
+exception is the uint64 "itask" variable passed back to one flavor of
+the user mymap() function via the <A HREF = "map.html">map()</A> method.
+</P>
+<P>The INTMAX limits on the number of KeyMultiValue values stored in one
+page, mean that individual KeyMultiValue pairs that exceed this will
+be split across multiple pages.  The user callback functions access
+these pages via the multivalue_blocks() and multivalue_block()
+methods, described witht the <A HREF = "reduce.html">reduce()</A> method.
 </P>
 <HR>
 

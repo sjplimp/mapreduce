@@ -70,12 +70,12 @@ back to the library:
 
 MapReduce *mr = (MapReduce *) valuebytes;
 int nblocks = mr->multivalue_blocks();
-for (int iblock = 0; iblock < nblocks; iblock++) { 
+for (int iblock = 0; iblock < nblocks; iblock++) \{ 
   int nv = mr->multivalue_block(iblock,&multivalue,&valuebytes);
-  for (int i = 0; i < nv; i++) {
+  for (int i = 0; i < nv; i++) \{
     process each value within the block of values
-  }
-} :pre
+  \}
+\} :pre
 
 The call to multivalue_blocks() returns the number of blocks of values
 in the multi-value.  Each call to multivalue_block() retrieves one
