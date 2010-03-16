@@ -195,7 +195,7 @@ mr.reduce(histo)
 mr.gather(1)
 mr.sort_keys(ncompare)
 total = 0
-mr.map_kv(mr,stats)
+mr.map_mr(mr,stats)
 if me == 0: print order-total,"rows with 0 nonzeroes"
 
 if me == 0:
