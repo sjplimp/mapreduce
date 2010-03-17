@@ -7,7 +7,7 @@
 
 MapReduce sort_multivalues() method :h3
 
-int MapReduce::sort_multivalues(int (*mycompare)(char *, int, char *, int)) :pre
+uint64_t MapReduce::sort_multivalues(int (*mycompare)(char *, int, char *, int)) :pre
 
 This calls the sort_multivalues() method of a MapReduce object, which
 sorts the values for each key within a KeyMultiValue object to produce

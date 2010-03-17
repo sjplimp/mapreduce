@@ -7,7 +7,7 @@
 
 MapReduce add() method :h3
 
-int MapReduce::add(MapReduce *mr2) :pre
+uint64_t MapReduce::add(MapReduce *mr2) :pre
 
 This calls the add() method of a MapReduce object, to add the KeyValue
 pairs contained in a second MapReduce object mr2, to the KeyValue

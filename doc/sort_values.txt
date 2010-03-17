@@ -7,7 +7,7 @@
 
 MapReduce sort_values() method :h3
 
-int MapReduce::sort_values(int (*mycompare)(char *, int, char *, int)) :pre
+uint64_t MapReduce::sort_values(int (*mycompare)(char *, int, char *, int)) :pre
 
 This calls the sort_values() method of a MapReduce object, which sorts
 a KeyValue object by its values to produce a new KeyValue object.  The

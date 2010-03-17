@@ -7,20 +7,20 @@
 
 MapReduce map() method :h3
 
-int MapReduce::map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr)
-int MapReduce::map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr, int addflag) :pre
+uint64_t MapReduce::map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr, int addflag) :pre
 
-int MapReduce::map(char *file, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
-int MapReduce::map(char *file, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) :pre
+uint64_t MapReduce::map(char *file, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(char *file, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) :pre
 
-int MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
-int MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) :pre
+uint64_t MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) :pre
 
-int MapReduce::map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
-int MapReduce::map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) :pre
+uint64_t MapReduce::map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) :pre
 
-int MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr)
-int MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr, int addflag) :pre
+uint64_t MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr, int addflag) :pre
 
 This calls the map() method of a MapReduce object.  A function pointer
 to a mapping function you write is specified as an argument.  This

@@ -9,9 +9,9 @@ MapReduce reduce() method :h3
 MapReduce multivalue_blocks() method :h3
 MapReduce multivalue_block() method :h3
 
-int MapReduce::reduce(void (*myreduce)(char *, int, char *, int, int *, KeyValue *, void *), void *ptr) :pre
+uint64_t MapReduce::reduce(void (*myreduce)(char *, int, char *, int, int *, KeyValue *, void *), void *ptr) :pre
 
-int MapReduce::multivalue_blocks() :pre
+uint64_t MapReduce::multivalue_blocks() :pre
 
 int MapReduce::multivalue_block(int iblock, char **ptr_multivalue, int **ptr_valuesizes) :pre
 

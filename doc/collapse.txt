@@ -7,7 +7,7 @@
 
 MapReduce collapse() method :h3 
 
-int MapReduce::collapse(char *key, int keybytes) :pre
+uint64_t MapReduce::collapse(char *key, int keybytes) :pre
 
 This calls the collapse() method of a MapReduce object, which
 collapses a KeyValue object into a KeyMultiValue object with a single

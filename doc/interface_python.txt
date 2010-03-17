@@ -55,13 +55,18 @@ parallel MR-MPI library (same as in (2)) and with MPI itself, via one
 of several available Python/MPI packages.  See instructions below on
 how to do the latter task.
 
-The following sub-sections cover the rest of the Python discussion:
+The following sub-sections cover the rest of the Python setup
+discussion:
 
 "Extending Python with a serial version of the MR-MPI library"_#serial
 "Creating a shared MPI library"_#shared
 "Extending Python with a parallel version of the MR-MPI library"_#parallel
 "Extending Python with MPI itself"_#mpi
-"Testing the MR-MPI library from Python"_#test
+"Testing the MR-MPI library from Python"_#test :ul
+
+This sub-section describes the Python syntax used to invoke the MR-MPI
+library:
+
 "Using the MR-MPI library from Python"_#use :ul
 
 :line

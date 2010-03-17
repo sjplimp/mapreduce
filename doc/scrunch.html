@@ -9,7 +9,7 @@
 
 <H3>MapReduce scrunch() method 
 </H3>
-<PRE>int MapReduce::scrunch(int nprocs, char *key, int keybytes) 
+<PRE>uint64_t MapReduce::scrunch(int nprocs, char *key, int keybytes) 
 </PRE>
 <P>This calls the scrunch() method of a MapReduce object, which gathers a
 KeyValue object onto nprocs and collapses it into a KeyMultiValue

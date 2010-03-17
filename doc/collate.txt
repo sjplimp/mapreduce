@@ -7,7 +7,7 @@
 
 MapReduce collate() method :h3
 
-int MapReduce::collate(int (*myhash)(char *, int)) :pre
+uint64_t MapReduce::collate(int (*myhash)(char *, int)) :pre
 
 This calls the collate() method of a MapReduce object, which
 aggregates a KeyValue object across processors and converts it into a

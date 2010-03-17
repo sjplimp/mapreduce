@@ -7,7 +7,7 @@
 
 MapReduce clone() method :h3
 
-int MapReduce::clone() :pre
+uint64_t MapReduce::clone() :pre
 
 This calls the clone() method of a MapReduce object, which converts a
 KeyValue object directly into a KeyMultiValue object.  It simply turns
