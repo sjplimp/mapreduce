@@ -39,30 +39,30 @@ algorithms, RMAT matrices}
 
 \begin{abstract}
 
-We describe a library that allows parallel algorithms to be expressed
-in the MapReduce paradigm, where the user does not need to write
-explicit parallel code, but instead provides a collection of ``map''
-and ``reduce'' functions which operate on portions of a data set.  The
-library itself uses MPI message passing calls to perform the needed
-parallel operations across distributed memory.  We highlight how
-MapReduce operations work in an MPI context, and also how they can be
-coded in an out-of-core manner for data sets that do not fit within
+We describe a parallel library that allows algorithms to be expressed
+in the MapReduce paradigm, where the calling program does not need to
+include explicit parallel code, but instead provides ``map'' and
+``reduce'' functions which operate in parallel on elements of a data
+set distributed across processors.  The library performs needed
+parallel operations using message-passing (MPI) calls.  We describe
+how typical MapReduce operations can be implemented in an MPI context,
+and also in an out-of-core manner for data sets that do not fit within
 the aggregate memory of a parallel machine.  Our motivation for
-creating this library was to enable graph algorithms to be coded as
+creating this library was to enable graph algorithms to be written as
 MapReduce operations, allowing processing of Terabyte-scale data sets.
-We outline a MapReduce version of several such algorithms: vertex
-ranking via PageRank, connected component identification, triangle
-finding, Luby's algorithm for maximally independent sets, and
-single-source shortest-path.  To input arbitrarily large artificial
-graphs we generate RMAT matrices in parallel; we also provide a
-MapReduce version of this operation.  Performance and scalability
-results for the various algorithms are presented for graphs of varying
-sizes on a distributed-memory cluster.  For some cases, we compare our
-results with timings for different algorithms, different machines, and
-different MapReduce software, namely Hadoop.  Our open-source library
-is written in C++, is callable from C++, C, Fortran, or scripting
-languages such as Python, and can run on any parallel platform that
-supports MPI.
+We outline MapReduce versions of several such algorithms: vertex
+ranking via PageRank, triangle finding, connected component
+identification, Luby's algorithm for maximally independent sets, and
+single-source shortest-path.  To test the algorithms on arbitrarily
+large artificial graphs we generate randomized RMAT matrices in
+parallel; we also describe a MapReduce version of this operation.
+Performance and scalability results for the various algorithms are
+presented for graphs of varying sizes on a distributed-memory cluster.
+For some cases, we compare the results with non-MapReduce algorithms,
+different machines, and different MapReduce software, namely Hadoop.
+Our open-source library is written in C++, is callable from C++, C,
+Fortran, or scripting languages such as Python, and can run on any
+parallel platform that supports MPI.
 
 \end{abstract}
 
