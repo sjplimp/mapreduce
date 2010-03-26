@@ -1,149 +1,184 @@
 \section{Out-of-core Issues}
 \label{sec:outcore}
 
-  what part needs to be out-of-core in MPI context
-  each proc does it's own disk IO
-  basic idea: modified data structures for KV and KMV
-  map() operation
-  aggreate() operation
-  convert() operation
-  reduce() operation
-
 Since the MapReduce paradigm was designed to enable processing of
 extremely large data sets, the MR-MPI library also allows for
 ``out-of-core'' processing, which is triggered when the KV or KMV
-pairs owned by a processor do not fit in its memory.
+pairs owned by a processor do not fit in its memory.  When this
+occurs, a processor writes one or more temporary files to disk,
+containing KV or KMV pairs, and reads them when required.  Depending
+on the parallel machine's hardware configuration, these files can
+reside on disks local to each processor, on the front end (typically a
+NSF-mounted file system for a parallel machine), or on a parallel file
+system/disk array.
 
-When the user program creates a MapReduce object, the user specifies
-a 
-The memory available for storing key/value and key/multivalue pairs is
-{\it memsize} summed across all processors.  So long as the key/value
-pairs remain reasonably evenly distributed across processors then this
-can be a significant amount of memory, e.g. 1 Tbyte on a
-1024-processor machine.  The hash function used by the {\it collate()}
-operation attempts to randomize key assignment to processors so
-effective load-balance occurs.
+When a user program creates a MapReduce object, a ``pagesize'' can be
+specified, which defaults to 64 Mbytes.  As described below, each
+MR-MPI operation, is constrained to use no more than a handful of
+these pages.  The {\it pagesize} setting can be as small as 1 Mbyte or
+as large as desired, though the user should insure the allocated pages
+fit in physical memory, else the MR-MPI library may allocate slow
+virtual memory.  The {\it pagesize} is also the typical size of
+individual reads and writes to the temporary disk files; hence a
+reasonable pagesize insures good I/O performance.
 
+We now explain how the MapReduce operations described in the
+preceeding section work in out-of-core mode.  The {\it map()} and {\it
+reduce()} operations are relatively simple.  As a {\it map()}
+generates KV pairs via the user function, a page of memory is filled
+up, one KV pair at a time.  When the page is full, it is written to
+disk.  If the source of data for the {\it map()} operation is an
+existing set of KV pairs, then those datums are read in, one page at a
+time, and a pointer to each KV pair is given to the user function.
+Similarly, a {\it reduce()} reads one page of KMV pairs from disk,
+passes a pointer to each pair, one at a time to the user function,
+which typically generates new KV pairs.  The generated pairs fill up a
+new page, which is written to disk when full, just as with the {\it
+map()} operation.  Thus for both a {\it map()} and {\it reduce()},
+out-of-core disk files are read and written sequentially, one page at
+a time, requiring at most two pages of memory.
 
-
-If the set of key/value or key/multivalue pairs generated or owned by
-a processor exceeds the {\it memsize} of its allocated memory, then
-MR-MPI switches to ``out-of-core'' processing.  Each processor uses
-temporary files to store data that does not fit in its memory.
-Depending on the parallel machine's hardware configuration, these
-files can reside on disks local to each processor, on the front end
-(typically a NSF-mounted file system for a parallel machine), or on a
-parallel file system/disk array.  The files are read/written as large
-contiguous ``pages'', which are 1/4 the size of the {\it memsize}
-setting discussed in the previous section.
-
-We now explain how the MapReduce primitives described above operate in
-out-of-core mode.  The {\it map()} and {\it reduce()} operations are
-relatively simple.  As a {\it map()} generates key/value pairs, it
-fills up a page, one key/value pair at a time.  When the page is full,
-it is written to disk.  If the source of data for the {\it map()}
-operation is an existing set of key/value pairs, then those datums are
-read in, one page at a time, and each key/value pair is given to the
-user map() function.  Similarly, a {\it reduce()} reads one page of
-key/multivalue pairs from disk, passes them one at a time to the user
-reduce() function, which typically generates new key/value pairs.  The
-generated pairs fill up a new page, which is written to disk when
-full, just as with the {\it map()} operation.  Thus for both a {\it
-map()} and {\it reduce()}, out-of-core disk files are read and written
-sequentially, one page at a time.
-
-A special case is when a single key/multivalue pair is larger than a
-single page.  This can happen, for example, in a connected component
-finding algorithm if the graph collapses into one or a few giant
-components.  In this case, the entire set of values (graph vertices
-and edges) associated with the unique key (the component ID), may not
-fit in one page of memory.  The individual values in the multivalue
-will then be spread across as many pages as needed.  The user reduce()
-function is passed a flag indicating it is receiving only a portion of
+A special case is when a single KMV pair is larger than a single page.
+This can happen, for example, in a connected component finding
+algorithm if the graph collapses into one or a few giant components.
+In this case, the set of values (graph vertices and edges) associated
+with a unique key (the component ID), may not fit in one page of
+memory.  The individual values in the multivalue will then be spread
+across as many pages as needed.  The user function that processes the
+KMV pair is passed a flag indicating it is receiving only a portion of
 the values.  Once it has processed them, it can request a new set of
-values (from a new page) from the MR-MPI library.
+values from the MR-MPI library, which reads in a new page.
 
 Performing a {\it collate()} operation out-of-core is more complex.
 Recall that a collate() operation occurs in two stages.  First, keys
-are hashed to ``owning'' processors and the key/value data is
-communicated in an all-to-all fashion.  This is done one page of
-key/value data at a time.  Each processor reads in a page of key/value
-data, the communication pattern is determined (who needs what datums),
-and the communication is performed.  So long as each processor
-receives no more than 2x its share of the datums (one page), it has
-room to receive it within the {\it memsize} restriction.  If the
-key/value data is load-imbalanced so that this limit is exceeded, then
-the all-to-all communication can be performed in multiple passes.
+are hashed to ``owning'' processors and the KV datums are communicated
+in an all-to-all fashion.  In out-of-core mode, this is done one page
+of KV data at a time.  Each processor reads in a page of KV pairs, the
+communication pattern for the datums in that page is determined (who
+needs what datums), and all-to-all communication is performed.  Each
+processor allocates a two-page chunk of memory to receive incoming KV
+pairs.  On average each processor should receive KV pairs that fill
+only one page; the two-page allocation allows for some load-imbalance.
+If the KV pairs are distributed unevenly so that this limit is
+exceeded, then the all-to-all communication is performed in smaller,
+multiple passes until the full page (contributed by each processor) is
+completed.  Performing an MPI\_Alltoall(), or using the custom version
+provided by the MR-MPI library, requires auxiliary arrays that store
+individual datum lengths and pointers.  In the worst-case scenario
+(many small KV pairs), the total number of pages required to perform
+the all-to-all communication, including the source and target KV pages
+is 7.
 
-When the first stage is done, each processor now has an out-of-core
-set of key/value datums that need to be reorganized into an
-out-of-core set of key/multivalue pairs.  In principle, to create one
-page of key/multivalue data, the entire set of key/value pairs needs
-to be scanned to find all keys which contribute values to that page.
-Reading all the key/value pages from disk for each page of
-key/multivalue output could be prohibitively expensive.  A related
+When the communication stage of the {\it collate()} operation is
+complete, each processor now has a set of KV pages, stored in an
+out-of-core KV file, that need to be reorganized into a set of KMV
+pages, stored in new out-of-core KMV file.  In principle, to create
+one page of KMV pairs, requires all KV pages to be scanned to find all
+the keys which contribute values to that page.  Doing this for each
+output page of KMV pairs could be prohibitively expensive.  A related
 issue is that a hash table is needed to match new keys with previously
-encountered keys.  But there is no guarantee that the hash table
-itself will fit within the memory specified by the user via the {\it
-memsize} parameter.  Our solution to these issues is to partition the
-{\it memsize} memory into 3 pieces: 2 pieces each of size {\it
-memsize}/4 for reading/writing pages of key/value and key/multivalue
-pairs, and the remaining {\it memsize}/2 piece for a hash table.  We
-can then scan the key/value pairs at most four times to produce all
-the pages of key/multivalue output, as diagrammed in Figure
-\ref{f:collate}.
+encountered keys, as described in the previous section.  But there is
+no guarantee that the hash table itself will not grow arbitrarily
+large for some data sets with many unique keys.  We need an algorithm
+for generating KMV pairs which operates within a small number of
+memory pages and performs a minimal number of passes through the KV
+disk file.  An algorithm that meets these goals is diagrammed in
+Figure \ref{f:collate}; it requires 4 read passes of the KV pages and
+3 write passes.  It also uses a finite-size in-memory hash table,
+which stores unique keys as they are encountered in the loops over KV,
+as well as auxiliary information needed to construct the output pages
+of KMV pairs.
 
 \begin{figure}
 \includegraphics[width=\textwidth,angle=-90]{fig_collate.pdf}
-\caption{Four-pass algorithm for converting key/value data to
-key/multivalue data.  The vertical lines represent out-of-core data
-sets.  KV is key/value pairs; HT is an in-memory hash table; KMV is
-key/multivalue pairs.}
+\caption{Multi-pass algorithm for converting KV data to KMV data.  The
+vertical lines represent out-of-core data sets.  KV is key/value
+pairs; HT is an in-memory hash table; KMV is key/multivalue pairs.}
 \label{f:collate}
 \end{figure}
 
 \begin{itemize}
 
-\item (Pass 1) The key/values are read and split into two files.  The
-first file contains all the key/values pairs whose keys fit into the
-finite-size hash table.  The second contains those which do not.
+\item (Pass 1) The KV pairs are read and split into ``partition''
+files.  Each partition file contains KV pairs whose unique keys will
+(likely) fit in the hash table (HT).  Intially all KV pairs are
+assigned to the first partition file as the HT is populated.  When the
+HT becomes full, e.g. at the point represented by the horizontal line
+in a downward scan of the leftmost vertical line, then the fraction of
+KV pairs read thus far is used to estimate the number of additional
+partition files needed.  As subsequent KV pairs are read in, they are
+written into either the original partition file or one of the new
+ones.  The former if its key exists in the current HT; the latter if
+not, and a subset of bits in the hash value of its key is used to
+assign it to one of the partition files.  The number of needed
+partition files is estimated conservatively, rounding up to the next
+power-of-two, so that extra passes through the KV pairs are almost
+never needed, and so the bit masking can be done quickly.  This pass
+requires both a read and write of all the KV pairs.
 
-\item (Pass 2) The size of the first file (generally smaller) can be
-used to estimate how many chunks the second file (generally larger)
-needs to be partitioned into so that each chunk contains a set of
-unique keys than can fit into the hash table.  This estimate is made
-conservatively so that additional passes through the data are almost
-never required.  The second pass thus reads the larger file and writes
-out smaller files, similar in size to the first file created by the
-first pass.
+\item (Pass 2) The KV pairs in a partition file are read, and their
+unique keys are hashed into the HT, accumulating data about the number
+and size of values associated with each key.  Before the next
+partition file is read, passes 3 and 4 are completed for this
+partition.  But eventually, this pass reads all partition files,
+requiring a read of all KV pairs.
 
-\item (Pass 3) The unique keys in each small file of key/value pairs
-can now be hashed, but the file may contain more value data than will
-fit in one key/multivalue page.  As each small file is read, and its
-keys hashed, the accumulating hash table statistics can be used to
-determine which key/values correspond to single pages of
-key/multivalue output.  The key/values can thus be split into even
-smaller files, one for each key/multivalue page.
+\item (Pass 3) The unique keys in the HT are scanned.  The associated
+values may create KMV pairs which span many pages.  If this is the
+case, the associated partition file of KV pairs is read, and assigned
+to smaller ``set'' files, using the accumulated HT statistics.  Each
+set file corresponds to the KV pairs which will contribute to the set
+of KMV pairs that will populate one page of KMV output.  If a KMV pair
+spans multiple pages, because it has a very large number of values,
+then the corresponding KV pairs will still be part of a single set
+file.  Eventually, this pass reads all partition files, requiring both
+a read and write of all KV pairs.
 
-\item (Pass 4) Each smaller file of key/value pairs is read, its keys
-hashed, and the key/value data reorganized into sequential
-key/multivalue pairs which fill a key/multivalue page, which is then
-written out to disk.
+\item {Pass 4) A set file is read and the key/value data for each of
+its KV pairs is copied into the appropriate place in the page of KMV
+pairs, using information stored in the HT.  When complete, the KMV
+page is written to disk.  This pass thus eventually reads all set
+files, requiring a read of all KV pairs.  It also writes all KMV
+pairs.  If each KV pair has a unique key, the size of KMV output is
+roughly the same as that of the KV input.
 
 \end{itemize}
+
+In summary, this data reorganization for the {collate()} operation is
+somewhat complex, but requires a small, constant number of passes
+through the data.  Namely, at most 4 read passes through the pages of
+KV pairs, and 3 write passes.  The first two write passes reorganize
+KV pairs into partition and set files; the final write pass creates
+the KMV data set.  By contrast, a full out-of-core sort() of the KV
+pairs, performed via a merge sort as discussed below, requires
+$O(\log{M})$ read/write passes through the KV data, where $M$ is the
+number of pages of KV pairs, which can be a large number for big data
+sets.
+
+Intermediate passes done via spool files.  Can't bound precisely,
+since depends on data characteristics (see tech discussion in manual),
+but generally fit wihtin 7 pages of aggregate.
 
 Note that depending on the data set size and its key distribution all
 four passes through the data may not be necessary, but the upper limit
 is four, assuming the chunk-size estimations are accurate.  By
-comparison, a merge sort of key/value pairs would require $log_2(N)$
+comparison, a merge sort of KV pairs would require $log_2(N)$
 passes (read/write) through the out-of-core data set, where $N$ is its
 number of pages.  The MR-MPI {\it collate()} operation does not
-actually sort the key/multivalue pairs by key; the final ordering is
+actually sort the KMV pairs by key; the final ordering is
 indeterminate as it is created by the hash function.
 
-The other MR-MPI library calls ({\it compress()}, {\it gather()},
-sorting by key or value, etc) can also operate in out-of-core mode,
-typically with one pass through the key/value or key/multivalue data.
-Sorting is an exception, as an out-of-core merge sort requires
+Avoid extra passes if not needed.  E.g. one partition file, then never
+even written.  First partition file not re-read to popluate HT.
+
+Uneven distribution of unique keys in KV pair could induce extra
+passes due to not enough partitions, but quite rare.
+
+
+
+The other various MR-MPI library calls ({\it compress()}, {\it
+gather(), etc}, can also operate in out-of-core mode, typically with
+one pass through the KV or KMV data.  Sorting, by
+key or value, is an exception.  as an out-of-core merge sort requires
 $log_2(N)$ passes, as just mentioned, where $N$ is the number of
 pages.

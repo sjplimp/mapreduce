@@ -48,7 +48,13 @@ second pass to copy the key and value datums into the appropriate
 location in a new KMV data structure.  Since the lookup of a key in a
 well-formed hash table is a constant-time $O(1)$ operation, the cost
 of the data reorganization is $O(N)$, rather than $N\log(N)$ for full
-sort.
+sort.  It also has the added benefit that the number of values in each
+KMV pair is known, which is passed to the user function during a
+reduce.  For some reduce operations, this is all the information a
+reduce requires; thus the values need not be looped over.  This is not
+the case for a Hadoop-style data reorg which sorts the values.  It
+does not know a priori how many values are associated with the same
+key without iterating over them.
 
 Note that the first portion of the {\it collate()} operation involves
 all-to-all communication (each processor sends and receives data from
