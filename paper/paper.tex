@@ -22,7 +22,7 @@
 \title{Map{R}educe in {MPI} for Large-scale Graph Algorithms}
 
 \author{
-Steven J.~Plimpton, Karen D.~Devine, Jon?, Cohen?, Others? \\
+Steven J.~Plimpton, Karen D.~Devine, Others? \\
 Sandia National Laboratories \\
 Albuquerque, NM \\
 sjplimp@sandia.gov
@@ -39,25 +39,26 @@ algorithms, RMAT matrices}
 
 \begin{abstract}
 
-We describe a parallel library that allows algorithms to be expressed
-in the MapReduce paradigm, where the calling program does not need to
-include explicit parallel code, but instead provides ``map'' and
-``reduce'' functions which operate in parallel on elements of a data
-set distributed across processors.  The library performs needed
-parallel operations using message-passing (MPI) calls.  We describe
-how typical MapReduce operations can be implemented in an MPI context,
-and also in an out-of-core manner for data sets that do not fit within
-the aggregate memory of a parallel machine.  Our motivation for
-creating this library was to enable graph algorithms to be written as
-MapReduce operations, allowing processing of Terabyte-scale data sets.
-We outline MapReduce versions of several such algorithms: vertex
-ranking via PageRank, triangle finding, connected component
-identification, Luby's algorithm for maximally independent sets, and
-single-source shortest-path.  To test the algorithms on arbitrarily
+We describe a parallel library written with message-passing (MPI)
+calls that allows algorithms to be expressed in the MapReduce
+paradigm.  This means the calling program does not need to include
+explicit parallel code, but instead provides ``map'' and ``reduce''
+functions which operate independently on elements of a data set
+distributed across processors.  The library performs needed data
+movement between processors.  We describe how typical MapReduce
+funtionality can be implemented in an MPI context, and also in an
+out-of-core manner for data sets that do not fit within the aggregate
+memory of a parallel machine.  Our motivation for creating this
+library was to enable graph algorithms to be written as MapReduce
+operations, allowing processing of Terabyte-scale data sets.  We
+outline MapReduce versions of several such algorithms: vertex ranking
+via PageRank, triangle finding, connected component identification,
+Luby's algorithm for maximally independent sets, and single-source
+shortest-path calculation.  To test the algorithms on arbitrarily
 large artificial graphs we generate randomized RMAT matrices in
-parallel; we also describe a MapReduce version of this operation.
+parallel; a MapReduce version of this operation is also described.
 Performance and scalability results for the various algorithms are
-presented for graphs of varying sizes on a distributed-memory cluster.
+presented for varying size graphs on a distributed-memory cluster.
 For some cases, we compare the results with non-MapReduce algorithms,
 different machines, and different MapReduce software, namely Hadoop.
 Our open-source library is written in C++, is callable from C++, C,
@@ -73,6 +74,7 @@ parallel platform that supports MPI.
 \input{outcore}
 \input{graph}
 \input{results}
+\input{lessons}
 \input{thanks}
 
 \bibliographystyle{aip}

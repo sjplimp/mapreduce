@@ -1,19 +1,20 @@
 \section{Introduction}
+\label{sec:intro}
 
 MapReduce is the programming paradigm popularized by Google
 researchers Dean and Ghemawat \cite{Dean}.  Their motivation was to
-enable analysis programs to be rapidly developed and deployed within
-Google to operate on massive data sets residing on their large
-distributed clusters.  They introduced a novel way of thinking about
-certain kinds of large-scale computations as a "map" operation
-followed by a "reduce" operation, possibly repeated.  The power of the
-paradigm is that when cast in this way, a traditionally serial
-algorithm now becomes two highly parallel operations which work on
-data local to each processor, sandwiched around an intermediate
-data-shuffling operation that requires inter-processor communication.
-The user need only write serial code for the application-specific map
-and reduce functions; the parallel data shuffle can be encapsulated in
-a library since its operation is independent of the application.
+enable rapid development and deployment of analysis programs to
+operate on massive data sets residing on Google's large distributed
+clusters.  They introduced a novel way of thinking about certain kinds
+of large-scale computations as a "map" operation followed by a
+"reduce" operation.  The power of the paradigm is that when cast in
+this way, a nominally serial algorithm now becomes two highly parallel
+operations working on data local to each processor, sandwiched around
+an intermediate data-shuffling operation that requires inter-processor
+communication.  The user need only write serial code for the
+application-specific map and reduce functions; the parallel data
+shuffle can be encapsulated in a library since its operation is
+independent of the application.
 
 The Google implementation of MapReduce is a C++ library with
 communication between networked machines via remote procedure calls.
@@ -23,139 +24,117 @@ sets.  Tens of thousands of MapReduce programs have since been written
 by Google researchers and are a significant part of the daily compute
 tasks run by the company \cite{Dean2}.
 
-Similarly, the Hadoop implementation of MapReduce \cite{Hadoop}, has
-become widely popular in the past few years for parallel processing of
-large-scale data sets at Yahoo and other data-centric companies, as
-well as in university and laboratory research groups, due to its
-open-source availability.  MapReduce programs in Hadoop are typically
-written in Java, though it also supports use of stand-alone map and
-reduce kernels, which can be written as shell scripts or in other
-languages.
+Similarly, the open-source Hadoop implementation of MapReduce
+\cite{Hadoop}, has become widely popular in the past few years for
+parallel analysis of large-scale data sets at Yahoo and other
+data-centric companies, as well as in university and laboratory
+research groups, due to its free availability.  MapReduce programs in
+Hadoop are typically written in Java, though it also supports use of
+stand-alone map and reduce kernels, which can be written as shell
+scripts or in other languages.
 
-More recently, MapReduce formulations of more traditional
-number-crunching kinds of scientific computational tasks have been
-described, such as post-processing analysis of simulation data
-\cite{Tu}, graph algorithmics \cite{Cohen}, and linear algebra
-operations \cite{Fox}.  The paper by Tu et al \cite{Tu} was
-particularly insightful to us, because it described how a MapReduce
-formalism could be implemented on top of the ubiquitous
-distributed-memory message-passing interface (MPI), and how the
-intermediate data-shuffle operation is conceptually identical to the
-familiar MPI_Alltoall() operation.  Their implementation of MapReduce
-was within a Python wrapper to simplify the writing of user programs.
-The paper motivated us to develop our own library built on top of MPI
-for use in graph analytics, which we initially released as open-source
-software in mid-2009 \cite{MRMPI}.  We have since worked to optimize
-several of the library's underlying algorithms and to enable its
-operation in out-of-core mode on larger data sets.  These algorithmic
-improvements are described in this paper and are part of the current
-downloadable version \cite{MRMPI}.
+More recently, MapReduce formulations of traditional number-crunching
+kinds of scientific computational tasks have been described, such as
+post-processing analysis of simulation data \cite{Tu}, graph
+algorithmics \cite{Cohen}, and linear algebra operations \cite{Fox}.
+The paper by Tu et al \cite{Tu} was particularly insightful to us,
+because it described how MapReduce could be implemented on top of the
+ubiquitous distributed-memory message-passing interface (MPI), and how
+the intermediate data-shuffle operation is conceptually identical to
+the familiar $MPI_Alltoall$ operation.  Their implementation of
+MapReduce was within a Python wrapper to simplify the writing of user
+programs.  The paper motivated us to develop our own C++ library built
+on top of MPI for use in graph analytics, which we initially released
+as open-source software in mid-2009 \cite{MRMPI}.  We have since
+worked to optimize several of the library's underlying algorithms and
+to enable its operation in out-of-core mode on larger data sets.
+These algorithmic improvements are described in this paper and are
+part of the current downloadable version \cite{MRMPI}.
 
-The MapReduce-MPI (MR-MPI) library described in this paper is a simple
-and lightweight implementation of basic MapReduce functionality, with
-the following features and limitations:
+The MapReduce-MPI (MR-MPI) library described in this paper is a
+simple, lightweight implementation of basic MapReduce functionality,
+with the following features and limitations:
 
 \begin{itemize}
 
 \item {\it C++ library using MPI for inter-processor communication:}
 The user writes a (typically) simple main program which runs on each
-processor in a parallel machine, and makes calls to the MR-MPI
-library.  For map and reduce operations, the library calls back to
-user provided map() and reduce() functions.  The use of C++ allows
-precise control over the memory and format of data allocated by each
-processor during a MapReduce.  Operations like the overall map,
-reduce, and data shuffle, are syncrhonous, meaning all the processors
-participate and finish the operation before proceeding.  Similarly the
-use of MPI within the library is the traditional synchronous mode of
-MPI Send and Recv calls on large aggregated data buffers, preferred
-for large-scale data movement.  A recent paper by \cite{Dongarra} also
-describes the MapReduce formalism from an MPI perspective, though they
-advocate a more asyncrhonous approach, using one-way communication of
-small messages.
+processor of a parallel machine, making calls to the MR-MPI library.
+For map and reduce operations, the library calls back to user-provided
+map() and reduce() functions.  The use of C++ allows precise control
+over the memory and format of data allocated by each processor during
+a MapReduce.  Library calls for performing a map, reduce, or data
+shuffle, are synncrhonous, meaning all the processors participate and
+finish the operation before proceeding.  Similarly, the use of MPI
+within the library is the traditional mode of $MPI_Send()$ and
+$MPI_Recv$ calls between processor pairs using large aggregated
+messages to improve bandwidth performance and reduce latency costs.  A
+recent paper by \cite{Dongarra} also outlines the MapReduce formalism
+from an MPI perspective, though they advocate a more asyncrhonous
+approach, using one-way communication of small messages.
 
-\item {Small, portable:} The entire library is a few thousand lines of
-standard C++ code.  For parallel operation, the program is linked with
-MPI, a standard message passing library available on all distributed
-memory machines.  For serial operation, a dummy MPI library (provided)
-can be substituted.
+\item {Small, portable:} The entire MR-MPI library is a few thousand
+lines of standard C++ code.  For parallel operation, the program is
+linked with MPI, a standard message passing library available on all
+distributed memory machines.  For serial operation, a dummy MPI
+library (provided) can be substituted.
 
-\item {\it In-core or out-of-core operation:} Each MapReduce object
-allocates per-processor "pages" of memory, where the page size is
-determined by the user.  Typical MapReduce operations can be performed
-using a few such pages.  If the data set fits in a single page (per
-processor), then the library performs its operations in-core.  If the
-data set exceeds the page size, then each processor writes to
-temporary disk files (local or to a parallel disk system) as needed
-and subsequently reads from them.  This allows processing of data sets
-larger than the aggregate memory of all the processors, i.e. up to the
-aggregate available disk space.  No HDFS.
+\item {\it In-core or out-of-core operation:} Each MapReduce object a
+processor defines, allocates per-processor "pages" of memory, where
+the page size is determined by the user.  Typical MapReduce operations
+can be performed using a few such pages.  If the data set fits in a
+single page (per processor), then the library performs its operations
+in-core.  If the data set exceeds the page size, then processors each
+write to temporary disk files (to local disk or a parallel file
+system) as needed and subsequently read from them.  This allows
+processing of data sets larger than the aggregate memory of all the
+processors, i.e. up to the available aggregate disk space.
 
-\item store state, other MPI calls:} An advantage of writing a
-MapReduce program in C++ on top of MPI, is that the user program can
-easitly store state.  And it can make calls to MPI, e.g an AllReduce()
-that are not obvious how to do in MR formalism, such as Hadoop.  These
-were often quite nice to exploit in the graph algorihtms of Section 3.
+\item {\it Flexible programmability:} An advantage of writing a
+MapReduce program on top of MPI, is that the user program can invoke
+MPI calls directly, if desired.  For example, one-line calls to
+$MPI_Allreduce$ are often useful in determining the status of an
+iterative graph algorithm, as described in Section \ref{sec:graph}.
+The library interface also provides a user data pointer as an argument
+passed back to all callback functions, so it is easy for the user
+program to store ``state'' on each processor, accessible during the
+map and reduce operaions.  For example, various flags can be stored
+that alter the operation of a map or reduce function, as can richer
+data structures, that accumulate the results.
 
-\item {\it C++, C, and Python interfaces provided:} A C++ interface
-means a user program instantiates and then invokes methods in one or
-more MapReduce objects.  A C interface means the library can also be
-called from C or other hi-level languages such as Fortran.  A Python
-interface means the library can be called from a Python script,
-allowing the user to write serial map() and reduce() functions in
-Python.  If a parallel machine can run Python in parallel, a parallel
-MapReduce can also be run in this mode.  The Python wrapper can be
-installed on any machine with a version of Python that includes the
-ctypes module, typically Python 2.5 or later.
+\item {\it C++, C, and Python interfaces:} A C++ interface to the
+MR-MPI library means a user program instantiates and then invokes
+methods in one or more MapReduce objects.  A C interface means the
+library can also be called from C or other hi-level languages such as
+Fortran.  A C interface also means the library can be easily wrapped
+by Python via the Python ``ctypes'' module.  The library can then be
+called from a Python script, allowing the user to write map() and
+reduce() callback functions in Python.  If a machine supports running
+Python in parallel, a parallel MapReduce can also be run in this mode.
 
 \item {No fault tolerance:} Current MPI implementations do not enable
 easy detection of a dead processor, or retrieval of the data it was
-working on.  So like most MPI programs, a MapReduce program calling
-the MR-MPI library will hang or crash if a processor goes away.
+working on.  So like most MPI programs, a parallel program calling the
+MR-MPI library will hang or crash if a processor goes away.  Unlike
+Hadoop, and its HDFS file system which provides for data redundancy,
+the MR-MPI library simply reads and writes simple, flat files.  It can
+use local per-processor disks, or a parallel file system, if
+available, but these typically provide no data redundancy.
+
+\end{itemize}
 
 The remainder of the paper is organized as follows.  The next two
-sections \ref{} and \ref[} describe how in-core and out-of-core
-MapReduce primitives are formulated as MPI-based operations in the
-MR-MPI library.  Section \ref{} briefly describes how several common
-graph-based algorithms can be formulated as MapReduce operations.
-Section \ref{} gives performance results for these algorithms running
-on a parallel cluster on a range of graph sizes, ranging from 1 Mb to
-1 Tb in vertex/edge counts.  We highlight the performance and
-complexity trade-offs of a MapReduce approach versus other more
-special-purpose algorithms.  The latter generally perform better but
-are harder to implement efficiently on distributed memory machines,
-due to the explicit management of parallelism required, particularly
-for out-of-core data sets.  We conclude with some lessons
-learned in Section \ref{}.
-
-
-Lessons learned at end:
-
-MapReduce algorithms are hard to design, but easy to write and debug.
-Thinking about a computational task in a MR mode is different than
-used to.  Often seems heretical to intentinally avoid data loca;lity
-in an MPI persepctive.  However writing small kernel map and reduce
-functions is eays. And avoiding parallel code is amazing.  And if you
-get the algorithmn right, sot that it to run on 1 processors, it often
-works without need for any additional debugging on P processors.
-
-MapReduce achieves parallelism thru randomized distribution of data
-across processors, i.e. intentionally ignore locality.  Requires
-maximal communication, but achieves good balance, even on
-hard-to-balance irregular data.  More tranditional parallel
-algorithsm, for things like matrix operations, grid or particle codes,
-tend to work hard to localize data, and minimize communication.  This
-means they have a lot of specialized, application-specific logic.
-
-Importance of state:
-algs could be improved by allowing state to be paged in at same
-time MR KV data is paged in, or just kept in core if possible
-  this requires ability to hash to desired processor
-  more processor centric view of data than Hadooop
-  possibly at odds with HDFS and data-centric view of Hadoop or MR
-
-Finally, though this paper focuses on graph operations in MapReduce,
-there is nothing about the MR-MPI library itself that is graph
-centric.  We hope the library can be generally useful for a variety of
-data-intense or compute-intense problems that are amenable to solution
-using a MapReduce framework on traditional large-scale parallel
-machines which support MPI.
+sections \ref{sec:mr} and \ref{sec:outcore} describe how in-core and
+out-of-core MapReduce primitives are formulated as MPI-based
+operations in the MR-MPI library.  Section \ref{sec:graph} briefly
+describes the formulation of several common graph algorithms as
+MapReduce operations.  Section \ref{sec:results} gives performance
+results for these algorithms running on a parallel cluster for graphs
+ranging in size from 1 million to 1 trillion vertices or edges.  In
+this section, we highlight the performance and complexity trade-offs
+of a MapReduce approach versus other more special-purpose algorithms.
+The latter generally perform better but are harder to implement
+efficiently on distributed memory machines, due to the required
+explicit management of parallelism, particularly for large out-of-core
+data sets.  Section \ref{sec:lessons} summarizes some lessons learned
+from the implementation and use of our library.
