@@ -9,6 +9,23 @@
   convert() operation
   reduce() operation
 
+Since the MapReduce paradigm was designed to enable processing of
+extremely large data sets, the MR-MPI library also allows for
+``out-of-core'' processing, which is triggered when the KV or KMV
+pairs owned by a processor do not fit in its memory.
+
+When the user program creates a MapReduce object, the user specifies
+a 
+The memory available for storing key/value and key/multivalue pairs is
+{\it memsize} summed across all processors.  So long as the key/value
+pairs remain reasonably evenly distributed across processors then this
+can be a significant amount of memory, e.g. 1 Tbyte on a
+1024-processor machine.  The hash function used by the {\it collate()}
+operation attempts to randomize key assignment to processors so
+effective load-balance occurs.
+
+
+
 If the set of key/value or key/multivalue pairs generated or owned by
 a processor exceeds the {\it memsize} of its allocated memory, then
 MR-MPI switches to ``out-of-core'' processing.  Each processor uses
