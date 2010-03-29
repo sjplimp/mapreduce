@@ -57,7 +57,28 @@ a power-of-two, to generate graphs with weighted edges (assign a
 random numeric value to the $A_{ij}$ edge), graphs without self edges
 (require $i != j$), or graphs with undirected edges (require $i < $j).
 
-Discussion of PageRank and its matvec kernel.
+The PageRank algorithm assings a relative numeric rank to each
+vertex in a graph.
+
+It models the web as a directed graph $G(V,E)$, with each vertex $v
+\in V$ representing a web page and each edge $e_{ij} \in E$
+representing a hyperlink from $v_i$ to $v_j$.  The probability of
+moving from $v_i$ to another vertex $v_j$ is $\alpha/d_{out}(v_i) +
+(1-\alpha)/|V|$, where $\alpha$ is a user-defined parameter (usually
+0.8-0.9), $d_{out}(v)$ is the outdegree of vertex $v$, and $|V|$ is
+the cardinality of $V$.  The first term represents the probability of
+following a given link on page $v_i$; the second represents the
+probability of moving to a random page.  For pages with no outlinks,
+the first term is $\alpha/|V|$, indicating equal likelihood to move to
+any other page.  Equivalently, the graph can be represented by a
+matrix $A$~\cite{LangvilleMeyer05a}, with matrix entries $A_{ij} =
+\alpha/d_{out}(v_i)$ if vertex $v_i$ links to $v_j$.  The PageRank
+algorithm, then, is simply a power-method iteration in which the
+dominating computation is matrix-vector multiplication $A^T x=y$,
+where $x$ is the PageRank vector from the previous iteration.
+
+The algorithm in Figure \ref{fig:pr} performs these
+iterations.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
@@ -78,32 +99,71 @@ while $N_{\rm remain} > 0$: \\
 
  \caption{MapReduce algorithm for PageRank vertex ranking.}
 
- \label{fig:rmat}
+ \label{fig:pr}
 \end{figure}
 
-Discussion of triangle finding algorithm.
+The MapReduce implementation performs two {\it map()} operations to
+initialize the graph matrix $A$ and PageRank vector $x$.  A {\it
+collate()} operation gathers all row entries $a_{ij}$ with their
+associated $x_i$ entry, and a {\it reduce()} computes $a_{ij} x_i$.  A
+second {\it collate()} gathers, for each $j$, all contributions to the
+column sum $\sum a_{ij} x_i$, which is computed by a second {\it
+reduce()}.  MPI\_Allreduce calls are used to compute global norms and
+residuals.
+
+A triangle in a graph is a clique of size three.  The algorithm in
+Figure \ref{fig:tri} enumerates all such triplets of vertices (Vi, Vj,
+Vk) where the three edges (Vi,Vj), (Vj,Vk), (Vi,Vk) exist in the
+graph.  The input to the first map() is an undirected graph, a lower
+triangular matrix from R-MAT generation, so that $V_i$ < $V_j$ for
+every edge.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+  xxxxxxxx\=xxxxxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-$N_{\rm remain} = N_z$ \\
-while $N_{\rm remain} > 0$: \\
-\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
-           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
-\> Collate() \\
-\> Reduce(): \> {\bf Remove} duplicate edges \\
-              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
-              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
-\> $N_{\rm remain} = N_z - N_{kv}$
+Copy(): store $G_0$ = copy of KV pairs for input graph \\
+Map(): \> {\bf Vertices} Convert edges to vertices \\
+           \> \> input: Key = $(V_i,V_j)$, Value = NULL \\
+           \> \> output: Key = $V_i$, Value = $V_j$ \\
+           \> \> output: Key = $V_j$, Value = $V_i$ \\
+Collate() \\
+Reduce(): \> {\bf First Degree} add degree to one vertex in edge \\
+              \> \> input: Key = $V_i$, MultiValue = $(V_j, V_k, ...)$ \\
+	      \> \> for each value in MultiValue: \\
+              \> \> output: Key = $(V_i,V_j)$, Value = $(D_i,0)$ if $Vi < Vj$ \\
+              \> \> output: Key = $(V_j,V_i)$, Value = $(0,D_i)$ if $Vj < Vi$ \\
+Collate() \\
+Reduce(): \> {\bf Second Degree} add degree to second vertex in edge \\
+              \> \> input: Key = $(V_i,V_j)$, MultiValue = $((D_i,0),(0,D_j))$ \\
+              \> \> output: Key = $(V_i,V_j)$, Value = $(D_i,D_j)$ with Vi < Vj \\
+Map(): \> {\bf Low Degree} vertex emits edge \\
+           \> \> if $Di < Dj$, output: Key = $V_i$, Value = $V_j$ \\
+           \> \> else if $Dj < Di$, output: Key = $V_j$, Value = $V_i$ \\
+           \> \> else output: Key = $V_j$, Value = $V_i$ \\
+Collate() \\
+Reduce(): \> {\bf Angles} find angles for each central vertex $Vi$ \\
+              \> \> input: Key = $V_i$, MultiValue = $(V_j, V_k, ...)$ \\
+	      \> \> Loop $J$ over values in MultiValue: \\
+	        \> \> Loop $K > J$ over values in MultiValue: \\
+		  \> \> if $Vj < Vk$, output: Key = $(V_j,V_k)$, Value = $Vi$ \\
+		  \> \> else output: Key = $(V_k,V_j)$, Value = Vi \\
+Merge() \\ {\bf Add} KV pairs from original graph $G_0$ to Angles reduce() KV pairs \\
+Collate() \\
+Reduce(): \> {\bf Emit Triangles} \\
+              \> \> input: Key = $(V_i,V_j)$, MultiValue = $(Vk, Vl, Vm, NULL, ...)$ \\
+              \> \> if NULL exists in MultiValue, \\
+	        \> \> output: Key = $(V_i,V_j,V_k)$, Value = NULL for each non-NULL value in MultiValue
 
   \end{tabbing}
  \end{minipage}}\end{center}
 
  \caption{MapReduce algorithm for triangle finding.}
 
- \label{fig:rmat}
+ \label{fig:tri}
 \end{figure}
+
+Further interations could find rectangles from open triangles, etc.
 
 Discuss connected component identification algorithm.
 
