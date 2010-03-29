@@ -1,20 +1,185 @@
 \section{Graph Algoriths in MapReduce}
 \label{sec:graph}
 
-RMAT generation
+We begin with a MapReduce procedure for creating large, sparse,
+randomized graphs, since they are the input for the algorithms
+discussed below.  R-MAT graphs ~\cite{RMAT} are recursively generated
+graphs with power-law degree distributions.  They are commonly used to
+represent web and social networks.  The user specifices 6 parameters
+which define the graph: the number of vertices $N$ and edges $M$, and
+4 parameters $a$, $b$, $c$, $d$ which sum to 1.0 and are discussed
+below.  The algorithm in Figure \ref{fig:rmat} generates $N_z = MN$
+unique non-zero entries in a sparse $NxN$ matrix $A$, where each entry
+$A_{ij}$ represents an edge between graph vertices $(V_i,V_j)$.
 
-pagerank
+\begin{figure}[htb]
+ \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-triangle finding
+$N_{\rm remain} = N_z$ \\
+while $N_{\rm remain} > 0$: \\
+\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
+           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> Collate() \\
+\> Reduce(): \> {\bf Remove} duplicate edges \\
+              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
+              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> $N_{\rm remain} = N_z - N_{kv}$
 
-connected component identification
+  \end{tabbing}
+ \end{minipage}}\end{center}
 
-do wee need differnt variants of CC?
+ \caption{MapReduce algorithm for R-MAT graph generation.}
 
-could just do one, discuss possible inefficiency due to giant CC
+ \label{fig:rmat}
+\end{figure}
 
-Luby algorithm for maximally independent sets
+In the map() operation, each of $P$ processors is tasked with
+generating a $1/P$ fraction of the desired edges.  A single random
+$i,j$ edge is computed recursively as follows.  Pick a random quadrant
+of the $A$ matrix with relative probabilities $a$, $b$, $c$, and $d$.
+Treat the chosen quadrant as a sub-matrix and select a random quadrant
+within it, in the same manner.  Repeat this process $n$ times where $N
+= 2^n$.  At the end of the recursion, the final ``quadrant'' is
+non-zero matrix element $A_{ij}$.
 
-SSSP
+The map() will often generate some small number of duplicate edges.
+The collate() and reduce() operations remove the duplicates.  The
+entire map-collate-reduce sequence is repeated until the number of
+resulting key/value pairs $N_{kv}$ equals $N_z$.  For reasonably
+sparse graphs this typically takes only a few iterations.
 
-discuss new optimization in SSSP?
+Note that the degree distribution of vertices in the graph depends on
+the choice of parameters $a$, $b$, $c$, $d$.  If one of the four
+values is larger than the other 3, a highly skewed distribution
+results.  Variants of the above algorithm can be used when $N$ is not
+a power-of-two, to generate graphs with weighted edges (assign a
+random numeric value to the $A_{ij}$ edge), graphs without self edges
+(require $i != j$), or graphs with undirected edges (require $i < $j).
+
+Discussion of PageRank and its matvec kernel.
+
+\begin{figure}[htb]
+ \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+
+$N_{\rm remain} = N_z$ \\
+while $N_{\rm remain} > 0$: \\
+\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
+           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> Collate() \\
+\> Reduce(): \> {\bf Remove} duplicate edges \\
+              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
+              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> $N_{\rm remain} = N_z - N_{kv}$
+
+  \end{tabbing}
+ \end{minipage}}\end{center}
+
+ \caption{MapReduce algorithm for PageRank vertex ranking.}
+
+ \label{fig:rmat}
+\end{figure}
+
+Discussion of triangle finding algorithm.
+
+\begin{figure}[htb]
+ \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+
+$N_{\rm remain} = N_z$ \\
+while $N_{\rm remain} > 0$: \\
+\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
+           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> Collate() \\
+\> Reduce(): \> {\bf Remove} duplicate edges \\
+              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
+              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> $N_{\rm remain} = N_z - N_{kv}$
+
+  \end{tabbing}
+ \end{minipage}}\end{center}
+
+ \caption{MapReduce algorithm for triangle finding.}
+
+ \label{fig:rmat}
+\end{figure}
+
+Discuss connected component identification algorithm.
+
+Do we need differnt variants of CC?
+
+Could just do one, discuss possible inefficiency due to giant CC.
+
+\begin{figure}[htb]
+ \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+
+$N_{\rm remain} = N_z$ \\
+while $N_{\rm remain} > 0$: \\
+\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
+           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> Collate() \\
+\> Reduce(): \> {\bf Remove} duplicate edges \\
+              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
+              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> $N_{\rm remain} = N_z - N_{kv}$
+
+  \end{tabbing}
+ \end{minipage}}\end{center}
+
+ \caption{MapReduce algorithm for connected component identification.}
+
+ \label{fig:rmat}
+\end{figure}
+
+Discussion of Luby algorithm for maximally independent sets.
+
+\begin{figure}[htb]
+ \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+
+$N_{\rm remain} = N_z$ \\
+while $N_{\rm remain} > 0$: \\
+\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
+           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> Collate() \\
+\> Reduce(): \> {\bf Remove} duplicate edges \\
+              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
+              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> $N_{\rm remain} = N_z - N_{kv}$
+
+  \end{tabbing}
+ \end{minipage}}\end{center}
+
+ \caption{MapReduce algorithm for R-MAT graog generation.}
+
+ \label{fig:rmat}
+\end{figure}
+
+Discussion of SSSP.
+
+Discuss new optimization in SSSP?
+
+\begin{figure}[htb]
+ \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+
+$N_{\rm remain} = N_z$ \\
+while $N_{\rm remain} > 0$: \\
+\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
+           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> Collate() \\
+\> Reduce(): \> {\bf Remove} duplicate edges \\
+              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
+              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
+\> $N_{\rm remain} = N_z - N_{kv}$
+
+  \end{tabbing}
+ \end{minipage}}\end{center}
+
+ \caption{MapReduce algorithm for single-source shortest path (SSSP)
+ determination.}
+
+ \label{fig:rmat}
+\end{figure}

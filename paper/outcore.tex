@@ -137,7 +137,7 @@ then the corresponding KV pairs will still be written to a single set
 file.  Eventually, this pass reads all partition files, entailing both
 a read and write of all KV pairs.
 
-\item {Pass 4) A set file is read and the key/value data for each of
+\item (Pass 4) A set file is read and the key/value data for each of
 its KV pairs is copied into the appropriate location in the page of
 KMV pairs, using information stored in the HT.  When complete, the KMV
 page is written to disk.  This pass eventually reads all set files,

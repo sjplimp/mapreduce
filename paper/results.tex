@@ -1,19 +1,34 @@
 \section{Performance Results}
 \label{sec:results}
 
-  ideally, for each problem:
-    define chosen characteristics of graph, e.g. edges/vertex
-    choose 3 sizes:
-      small = fits on 1 proc)
-      medium = out-of-core on 1 proc, but not on P procs
-      huge = impressive size
-  show performance plots for each size running on 1 to P procs
-    would like to see kink in plots as go out-of-core
-    be able to judge and explain basic scaling results
-  what machine: Odin or Tbird or RStorm?
-    something that maps to a vanilla cluster
-  where we have data:
-    show multiple machines
-    alternate non-MR algorithms
-      discuss alternate CC algorithms via Trilinos and hybrid
-    alternate MR implementations (Hadoop)
+In this section, we present performance results for the MapReduce
+graph algorithms of the preceeding section, implemented as small C++
+programs calling our MR-MPI library.
+
+The benchmarks were run on a medium-sized Linux cluster.  Describe
+Odin.
+
+We ran each of the algorithms on 3 artificial R-MAT graphs of
+different sizes, each on a varying number of processors.  The {\it
+small} problem size (around 1M edges) was a problem that could be run
+on a single processor.  The {\it medium} problem size (around 1B
+edges) could be run on a few processors.  The {\it large} problem size
+(around 1T edges) required most of the machine to run.
+
+The resulting timings give a sense of the inherent scalability of the
+MapReduce algorithms as graph size grows on a fixed number of
+processors, and of the parallel scalability for computing on a graph
+of fixed size on a growing number of processors.
+
+Discuss R-MAT generation times.
+
+Discuss PageRank performance.  Include Trilinos and other
+algorithms and machines?
+
+Discuss triangle finding times.
+
+Discuss connected component identification times.
+
+Discuss Luby maximally independent sets times.
+
+Discuss SSSP times.
