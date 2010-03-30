@@ -2342,7 +2342,7 @@ uint64_t MapReduce::roundup(uint64_t n, int nalign)
    write a histogram of value to screen with title
 ------------------------------------------------------------------------- */
 
-void MapReduce::write_histo(double value, char *title)
+void MapReduce::write_histo(double value, const char *title)
 {
   int histo[10],histotmp[10];
   double ave,max,min;

@@ -211,7 +211,7 @@ class MapReduce {
   void file_stats(int);
   uint64_t roundup(uint64_t, int);
   void start_timer();
-  void write_histo(double, char *);
+  void write_histo(double, const char *);
   void histogram(int, double *, double &, double &, double &,
 		 int, int *, int *);
 
