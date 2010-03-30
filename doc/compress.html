@@ -64,18 +64,17 @@ passed to your function is changed.  Your function must call two
 additional library functions in order to retrieve a block of values
 that does fit in memory, and process them one block at a time.
 </P>
-<P>In this case, the char *multivalue argument will be NULL, which is how
-your function can test for this possibility.  If you know huge
-multi-values will not occur or if you don't need to examine the values
-themselves, then the test is not needed.  Nvalues still holds the
-total number of values in the multi-value.  The meaning of the kv and
-ptr arguments is the same as discussed above.  However, the int
-*valuebytes argument is changed to be a pointer to the MapReduce
-object.  This is to allow you to make the following two kinds of calls
-back to the library:
+<P>In this case, the char *multivalue argument will be NULL and the
+nvalues argument will be 0.  Either of these can be tested for within
+your function.  If you know huge multi-values will not occur, then the
+test is not needed.  The meaning of the kv and ptr arguments is the
+same as discussed above.  However, the int *valuebytes argument is
+changed to be a pointer to the MapReduce object.  This is to allow you
+to make the following two kinds of calls back to the library:
 </P>
 <PRE>MapReduce *mr = (MapReduce *) valuebytes;
-int nblocks = mr->multivalue_blocks();
+int nblocks;
+uint64_t nvalues_total = mr->multivalue_blocks(nblocks);
 for (int iblock = 0; iblock < nblocks; iblock++) <I> 
   int nv = mr->multivalue_block(iblock,&multivalue,&valuebytes);
   for (int i = 0; i < nv; i++) <I>
@@ -83,6 +82,17 @@ for (int iblock = 0; iblock < nblocks; iblock++) <I>
   </I>
 </I> 
 </PRE>
+<P>The call to multivalue_blocks() returns both the total number of
+values (as an unsigned 64-bit integer), and the number of blocks of
+values in the multi-value.  Each call to multivalue_block() retrieves
+one block of values.  The number of values in the block is returned,
+as nv in this case.  The multivalue and valuebytes arguments are
+pointers to a char * and int * (i.e. a char ** and int **), which will
+be set to point to the block of values and their lengths respectively,
+so they can then be used just as the multivalue and valuebytes
+arguments in the myreduce() callback itself (when the values do not
+exceed available memory).
+</P>
 <P>The call to multivalue_blocks() returns the number of blocks of values
 in the multi-value.  Each call to multivalue_block() retrieves one
 block of values.  The number of values in the block (nv in this case)
