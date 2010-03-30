@@ -57,6 +57,7 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 #include "renumber_graph.hpp"
 #include "read_fb_data.hpp"
 #include "shared.hpp"
@@ -254,11 +255,7 @@ int main(int narg, char **args)
     // mrout KV = (Vi,[Vj Vk ... Vz ])
     // print out edges in using hashvalues from input file.
     
-#ifdef NEW_OUT_OF_CORE
     MapReduce *mrout = mredge->copy();
-#else
-    MapReduce *mrout = new MapReduce(*mredge);
-#endif
 
     mrout->convert();
     mrout->reduce(&hfile_write,fp);
@@ -312,11 +309,7 @@ int main(int narg, char **args)
     fp[2] = fopen(fname,"w");
 
     // Write the srcs and dests files, one per processor.
-#ifdef NEW_OUT_OF_CORE
     MapReduce *mrout = mredge->copy();
-#else
-    MapReduce *mrout = new MapReduce(*mredge);
-#endif
     mrout->convert();
     mrout->reduce(&time_series_write,fp);
     
@@ -337,11 +330,7 @@ int main(int narg, char **args)
 #endif
     fp[0] = fopen(fname,"w");
       
-#ifdef NEW_OUT_OF_CORE
     mrout = mrvert->copy();
-#else
-    mrout = new MapReduce(*mrvert);
-#endif
    
     mrout->clone();
     mrout->reduce(key_value_reverse,NULL);
@@ -370,11 +359,7 @@ int main(int narg, char **args)
     // nsingleton = # of verts with 0 outdegree
     
     if (me == 0) printf("Generating out-degree histogram...\n");
-#ifdef NEW_OUT_OF_CORE
     MapReduce *mrdegree = mredge->copy();
-#else
-    MapReduce *mrdegree = new MapReduce(*mredge);
-#endif
 
     mrdegree->collate(NULL);
     uint64_t n = mrdegree->reduce(&edge_count,NULL);
@@ -419,11 +404,7 @@ int main(int narg, char **args)
     // nsingleton_in = # of verts with 0 indegree
     
     if (me == 0) printf("Generating in-degree histogram...\n");
-#ifdef NEW_OUT_OF_CORE
     MapReduce *mrdegree = mredge->copy();
-#else
-    MapReduce *mrdegree = new MapReduce(*mredge);
-#endif
     mrdegree->clone();
     mrdegree->reduce(&edge_reverse,NULL);  // Assumes destination vertex is
                                            // first field in EDGE struct.
@@ -494,11 +475,7 @@ int main(int narg, char **args)
     FILE *fp = fopen(fname, "w");
 
     if (mfile_weights) {
-#ifdef NEW_OUT_OF_CORE
       MapReduce *mrout = mredge->copy();
-#else
-      MapReduce *mrout = new MapReduce(*mredge);
-#endif
       mrout->convert();
       mrout->reduce(&matrix_write_weights,fp);
       
@@ -509,24 +486,15 @@ int main(int narg, char **args)
       // mrdegree = vertices with their out degree as negative value
       // nsingleton = # of verts with 0 out-degree
     
-#ifdef NEW_OUT_OF_CORE
       MapReduce *mrdegree = mredge->copy();
-#else
-      MapReduce *mrdegree = new MapReduce(*mredge);
-#endif
       mrdegree->collate(NULL);
       uint64_t n = mrdegree->reduce(&edge_count,NULL);
       nsingleton = nverts - n;
 
       // mrout KV = (Vi,[Vj Vk ... Vz -outdegree-of-Vi]
       
-#ifdef NEW_OUT_OF_CORE
       MapReduce *mrout = mredge->copy();
       mrout->add(mrdegree);
-#else
-      MapReduce *mrout = new MapReduce(*mredge);
-      mrout->kv->add(mrdegree->kv);
-#endif
       mrout->collate(NULL);
       mrout->reduce(&matrix_write_inverse_degree,fp);
   

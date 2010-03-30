@@ -1,10 +1,9 @@
 
 // Code simplifying use of out-of-core MR-MPI.
+// Karen Devine, March 2010
 
 #ifndef _BLOCKMACROS_HPP
 #define _BLOCKMACROS_HPP
-
-#ifdef NEW_OUT_OF_CORE
 
 // Macros defining how to loop over blocks when multivalue is stored in
 // more than one block.  These macros are used frequently, so we define them 
@@ -33,72 +32,5 @@
 
 #define BREAK_BLOCK_LOOP break
 #define END_BLOCK_LOOP } 
-
-#else  // !NEW_OUT_OF_CORE
-
-// These macros are not needed with the in-core mapreduce library.
-// We'll define them as no-ops (with curly braces so compilation is consistent),
-// though, so we don't need as many #ifdefs in the code.
-
-#define CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues) 
-#define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues) {
-
-#define BREAK_BLOCK_LOOP 
-#define END_BLOCK_LOOP }
-
-#endif  // NEW_OUT_OF_CORE
-
-/////////////////////////////////////////////////////////////////////////////
-#ifdef LOCALDISK
-#define _QUOTEME(x) #x
-#define QUOTEME(x) _QUOTEME(x)
-#define MYLOCALDISK QUOTEME(LOCALDISK)
-
-void test_local_disks() 
-{
-// Test the file system for writing; make sure nodes can write to disks.
-  int me;
-  MPI_Comm_rank(MPI_COMM_WORLD, &me);
-  char filename[29];
-  sprintf(filename, "%s/test.%03d", MYLOCALDISK, me);
-  FILE *fp = fopen(filename, "w");
-  if (fp == NULL) {
-    char name[252];
-    int len;
-    MPI_Get_processor_name(name, &len);
-    name[len]='\0';
-    printf("ERROR IN THE LOCAL DISK SYSTEM\n");
-    fflush(stdout);
-    printf("RANK %d NODE %s: CANNOT OPEN TEST FILE ON LOCAL DISK %s. (%d %s)\n",
-           me, name, MYLOCALDISK, me, name);
-    fflush(stdout);
-    MPI_Abort(MPI_COMM_WORLD, -1);
-  }
-  fclose(fp);
-  remove(filename);
-}
-
-#else
-
-#define MYLOCALDISK "."
-
-#endif
-
-/////////////////////////////////////////////////////////////////////////////
-void greetings()
-{
-  // A sanity-check message from the processor.
-  int me, np;
-  MPI_Comm_rank(MPI_COMM_WORLD, &me);
-  MPI_Comm_size(MPI_COMM_WORLD, &np);
-
-  char name[252];
-  int len;
-  MPI_Get_processor_name(name, &len);
-  name[len]='\0';
-
-  printf("GREETINGS FROM RANK %d of %d, NODE %s.\n",
-         me, np, name);
-}
 
 #endif

@@ -51,11 +51,7 @@ void renumber_graph(
   LABEL label;
   label.count = 0;
 
-#ifdef NEW_OUT_OF_CORE
   int nlocal = mrvert->kv->nkv;
-#else
-  int nlocal = mrvert->kv->nkey;
-#endif
 
   MPI_Scan(&nlocal,&label.nthresh,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
   label.nthresh -= nlocal;
@@ -65,20 +61,12 @@ void renumber_graph(
     
   // reset all vertices in mredge from 1 to N
 
-#ifdef NEW_OUT_OF_CORE
   mredge->add(mrvert);
-#else
-  mredge->kv->add(mrvert->kv);
-#endif
 
   mredge->collate(NULL);
   mredge->reduce(&edge_label1,NULL);
 
-#ifdef NEW_OUT_OF_CORE
   mredge->add(mrvert);
-#else
-  mredge->kv->add(mrvert->kv);
-#endif
 
   mredge->collate(NULL);
   mredge->reduce(&edge_label2,NULL);

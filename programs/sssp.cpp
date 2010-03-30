@@ -18,12 +18,17 @@
 #include "blockmacros.hpp"
 #include "read_fb_data.hpp"
 #include "read_mm_data.hpp"
+#include "rmat.hpp"
 #include "shared.hpp"
 
 using namespace std;
 using namespace MAPREDUCE_NS;
 
 #define MAX_NUM_EXPERIMENTS 60
+
+#define FBFILE 0
+#define MMFILE 1
+#define RMAT 2
 
 /////////////////////////////////////////////////////////////////////////////
 // Class used to pass distance information through the MapReduce system.
@@ -282,7 +287,7 @@ public:
   };
 
   bool run();
-  bool get_next_source(VERTEX *);
+  bool get_next_source(VERTEX *, uint64_t);
   double tcompute;  // Compute time
   double twrite;    // Write time
   uint64_t tnlabeled;  // Total number of vtx labeled in all experiments.
@@ -295,8 +300,8 @@ private:
                                 // proc 0.
   map<VERTEX, char> sourcemap;  // unique vertices previously used as sources;
                                 // populated only on proc 0.
-  bool mmfile;                  // Flag indicating whether input (source and
-                                // graph) is a matrix-market file.
+  int filetype;                 // Flag indicating source of the input
+                                // (FBFILE, MMFILE, or RMAT).
   bool write_files;             // Flag indicating whether to write files
                                 // after computing SSSP.
   uint64_t counter;             // Count how many times the SSSP is run().
@@ -319,7 +324,7 @@ SSSP<VERTEX, EDGE>::SSSP(
   tcompute(0.),
   twrite(0.),
   sourcefp(NULL), 
-  mmfile(false),
+  filetype(FBFILE),
   write_files(false),
   counter(0),
   tnlabeled(0)
@@ -333,7 +338,7 @@ SSSP<VERTEX, EDGE>::SSSP(
     if (strcmp(args[iarg], "-s") == 0) {
       iarg++;
       if (me == 0) {
-        if (mmfile) {
+        if (filetype == MMFILE) {
           sourcefp = fopen(args[iarg], "r");
           // Skip comment lines
           char ch;
@@ -342,8 +347,13 @@ SSSP<VERTEX, EDGE>::SSSP(
           // Skip header line
           while (getc(sourcefp) != '\n');
         }
-        else
+        else if (filetype == FBFILE) {
           sourcefp = fopen(args[iarg], "rb");
+        }
+        else {
+          cout << "Error:  -s is invalid option when generating RMAT; " << endl;
+          MPI_Abort(MPI_COMM_WORLD, -1);
+        }
         if (!sourcefp) {
           cout << "Unable to open source file " << args[iarg] << endl;
           MPI_Abort(MPI_COMM_WORLD, -1);          
@@ -353,7 +363,12 @@ SSSP<VERTEX, EDGE>::SSSP(
     else if (strcmp(args[iarg], "-mmfile") == 0) {
       // Indicate whether source and graph files are matrix-market format.
       // Must be specified before -s, -f and -ff arguments.
-      mmfile = true;
+      filetype = MMFILE;
+    }
+    else if (strcmp(args[iarg], "-rmat") == 0) {
+      // Automatically generate RMAT input.
+      // Sources will be randomly selected vertices.
+      filetype = RMAT;
     }
     else if (strcmp(args[iarg], "-o") == 0) {
       write_files = true;
@@ -378,12 +393,13 @@ SSSP<VERTEX, EDGE>::SSSP(
 
 template <typename VERTEX, typename EDGE>
 bool SSSP<VERTEX, EDGE>::get_next_source(
-  VERTEX *source
+  VERTEX *source,
+  uint64_t nverts
 )
 {
   source->reset();
   if (me == 0) {
-    if (mmfile && sourcefp) {
+    if ((filetype == MMFILE) && sourcefp) {
       // Read source vertices from text file; keep reading until reach EOF or
       // until find a source vertex that we haven't used before.
       // Keep track of used source vtxs in a map (hash table would be better).
@@ -403,7 +419,7 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
           source->reset();
       }
     }
-    else if (sourcefp) {
+    else if ((filetype == FBFILE) && sourcefp) {
       // Read source vertices from file; keep reading until reach EOF or
       // until find a source vertex that we haven't used before.
       // Keep track of used source vtxs in a map (hash table would be better).
@@ -424,6 +440,10 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
             source->reset();
         }
       }
+    }
+    else if (filetype == RMAT) {
+      // Randomly select a vertex in range [0..nverts-1].
+      source->v[0] = (uint64_t) (drand48() * nverts);
     }
     else {
       static bool firsttime = true;
@@ -598,7 +618,7 @@ int main(int narg, char **args)
 {
   MPI_Init(&narg, &args);
   int me, np;
-  bool fb_file = true;
+  int filetype = FBFILE;
   MPI_Comm_size(MPI_COMM_WORLD, &np);
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
@@ -611,7 +631,10 @@ int main(int narg, char **args)
 
   for (int i = 0; i < narg; i++) 
     if (strcmp(args[i], "-mmfile") == 0) {
-      fb_file = false;
+      filetype = MMFILE;
+      break;
+    } else if (strcmp(args[i], "-rmat") == 0) {
+      filetype = RMAT;
       break;
     }
 
@@ -630,7 +653,7 @@ int main(int narg, char **args)
   uint64_t nrawedges; // Number of edges in input files.
   uint64_t nedges;    // Number of unique edges in input files.
   int vertexsize;
-  if (fb_file) { // FB files
+  if (filetype == FBFILE) { // FB files
     ReadFBData readFB(narg, args, true);
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -639,7 +662,7 @@ int main(int narg, char **args)
     readFB.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
     vertexsize = readFB.vertexsize;
   }
-  else { // MM file
+  else if (filetype == MMFILE) { // MM file
     ReadMMData readMM(narg, args, true);
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -648,6 +671,16 @@ int main(int narg, char **args)
     readMM.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
     vertexsize = readMM.vertexsize;
   }
+  else { // Generate RMAT
+    GenerateRMAT rmat(narg, args);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    tstart = MPI_Wtime();
+
+    rmat.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
+    vertexsize = 8;
+  }
+
   MPI_Barrier(MPI_COMM_WORLD);
   double tmap = MPI_Wtime();
 
