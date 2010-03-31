@@ -257,12 +257,13 @@ void output_distances(char *key, int keybytes, char *multivalue,
   }
   
 // FOR GREG
-  if (e->wt < FLT_MAX-1.)
-    *fp << *((VERTEX *)key) << "   " << e->wt << endl;
-  else
-    *fp << *((VERTEX *)key) << "   " << -1. << endl;
+//  if (e->wt < FLT_MAX-1.)
+//    *fp << *((VERTEX *)key) << "   " << e->wt << endl;
+//  else
+//    *fp << *((VERTEX *)key) << "   " << -1. << endl;
 
 //  *fp << *((VERTEX *)key) << "   " << *e << endl;
+  *fp << *((VERTEX *)key) << "   " << e->wt << endl;
 
 //  if (keybytes == 16)
 //    fprintf(fp, "%lld %lld    %lld %lld  %ld\n",
@@ -381,7 +382,7 @@ SSSP<VERTEX, EDGE>::SSSP(
     }
     iarg++;
   }
-  if (me == 0 && !sourcefp) {
+  if ((me == 0) && (filetype != RMAT) && !sourcefp) {
     cout << "Source-vertex file missing; hard-coded source will be used."
          << endl
          << "Use -s to specify source-vertex file."
@@ -448,7 +449,7 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
     }
     else if (filetype == RMAT) {
       // Randomly select a vertex in range [0..nverts-1].
-      source->v[0] = (uint64_t) (drand48() * nverts);
+      source->v[0] = ((uint64_t) (drand48() * nverts)) + 1;
     }
     else {
       static bool firsttime = true;
@@ -564,6 +565,7 @@ bool SSSP<VERTEX, EDGE>::run()
 
   if (write_files) {
     char filename[254];
+#define KEEP_OUTPUT
 #ifdef KEEP_OUTPUT
     // Custom filenames for each source -- lots of big files.
     // All files written to NFS.

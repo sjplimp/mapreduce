@@ -123,6 +123,11 @@ GenerateRMAT::GenerateRMAT(int narg, char **args)
       outfile = new char[n];
       strcpy(outfile,args[iarg+1]);
       iarg += 2;
+    } else if (strcmp(args[iarg],"-e2") == 0) {
+      printf("ERROR:  -e2 not valid with rmat generation\n");
+      MPI_Abort(MPI_COMM_WORLD,1);
+    } else { //Skip this argument
+      iarg++;
     }
   }
 
@@ -413,7 +418,7 @@ void generate_vertex(int itask, KeyValue *kv, void *ptr)
   RMAT_VERTEX last_vtx = first_vtx + fraction + (utask < remainder);
 
   for (RMAT_VERTEX i = first_vtx; i < last_vtx; i++) {
-    kv->add((char *) i, sizeof(RMAT_VERTEX), NULL, 0);
+    kv->add((char *) &i, sizeof(RMAT_VERTEX), NULL, 0);
   }
 }
 
