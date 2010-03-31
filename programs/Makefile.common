@@ -4,15 +4,15 @@ SRC = 		mrvector.cpp mrmatrix.cpp test_matvec.cpp \
 		random_mars.cpp \
 		link2graph_weighted.cpp \
 		mrglobalsum.cpp test_gs.cpp \
-	        tri.cpp tri_new.cpp \
-		sssp_v2.cpp sssp.cpp \
+	        tri_new.cpp \
 		wordfreq.cpp stress_test1.cpp stress_test2.cpp
+#		sssp_v2.cpp sssp.cpp \
 
 OBJ = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank gs ccd ccnd link2graph_weighted sssp sssp_v2 wordfreq stress_test1 stress_test2
+all:	matvec pagerank gs ccd ccnd link2graph_weighted wordfreq stress_test1 stress_test2 tri_new
 
 # Connected Components without distances; two versions of the 
 # algorithm (original Cohen + more scalable Plimpton) can be run 

@@ -17,6 +17,7 @@
 #include "mrvector.h"
 #include "mrall.h"
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 
 using namespace MAPREDUCE_NS;
 using namespace std;

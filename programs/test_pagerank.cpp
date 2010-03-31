@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 
 using namespace MAPREDUCE_NS;
 using namespace std;

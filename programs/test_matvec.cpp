@@ -36,6 +36,7 @@
 #include "mrmatrix.h"
 #include "mrvector.h"
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 #include <assert.h>
 
 using namespace MAPREDUCE_NS;

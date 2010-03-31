@@ -31,6 +31,7 @@
 #include "keyvalue.h"
 #include "random_mars.h"
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 #include "assert.h"
 
 #include "test_cc_common.h"

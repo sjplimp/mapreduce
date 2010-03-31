@@ -10,19 +10,20 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 
 using namespace MAPREDUCE_NS;
 
 void fileread(int, char *, int, KeyValue *, void *);
-void invert_edges(int, char *, int, char *, int, KeyValue *, void *);
+void invert_edges(uint64_t, char *, int, char *, int, KeyValue *, void *);
 void remove_duplicates(char *, int, char *, int, int *, KeyValue *, void *);
-void emit_vertices(int, char *, int, char *, int, KeyValue *, void *);
+void emit_vertices(uint64_t, char *, int, char *, int, KeyValue *, void *);
 void first_degree(char *, int, char *, int, int *, KeyValue *, void *);
 void second_degree(char *, int, char *, int, int *, KeyValue *, void *);
-void low_degree(int, char *, int, char *, int, KeyValue *, void *);
+void low_degree(uint64_t, char *, int, char *, int, KeyValue *, void *);
 void nsq_angles(char *, int, char *, int, int *, KeyValue *, void *);
 void emit_triangles(char *, int, char *, int, int *, KeyValue *, void *);
-void output_triangle(int, char *, int, char *, int, KeyValue *, void *);
+void output_triangle(uint64_t, char *, int, char *, int, KeyValue *, void *);
 
 typedef int VERTEX;      // vertex ID
 
@@ -173,7 +174,7 @@ void fileread(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 // invert edges so all have vi < vj
 // drop edges where vi = vj
 
-void invert_edges(int itask, char *key, int keybytes, char *value,
+void invert_edges(uint64_t itask, char *key, int keybytes, char *value,
 		  int valuebytes, KeyValue *kv, void *ptr) 
 {
   EDGE *edge = (EDGE *) key;
@@ -198,7 +199,7 @@ void remove_duplicates(char *key, int keybytes, char *multivalue,
 // convert edge key to vertex keys
 // emit two KV per edge: (vi,vj) and (vj,vi)
 
-void emit_vertices(int itask, char *key, int keybytes, char *value,
+void emit_vertices(uint64_t itask, char *key, int keybytes, char *value,
 		   int valuebytes, KeyValue *kv, void *ptr) 
 {
   EDGE *edge = (EDGE *) key;
@@ -263,7 +264,7 @@ void second_degree(char *key, int keybytes, char *multivalue,
 // low-degree vertex emits (vi,vj)
 // break tie with low-index vertex
 
-void low_degree(int itask, char *key, int keybytes, char *value,
+void low_degree(uint64_t itask, char *key, int keybytes, char *value,
 		int valuebytes, KeyValue *kv, void *ptr) 
 {
   EDGE *edge = (EDGE *) key;
@@ -336,7 +337,7 @@ void emit_triangles(char *key, int keybytes, char *multivalue,
 
 // print triangles to local file
 
-void output_triangle(int itask, char *key, int keybytes, char *value,
+void output_triangle(uint64_t itask, char *key, int keybytes, char *value,
 		     int valuebytes, KeyValue *kv, void *ptr)
 {
   FILE *fp = (FILE *) ptr;

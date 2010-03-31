@@ -34,12 +34,14 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 #include "genPowerLaw.hpp"
+#include "getopt.h"
 
 using namespace MAPREDUCE_NS;
 
 typedef void MAPFN(int, KeyValue*, void*);
-typedef void MAPFN2(int, char *, int, char *, int, KeyValue *, void *);
+typedef void MAPFN2(uint64_t, char *, int, char *, int, KeyValue *, void *);
 typedef void REDUCEFN(char*, int, char*, int, int*, KeyValue*, void*);
 MAPFN fileread;
 MAPFN fileread_redistrib;
@@ -457,7 +459,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    depending on flag, emit KV or print it, up to limit
 ------------------------------------------------------------------------- */
 
-void output(int itask, char *key, int keybytes, char *value,
+void output(uint64_t itask, char *key, int keybytes, char *value,
             int valuebytes, KeyValue *kv, void *ptr)
 {
   Count *count = (Count *) ptr;

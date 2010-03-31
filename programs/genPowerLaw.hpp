@@ -52,6 +52,7 @@
 #include "keyvalue.h"
 #include "keymultivalue.h"
 #include "blockmacros.hpp"
+#include "assert.h"
 
 using namespace MAPREDUCE_NS;
 

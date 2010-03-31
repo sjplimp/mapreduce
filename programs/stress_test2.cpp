@@ -35,6 +35,7 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 #include "genPowerLaw.hpp"
 #include <assert.h>
 
