@@ -101,7 +101,7 @@ class MapReduce {
   void kmv_stats(int);
   void cummulative_stats(int, int);
 
-  void set_fpath(char *);
+  void set_fpath(const char *);
 
   // query functions
 

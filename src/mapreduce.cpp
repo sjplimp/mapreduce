@@ -2167,7 +2167,7 @@ void MapReduce::cummulative_stats(int level, int reset)
    change fpath, but only if allocation has not occurred
 ------------------------------------------------------------------------- */
 
-void MapReduce::set_fpath(char *str)
+void MapReduce::set_fpath(const char *str)
 {
   if (allocated) return;
 
