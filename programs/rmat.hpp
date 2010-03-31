@@ -35,7 +35,7 @@ using namespace MAPREDUCE_NS;
 
 void generate_vertex(int, KeyValue *, void *);
 void generate_edge(int, KeyValue *, void *);
-void final_edge(int, KeyValue *, void *);
+void final_edge(char *, int, char *, int, int *, KeyValue *, void *);
 void cull(char *, int, char *, int, int *, KeyValue *, void *);
 void output(char *, int, char *, int, int *, KeyValue *, void *);
 void nonzero(char *, int, char *, int, int *, KeyValue *, void *);
@@ -61,6 +61,7 @@ public:
   FILE *fp;
   int me;
   int nprocs;
+  bool printstats;
 
   GenerateRMAT(int, char**);
   ~GenerateRMAT() {delete [] outfile;};
@@ -76,7 +77,7 @@ GenerateRMAT::GenerateRMAT(int narg, char **args)
 
   // parse command-line args
 
-  if (me == 0) printf("Syntax for rmat: -rn N -rz z -ra a -rb b -rc c -rd d -rf frac -rs seed {-ro outfile}\n");
+  if (me == 0) printf("Syntax for rmat: -rn N -rz z -ra a -rb b -rc c -rd d -rf frac -rs seed {-ro outfile} -rp\n");
 
   // Defaults
   nlevels = 1;
@@ -85,8 +86,8 @@ GenerateRMAT::GenerateRMAT(int narg, char **args)
   fraction = 0.1;
   int seed = 1;
   outfile = NULL;
+  printstats = false;
 
-  int flag = 0;
   int iarg = 1;
 
   while (iarg < narg) {
@@ -114,6 +115,9 @@ GenerateRMAT::GenerateRMAT(int narg, char **args)
     } else if (strcmp(args[iarg],"-rs") == 0) {
       seed = atoi(args[iarg+1]); 
       iarg += 2;
+    } else if (strcmp(args[iarg],"-rp") == 0) {
+      printstats = true;
+      iarg += 1;
     } else if (strcmp(args[iarg],"-ro") == 0) {
       int n = strlen(args[iarg+1]) + 1;
       outfile = new char[n];
@@ -156,9 +160,9 @@ void GenerateRMAT::run(
   // Each processor generates a range of the vertices.
   MapReduce *mrvert = new MapReduce(MPI_COMM_WORLD);
   mrvert->map(nprocs, generate_vertex, this);
-  mrvert->aggregate();   // Not necessary, but moves vertices to procs to 
-                         // which they will be hashed later.  May be good to
-                         // do it once up front.
+  mrvert->aggregate(NULL); // Not necessary, but moves vertices to procs to 
+                           // which they will be hashed later.  May be good to
+                           // do it once up front.
   *nverts = order;
   *return_mrvert = mrvert;
 
@@ -175,7 +179,7 @@ void GenerateRMAT::run(
   while (nremain) {
     niterate++;
     ngenerate = nremain/nprocs;
-    if (me < nremain % nprocs) ngenerate++;
+    if (me < (nremain % nprocs)) ngenerate++;
     mredge->map(nprocs,&generate_edge,this,1);
     uint64_t nunique = mredge->collate(NULL);
     if (nunique == ntotal) break;
@@ -207,7 +211,7 @@ void GenerateRMAT::run(
     std::cout << ntotal << " nonzeros in matrix" << std::endl;
   }
  
-  if (stats) {
+  if (printstats) {
     MapReduce *mr = mredge->copy();
 
     mr->reduce(&nonzero,NULL);
@@ -267,25 +271,25 @@ void generate_edge(int itask, KeyValue *kv, void *ptr)
       rn = drand48();
       if (rn < a1) {
       } else if (rn < a1+b1) {
-	j += delta;
+        j += delta;
       } else if (rn < a1+b1+c1) {
-	i += delta;
+        i += delta;
       } else {
-	i += delta;
-	j += delta;
+        i += delta;
+        j += delta;
       }
       
       delta /= 2;
       if (fraction > 0.0) {
-	a1 += a1*fraction * (drand48() - 0.5);
-	b1 += b1*fraction * (drand48() - 0.5);
-	c1 += c1*fraction * (drand48() - 0.5);
-	d1 += d1*fraction * (drand48() - 0.5);
-	total = a1+b1+c1+d1;
-	a1 /= total;
-	b1 /= total;
-	c1 /= total;
-	d1 /= total;
+        a1 += a1*fraction * (drand48() - 0.5);
+        b1 += b1*fraction * (drand48() - 0.5);
+        c1 += c1*fraction * (drand48() - 0.5);
+        d1 += d1*fraction * (drand48() - 0.5);
+        total = a1+b1+c1+d1;
+        a1 /= total;
+        b1 /= total;
+        c1 /= total;
+        d1 /= total;
       }
     }
 
@@ -302,7 +306,7 @@ void generate_edge(int itask, KeyValue *kv, void *ptr)
 ------------------------------------------------------------------------- */
 
 void cull(char *key, int keybytes, char *multivalue,
-	  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+          int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   kv->add(key,keybytes,NULL,0);
 }
@@ -312,7 +316,7 @@ void cull(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void output(char *key, int keybytes, char *multivalue,
-	    int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+            int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   GenerateRMAT *rmat = (GenerateRMAT *) ptr;
   RMAT_EDGE *edge = (RMAT_EDGE *) key;
@@ -326,7 +330,7 @@ void output(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void nonzero(char *key, int keybytes, char *multivalue,
-	     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+             int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   RMAT_EDGE *edge = (RMAT_EDGE *) key;
   kv->add((char *) &edge->vi,sizeof(RMAT_VERTEX),NULL,0);
@@ -339,7 +343,7 @@ void nonzero(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void degree(char *key, int keybytes, char *multivalue,
-	 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+         int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   uint64_t total_nvalues;
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
@@ -353,7 +357,7 @@ void degree(char *key, int keybytes, char *multivalue,
 ------------------------------------------------------------------------- */
 
 void histo(char *key, int keybytes, char *multivalue,
-	   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+           int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   uint64_t total_nvalues;
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
@@ -379,7 +383,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
 ------------------------------------------------------------------------- */
 
 void stats(uint64_t itask, char *key, int keybytes, char *value,
-	   int valuebytes, KeyValue *kv, void *ptr)
+           int valuebytes, KeyValue *kv, void *ptr)
 {
   uint64_t *total = (uint64_t *) ptr;
   uint64_t nnz = *(uint64_t *) key;
@@ -400,10 +404,13 @@ void generate_vertex(int itask, KeyValue *kv, void *ptr)
   uint64_t remainder = rmat->order % rmat->nprocs;
   RMAT_VERTEX first_vtx = 0;
 
-  if (itask > 0) 
-    first_vtx = (itask-1) * fraction + MIN((itask-1), remainder);
+  assert(itask >= 0);
+  uint64_t utask = (uint64_t) itask;
 
-  RMAT_VERTEX last_vtx = first_vtx + fraction + (itask < remainder);
+  if (utask > 0) 
+    first_vtx = (utask-1) * fraction + MIN((utask-1), remainder);
+
+  RMAT_VERTEX last_vtx = first_vtx + fraction + (utask < remainder);
 
   for (RMAT_VERTEX i = first_vtx; i < last_vtx; i++) {
     kv->add((char *) i, sizeof(RMAT_VERTEX), NULL, 0);
@@ -415,7 +422,8 @@ void generate_vertex(int itask, KeyValue *kv, void *ptr)
 // Input:   key = RMAT_EDGE
 // Output:  key = RMAT_EDGE.i  value = RMAT_EDGE.j + weight
 //----------------------------------------------------------------------- */
-void final_edge(int itask, KeyValue *kv, void *ptr)
+void final_edge(char *key, int keybytes, char *multivalue,
+                int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   RMAT_EDGE *edge = (RMAT_EDGE *) key;
   EDGE08 edge08;

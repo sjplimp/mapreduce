@@ -30,6 +30,7 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
+#include "localdisks.hpp"
 #include "shared.hpp"
 
 using namespace std;

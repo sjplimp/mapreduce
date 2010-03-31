@@ -436,7 +436,7 @@ void procs2lattice3d(int me, int nprocs, int nx, int ny, int nz,
 
 /* ---------------------------------------------------------------------- */
 
-void error(int me, char *str)
+void error(int me, const char *str)
 {
   if (me == 0) printf("ERROR: %s\n",str);
   MPI_Abort(MPI_COMM_WORLD,1);
@@ -444,7 +444,7 @@ void error(int me, char *str)
 
 /* ---------------------------------------------------------------------- */
 
-void errorone(char *str)
+void errorone(const char *str)
 {
   printf("ERROR: %s\n",str);
   MPI_Abort(MPI_COMM_WORLD,1);

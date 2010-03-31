@@ -279,7 +279,7 @@ void output_distances(char *key, int keybytes, char *multivalue,
 template <typename VERTEX, typename EDGE>
 class SSSP {
 public:
-  SSSP(int, char **, MapReduce *, MapReduce *);
+  SSSP(int, char **, uint64_t, MapReduce *, uint64_t, MapReduce *);
   ~SSSP()
   {
     if (sourcefp) fclose(sourcefp);
@@ -287,14 +287,16 @@ public:
   };
 
   bool run();
-  bool get_next_source(VERTEX *, uint64_t);
+  bool get_next_source(VERTEX *);
   double tcompute;  // Compute time
   double twrite;    // Write time
   uint64_t tnlabeled;  // Total number of vtx labeled in all experiments.
 private:
   int me;
   int np;
+  uint64_t nverts;
   MapReduce *mrvert;
+  uint64_t nedges;
   MapReduce *mredge;
   FILE *sourcefp;               // Pointer to source-vtx file; set only on 
                                 // proc 0.
@@ -316,18 +318,22 @@ template <typename VERTEX, typename EDGE>
 SSSP<VERTEX, EDGE>::SSSP(
   int narg, 
   char **args, 
+  uint64_t nverts_,
   MapReduce *mrvert_, 
+  uint64_t nedges_,
   MapReduce *mredge_
 ) :
-  mrvert(mrvert_),
-  mredge(mredge_),
   tcompute(0.),
   twrite(0.),
+  tnlabeled(0),
+  nverts(nverts_),
+  mrvert(mrvert_),
+  nedges(nedges_),
+  mredge(mredge_),
   sourcefp(NULL), 
   filetype(FBFILE),
   write_files(false),
-  counter(0),
-  tnlabeled(0)
+  counter(0) 
 {
   MPI_Comm_rank(MPI_COMM_WORLD, &me); 
   MPI_Comm_size(MPI_COMM_WORLD, &np); 
@@ -393,8 +399,7 @@ SSSP<VERTEX, EDGE>::SSSP(
 
 template <typename VERTEX, typename EDGE>
 bool SSSP<VERTEX, EDGE>::get_next_source(
-  VERTEX *source,
-  uint64_t nverts
+  VERTEX *source
 )
 {
   source->reset();
@@ -487,10 +492,8 @@ bool SSSP<VERTEX, EDGE>::run()
     return false;  // no unique source remains; quit execution and return.
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
-#ifdef NEW_OUT_OF_CORE
   mrpath->set_fpath(MYLOCALDISK); 
   mrpath->memsize = MRMEMSIZE;
-#endif
 
   if (me == 0) cout << counter << ": BEGINNING SOURCE " << source << endl;
 
@@ -506,11 +509,7 @@ bool SSSP<VERTEX, EDGE>::run()
     // Add Edges to Paths.
     // Collate Paths by vertex; collects edges and any distances 
     // computed so far.
-#ifdef NEW_OUT_OF_CORE
     mrpath->add(mredge);
-#else
-    mrpath->kv->add(mredge->kv);
-#endif
 
     mrpath->collate(NULL);
     nlabeled = mrpath->reduce(bfs_with_distances<VERTEX,EDGE>, &done);
@@ -519,11 +518,7 @@ bool SSSP<VERTEX, EDGE>::run()
     MPI_Allreduce(&done, &alldone, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
     done = alldone;
 #ifdef VERBOSE
-#ifdef NEW_OUT_OF_CORE
     MapReduce *mrtmp = mrpath->copy();
-#else
-    MapReduce *mrtmp = new MapReduce(*mrpath);
-#endif
     uint64_t reallabeled = mrtmp->collate(NULL);
     if (me == 0)
       cout << "   Iteration " << iter << "; #Vtx_with_possible_distances " << reallabeled << "; data_size " << nlabeled;
@@ -538,19 +533,11 @@ bool SSSP<VERTEX, EDGE>::run()
 
   // Finish up:  Want distance from S to all vertices.  Have to add in 
   //             vertices that are not connected to S through any paths.
-#ifdef NEW_OUT_OF_CORE
   MapReduce *mrinit = mrvert->copy();
-#else
-  MapReduce *mrinit = new MapReduce(*mrvert);
-#endif
   mrinit->clone();
   mrinit->reduce(default_vtx_distance<VERTEX,EDGE>, NULL);
 
-#ifdef NEW_OUT_OF_CORE
   mrpath->add(mrinit);
-#else
-  mrpath->kv->add(mrinit->kv);
-#endif
   delete mrinit;
 
   mrpath->collate(NULL);
@@ -686,7 +673,7 @@ int main(int narg, char **args)
 
   srand48(1l);
   if (vertexsize == 16) {
-    SSSP<VERTEX16, EDGE16> sssp(narg, args, mrvert, mredge);
+    SSSP<VERTEX16, EDGE16> sssp(narg, args, nverts, mrvert, nedges, mredge);
     if (me == 0) cout << "Beginning sssp with 16-byte keys." << endl;
     while (sssp.run());
     if (me == 0) {
@@ -696,7 +683,7 @@ int main(int narg, char **args)
     }
   }
   else if (vertexsize == 8) {
-    SSSP<VERTEX08, EDGE08> sssp(narg, args, mrvert, mredge);
+    SSSP<VERTEX08, EDGE08> sssp(narg, args, nverts, mrvert, nedges, mredge);
     if (me == 0) cout << "Beginning sssp with 8-byte keys." << endl;
     while (sssp.run());
     if (me == 0) {

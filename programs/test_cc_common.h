@@ -44,8 +44,8 @@ void procs2lattice2d(int, int, int, int, int &, int &, int &, int &);
 void procs2lattice3d(int, int, int, int, int, int &, int &, int &, int &, 
                                               int &, int &);
 
-void error(int, char *);
-void errorone(char *);
+void error(int, const char *);
+void errorone(const char *);
 
 /* ---------------------------------------------------------------------- */
 
