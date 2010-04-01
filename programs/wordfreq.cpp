@@ -78,7 +78,7 @@ int main(int narg, char **args)
   bool postprocess = false;
   enum GenPowerLawEnum gen_flag = GEN_DEFAULT;
   int N = -1;
-  int memsize = 2000;
+  int memsize = 64;
   const char *optstring = "bcf:m:n:p";
 
   char ch;

@@ -387,9 +387,6 @@ int main(int narg, char **args)
   double alpha = 0.8;
   double tolerance = 0.00001;
   int NumberOfPageranks = 1;
-#ifdef NEW_OUT_OF_CORE
-  int memsize = 1024;
-#endif
 
   // Parse the command line.
   int ch;

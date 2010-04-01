@@ -24,7 +24,7 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-#define MAX_NUM_EXPERIMENTS 60
+#define MAX_NUM_EXPERIMENTS 2
 
 #define FBFILE 0
 #define MMFILE 1
@@ -552,10 +552,14 @@ bool SSSP<VERTEX, EDGE>::run()
   double tstop = MPI_Wtime();
   tcompute += (tstop - tstart);
 
-  if (me == 0) cout << counter << ":  Source = " << source
+  if (me == 0) {
+    cout << counter << ":  Source = " << source
                     << "; Iterations = " << iter 
-                    << "; Num Vtx Labeled = " << nlabeled  
+                    << "; Num Vtx Labeled = " << nlabeled << endl;
+    cout << counter << ":  Source = " << source
+                    << "; Iterations = " << iter 
                     << "; Compute Time = " << (tstop-tstart) << endl;
+  }
   tnlabeled += nlabeled;
   counter++;
 

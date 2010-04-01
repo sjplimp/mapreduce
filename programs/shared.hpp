@@ -8,7 +8,7 @@
 #ifndef _SHARED_HPP
 #define _SHARED_HPP
 
-#define MRMEMSIZE 256
+#define MRMEMSIZE 64
 #include <stdint.h>
 #include <iostream>
 
