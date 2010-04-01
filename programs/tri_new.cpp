@@ -70,7 +70,7 @@ int main(int narg, char **args)
   mr->verbosity = 1;
   mr->timer = 1;
   //mr->memsize = 1;
-  mr->memsize = 128;
+  //mr->memsize = 128;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
