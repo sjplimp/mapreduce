@@ -77,7 +77,9 @@ approach, using one-way communication of small messages.
 lines of standard C++ code.  For parallel operation, the program is
 linked with MPI, a standard message passing library available on all
 distributed memory machines.  For serial operation, a dummy MPI
-library (provided) can be substituted.
+library (provided) can be substituted.  As a library, it can be
+embedded in other codes \cite{Titan,TitanURL} to enable them to
+perform MapReduces.
 
 \item {\it In-core or out-of-core operation:} Each MapReduce object a
 processor defines, allocates per-processor "pages" of memory, where
