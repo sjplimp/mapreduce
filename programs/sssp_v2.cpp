@@ -20,11 +20,23 @@
 #include "read_fb_data.hpp"
 #include "read_mm_data.hpp"
 #include "shared.hpp"
+#include "rmat.hpp"
 
 using namespace std;
 using namespace MAPREDUCE_NS;
 
 #define MAX_NUM_EXPERIMENTS 50
+
+#define FBFILE 0
+#define MMFILE 1
+#define RMAT 2
+
+uint64_t NVtxLabeled = 0;  // Global variable (yuk!) counting number of 
+                           // vertices labeled on this processor.
+                           // Used as a diagnostic.
+uint64_t GNVtxLabeled;     // Global variable (yuk!) counting number of
+                           // vertices labeled across all processors.
+                           // Used as a diagnostic.
 
 /////////////////////////////////////////////////////////////////////////////
 // Class used to pass distance information through the MapReduce system.
@@ -64,14 +76,14 @@ void add_source(int nmap, KeyValue *kv, void *ptr)
   d.current = false;
   kv->add((char *) v, sizeof(VERTEX),
           (char *) &d, sizeof(DISTANCE<VERTEX, EDGE>));
-  cout << "KDDKDD add_source " << *v << endl;
+//  cout << "KDDKDD add_source " << *v << endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // move_to_new_mr:  Move KV from existing MR to new MR provided in ptr.
 // Map:    Input:   KVs in exisitng MR object, new MR object in ptr.
 //         Output:  No KVs in existing MR object; they are all added to new MR.
-void move_to_new_mr(int itask, char *key, int keybytes, 
+void move_to_new_mr(uint64_t itask, char *key, int keybytes, 
                     char *value, int valuebytes, 
                     KeyValue *kv, void *ptr)
 {
@@ -85,7 +97,7 @@ void move_to_new_mr(int itask, char *key, int keybytes,
 // Map:    Input:   KV  key = Vtx ID; value = NULL
 //         Output:  KV  key = Vtx ID; value = initial distance
 template <typename VERTEX, typename EDGE>
-void initialize_vertex_distances(int itask, char *key, int keybytes, 
+void initialize_vertex_distances(uint64_t itask, char *key, int keybytes, 
                                  char *value, int valuebytes, 
                                  KeyValue *kv, void *ptr)
 {
@@ -144,17 +156,18 @@ void pick_shortest_distances(char *key, int keybytes, char *multivalue,
   // Did we change the vertex's distance?
   if (previous != shortest) modified = true;
 
-cout << "    KDDKDD RESULT " << *((uint64_t *) key) << " DISTANCE " << shortest.e.wt << " PREVIOUS " << previous.e.wt <<  " MODIFIED " << modified << endl;
+//cout << "    KDDKDD RESULT " << *((uint64_t *) key) << " DISTANCE " << shortest.e.wt << " PREVIOUS " << previous.e.wt <<  " MODIFIED " << modified << endl;
 
   // Emit vertex with updated distance back into mrvert.
   shortest.current = true;
   kv->add(key, keybytes, (char *) &shortest, sizeof(DISTANCE<VERTEX, EDGE>));
+  if (shortest.e.wt < FLT_MAX) NVtxLabeled++;
 
   // If changes were made, emit the new distance into mrpath.
   if (modified) {
     mrpath->kv->add(key, keybytes,
                    (char *) &shortest, sizeof(DISTANCE<VERTEX, EDGE>));
-cout << "KDDKDD VTXUPDATE ADD " << *((uint64_t *) key) << " DISTANCE " << shortest.e.wt << endl;
+// cout << "KDDKDD VTXUPDATE ADD " << *((uint64_t *) key) << " DISTANCE " << shortest.e.wt << endl;
   }
 
 }
@@ -221,7 +234,7 @@ void update_adjacent_distances(char *key, int keybytes, char *multivalue,
           dist.current = false;
           mrpath->kv->add((char *) &(e->v), sizeof(VERTEX),
                           (char *) &dist, sizeof(DISTANCE<VERTEX, EDGE>));
-cout << "KDDKDD ADJ ADD " << e->v << " DISTANCE " << dist.e.wt << endl;
+// cout << "KDDKDD ADJ ADD " << e->v << " DISTANCE " << dist.e.wt << endl;
         }
       }
       offset += valuebytes[j];
@@ -261,11 +274,11 @@ void output_distances(char *key, int keybytes, char *multivalue,
   
 // FOR GREG
 //  if (e->wt < FLT_MAX-1.)
-    *fp << *((VERTEX *)key) << "   " << e->wt << endl;
+//    *fp << *((VERTEX *)key) << "   " << e->wt << endl;
 //  else
 //    *fp << *((VERTEX *)key) << "   " << -1. << endl;
 
-//    *fp << *((VERTEX *)key) << "   " << *e << endl;
+   *fp << *((VERTEX *)key) << "   " << *e << endl;
 
 //  if (keybytes == 16)
 //    fprintf(fp, "%lld %lld    %lld %lld  %ld\n",
@@ -282,7 +295,7 @@ void output_distances(char *key, int keybytes, char *multivalue,
 template <typename VERTEX, typename EDGE>
 class SSSP {
 public:
-  SSSP(int, char **, MapReduce *, MapReduce *);
+  SSSP(int, char **, uint64_t, MapReduce *, uint64_t, MapReduce *);
   ~SSSP()
   {
     if (sourcefp) fclose(sourcefp);
@@ -297,14 +310,16 @@ public:
 private:
   int me;
   int np;
+  uint64_t nverts;
   MapReduce *mrvert;
+  uint64_t nedges;
   MapReduce *mredge;
   FILE *sourcefp;               // Pointer to source-vtx file; set only on 
                                 // proc 0.
   map<VERTEX, char> sourcemap;  // unique vertices previously used as sources;
                                 // populated only on proc 0.
-  bool mmfile;                  // Flag indicating whether input (source and
-                                // graph) is a matrix-market file.
+  int filetype;                 // Flag indicating source of the input 
+                                // (FBFILE, MMFILE, or RMAT).
   bool write_files;             // Flag indicating whether to write files
                                 // after computing SSSP.
   uint64_t counter;             // Count how many times the SSSP is run().
@@ -319,18 +334,22 @@ template <typename VERTEX, typename EDGE>
 SSSP<VERTEX, EDGE>::SSSP(
   int narg, 
   char **args, 
+  uint64_t nverts_,
   MapReduce *mrvert_, 
+  uint64_t nedges_,
   MapReduce *mredge_
 ) :
   tcompute(0.),
   twrite(0.),
   tnlabeled(0),
+  nverts(nverts_),
   mrvert(mrvert_),
+  nedges(nedges_),
   mredge(mredge_),
-  sourcefp(NULL), 
-  mmfile(false),
+  sourcefp(NULL),
+  filetype(FBFILE),
   write_files(false),
-  counter(0) 
+  counter(0)
 {
   MPI_Comm_rank(MPI_COMM_WORLD, &me); 
   MPI_Comm_size(MPI_COMM_WORLD, &np); 
@@ -341,7 +360,7 @@ SSSP<VERTEX, EDGE>::SSSP(
     if (strcmp(args[iarg], "-s") == 0) {
       iarg++;
       if (me == 0) {
-        if (mmfile) {
+        if (filetype == MMFILE) {
           sourcefp = fopen(args[iarg], "r");
           // Skip comment lines
           char ch;
@@ -350,8 +369,13 @@ SSSP<VERTEX, EDGE>::SSSP(
           // Skip header line
           while (getc(sourcefp) != '\n');
         }
-        else
+        else if (filetype == FBFILE) {
           sourcefp = fopen(args[iarg], "rb");
+        }
+        else {
+          cout << "Error:  -s is invalid option when generating RMAT; " << endl;
+          MPI_Abort(MPI_COMM_WORLD, -1);
+        }
         if (!sourcefp) {
           cout << "Unable to open source file " << args[iarg] << endl;
           MPI_Abort(MPI_COMM_WORLD, -1);          
@@ -361,14 +385,19 @@ SSSP<VERTEX, EDGE>::SSSP(
     else if (strcmp(args[iarg], "-mmfile") == 0) {
       // Indicate whether source and graph files are matrix-market format.
       // Must be specified before -s, -f and -ff arguments.
-      mmfile = true;
+      filetype = MMFILE;
+    }
+    else if (strcmp(args[iarg], "-rmat") == 0) {
+      // Automatically generate RMAT input.
+      // Sources will be randomly selected vertices.
+      filetype = RMAT;
     }
     else if (strcmp(args[iarg], "-o") == 0) {
       write_files = true;
     }
     iarg++;
   }
-  if (me == 0 && !sourcefp) {
+  if ((me == 0) && (filetype != RMAT) && !sourcefp) {
     cout << "Source-vertex file missing; hard-coded source will be used."
          << endl
          << "Use -s to specify source-vertex file."
@@ -391,7 +420,7 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
 {
   source->reset();
   if (me == 0) {
-    if (mmfile && sourcefp) {
+    if ((filetype == MMFILE) && sourcefp) {
       // Read source vertices from text file; keep reading until reach EOF or
       // until find a source vertex that we haven't used before.
       // Keep track of used source vtxs in a map (hash table would be better).
@@ -411,7 +440,7 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
           source->reset();
       }
     }
-    else if (sourcefp) {
+    else if ((filetype == FBFILE) && sourcefp) {
       // Read source vertices from file; keep reading until reach EOF or
       // until find a source vertex that we haven't used before.
       // Keep track of used source vtxs in a map (hash table would be better).
@@ -433,6 +462,15 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
         }
       }
     }
+    else if (filetype == RMAT) {
+      static uint64_t vv = 1;
+      if (vv <= nverts) source->v[0] = vv;
+      else source->reset();
+      vv++;
+      // Randomly select a vertex in range [0..nverts-1].
+      // source->v[0] = ((uint64_t) (drand48() * nverts)) + 1;
+    }
+
     else {
       static bool firsttime = true;
       if (firsttime) {
@@ -479,10 +517,8 @@ bool SSSP<VERTEX, EDGE>::run()
 // cout << "    KDDKDD MRVERT->NKV " << mrvert->kv->nkv << endl;
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
-#ifdef NEW_OUT_OF_CORE
-  mrpath->set_fpath((char *) MYLOCALDISK); 
+  mrpath->set_fpath(MYLOCALDISK); 
   mrpath->memsize = MRMEMSIZE;
-#endif
 
   if (me == 0) cout << counter << ": BEGINNING SOURCE " << source << endl;
 
@@ -492,18 +528,13 @@ bool SSSP<VERTEX, EDGE>::run()
   //  Perform a BFS from S, editing distances as visit vertices.
   int done = 0;
   int iter = 0;
-  uint64_t nlabeled = 0;  // # of vtxs actually labeled during SSSP.
   while (!done) {
     done = 1;
  
     // Add Edges to Paths.
     // Collate Paths by vertex; collects edges and any distances 
     // computed so far.
-//#ifdef NEW_OUT_OF_CORE
 //    mrpath->add(mredge);
-//#else
-//    mrpath->kv->add(mredge->kv);
-//#endif
 
     // First, determine which, if any, vertex distances have changed.
     // Add updated distances existing distances.
@@ -519,6 +550,7 @@ bool SSSP<VERTEX, EDGE>::run()
     // Pick best distances.  For vertices with changed distances,
     // emit new distances into mrpath.
     uint64_t tmp_nv = 0, tmp_ne = 0;
+    NVtxLabeled = 0;
     mrpath->kv->append();
     tmp_nv = mrvert->compress(pick_shortest_distances<VERTEX, EDGE>, mrpath);
     mrpath->kv->complete();
@@ -557,11 +589,13 @@ bool SSSP<VERTEX, EDGE>::run()
   double tstop = MPI_Wtime();
   tcompute += (tstop - tstart);
 
+  MPI_Allreduce(&NVtxLabeled, &GNVtxLabeled, 1, MPI_UNSIGNED_LONG, 
+                MPI_SUM, MPI_COMM_WORLD);
   if (me == 0) cout << counter << ":  Source = " << source
                     << "; Iterations = " << iter 
-                    << "; Num Vtx Labeled = " << nlabeled  
+                    << "; Num Vtx Labeled = " << GNVtxLabeled  
                     << "; Compute Time = " << (tstop-tstart) << endl;
-  tnlabeled += nlabeled;
+  tnlabeled += GNVtxLabeled;
   counter++;
 
   // Now mrpath contains one key-value per vertex Vi:
@@ -618,7 +652,7 @@ int main(int narg, char **args)
 {
   MPI_Init(&narg, &args);
   int me, np;
-  bool fb_file = true;
+  int filetype = FBFILE;
   MPI_Comm_size(MPI_COMM_WORLD, &np);
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
@@ -631,9 +665,13 @@ int main(int narg, char **args)
 
   for (int i = 0; i < narg; i++) 
     if (strcmp(args[i], "-mmfile") == 0) {
-      fb_file = false;
+      filetype = MMFILE;
+      break;
+    } else if (strcmp(args[i], "-rmat") == 0) {
+      filetype = RMAT;
       break;
     }
+
 
 
   // Create a new MapReduce object, Edges.
@@ -650,7 +688,7 @@ int main(int narg, char **args)
   uint64_t nrawedges; // Number of edges in input files.
   uint64_t nedges;    // Number of unique edges in input files.
   int vertexsize;
-  if (fb_file) { // FB files
+  if (filetype == FBFILE) { // FB files
     ReadFBData readFB(narg, args, true);
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -659,7 +697,7 @@ int main(int narg, char **args)
     readFB.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
     vertexsize = readFB.vertexsize;
   }
-  else { // MM file
+  else if (filetype == MMFILE) { // MM file
     ReadMMData readMM(narg, args, true);
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -667,6 +705,15 @@ int main(int narg, char **args)
 
     readMM.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
     vertexsize = readMM.vertexsize;
+  }
+  else { // Generate RMAT
+    GenerateRMAT rmat(narg, args);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    tstart = MPI_Wtime();
+
+    rmat.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
+    vertexsize = 8;
   }
 
   // Aggregate mredge and mrvert by key.  No need to convert yet.
@@ -679,7 +726,7 @@ int main(int narg, char **args)
 
   srand48(1l);
   if (vertexsize == 16) {
-    SSSP<VERTEX16, EDGE16> sssp(narg, args, mrvert, mredge);
+    SSSP<VERTEX16, EDGE16> sssp(narg, args, nverts, mrvert, nedges, mredge);
     if (me == 0) cout << "Beginning sssp with 16-byte keys." << endl;
     while (sssp.run());
     if (me == 0) {
@@ -689,7 +736,7 @@ int main(int narg, char **args)
     }
   }
   else if (vertexsize == 8) {
-    SSSP<VERTEX08, EDGE08> sssp(narg, args, mrvert, mredge);
+    SSSP<VERTEX08, EDGE08> sssp(narg, args, nverts, mrvert, nedges, mredge);
     if (me == 0) cout << "Beginning sssp with 8-byte keys." << endl;
     while (sssp.run());
     if (me == 0) {
