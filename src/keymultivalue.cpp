@@ -765,6 +765,11 @@ int KeyMultiValue::unique2kmv_all()
   ptr = page;
   newflag = 1;
 
+  if (nunique == 0) {
+    sets[nset-1].nunique = 0;
+    sets[nset-1].extended = 0;
+  }
+    
   for (int i = 0; i < nunique; i++) {
     if (newflag) {
       newflag = 0;

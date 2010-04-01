@@ -205,7 +205,7 @@ int Irregular::setup(int n, int *proclist, int *sizes, int *reorder,
    sizes = byte count of each datum
    reorder (for custom) = contiguous send indices for each send
    copy = buffer to pack send datums into
-   recv = buffer to recv all aatums into
+   recv = buffer to recv all datums into
 ------------------------------------------------------------------------- */
 
 void Irregular::exchange(int n, int *proclist, char **ptrs, int *sizes, 
@@ -234,6 +234,8 @@ void Irregular::exchange_all2all(int n, int *proclist, char **ptrs,
     memcpy(cptrs[iproc],ptrs[i],sizes[i]);
     cptrs[iproc] += sizes[i];
   }
+
+  delete [] cptrs;
 
   MPI_Alltoallv(copy,sendbytes,sdispls,MPI_BYTE,
 		recv,recvbytes,rdispls,MPI_BYTE,comm);
