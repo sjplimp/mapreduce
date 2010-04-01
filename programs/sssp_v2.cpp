@@ -556,7 +556,10 @@ bool SSSP<VERTEX, EDGE>::run()
     mrpath->kv->complete();
 // printf("    KDDKDD4 MRVERT %d   MRPATH %d\n", mrvert->kv->nkv, mrpath->kv->nkv);
 
-    if (mrpath->kv->nkv) {
+    uint64_t nchanged;
+    MPI_Allreduce(&(mrpath->kv->nkv), &nchanged, 1, MPI_UNSIGNED_LONG,
+                  MPI_SUM, MPI_COMM_WORLD);
+    if (nchanged) {
       // Some vtxs' distances changed; 
       // need to emit new distances for adjacent vtxs.
       done = 0;
@@ -591,10 +594,14 @@ bool SSSP<VERTEX, EDGE>::run()
 
   MPI_Allreduce(&NVtxLabeled, &GNVtxLabeled, 1, MPI_UNSIGNED_LONG, 
                 MPI_SUM, MPI_COMM_WORLD);
-  if (me == 0) cout << counter << ":  Source = " << source
+  if (me == 0) {
+    cout << counter << ":  Source = " << source
                     << "; Iterations = " << iter 
-                    << "; Num Vtx Labeled = " << GNVtxLabeled  
+                    << "; Num Vtx Labeled = " << GNVtxLabeled << endl;
+    cout << counter << ":  Source = " << source
+                    << "; Iterations = " << iter 
                     << "; Compute Time = " << (tstop-tstart) << endl;
+  }
   tnlabeled += GNVtxLabeled;
   counter++;
 
