@@ -12,13 +12,17 @@
 ------------------------------------------------------------------------- */
 
 // MapReduce random RMAT matrix generation example in C++
-// Syntax: rmat N Nz a b c d frac seed {outfile}
+// Parameters:  N Nz a b c d frac seed {outfile} printstats
 //   2^N = # of rows in RMAT matrix
 //   Nz = non-zeroes per row
 //   a,b,c,d = RMAT params (must sum to 1.0)
 //   frac = RMAT randomization param (frac < 1, 0 = no randomization)
 //   seed = RNG seed (positive int)
 //   outfile = output RMAT matrix to this filename (optional)
+//
+// Resulting vertices are numbered 1, 2, ... 2^N, to be consistent with
+// Matrix-Market (which is one-based) and 
+// Karl's data (where 0 is a non-valid vertex ID).
 
 #include "mpi.h"
 #include "math.h"
@@ -38,7 +42,8 @@ void generate_edge(int, KeyValue *, void *);
 void final_edge(char *, int, char *, int, int *, KeyValue *, void *);
 void cull(char *, int, char *, int, int *, KeyValue *, void *);
 void output(char *, int, char *, int, int *, KeyValue *, void *);
-void nonzero(char *, int, char *, int, int *, KeyValue *, void *);
+void nonzero_in_row(char *, int, char *, int, int *, KeyValue *, void *);
+void nonzero_in_col(char *, int, char *, int, int *, KeyValue *, void *);
 void degree(char *, int, char *, int, int *, KeyValue *, void *);
 void histo(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
@@ -61,7 +66,7 @@ public:
   FILE *fp;
   int me;
   int nprocs;
-  bool printstats;
+  int printstats;
 
   GenerateRMAT(int, char**);
   ~GenerateRMAT() {delete [] outfile;};
@@ -71,13 +76,12 @@ public:
 ////////////////////////////////////////////////////////////////////////////
 GenerateRMAT::GenerateRMAT(int narg, char **args)
 {
-  int me;
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
   // parse command-line args
 
-  if (me == 0) printf("Syntax for rmat: -rn N -rz z -ra a -rb b -rc c -rd d -rf frac -rs seed {-ro outfile} -rp\n");
+  if (me == 0) printf("Syntax for rmat: -rn N -rz z -ra a -rb b -rc c -rd d -rf frac -rs seed {-ro outfile} -rp printstats\n");
 
   // Defaults
   nlevels = 1;
@@ -86,7 +90,7 @@ GenerateRMAT::GenerateRMAT(int narg, char **args)
   fraction = 0.1;
   int seed = 1;
   outfile = NULL;
-  printstats = false;
+  printstats = 0;
 
   int iarg = 1;
 
@@ -116,8 +120,8 @@ GenerateRMAT::GenerateRMAT(int narg, char **args)
       seed = atoi(args[iarg+1]); 
       iarg += 2;
     } else if (strcmp(args[iarg],"-rp") == 0) {
-      printstats = true;
-      iarg += 1;
+      printstats = atoi(args[iarg+1]);
+      iarg += 2;
     } else if (strcmp(args[iarg],"-ro") == 0) {
       int n = strlen(args[iarg+1]) + 1;
       outfile = new char[n];
@@ -163,8 +167,10 @@ void GenerateRMAT::run(
 
   // Generate mrvert first; it is easy.
   // Each processor generates a range of the vertices.
+  if (me == 0) cout << "Generating vertices..." << endl;
   MapReduce *mrvert = new MapReduce(MPI_COMM_WORLD);
   mrvert->map(nprocs, generate_vertex, this);
+  if (me == 0) cout << "Vertex aggregate..." << endl;
   mrvert->aggregate(NULL); // Not necessary, but moves vertices to procs to 
                            // which they will be hashed later.  May be good to
                            // do it once up front.
@@ -172,9 +178,10 @@ void GenerateRMAT::run(
   *return_mrvert = mrvert;
 
   // Now generate mredge; this is harder, as it requires the RMAT algorithm.
+  if (me == 0) cout << "Generating edges..." << endl;
   MapReduce *mredge = new MapReduce(MPI_COMM_WORLD);
-  mredge->verbosity = 2;
-  mredge->timer = 1;
+//  mredge->verbosity = 2;
+//  mredge->timer = 1;
 
   // loop until desired number of unique nonzero entries
 
@@ -190,6 +197,9 @@ void GenerateRMAT::run(
     if (nunique == ntotal) break;
     mredge->reduce(&cull,NULL);
     nremain = ntotal - nunique;
+    if (me == 0) cout << "    Iteration " << niterate 
+                      << ": cumulative edges generated " << nunique 
+                      << " of " << ntotal << "; nremain = " << nremain << endl;
   }
 
   // output matrix if requested
@@ -209,32 +219,77 @@ void GenerateRMAT::run(
   }
 
   // stats to screen
-  // include stats on number of nonzeroes per row
+  // include stats on number of nonzeros per row
 
   if (me == 0) {
     std::cout << order << " rows in matrix" << std::endl;
     std::cout << ntotal << " nonzeros in matrix" << std::endl;
   }
  
-  if (printstats) {
-    MapReduce *mr = mredge->copy();
+  if (printstats > 0) {
 
-    mr->reduce(&nonzero,NULL);
-    mr->collate(NULL);
-    mr->reduce(&degree,NULL);
-    mr->collate(NULL);
-    mr->reduce(&histo,NULL);
-    mr->gather(1);
-    mr->sort_keys(&ncompare);
-    uint64_t total = 0;
-    mr->map(mr,&stats,&total);
-    if (me == 0) 
-      std::cout << order - total << " rows with no nonzeros" << std::endl;
+    uint64_t minmax[2];
+    uint64_t gminmax[2];
+    // Produce outdegree stats
+    MapReduce *mr = mredge->copy();
+    mr->reduce(&nonzero_in_row,NULL);
+    uint64_t nrow = mr->collate(NULL);  // # of nonempty rows
+    minmax[0] = UINT64_MAX; minmax[1] = 0;
+    mr->reduce(&degree,minmax);
+    if (nrow < order) minmax[0] = 0;   // some rows are empty
+    MPI_Allreduce(&minmax[0], &gminmax[0], 1, MPI_UNSIGNED_LONG, 
+                  MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&minmax[1], &gminmax[1], 1, MPI_UNSIGNED_LONG, 
+                  MPI_MAX, MPI_COMM_WORLD);
+    if (me == 0)
+       std::cout << "Outdegrees:  Min = " << gminmax[0] 
+                 << "; Max = " << gminmax[1] << endl;
+    if (printstats > 1) {
+      mr->collate(NULL);
+      mr->reduce(&histo,NULL);
+      mr->gather(1);
+      mr->sort_keys(&ncompare);
+      if (me == 0) std::cout << "Outdegrees:  " << std::endl;
+      uint64_t total = 0;
+      mr->map(mr,&stats,&total);
+      if (me == 0) 
+        std::cout << "   " << order - total 
+                  << " vertices with 0 edges" << std::endl;
+    }
+    delete mr;
+
+    // Produce indegree stats
+    mr = mredge->copy();
+    mr->reduce(&nonzero_in_col,NULL);
+    uint64_t ncol = mr->collate(NULL);  // # of nonempty columns
+    minmax[0] = UINT64_MAX; minmax[1] = 0;
+    mr->reduce(&degree,minmax);
+    if (ncol < order) minmax[0] = 0;   // some columns are empty
+    MPI_Allreduce(&minmax[0], &gminmax[0], 1, MPI_UNSIGNED_LONG, 
+                  MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&minmax[1], &gminmax[1], 1, MPI_UNSIGNED_LONG, 
+                  MPI_MAX, MPI_COMM_WORLD);
+    if (me == 0)
+       std::cout << "Indegrees:   Min = " << gminmax[0] 
+                 << "; Max = " << gminmax[1] << endl;
+    if (printstats > 1) {
+      mr->collate(NULL);
+      mr->reduce(&histo,NULL);
+      mr->gather(1);
+      mr->sort_keys(&ncompare);
+      uint64_t total = 0;
+      if (me == 0) std::cout << "Indegrees:  " << std::endl;
+      mr->map(mr,&stats,&total);
+      if (me == 0) 
+        std::cout << "   " << order - total 
+                  << " vertices with 0 edges" << std::endl;
+    }
     delete mr;
   }
 
   // convert edges to correct format for return arguments
   mredge->reduce(&final_edge,NULL);
+  *return_mredge = mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -298,8 +353,8 @@ void generate_edge(int itask, KeyValue *kv, void *ptr)
       }
     }
 
-    edge.vi = i;
-    edge.vj = j;
+    edge.vi = i+1;  // Vertex IDs are one-based, so need to add one here.
+    edge.vj = j+1;  // Vertex IDs are one-based, so need to add one here.
     kv->add((char *) &edge,sizeof(RMAT_EDGE),NULL,0);
   }
 }
@@ -325,16 +380,16 @@ void output(char *key, int keybytes, char *multivalue,
 {
   GenerateRMAT *rmat = (GenerateRMAT *) ptr;
   RMAT_EDGE *edge = (RMAT_EDGE *) key;
-  fprintf(rmat->fp,"%llu %llu 1\n",edge->vi+1,edge->vj+1);
+  fprintf(rmat->fp,"%llu %llu 1.\n",edge->vi,edge->vj);
 }
 
 /* ----------------------------------------------------------------------
-   enumerate nonzeroes in each row
+   enumerate nonzeros in each row for computing outdegree.
    input: one KMV per edge
    output: one KV per edge: key = row I, value = NULL
 ------------------------------------------------------------------------- */
 
-void nonzero(char *key, int keybytes, char *multivalue,
+void nonzero_in_row(char *key, int keybytes, char *multivalue,
              int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   RMAT_EDGE *edge = (RMAT_EDGE *) key;
@@ -342,23 +397,38 @@ void nonzero(char *key, int keybytes, char *multivalue,
 }
 
 /* ----------------------------------------------------------------------
-   count nonzeroes in each row
+   enumerate nonzeros in each column for computing indegree.
+   input: one KMV per edge
+   output: one KV per edge: key = column j, value = NULL
+------------------------------------------------------------------------- */
+
+void nonzero_in_col(char *key, int keybytes, char *multivalue,
+             int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  RMAT_EDGE *edge = (RMAT_EDGE *) key;
+  kv->add((char *) &edge->vj,sizeof(RMAT_VERTEX),NULL,0);
+}
+/* ----------------------------------------------------------------------
+   count nonzeros in row or column
    input: one KMV per row, MV has entry for each nonzero
-   output: one KV: key = # of nonzeroes, value = NULL
+   output: one KV: key = # of nonzeros, value = NULL
 ------------------------------------------------------------------------- */
 
 void degree(char *key, int keybytes, char *multivalue,
          int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   uint64_t total_nvalues;
+  uint64_t *minmax = (uint64_t *) ptr;
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
+  if (total_nvalues < minmax[0]) minmax[0] = total_nvalues;
+  if (total_nvalues > minmax[1]) minmax[1] = total_nvalues;
   kv->add((char *) &total_nvalues,sizeof(uint64_t),NULL,0);
 }
 
 /* ----------------------------------------------------------------------
-   count rows with same # of nonzeroes
-   input: one KMV per nonzero count, MV has entry for each row
-   output: one KV: key = # of nonzeroes, value = # of rows
+   count rows with same # of nonzeros
+   input: one KMV per nonzero count, MV has entry for each row/col
+   output: one KV: key = # of nonzeros, value = # of rows/col
 ------------------------------------------------------------------------- */
 
 void histo(char *key, int keybytes, char *multivalue,
@@ -384,7 +454,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
 }
 
 /* ----------------------------------------------------------------------
-   print # of rows with a specific # of nonzeroes
+   print # of rows with a specific # of nonzeros
 ------------------------------------------------------------------------- */
 
 void stats(uint64_t itask, char *key, int keybytes, char *value,
@@ -394,7 +464,8 @@ void stats(uint64_t itask, char *key, int keybytes, char *value,
   uint64_t nnz = *(uint64_t *) key;
   uint64_t ncount = *(uint64_t *) value;
   *total += ncount;
-  std::cout << ncount << " rows with " << nnz << " nonzeros" << std::endl;
+  std::cout << "   " << ncount << " vertices with " 
+            << nnz << " edges" << std::endl;
 }
 
 // ----------------------------------------------------------------------
@@ -417,7 +488,8 @@ void generate_vertex(int itask, KeyValue *kv, void *ptr)
 
   RMAT_VERTEX last_vtx = first_vtx + fraction + (utask < remainder);
 
-  for (RMAT_VERTEX i = first_vtx; i < last_vtx; i++) {
+  // Make vertex IDs one-based by changing the loop bounds.
+  for (RMAT_VERTEX i = first_vtx+1; i <= last_vtx; i++) {
     kv->add((char *) &i, sizeof(RMAT_VERTEX), NULL, 0);
   }
 }

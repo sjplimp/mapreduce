@@ -262,8 +262,8 @@ void output_distances(char *key, int keybytes, char *multivalue,
 //  else
 //    *fp << *((VERTEX *)key) << "   " << -1. << endl;
 
-//  *fp << *((VERTEX *)key) << "   " << *e << endl;
-  *fp << *((VERTEX *)key) << "   " << e->wt << endl;
+  *fp << *((VERTEX *)key) << "   " << *e << endl;
+//  *fp << *((VERTEX *)key) << "   " << e->wt << endl;
 
 //  if (keybytes == 16)
 //    fprintf(fp, "%lld %lld    %lld %lld  %ld\n",
@@ -448,8 +448,12 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
       }
     }
     else if (filetype == RMAT) {
+      static uint64_t vv = 1;
+      if (vv <= nverts) source->v[0] = vv;
+      else source->reset();
+      vv++;
       // Randomly select a vertex in range [0..nverts-1].
-      source->v[0] = ((uint64_t) (drand48() * nverts)) + 1;
+      // source->v[0] = ((uint64_t) (drand48() * nverts)) + 1;
     }
     else {
       static bool firsttime = true;
