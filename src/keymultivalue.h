@@ -49,6 +49,8 @@ class KeyMultiValue {
   void collapse(char *, int, class KeyValue *);
   void convert(class KeyValue *);
 
+  void print(int, int, int);
+
  private:
   MapReduce *mr;
   MPI_Comm comm;

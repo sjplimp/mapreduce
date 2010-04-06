@@ -13,7 +13,7 @@ OBJ = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank gs ccd ccnd link2graph_weighted wordfreq sssp sssp_v2 stress_test1 stress_test2 tri_new
+all:	matvec pagerank gs ccd ccnd link2graph_weighted wordfreq sssp sssp_v2 stress_test1 stress_test2 tri_new zerokv
 
 # Connected Components without distances; two versions of the 
 # algorithm (original Cohen + more scalable Plimpton) can be run 
@@ -81,6 +81,11 @@ stress_test2:	stress_test2.o $(LIB)
 stress_test1:	stress_test1.o $(LIB)
 		$(LINK) $(LINKFLAGS) stress_test1.o \
 			$(USRLIB) $(SYSLIB) -o stress_test1
+
+# Program to compute wordcount of files; simpler input.
+zerokv:	zerokv.o $(LIB)
+	$(LINK) $(LINKFLAGS) zerokv.o $(USRLIB) $(SYSLIB) -o zerokv
+
 clean:
 	rm *.o *.d
 	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp sssp_v2 stress_test1 stress_test2 wordfreq

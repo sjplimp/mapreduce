@@ -100,6 +100,7 @@ class MapReduce {
   void kv_stats(int);
   void kmv_stats(int);
   void cummulative_stats(int, int);
+  void print(int, int, int, int);
 
   void set_fpath(const char *);
 

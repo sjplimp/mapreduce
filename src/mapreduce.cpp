@@ -2164,6 +2164,22 @@ void MapReduce::cummulative_stats(int level, int reset)
 }
 
 /* ----------------------------------------------------------------------
+   debug print of KV or KMV pairs
+------------------------------------------------------------------------- */
+
+void MapReduce::print(int proc, int nstride, int kflag, int vflag)
+{
+  if (kv == NULL && kmv == NULL)
+    error->all("Cannot print without KeyValue or KeyMultiValue");
+  if (kflag < 0 || vflag < 0) error->all("Invalid print args");
+  if (kflag > 7 || vflag > 7) error->all("Invalid print args");
+
+  if (proc >= 0 && proc != me) return;
+  if (kv) kv->print(nstride,kflag,vflag);
+  if (kmv) kmv->print(nstride,kflag,vflag);
+}
+
+/* ----------------------------------------------------------------------
    change fpath, but only if allocation has not occurred
 ------------------------------------------------------------------------- */
 

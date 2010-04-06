@@ -1557,3 +1557,136 @@ void KeyMultiValue::spool_free()
   memory->sfree(tag_mr);
   memory->sfree(page_mr);
 }
+
+/* ----------------------------------------------------------------------
+   debug print of each KMV pair with nstride
+------------------------------------------------------------------------- */
+
+void KeyMultiValue::print(int nstride, int kflag, int vflag)
+{
+  int nvalues,keybytes,mvaluebytes;
+  uint64_t dummy1,dummy2,dummy3;
+  int *valuesizes;
+  char *ptr,*key,*multivalue;
+
+  int istride = 0;
+
+  for (int ipage = 0; ipage < npage; ipage++) {
+    nkey = request_page(ipage,0,dummy1,dummy2,dummy3);
+    ptr = page;
+
+    for (int i = 0; i < nkey; i++) {
+      nvalues = *((int *) ptr);
+      ptr += sizeof(int);
+
+      if (nvalues > 0) {
+	keybytes = *((int *) ptr);
+	ptr += sizeof(int);
+	mvaluebytes = *((int *) ptr);
+	ptr += sizeof(int);
+	valuesizes = (int *) ptr;
+	ptr += ((uint64_t) nvalues) * sizeof(int);
+	
+	ptr = ROUNDUP(ptr,kalignm1);
+	key = ptr;
+	ptr += keybytes;
+	ptr = ROUNDUP(ptr,valignm1);
+	multivalue = ptr;
+	ptr += mvaluebytes;
+	ptr = ROUNDUP(ptr,talignm1);
+
+	istride++;
+	if (istride != nstride) continue;
+	istride = 0;
+	
+	printf("KMV pair: proc %d, nvalues %d, sizes %d %d",
+	       me,nvalues,keybytes,mvaluebytes);
+
+	printf(", key ");
+	if (kflag == 0) printf("NULL");
+	else if (kflag == 1) printf("%d",*(int *) key);
+	else if (kflag == 2) printf("%lu",*(uint64_t *) key);
+	else if (kflag == 3) printf("%g",*(float *) key);
+	else if (kflag == 4) printf("%g",*(double *) key);
+	else if (kflag == 5) printf("%s",key);
+	else if (kflag == 6) printf("%d %d",
+				    *(int *) key,
+				    *(int *) (key+sizeof(int)));
+	else if (kflag == 7) printf("%lu %lu",
+				    *(uint64_t *) key,
+				    *(uint64_t *) (key+sizeof(uint64_t)));
+
+	printf(", values ");
+	if (vflag == 0) {
+	  for (int j = 0; j < nvalues; j++) printf("NULL ");
+	} else if (vflag == 1) {
+	  for (int j = 0; j < nvalues; j++) {
+	    printf("%d ",*(int *) multivalue);
+	    multivalue += valuesizes[j];
+	  }
+	} else if (vflag == 2) {
+	  for (int j = 0; j < nvalues; j++) {
+	    printf("%lu ",*(uint64_t *) multivalue);
+	    multivalue += valuesizes[j];
+	  }
+	} else if (vflag == 3) {
+	  for (int j = 0; j < nvalues; j++) {
+	    printf("%g ",*(float *) multivalue);
+	    multivalue += valuesizes[j];
+	  }
+	} else if (vflag == 4) {
+	  for (int j = 0; j < nvalues; j++) {
+	    printf("%g ",*(double *) multivalue);
+	    multivalue += valuesizes[j];
+	  }
+	} else if (vflag == 5) {
+	  char *value = multivalue;
+	  for (int j = 0; j < nvalues; j++) {
+	    printf("%s ",multivalue);
+	    multivalue += valuesizes[j];
+	  }
+	} else if (vflag == 6) {
+	  for (int j = 0; j < nvalues; j++) {
+	    printf("%d %d",*(int *) multivalue,
+		   *(int *) (multivalue+sizeof(int)));
+	    multivalue += valuesizes[j];
+	  }
+	} else if (vflag == 7) {
+	  for (int j = 0; j < nvalues; j++) {
+	    printf("%d %d",*(uint64_t *) multivalue,
+		   *(uint64_t *) (multivalue+sizeof(uint64_t)));
+	    multivalue += valuesizes[j];
+	  }
+	}
+	
+	printf("\n");
+
+      } else {
+	keybytes = *((int *) ptr);
+	ptr += sizeof(int);
+	ptr = ROUNDUP(ptr,kalignm1);
+	key = ptr;
+
+	printf("KMV pair: proc %d, nvalues %lu, size %d",
+	       me,pages[ipage].nvalue_total,keybytes);
+
+	printf(", key ");
+	if (kflag == 0) printf("NULL");
+	else if (kflag == 1) printf("%d",*(int *) key);
+	else if (kflag == 2) printf("%u",*(uint64_t *) key);
+	else if (kflag == 3) printf("%g",*(float *) key);
+	else if (kflag == 4) printf("%g",*(double *) key);
+	else if (kflag == 5) printf("%s",key);
+	else if (kflag == 6) printf("%d %d",
+				    *(int *) key,
+				    *(int *) (key+sizeof(int)));
+	else if (kflag == 7) printf("%lu %lu",
+				    *(uint64_t *) key,
+				    *(uint64_t *) (key+sizeof(uint64_t)));
+
+	printf(", too many values to print");
+	printf("\n");
+      }
+    }
+  }
+}
