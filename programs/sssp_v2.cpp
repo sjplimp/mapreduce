@@ -513,7 +513,7 @@ bool SSSP<VERTEX, EDGE>::run()
     return false;  // no unique source remains; quit execution and return.
 
   // Initialize vertex distances.
-  mrvert->map(mrvert, initialize_vertex_distances<VERTEX, EDGE>, NULL);
+  mrvert->map(mrvert, initialize_vertex_distances<VERTEX, EDGE>, (void *) NULL, 0);
 // cout << "    KDDKDD MRVERT->NKV " << mrvert->kv->nkv << endl;
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);

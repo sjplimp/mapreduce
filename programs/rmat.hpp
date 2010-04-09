@@ -51,9 +51,9 @@ int ncompare(char *, int, char *, int);
 void stats(uint64_t, char *, int, char *, int, KeyValue *, void *);
 
 typedef uint64_t RMAT_VERTEX;
-typedef struct RMAT_EDGE {
+typedef struct {
   RMAT_VERTEX vi, vj;
-};
+} RMAT_EDGE;
 
 ////////////////////////////////////////////////////////////////////////////
 class GenerateRMAT{
