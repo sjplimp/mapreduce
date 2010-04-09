@@ -24,11 +24,12 @@
 // Matrix-Market (which is one-based) and 
 // Karl's data (where 0 is a non-valid vertex ID).
 
-#include "mpi.h"
-#include "math.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
+#include <mpi.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
 #include "mapreduce.h"
 #include "keyvalue.h"
 
@@ -86,7 +87,10 @@ GenerateRMAT::GenerateRMAT(int narg, char **args)
   // Defaults
   nlevels = 1;
   avgdeg = 1;
-  a = b = c = d = 0.25;
+  a = 0.57;   // Nasty Parameters as default so I don't have to type them. :)
+  b = 0.19;
+  c = 0.19;
+  d = 0.05;
   fraction = 0.1;
   int seed = 1;
   outfile = NULL;
@@ -191,7 +195,7 @@ void GenerateRMAT::run(
   while (nremain) {
     niterate++;
     ngenerate = nremain/nprocs;
-    if (me < (nremain % nprocs)) ngenerate++;
+    if ((unsigned) me < (nremain % nprocs)) ngenerate++;
     mredge->map(nprocs,&generate_edge,this,1);
     uint64_t nunique = mredge->collate(NULL);
     if (nunique == ntotal) break;

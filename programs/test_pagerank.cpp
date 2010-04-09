@@ -393,6 +393,8 @@ int main(int narg, char **args)
   opterr = 0;
   char *optstring = "a:t:m:n:g:s:";
 
+  int pagesize = 64;
+
   while ((ch = getopt(narg, args, optstring)) != -1) {
     switch (ch) {
     case 'a':
@@ -408,14 +410,8 @@ int main(int narg, char **args)
       NumberOfPageranks = atoi(optarg);
       break;
     case 'm':
-#ifdef NEW_OUT_OF_CORE
       // Memsize value for out-of-core MapReduce.
-      memsize = atoi(optarg);
-#else
-      if (me == 0)
-        cout << "Invalid option -m for in-core MapReduce." << endl
-             << "Option -m will be ignored." << endl;
-#endif
+      pagesize = atoi(optarg);
       break;
     case 'g':
       // Algorithm to use:  pure_mapreduce or storage_aware
@@ -467,10 +463,8 @@ int main(int narg, char **args)
   mr->verbosity = 0;
   mr->timer = 0;
   mr->mapstyle = 1;  // mapstyle == 0 does not work for this code.
-#ifdef NEW_OUT_OF_CORE
   mr->set_fpath(MYLOCALDISK);
-  mr->memsize = memsize;
-#endif
+  mr->memsize = pagesize;
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}

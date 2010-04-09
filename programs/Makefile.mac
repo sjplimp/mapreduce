@@ -1,7 +1,7 @@
 # Mac/MPI Makefile for MapReduce programs
 
 CC =		mpic++ -m64
-CCFLAGS =	-g -I../src -Wall 
+CCFLAGS =	-g -I../src -Wall -D__STDC_LIMIT_MACROS
 CCFLAGS +=	-DNEW_OUT_OF_CORE
 #CCFLAGS +=	-DNOISY 
 #CCFLAGS +=	-DKDDTIME 
