@@ -27,6 +27,7 @@ mr2->collate();
 mr2->reduce(&myreduce2,NULL);
 mr1->add(mr2);
 delete mr2;
+mr1->collate(NULL);
 mr1->reduce(&myreduce1,NULL); 
 </PRE>
 <P>would generate one set of key/value pairs from the initial
