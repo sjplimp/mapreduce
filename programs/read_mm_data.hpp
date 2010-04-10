@@ -16,6 +16,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "assert.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
