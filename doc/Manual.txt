@@ -68,7 +68,7 @@ email: sjplimp at sandia.gov, kddevin at sandia.gov.
 "C++ Interface to the MapReduce-MPI Library"_interface_c++.html :l
   "Create a MapReduce object"_create.html :ulb,l
   "Copy a MapReduce object"_copy.html :l
-  "Destroy a MapReduce object"_destroy.thml :l
+  "Destroy a MapReduce object"_destroy.html :l
   "MapReduce::add()"_add.html :l
   "MapReduce::aggregate()"_aggregate.html :l
   "MapReduce::clone()"_clone.html :l
