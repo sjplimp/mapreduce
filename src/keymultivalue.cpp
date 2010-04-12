@@ -1647,13 +1647,13 @@ void KeyMultiValue::print(int nstride, int kflag, int vflag)
 	  }
 	} else if (vflag == 6) {
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%d %d",*(int *) multivalue,
+	    printf("%d %d ",*(int *) multivalue,
 		   *(int *) (multivalue+sizeof(int)));
 	    multivalue += valuesizes[j];
 	  }
 	} else if (vflag == 7) {
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%d %d",*(uint64_t *) multivalue,
+	    printf("%lu %lu ",*(uint64_t *) multivalue,
 		   *(uint64_t *) (multivalue+sizeof(uint64_t)));
 	    multivalue += valuesizes[j];
 	  }
