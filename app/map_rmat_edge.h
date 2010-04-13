@@ -13,12 +13,13 @@ namespace APP_NS {
 
 class MapRmatEdge : public Map {
  public:
-  uint64_t ntotal;
+  uint64_t ngenerate;
 
   MapRmatEdge(class APP *, char *, int, char **);
   ~MapRmatEdge() {}
 
  private:
+  uint64_t nrows;
   int nlevels;
   double a,b,c,d,fraction;
   int me,nprocs;

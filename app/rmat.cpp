@@ -36,29 +36,26 @@ void RMAT::command(int narg, char **arg)
   MapReduce *mr = (MapReduce *) obj->find_object(arg[0],MAPREDUCE);
   if (!mr) error->all("Rmat MRMPI is invalid");
 
-  int nlevels = atoi(arg[1]); 
-  int nnonzero = atoi(arg[2]);
+  uint64_t ntotal = atol(arg[1]);
+  uint64_t nrows = atol(arg[2]);
 
   // map and reduce functions
 
-  MapRmatEdge *egen = new MapRmatEdge(app,"egen",narg-1,&arg[1]);
+  MapRmatEdge *egen = new MapRmatEdge(app,"egen",narg-2,&arg[2]);
   ReduceRmatCull *cull = new ReduceRmatCull(app,"cull",0,NULL);
 
   // loop until desired number of unique nonzero entries
+  // set egen->ngenerate on each iteration
 
   MPI_Barrier(world);
   double tstart = MPI_Wtime();
 
   int niterate = 0;
-  uint64_t ntotal = (1 << (uint64_t) nlevels) * nnonzero;
-
-  // setting egen->ntotal directly is a kludge
-  // might want a fn call to do this?
-
   uint64_t nremain = ntotal;
+
   while (nremain) {
     niterate++;
-    egen->ntotal = nremain;
+    egen->ngenerate = nremain;
     mr->map(nprocs,egen->appmap,egen->appptr,1);
     uint64_t nunique = mr->collate(NULL);
     mr->reduce(cull->appreduce,cull->appptr);
@@ -72,8 +69,7 @@ void RMAT::command(int narg, char **arg)
   delete cull;
 
   if (me == 0) {
-    uint64_t order = 1 << (uint64_t) nlevels;
-    printf("%lu rows in matrix\n",order);
+    printf("%lu rows in matrix\n",nrows);
     printf("%lu nonzeroes in matrix\n",ntotal);
   }
 

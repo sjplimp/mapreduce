@@ -14,20 +14,26 @@ using MAPREDUCE_NS::KeyValue;
 MapRmatEdge::MapRmatEdge(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg != 8) error->all("Illegal map rmat_edge command");
+  if (narg != 7) error->all("Illegal map rmat_edge command");
 
-  nlevels = atoi(arg[0]);
-  ntotal = atol(arg[1]);
-  a = atof(arg[2]);
-  b = atof(arg[3]);
-  c = atof(arg[4]);
-  d = atof(arg[5]);
-  fraction = atof(arg[6]);
-  int seed = atoi(arg[7]);
+  nrows = atol(arg[0]);
+  a = atof(arg[1]);
+  b = atof(arg[2]);
+  c = atof(arg[3]);
+  d = atof(arg[4]);
+  fraction = atof(arg[5]);
+  int seed = atoi(arg[6]);
 
   if (a + b + c + d != 1.0) error->all("Rmat_edge a,b,c,d must sum to 1\n");
   if (fraction < 0.0 || fraction >= 1.0)
-    error->all("Rmat edge fraction must be < 1\n");
+    error->all("Rmat_edge fraction must be < 1\n");
+
+  // require nrows = power of 2
+
+  nlevels = 0;
+  while ((1 << nlevels) < nrows) nlevels++;
+  if ((1 << nlevels) != nrows)
+    error->all("Rmat_edge nrows must be power of 2");
 
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
@@ -43,8 +49,9 @@ void MapRmatEdge::map(int itask, KeyValue *kv, void *ptr)
 {
   MapRmatEdge *data = (MapRmatEdge *) ptr;
 
+  uint64_t ngenerate = data->ngenerate;
+  uint64_t nrows = data->nrows;
   int nlevels = data->nlevels;
-  uint64_t ntotal = data->ntotal;
   double a = data->a;
   double b = data->b;
   double c = data->c;
@@ -53,17 +60,16 @@ void MapRmatEdge::map(int itask, KeyValue *kv, void *ptr)
   int me = data->me;
   int nprocs = data->nprocs;
 
-  uint64_t order = 1 << (uint64_t) nlevels;
-  uint64_t ngenerate = ntotal/nprocs;
-  if (me < ntotal % nprocs) ngenerate++;
+  uint64_t n = ngenerate/nprocs;
+  if (me < (ngenerate % nprocs)) n++;
 
   uint64_t i,j,delta;
   int ilevel;
   double a1,b1,c1,d1,total,rn;
   EDGE edge;
 
-  for (int m = 0; m < ngenerate; m++) {
-    delta = order >> 1;
+  for (uint64_t m = 0; m < n; m++) {
+    delta = nrows >> 1;
     a1 = a; b1 = b; c1 = c; d1 = d;
     i = j = 0;
     

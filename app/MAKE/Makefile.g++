@@ -9,7 +9,7 @@ SHELL = /bin/sh
 # System-specific settings
 
 CC =		g++
-CCFLAGS =	-g -O -W3
+CCFLAGS =	-g -O
 DEPFLAGS =	-M
 LINK =		g++
 LINKFLAGS =	-g -O
