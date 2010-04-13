@@ -14,7 +14,7 @@ MapPrintTriangle::
 MapPrintTriangle(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg != 1) error->all("Invalid map print_triangle args");
+  if (narg != 1) error->all("Illegal map print_triangle command");
 
   int me;
   MPI_Comm_rank(world,&me);

@@ -14,7 +14,7 @@ using MAPREDUCE_NS::KeyValue;
 MapOutCount::MapOutCount(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg != 3) error->all("Invalid map out_count args");
+  if (narg != 3) error->all("Illegal map out_count command");
 
   n = atoi(arg[0]);
   limit = atoi(arg[1]);

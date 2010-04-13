@@ -11,7 +11,7 @@ using MAPREDUCE_NS::KeyValue;
 MapLowDegree::MapLowDegree(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg) error->all("Invalid map low_degree args");
+  if (narg) error->all("Illegal map low_degree command");
 
   appmap_mr = map;
 }

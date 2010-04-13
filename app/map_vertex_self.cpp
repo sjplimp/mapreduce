@@ -14,7 +14,7 @@ using MAPREDUCE_NS::KeyValue;
 MapVertexSelf::MapVertexSelf(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg != 1) error->all("Invalid map vertex_self args");
+  if (narg != 1) error->all("Illegal map vertex_self command");
 
   n = atol(arg[0]);
 

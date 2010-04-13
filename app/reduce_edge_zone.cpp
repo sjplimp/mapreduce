@@ -14,7 +14,7 @@ using MAPREDUCE_NS::KeyValue;
 ReduceEdgeZone::ReduceEdgeZone(APP *app, char *idstr, int narg, char **arg) :
   Reduce(app, idstr)
 {
-  if (narg) error->all("Illegal edge_zone args");
+  if (narg) error->all("Illegal reduce edge_zone command");
 
   appreduce = reduce;
 }
@@ -25,10 +25,10 @@ void ReduceEdgeZone::reduce(char *key, int keybytes,
 			    char *multivalue, int nvalues, int *valuebytes,
 			    KeyValue *kv, void *ptr)
 {
-  // loop over values to find zone ID
-
   int i;
   char *value;
+
+  // loop over values to find zone ID
 
   uint64_t nvalues_total;
   CHECK_FOR_BLOCKS(multivalue,valuebytes,nvalues,nvalues_total)

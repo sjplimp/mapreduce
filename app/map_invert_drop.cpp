@@ -11,7 +11,7 @@ using MAPREDUCE_NS::KeyValue;
 MapInvertDrop::MapInvertDrop(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg) error->all("Invalid map invert_drop args");
+  if (narg) error->all("Illegal map invert_drop command");
 
   appmap_mr = map;
 }

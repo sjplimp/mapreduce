@@ -15,7 +15,7 @@ using MAPREDUCE_NS::KeyValue;
 MapInvertMulti::MapInvertMulti(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg != 0) error->all("Invalid map invert_multi args");
+  if (narg != 0) error->all("Illegal map invert_multi command");
 
   int me;
   MPI_Comm_rank(world,&me);

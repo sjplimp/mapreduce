@@ -14,7 +14,7 @@ using MAPREDUCE_NS::KeyValue;
 ReduceSum::ReduceSum(APP *app, char *idstr, int narg, char **arg) :
   Reduce(app, idstr)
 {
-  if (narg) error->all("Illegal sum args");
+  if (narg) error->all("Illegal reduce sum command");
 
   appreduce = reduce;
 }

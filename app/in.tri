@@ -43,7 +43,7 @@ mrc.reduce(sd)
 # find triangles in degree-augmented graph and write to output file
 # once create angles, add in edges from original graph
 # this enables finding completed triangles in emit_triangles()
-# results in ((Vi,Vj,Vk),None)
+# results in ((Vi,Vj,Vk),NULL)
 
 ld = map.low_degree()
 nsq = reduce.nsq_angles()

@@ -13,7 +13,7 @@ using MAPREDUCE_NS::KeyValue;
 MapStrip::MapStrip(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg) error->all("Invalid map strip args");
+  if (narg) error->all("Illegal map strip command");
 
   appmap_mr = map;
 }

@@ -14,7 +14,7 @@ using MAPREDUCE_NS::KeyValue;
 MapFileRead::MapFileRead(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg) error->all("Invalid map file_read args");
+  if (narg) error->all("Illegal map file_read command");
 
   appmap_file_list = map;
   appptr = this;

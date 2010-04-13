@@ -16,7 +16,7 @@ ReduceZoneReassign::
 ReduceZoneReassign(APP *app, char *idstr, int narg, char **arg) :
   Reduce(app, idstr)
 {
-  if (narg != 0) error->all("Illegal zone_reassign args");
+  if (narg) error->all("Illegal reduce zone_reassign command");
 
   //thresh = atoi(arg[0]);
 

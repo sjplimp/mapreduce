@@ -11,7 +11,7 @@ using MAPREDUCE_NS::KeyValue;
 MapEdgeVert2::MapEdgeVert2(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg) error->all("Invalid map edge_vert2 args");
+  if (narg) error->all("Illegal map edge_vert2 command");
 
   appmap_mr = map;
 }

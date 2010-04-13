@@ -11,7 +11,7 @@ using MAPREDUCE_NS::KeyValue;
 MapEdgeVertex::MapEdgeVertex(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg) error->all("Invalid map edge_vertex args");
+  if (narg) error->all("Illegal map edge_vertex command");
 
   appmap_mr = map;
 }
