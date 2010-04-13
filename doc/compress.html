@@ -19,14 +19,15 @@
 </PRE>
 <PRE>int MapReduce::multivalue_block(int iblock, char **ptr_multivalue, int **ptr_valuesizes) 
 </PRE>
-<P>This calls the compress() method of a MapReduce object, which
+<P>This calls the compress() method of a MapReduce object, passing it a
+function pointer to a mycompress function you write.  This method
 compresses a KeyValue object with duplicate keys into a new KeyValue
 object, where each key appears once (on that processor) and has a
 single new value.  The new value is a combination of the values
 associated with that key in the original KeyValue object.  The
-mycompress() function you provide generates the new value.  The method
-returns the total number of key/value pairs in the new KeyValue
-object.
+mycompress() function you provide generates the new value, once for
+each unique key (on that processor).  The method returns the total
+number of key/value pairs in the new KeyValue object.
 </P>
 <P>This method is used to compress a large set of key/value pairs
 produced by the <A HREF = "map.html">map()</A> method into a smaller set before
@@ -44,11 +45,16 @@ have the following interface, which is the same as that used by the
 </P>
 <PRE>void mycompress(char *key, int keybytes, char *multivalue, int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 </PRE>
-<P>A single key/multi-value pair is passed to your function from a
+<P>A single key/multi-value (KMV) pair is passed to your function from a
 temporary KeyMultiValue object created by the library.  That object
 creates a multi-value for each unique key in the KeyValue object which
 contains a list of the nvalues associated with that key.  Note that
 this is only the values on this processor, not across all processors.
+</P>
+<P>There are two possibilities for a KMV pair returned to your function.
+The first is that it fits in one page of memory allocated by the
+MapReduce object, which is the usual case.  See the <I>memsize</I>
+<A HREF = "settings.html">setting</A> for details on memory allocation.
 </P>
 <P>In this case, the char *multivalue argument is a pointer to the
 beginning of the multi-value which contains all nvalues, packed one
@@ -59,10 +65,11 @@ individual value begins.  Your function is also passed a kv pointer to
 a new KeyValue object created and stored internally by the MapReduce
 object.
 </P>
-<P>If the values do not fit in memory, then the meaning of the arguments
-passed to your function is changed.  Your function must call two
-additional library functions in order to retrieve a block of values
-that does fit in memory, and process them one block at a time.
+<P>If the KMV pair does not fit in one page of memory, then the meaning
+of the arguments passed to your function is changed.  Your function
+must call two additional library functions in order to retrieve a
+block of values that does fit in memory, and process them one block at
+a time.
 </P>
 <P>In this case, the char *multivalue argument will be NULL and the
 nvalues argument will be 0.  Either of these can be tested for within
