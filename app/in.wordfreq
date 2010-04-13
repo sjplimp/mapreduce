@@ -1,0 +1,23 @@
+# word count
+# must put list of files into tmp file before running this script
+
+mr = mrmpi()
+mr.verbosity(2)
+mr.timer(1)
+
+fr = map.fileread()
+sum = reduce.sum()
+cmp = compare.intcmp()
+out1 = map.outcount(0,10,0)
+out2 = map.outcount(0,10,1)
+
+mr.map_file_list(tmp,fr)
+mr.collate()
+mr.reduce(sum)
+mr.sort_values(cmp)
+mr.map_mr(mr,out1)
+mr.gather(1)
+mr.sort_values(cmp)
+mr.map_mr(mr,out2)
+
+mr.delete()

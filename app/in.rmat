@@ -1,0 +1,38 @@
+# RMAT matrix generation & statistics
+
+variable order equal 10
+variable nz equal 8
+variable a equal 0.25
+variable b equal 0.25
+variable c equal 0.25
+variable d equal 0.25
+variable frac equal 0.0
+variable seed equal 12345
+
+mr = mrmpi()
+mr.verbosity(2)
+mr.timer(1)
+
+rmat(mr,${order},${nz},$a,$b,$c,$d,${frac},${seed})
+
+# print RMAT stats, destroys mr
+
+vert = map.edge_vert()
+mr.map_mr(mr,vert)
+mr.collate()
+sum = reduce.sum()
+mr.reduce(sum)
+inv = map.invert()
+mr.map_mr(mr,inv)
+mr.collate()
+mr.reduce(sum)
+mr.gather(1)
+ic = compare.intcmp()
+mr.sort_keys(ic)
+
+variable n equal 2^v_order
+print "RMAT stats"
+print "$n rows"
+mr.print(0,1,1,1)
+
+mr.delete()

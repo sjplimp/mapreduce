@@ -1,0 +1,111 @@
+Todo for app:
+
+could print "FOO" be replaced by print("FOO")
+  if 2 args were subtracted off higher in input.cpp?
+
+would be nice if these 2 were equivalent:
+  variable tstart equal $t
+  tstart = $t
+
+what to name instead of APP?
+
+look at driver programs for wordfreq and rmat, then at PR, tri, cc, etc
+
+allow log files to be written (MR/MPI lib doesn't do this now)
+
+is object syntax bullet proof?
+  what if no trailing right paren
+  what if right paren or spaces instead of commas in arg list
+
+new commmands for:
+  RMAT -> file, tri -> file, tri finding (or is a script)
+  worry about no-diag and upper-only versions of RMAT
+  RMAT and CC and tri stats as a command
+    do they wipe out the MR that stores it?
+  non-power of 2 inputs for RMAT
+
+----------------
+doc:
+
+any library call syntax differences with C++ or C or Python interface
+  map file char/str, others?
+
+available variables:
+  keywords: nprocs, time,
+  object variables: mr(nkv), mr(nkmv)
+
+** Map functions:
+
+file_read()
+  read entire file in one chunk, parse into words separated by whitespace
+  key = each word, value = NULL
+  
+gen_kv(n,seed,keyword,value,...)
+  keywords = key or value
+  key or value args = type,lo,hi,lo2,hi2
+    type = int or str
+    lo,hi = length bounds, inclusive
+    lo2,hi2 = lo/hi char for str, lo/hi int for int, both inclusive
+  default is ktype = int, full range of ints, length = 1
+  default is vtype = str, 1 char from a-z
+  RNG is just srand48 on seed + proc-ID
+  each proc gets 1 task
+  divide notal across procs, each generates its share
+  emit series of randomized key/value pairs
+
+out_count(n,limit,flag)
+  if flag is set, print KV to screen as %d %s
+  else re-emit as KV as int,string
+  accumulate count in n
+  only print/re-emit up to limit
+
+rmat_edge(nlevels,ntotal,a,b,c,d,fraction,seed)
+  a,b,c,d must sum to 1
+  fraction must be 0 to 1 inclusive
+  ntotal is not nnonzero, typically is overwritten by caller rmat()
+  RNG is just srand48 on seed + proc-ID
+  each proc gets 1 task
+  divide notal across procs, each generates its share of edges via RMAT alg
+  key = (Vi,Vj), value = NULL
+  Vi range from 1 to 2^nlevels inclusive
+
+** Reduce functions:
+
+rmat_cull()
+  de-dups, no matter how many copies/values are incoming
+  input KMV = anything
+  emit key = old key, value = NULL
+
+sum()
+  count multiplicity of values
+  input KMV = anything
+  emit key = old key, value = count of values as an int
+  does not yet work with multi-page values
+
+** Compare functions:
+
+intcmp()
+  compare 2 items as ints
+
+strcmp()
+  compare 2 items as strings, via C-lib strcmp()
+
+** Hash functions:
+
+simple()
+  not written yet
+
+** Commands:
+
+shell - default shell commands
+
+rmat(mr,nlevels,nonzero,a,b,c,d,fraction,seed)
+  nnonzero is per row, gets converted into total
+  uses map rmat_gen() and reduce rmat_cull()
+  pass all but 1st arg to map rmat_gen()
+  iterates over gen/cull until has enough unique matrix elements
+  output is mr with a kv containing all matrix edges
+    key = (Vi,Vj), value = NULL
+
+cc()
+

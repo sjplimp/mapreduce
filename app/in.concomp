@@ -1,0 +1,63 @@
+# RMAT matrix generation & statistics
+
+mre = mrmpi()
+mre.memsize(1)
+mre.verbosity(1)
+mre.timer(1)
+
+#rmat(mre,3,1,0.25,0.25,0.25,0.25,0.0,12345)
+#rmat(mre,5,1,0.25,0.25,0.25,0.25,0.0,12345)
+#rmat(mre,8,1,0.25,0.25,0.25,0.25,0.0,12345)
+#rmat(mre,13,1,0.25,0.25,0.25,0.25,0.0,12345)
+rmat(mre,16,1,0.25,0.25,0.25,0.25,0.0,12345)
+
+mrv = mrmpi()
+mrv.memsize(1)
+mrv.verbosity(1)
+mrv.timer(1)
+
+mrz = mrmpi()
+mrz.memsize(1)
+mrz.verbosity(1)
+mrz.timer(1)
+
+#cc(8,mre,mrv,mrz)
+#cc2(8,0,mre,mrv,mrz)
+
+#cc(32,mre,mrv,mrz)
+#cc2(32,0,mre,mrv,mrz)
+
+#cc2(256,5,mre,mrv,mrz)
+
+#cc(8192,mre,mrv,mrz)
+#cc2(8192,0,mre,mrv,mrz)
+
+#cc(65536,mre,mrv,mrz)
+#cc2(65536,100000,mre,mrv,mrz)
+cc2(65536,5,mre,mrv,mrz)
+
+#cc(262144,mre,mrv,mrz)
+#cc2(262144,1000000,mre,mrv,mrz)
+#cc2(262144,100,mre,mrv,mrz)
+
+#cc(1048576,mre,mrv,mrz)
+#cc2(1048576,10000,mre,mrv,mrz)
+
+# print CC stats, destroys mrv
+
+inv = map.invert()
+mrv.map_mr(mrv,inv)
+mrv.collate()
+sum = reduce.sum()
+mrv.reduce(sum)
+mrv.map_mr(mrv,inv)
+mrv.collate()
+mrv.reduce(sum)
+mrv.gather(1)
+ic = compare.intcmp()
+mrv.sort_keys(ic)
+mrv.print(0,1,1,1)
+
+mre.delete()
+mrv.delete()
+mrz.delete()
