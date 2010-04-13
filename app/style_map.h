@@ -3,6 +3,7 @@
 #include "map_file_read.h"
 #include "map_gen_kv.h"
 #include "map_invert.h"
+#include "map_invert_drop.h"
 #include "map_invert_multi.h"
 #include "map_out_count.h"
 #include "map_rmat_edge.h"

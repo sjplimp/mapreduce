@@ -71,7 +71,7 @@ rmat_edge(nlevels,ntotal,a,b,c,d,fraction,seed)
 
 ** Reduce functions:
 
-rmat_cull()
+cull()
   de-dups, no matter how many copies/values are incoming
   input KMV = anything
   emit key = old key, value = NULL

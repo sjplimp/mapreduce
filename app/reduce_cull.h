@@ -1,20 +1,20 @@
 #ifdef REDUCE_CLASS
 
-ReduceStyle(rmat_cull,ReduceRmatCull)
+ReduceStyle(cull,ReduceCull)
 
 #else
 
-#ifndef REDUCE_RMAT_CULL_H
-#define REDUCE_RMAT_CULL_H
+#ifndef REDUCE_CULL_H
+#define REDUCE_CULL_H
 
 #include "reduce.h"
 
 namespace APP_NS {
 
-class ReduceRmatCull : public Reduce {
+class ReduceCull : public Reduce {
  public:
-  ReduceRmatCull(class APP *, char *, int, char **);
-  ~ReduceRmatCull() {}
+  ReduceCull(class APP *, char *, int, char **);
+  ~ReduceCull() {}
 
  private:
   static void reduce(char *, int, char *,

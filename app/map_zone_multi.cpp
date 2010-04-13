@@ -15,7 +15,7 @@ using MAPREDUCE_NS::KeyValue;
 MapZoneMulti::MapZoneMulti(APP *app, char *idstr, int narg, char **arg) : 
   Map(app, idstr)
 {
-  if (narg != 0) error->all("Invalid map zone_multi args");
+  if (narg) error->all("Invalid map zone_multi args");
 
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 

@@ -1,5 +1,5 @@
+#include "reduce_cull.h"
 #include "reduce_edge_zone.h"
-#include "reduce_rmat_cull.h"
 #include "reduce_sum.h"
 #include "reduce_zone_reassign.h"
 #include "reduce_zone_reassign2.h"

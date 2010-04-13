@@ -8,7 +8,7 @@
 #include "string.h"
 #include "rmat.h"
 #include "map_rmat_edge.h"
-#include "reduce_rmat_cull.h"
+#include "reduce_cull.h"
 #include "object.h"
 #include "error.h"
 
@@ -42,7 +42,7 @@ void RMAT::command(int narg, char **arg)
   // map and reduce functions
 
   MapRmatEdge *egen = new MapRmatEdge(app,"egen",narg-2,&arg[2]);
-  ReduceRmatCull *cull = new ReduceRmatCull(app,"cull",0,NULL);
+  ReduceCull *cull = new ReduceCull(app,"cull",0,NULL);
 
   // loop until desired number of unique nonzero entries
   // set egen->ngenerate on each iteration
