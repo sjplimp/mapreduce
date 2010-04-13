@@ -1,0 +1,56 @@
+# triangle finding
+
+variable order equal 10
+variable nz equal 8
+variable nrows equal 2^v_order
+variable n equal v_nrows*v_nz
+
+mre = mrmpi()
+mre.memsize(1)
+mre.verbosity(1)
+mre.timer(1)
+
+rmat(mre,$n,${nrows},0.25,0.25,0.25,0.25,0.0,12345)
+
+# eliminate duplicate edges = both I,J and J,I exist
+# results in ((vi,vj),None) with all vi < vj
+
+id = map.invert_drop()
+mre.map_mr(mre,id)
+mre.collate()
+cull = reduce.cull()
+mre.reduce(cull)
+variable nnew equal mre(nkv)
+print  "${nnew} edges after duplicates removed"
+
+
+
+#mre->map(mr,&emit_vertices,NULL);
+#mre->collate(NULL);
+#mre->reduce(&first_degree,NULL);
+#mre->collate(NULL);
+#mre->reduce(&second_degree,NULL);
+#print ("%d edges augmented by vertex degrees\n",nedges);
+
+
+
+
+
+# print tri stats, destroys mrv
+
+#inv = map.invert()
+#mrv.map_mr(mrv,inv)
+#mrv.collate()
+#sum = reduce.sum()
+#mrv.reduce(sum)
+#mrv.map_mr(mrv,inv)
+#mrv.collate()
+#mrv.reduce(sum)
+#mrv.gather(1)
+#ic = compare.intcmp()
+#mrv.sort_keys(ic)
+#mrv.print(0,1,1,1)
+
+#mre.delete()
+#mrv.delete()
+#mrz.delete()
