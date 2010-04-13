@@ -1,4 +1,4 @@
-// Code simplifying use of out-of-core MR-MPI.
+// Code to simplify use of multi-page KMVs
 // Karen Devine, March 2010
 
 #ifndef _BLOCKMACROS_HPP

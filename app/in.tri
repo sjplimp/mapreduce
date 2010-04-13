@@ -5,52 +5,57 @@ variable nz equal 8
 variable nrows equal 2^v_order
 variable n equal v_nrows*v_nz
 
-mre = mrmpi()
-mre.memsize(1)
-mre.verbosity(1)
-mre.timer(1)
+mr = mrmpi()
+mr.memsize(1)
+mr.verbosity(1)
+mr.timer(1)
 
-rmat(mre,$n,${nrows},0.25,0.25,0.25,0.25,0.0,12345)
+rmat(mr,$n,${nrows},0.25,0.25,0.25,0.25,0.0,12345)
 
-# eliminate duplicate edges = both I,J and J,I exist
-# results in ((vi,vj),None) with all vi < vj
+# eliminate duplicate edges, both I,J and J,I exist
+# results in ((Vi,Vj),NULL) with all Vi < Vj
 
 id = map.invert_drop()
-mre.map_mr(mre,id)
-mre.collate()
+mr.map_mr(mr,id)
+mr.collate()
 cull = reduce.cull()
-mre.reduce(cull)
-variable nnew equal mre(nkv)
-print  "${nnew} edges after duplicates removed"
+mr.reduce(cull)
+variable nnew equal mr(nkv)
+print "${nnew} edges after duplicates removed"
 
+# make copy of graph for use in triangle finding
 
+mrc = mr.copy()
 
-#mre->map(mr,&emit_vertices,NULL);
-#mre->collate(NULL);
-#mre->reduce(&first_degree,NULL);
-#mre->collate(NULL);
-#mre->reduce(&second_degree,NULL);
-#print ("%d edges augmented by vertex degrees\n",nedges);
+# augment edges with degree of each vertex
+# results in (Eij,(Di,Dj))
 
+ev = map.edge_vert2()
+fd = reduce.first_degree()
+sd = reduce.second_degree()
 
+mrc.map_mr(mrc,ev)
+mrc.collate()
+mrc.reduce(fd)
+mrc.collate()
+mrc.reduce(sd)
 
+# find triangles in degree-augmented graph and write to output file
+# once create angles, add in edges from original graph
+# this enables finding completed triangles in emit_triangles()
+# results in ((Vi,Vj,Vk),None)
 
+ld = map.low_degree()
+nsq = reduce.nsq_angles()
+et = reduce.emit_triangles()
 
-# print tri stats, destroys mrv
+mr.map_mr(mr,ld)
+mr.collate()
+mr.reduce(nsq)
+mr.add(mrc)
+mr.collate()
+mr.reduce(et)
+print "${nnew} triangles"
 
-#inv = map.invert()
-#mrv.map_mr(mrv,inv)
-#mrv.collate()
-#sum = reduce.sum()
-#mrv.reduce(sum)
-#mrv.map_mr(mrv,inv)
-#mrv.collate()
-#mrv.reduce(sum)
-#mrv.gather(1)
-#ic = compare.intcmp()
-#mrv.sort_keys(ic)
-#mrv.print(0,1,1,1)
-
-#mre.delete()
-#mrv.delete()
-#mrz.delete()
+mr.delete()
+mrc.delete()

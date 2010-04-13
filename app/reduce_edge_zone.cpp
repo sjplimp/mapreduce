@@ -17,7 +17,6 @@ ReduceEdgeZone::ReduceEdgeZone(APP *app, char *idstr, int narg, char **arg) :
   if (narg) error->all("Illegal edge_zone args");
 
   appreduce = reduce;
-  appptr = (void *) this;
 }
 
 /* ---------------------------------------------------------------------- */
