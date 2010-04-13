@@ -18,8 +18,8 @@ MapInvertMulti::MapInvertMulti(APP *app, char *idstr, int narg, char **arg) :
   if (narg != 0) error->all("Invalid map invert_multi args");
 
   int me;
-  MPI_Comm_rank(MPI_COMM_WORLD,&me);
-  MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+  MPI_Comm_rank(world,&me);
+  MPI_Comm_size(world,&nprocs);
 
   // hardwire a seed
 

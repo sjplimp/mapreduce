@@ -26,7 +26,7 @@ ReduceZoneReassign2(APP *app, char *idstr, int narg, char **arg) :
   thresh = atoi(arg[0]);
 
   int nprocs;
-  MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+  MPI_Comm_size(world,&nprocs);
 
   // lmask will mask off hi-bit and proc ID setting in hi-bits of zone
 
@@ -36,7 +36,7 @@ ReduceZoneReassign2(APP *app, char *idstr, int narg, char **arg) :
   lmask = ALLBITS >> hbits;
 
   appreduce = reduce;
-  appptr = (void *) this;
+  appptr = this;
 }
 
 /* ---------------------------------------------------------------------- */

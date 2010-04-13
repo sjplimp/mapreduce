@@ -18,6 +18,7 @@ class MapVertexSelf : public Map {
 
  private:
   uint64_t n;
+  int me,nprocs;
 
   static void map(int, MAPREDUCE_NS::KeyValue *, void *);
 };

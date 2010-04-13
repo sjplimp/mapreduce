@@ -23,7 +23,7 @@ ReduceZoneReassign(APP *app, char *idstr, int narg, char **arg) :
   // set lobits based on nprocs in hi bits of uint64
 
   appreduce = reduce;
-  appptr = (void *) this;
+  appptr = this;
 }
 
 /* ---------------------------------------------------------------------- */

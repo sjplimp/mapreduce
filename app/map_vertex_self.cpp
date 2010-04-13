@@ -18,6 +18,9 @@ MapVertexSelf::MapVertexSelf(APP *app, char *idstr, int narg, char **arg) :
 
   n = atol(arg[0]);
 
+  MPI_Comm_rank(world,&me);
+  MPI_Comm_size(world,&nprocs);
+
   appmap = map;
   appptr = this;
 }
@@ -29,12 +32,8 @@ void MapVertexSelf::map(int itask, KeyValue *kv, void *ptr)
   MapVertexSelf *data = (MapVertexSelf *) ptr;
   uint64_t n = data->n;
 
-  int me,nprocs;
-  MPI_Comm_rank(MPI_COMM_WORLD,&me);
-  MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-
-  uint64_t nstart = me*n/nprocs;
-  uint64_t nstop = (me+1)*n/nprocs;
+  uint64_t nstart = (data->me)*n/(data->nprocs);
+  uint64_t nstop = ((data->me)+1)*n/(data->nprocs);
 
   for (uint64_t i = nstart; i < nstop; i++)
     kv->add((char *) &i,sizeof(uint64_t),(char *) &i,sizeof(uint64_t));

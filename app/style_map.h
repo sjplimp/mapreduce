@@ -8,6 +8,8 @@
 #include "map_invert_multi.h"
 #include "map_low_degree.h"
 #include "map_out_count.h"
+#include "map_print_matrix.h"
+#include "map_print_triangle.h"
 #include "map_rmat_edge.h"
 #include "map_strip.h"
 #include "map_vertex_self.h"

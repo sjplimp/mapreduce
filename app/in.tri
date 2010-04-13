@@ -1,7 +1,7 @@
 # triangle finding
 
 variable order equal 10
-variable nz equal 8
+variable nz equal 2
 variable nrows equal 2^v_order
 variable n equal v_nrows*v_nz
 
@@ -26,6 +26,7 @@ print "${nnew} edges after duplicates removed"
 # make copy of graph for use in triangle finding
 
 mrc = mr.copy()
+#mr.print(-1,1,7,0)
 
 # augment edges with degree of each vertex
 # results in (Eij,(Di,Dj))
@@ -35,10 +36,19 @@ fd = reduce.first_degree()
 sd = reduce.second_degree()
 
 mrc.map_mr(mrc,ev)
+
+#mrc.print(-1,1,2,2)
+
 mrc.collate()
+#mrc.print(-1,1,2,2)
 mrc.reduce(fd)
+
+#mrc.print(-1,1,7,6)
+
 mrc.collate()
 mrc.reduce(sd)
+
+#mrc.print(-1,1,7,6)
 
 # find triangles in degree-augmented graph and write to output file
 # once create angles, add in edges from original graph
@@ -49,13 +59,20 @@ ld = map.low_degree()
 nsq = reduce.nsq_angles()
 et = reduce.emit_triangles()
 
-mr.map_mr(mr,ld)
-mr.collate()
-mr.reduce(nsq)
-mr.add(mrc)
-mr.collate()
-mr.reduce(et)
-print "${nnew} triangles"
+mrc.map_mr(mr,ld)
+mrc.collate()
+mrc.reduce(nsq)
+mrc.add(mr)
+mrc.collate()
+mrc.reduce(et)
+variable ntri equal mrc(nkv)
+print "${ntri} triangles"
+
+pt = map.print_triangle(tmp.tri)
+mrc.map_mr(mrc,pt)
+
+pm = map.print_matrix(tmp.rmat)
+mr.map_mr(mr,pm)
 
 mr.delete()
 mrc.delete()

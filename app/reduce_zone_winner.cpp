@@ -17,7 +17,7 @@ ReduceZoneWinner(APP *app, char *idstr, int narg, char **arg) :
   if (narg) error->all("Illegal zone_winner args");
 
   appreduce = reduce;
-  appptr = (void *) this;
+  appptr = this;
 }
 
 /* ---------------------------------------------------------------------- */

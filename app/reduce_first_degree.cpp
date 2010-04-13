@@ -1,5 +1,4 @@
 #include "reduce_first_degree.h"
-#include "blockmacros.h"
 #include "error.h"
 
 #include "mapreduce.h"
@@ -29,20 +28,15 @@ void ReduceFirstDegree::reduce(char *key, int keybytes,
 			       char *multivalue, int nvalues, int *valuebytes,
 			       KeyValue *kv, void *ptr)
 {
-  char *value;
   VERTEX vi,vj;
   EDGE edge;
   DEGREE degree;
 
   vi = *(VERTEX *) key;
-
-  uint64_t nvalues_total;
-  CHECK_FOR_BLOCKS(multivalue,valuebytes,nvalues,nvalues_total)
-  BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
-
-  value = multivalue;
+  int offset = 0;
   for (int i = 0; i < nvalues; i++) {
-    vj = *(VERTEX *) value;
+    vj = *(VERTEX *) &multivalue[offset];
+    offset += valuebytes[i];
     if (vi < vj) {
       edge.vi = vi;
       edge.vj = vj;
@@ -57,6 +51,4 @@ void ReduceFirstDegree::reduce(char *key, int keybytes,
       kv->add((char *) &edge,sizeof(EDGE),(char *) &degree,sizeof(DEGREE));
     }
   }
-
-  END_BLOCK_LOOP
 }

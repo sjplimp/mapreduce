@@ -17,7 +17,7 @@ MapZoneMulti::MapZoneMulti(APP *app, char *idstr, int narg, char **arg) :
 {
   if (narg) error->all("Invalid map zone_multi args");
 
-  MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+  MPI_Comm_size(world,&nprocs);
 
   // pshift = amount to left shift a proc ID, to put it 1 bit away from top
 
@@ -26,7 +26,7 @@ MapZoneMulti::MapZoneMulti(APP *app, char *idstr, int narg, char **arg) :
   pshift = 63 - pbits;
 
   appmap_mr = map;
-  appptr = (void *) this;
+  appptr = this;
 }
 
 /* ---------------------------------------------------------------------- */

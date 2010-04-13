@@ -17,6 +17,7 @@ MapFileRead::MapFileRead(APP *app, char *idstr, int narg, char **arg) :
   if (narg) error->all("Invalid map file_read args");
 
   appmap_file_list = map;
+  appptr = this;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -26,9 +27,8 @@ void MapFileRead::map(int itask, char *file, KeyValue *kv, void *ptr)
   struct stat stbuf;
   int flag = stat(file,&stbuf);
   if (flag < 0) {
-    printf("FILE: %s\n",file);
-    printf("ERROR: Could not query file size\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
+    MapFileRead *data = (MapFileRead *) ptr;
+    data->error->one("Could not query file size");
   }
   int filesize = stbuf.st_size;
 

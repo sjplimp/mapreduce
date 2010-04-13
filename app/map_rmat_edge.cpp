@@ -35,12 +35,12 @@ MapRmatEdge::MapRmatEdge(APP *app, char *idstr, int narg, char **arg) :
   if ((1 << nlevels) != nrows)
     error->all("Rmat_edge nrows must be power of 2");
 
-  MPI_Comm_rank(MPI_COMM_WORLD,&me);
-  MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+  MPI_Comm_rank(world,&me);
+  MPI_Comm_size(world,&nprocs);
   srand48(seed+me);
 
   appmap = map;
-  appptr = (void *) this;
+  appptr = this;
 }
 
 /* ---------------------------------------------------------------------- */
