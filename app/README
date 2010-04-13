@@ -99,8 +99,9 @@ simple()
 
 shell - default shell commands
 
-rmat(mr,nlevels,nonzero,a,b,c,d,fraction,seed)
-  nnonzero is per row, gets converted into total
+rmat(mr,ntotal,nrows,a,b,c,d,fraction,seed)
+  ntotal = total # of non-zeroes
+  nrows = # of rows in matrix, required to be power-of-2
   uses map rmat_gen() and reduce rmat_cull()
   pass all but 1st arg to map rmat_gen()
   iterates over gen/cull until has enough unique matrix elements
@@ -108,4 +109,7 @@ rmat(mr,nlevels,nonzero,a,b,c,d,fraction,seed)
     key = (Vi,Vj), value = NULL
 
 cc()
+
+cc2()
+
 
