@@ -26,7 +26,6 @@ print "${nnew} edges after duplicates removed"
 # make copy of graph for use in triangle finding
 
 mrc = mr.copy()
-#mr.print(-1,1,7,0)
 
 # augment edges with degree of each vertex
 # results in (Eij,(Di,Dj))
@@ -36,19 +35,10 @@ fd = reduce.first_degree()
 sd = reduce.second_degree()
 
 mrc.map_mr(mrc,ev)
-
-#mrc.print(-1,1,2,2)
-
 mrc.collate()
-#mrc.print(-1,1,2,2)
 mrc.reduce(fd)
-
-#mrc.print(-1,1,7,6)
-
 mrc.collate()
 mrc.reduce(sd)
-
-#mrc.print(-1,1,7,6)
 
 # find triangles in degree-augmented graph and write to output file
 # once create angles, add in edges from original graph
