@@ -86,12 +86,18 @@ int MRMPI::variable(void *mrptr, char *variable, double &value)
   if (strcmp(variable,"nkv") == 0) {
     if (mr->kv == NULL)
       error->all("Requesting MRMPI nkv variable when KeyValue does not exist");
-    value = mr->kv->nkv;
+    uint64_t one = mr->kv->nkv;
+    uint64_t all;
+    MPI_Allreduce(&one,&all,1,MPI_UNSIGNED_LONG,MPI_SUM,world);
+    value = all;
   } else if (strcmp(variable,"nkmv") == 0) {
     if (mr->kmv == NULL)
       error->all("Requesting MRMPI nkmv variable when KeyMultiValue "
 		 "does not exist");
-    value = mr->kmv->nkmv;
+    uint64_t one = mr->kmv->nkmv;
+    uint64_t all;
+    MPI_Allreduce(&one,&all,1,MPI_UNSIGNED_LONG,MPI_SUM,world);
+    value = all;
   } else return 1;
 
   return 0;
