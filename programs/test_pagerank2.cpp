@@ -28,10 +28,8 @@
 #include <mpi.h>
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "mrmatrix2.h"
-#include "mrvector2.h"
-#include "mrmatrix2.cpp"
-#include "mrvector2.cpp"
+#include "mrmatrix2.hpp"
+#include "mrvector2.hpp"
 #include "blockmacros.hpp"
 #include "localdisks.hpp"
 #include "read_fb_data.hpp"
