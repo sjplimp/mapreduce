@@ -82,7 +82,7 @@ uint64_t MR_map_mr_add(void *MRptr, void *MRptr2,
 		       void (*mymap)(uint64_t, char *, int, char *, int, 
 				     void *KVptr, void *APPptr),
 		       void *APPptr, int addflag);
-
+void MR_print(void *MRptr, int proc, int nstride, int kflag, int vflag);
 uint64_t MR_reduce(void *MRptr,
 		   void (*myreduce)(char *, int, char *,
 				    int, int *, void *KVptr, void *APPptr),

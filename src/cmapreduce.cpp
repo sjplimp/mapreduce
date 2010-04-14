@@ -216,6 +216,12 @@ uint64_t MR_map_mr_add(void *MRptr, void *MRptr2,
   return mr->map(mr2,appmap,APPptr,addflag);
 }
 
+void MR_print(void *MRptr, int proc, int nstride, int kflag, int vflag)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->print(proc,nstride,kflag,vflag);
+}
+
 uint64_t MR_reduce(void *MRptr,
 		   void (*myreduce)(char *, int, char *,
 				    int, int *, void *, void *),
