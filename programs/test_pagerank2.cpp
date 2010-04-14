@@ -30,6 +30,8 @@
 #include "keyvalue.h"
 #include "mrmatrix2.h"
 #include "mrvector2.h"
+#include "mrmatrix2.cpp"
+#include "mrvector2.cpp"
 #include "blockmacros.hpp"
 #include "localdisks.hpp"
 #include "read_fb_data.hpp"
@@ -41,8 +43,8 @@ using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////
 // Global ordinal type for matrix row/column numbers.
-#define IDTYPE int64_t
-#define MPI_IDTYPE MPI_LONG
+#define IDXTYPE int64_t
+#define MPI_IDXTYPE MPI_LONG
 
 // Input file types
 #define FBFILE 0
@@ -75,8 +77,8 @@ void allzero_contribution(char *key, int keybytes, char *multivalue,
 }
 
 double compute_local_allzero_adj(
-  MRMatrix<IDTYPE> *A,
-  MRVector<IDTYPE> *x,
+  MRMatrix<IDXTYPE> *A,
+  MRVector<IDXTYPE> *x,
   double alpha
 )
 {
@@ -110,17 +112,17 @@ void compute_lmax_residual(char *key, int keybytes,
 }
 
 ////////////////////////////////////////////////////////////////////////////
-MRVector<IDTYPE> *pagerank(
-  MRMatrix<IDTYPE> *A,
+MRVector<IDXTYPE> *pagerank(
+  MRMatrix<IDXTYPE> *A,
   double alpha,
   double tolerance
 )
 {
   int me = A->mr->my_proc();
   if (me == 0) {cout << "Initializing vectors..." << endl; flush(cout);}
-  MRVector<IDTYPE> *x = new MRVector<IDTYPE>(A->NumRows(),
+  MRVector<IDXTYPE> *x = new MRVector<IDXTYPE>(A->NumRows(),
                                              A->mr->memsize, A->mr->fpath);
-  MRVector<IDTYPE> *y = new MRVector<IDTYPE>(x->GlobalLen(), 
+  MRVector<IDXTYPE> *y = new MRVector<IDXTYPE>(x->GlobalLen(), 
                                              A->mr->memsize, A->mr->fpath);
 
   double randomlink = (1.-alpha)/(double)(x->GlobalLen());
@@ -174,7 +176,7 @@ MRVector<IDTYPE> *pagerank(
     MPI_Allreduce(&lresid, &gresid, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
     //  Move result y to x for next iteration.
-    MRVector<IDTYPE> *tmp = x;
+    MRVector<IDXTYPE> *tmp = x;
     x = y;
     y = tmp;
 
@@ -209,24 +211,24 @@ MRVector<IDTYPE> *pagerank(
 
 ////////////////////////////////////////////////////////////////////////////
 // Print some simple stats.
-static void simple_stats(MRMatrix<IDTYPE> *A, MRVector<IDTYPE> *x)
+static void simple_stats(MRMatrix<IDXTYPE> *A, MRVector<IDXTYPE> *x)
 {
 int me = A->mr->my_proc();
 int np;  MPI_Comm_size(MPI_COMM_WORLD, &np);
-IDTYPE lnentry, maxnentry, minnentry, sumnentry;
+IDXTYPE lnentry, maxnentry, minnentry, sumnentry;
 
   lnentry = A->mr->kv->nkv;
-  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_IDTYPE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_IDTYPE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_IDTYPE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_IDXTYPE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_IDXTYPE, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_IDXTYPE, MPI_SUM, MPI_COMM_WORLD);
   if (me == 0) 
     cout << "Matrix Stats:  nonzeros/proc (max, min, avg):  "
          << maxnentry << " " << minnentry << " " <<  sumnentry/np << endl;
 
   lnentry = x->mr->kv->nkv;
-  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_IDTYPE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_IDTYPE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_IDTYPE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_IDXTYPE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &minnentry, 1, MPI_IDXTYPE, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_IDXTYPE, MPI_SUM, MPI_COMM_WORLD);
   if (me == 0) 
     cout << "Vector Stats:  entries/proc (max, min, avg):  "
          << maxnentry << " " <<  minnentry << " " <<  sumnentry/np << endl;
@@ -238,8 +240,8 @@ IDTYPE lnentry, maxnentry, minnentry, sumnentry;
 // respectively.
 int compare(char *a, int lena, char *b, int lenb)
 {
-IDTYPE ia = *(IDTYPE*)a;
-IDTYPE ib = *(IDTYPE*)b;
+IDXTYPE ia = *(IDXTYPE*)a;
+IDXTYPE ib = *(IDXTYPE*)b;
   if (ia < ib) return -1;
   if (ia > ib) return  1;
   return 0;
@@ -257,7 +259,7 @@ void output(char *key, int keybytes,
 {
   assert(nvalues == 1);
   double *dptr = (double *) multivalue;
-  cout << *(IDTYPE*) key <<  "    " << dptr[0] << endl;
+  cout << *(IDXTYPE*) key <<  "    " << dptr[0] << endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -372,7 +374,7 @@ int main(int narg, char **args)
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
-  MRMatrix<IDTYPE> A(nverts, nverts, mredge, 1,  pagesize, MYLOCALDISK);
+  MRMatrix<IDXTYPE> A(nverts, nverts, mredge, 1,  pagesize, MYLOCALDISK);
 
   delete mredge;
   delete mrvert;  // Will need mrvert for MRVector constructor for FBFILE.
@@ -390,7 +392,7 @@ int main(int narg, char **args)
 
     if (me == 0) {cout << "Calling pagerank..." << endl; flush(cout);}
 
-    MRVector<IDTYPE> *x = pagerank(&A, alpha, tolerance);  
+    MRVector<IDXTYPE> *x = pagerank(&A, alpha, tolerance);  
 
     if (me == 0) {cout << "Pagerank done..." << endl; flush(cout);}
 

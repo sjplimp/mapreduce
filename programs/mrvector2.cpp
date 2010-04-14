@@ -19,7 +19,7 @@ using namespace std;
 // Vector entries are initialized to zero.
 // Output:  Key = global index;  Value = 0.
 template <typename IDTYPE>
-static void initialize_vec(int itask, KeyValue *kv, void *ptr)
+static void mrv_initialize_vec(int itask, KeyValue *kv, void *ptr)
 {
   double zero = 0.;
   int nprocs;
@@ -57,7 +57,7 @@ MRVector<IDTYPE>::MRVector(
   mr->set_fpath(fpath);
 
   // Emit vector values
-  mr->map(mr->num_procs(), &initialize_vec, &n);
+  mr->map(mr->num_procs(), mrv_initialize_vec<IDTYPE>, &n);
 
   // Gather values to processors based on vector index.
   mr->aggregate(NULL);
@@ -75,7 +75,7 @@ void MRVector<IDTYPE>::MakeEmpty()
 // MRVector::Print
 // Print the vector entries; nothing fancy for parallel here.
 template <typename IDTYPE>
-static void printvector(uint64_t itask, char *key, int keybytes,
+static void mrv_printvector(uint64_t itask, char *key, int keybytes,
                         char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   cout << *((IDTYPE *) key) << "\t" << *((double *) value) << endl;
@@ -86,13 +86,13 @@ void MRVector<IDTYPE>::Print()
 {
   int me = mr->my_proc();
   cout << "Vector on processor " << me << endl;
-  mr->map(mr, &printvector<IDTYPE>, NULL, 1);  // set addflag to keep mr as is.
+  mr->map(mr, mrv_printvector<IDTYPE>, NULL, 1);  // set addflag to keep mr as is.
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // MRVector::PutScalar
 // Assign a scalar value to each entry of a vector.
-static void setvector(uint64_t itask, char *key, int keybytes, 
+static void mrv_setvector(uint64_t itask, char *key, int keybytes, 
                       char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   double d = *((double *) ptr);
@@ -102,13 +102,13 @@ static void setvector(uint64_t itask, char *key, int keybytes,
 template <typename IDTYPE>
 void MRVector<IDTYPE>::PutScalar(double d)
 {
-  mr->map(mr, &setvector, &d);
+  mr->map(mr, mrv_setvector, &d);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // MRVector::Scale
 // Multiply each vector entry by a scalar value.
-static void scalevector(uint64_t itask, char *key, int keybytes, 
+static void mrv_scalevector(uint64_t itask, char *key, int keybytes, 
                         char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   double d = *((double *) ptr);
@@ -119,13 +119,13 @@ static void scalevector(uint64_t itask, char *key, int keybytes,
 template <typename IDTYPE>
 void MRVector<IDTYPE>::Scale(double d)
 {
-  mr->map(mr, &scalevector, &d);
+  mr->map(mr, mrv_scalevector, &d);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // MRVector::AddScalar
 // Add a scalar to each vector entry.
-static void addscalarvector(uint64_t itask, char *key, int keybytes, 
+static void mrv_addscalarvector(uint64_t itask, char *key, int keybytes, 
                            char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   double d = *((double *) ptr);
@@ -136,7 +136,7 @@ static void addscalarvector(uint64_t itask, char *key, int keybytes,
 template <typename IDTYPE>
 void MRVector<IDTYPE>::AddScalar(double d)
 {
-  mr->map(mr, &addscalarvector, &d);
+  mr->map(mr, mrv_addscalarvector, &d);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -184,7 +184,7 @@ double MRVector<IDTYPE>::GlobalSum()
 /////////////////////////////////////////////////////////////////////////////
 // MRVector::LocalSum
 // Compute sum of all local vector entries.
-static void localsum(uint64_t itask, char *key, int keybytes, 
+static void mrv_localsum(uint64_t itask, char *key, int keybytes, 
                      char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   double *sum = (double *) ptr;
@@ -195,14 +195,14 @@ template <typename IDTYPE>
 double MRVector<IDTYPE>::LocalSum()
 {
   double sum = 0.;
-  mr->map(mr, &localsum, &sum, 1);  // Set addflag to retain mr as is.
+  mr->map(mr, mrv_localsum, &sum, 1);  // Set addflag to retain mr as is.
   return sum;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // MRVector::LocalMin
 // Compute min of all local vector entries.
-static void localmin(uint64_t itask, char *key, int keybytes, 
+static void mrv_localmin(uint64_t itask, char *key, int keybytes, 
                      char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   double *min = ((double *) ptr);
@@ -214,14 +214,14 @@ template <typename IDTYPE>
 double MRVector<IDTYPE>::LocalMin()
 {
   double min = DBL_MAX;
-  mr->map(mr, &localmin, &min, 1);  // Set addflag to retain mr as is.
+  mr->map(mr, mrv_localmin, &min, 1);  // Set addflag to retain mr as is.
   return min;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // MRVector::LocalMax
 // Compute max of all local vector entries.
-static void localmax(uint64_t itask, char *key, int keybytes, 
+static void mrv_localmax(uint64_t itask, char *key, int keybytes, 
                      char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   double *max = ((double *) ptr);
@@ -233,7 +233,7 @@ template <typename IDTYPE>
 double MRVector<IDTYPE>::LocalMax()
 {
   double max = 0.;
-  mr->map(mr, &localmax, &max, 1);  // Set addflag to retain mr as is.
+  mr->map(mr, mrv_localmax, &max, 1);  // Set addflag to retain mr as is.
   return max;
 }
 

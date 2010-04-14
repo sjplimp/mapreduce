@@ -1,6 +1,6 @@
 SRC = 		mrvector.cpp mrmatrix.cpp test_matvec.cpp \
 		test_pagerank.cpp \
-                mrvector2.cpp mrmatrix2.cpp test_pagerank2.cpp \
+                test_pagerank2.cpp \
 		ccnd.cpp test_cc.cpp test_cc_common.cpp test_ccnd.cpp \
 		random_mars.cpp \
 		link2graph_weighted.cpp \
@@ -41,8 +41,8 @@ pagerank:	test_pagerank.o mrmatrix.o mrvector.o $(LIB)
 		$(USRLIB) $(SYSLIB) -o pagerank
 
 # MapReduce implementation of Google's pagerank.
-pagerank2:	test_pagerank2.o mrmatrix2.o mrvector2.o $(LIB)
-	$(LINK) $(LINKFLAGS) test_pagerank2.o mrmatrix2.o mrvector2.o \
+pagerank2:	test_pagerank2.o $(LIB)
+	$(LINK) $(LINKFLAGS) test_pagerank2.o  \
 		$(USRLIB) $(SYSLIB) -o pagerank2
 
 # MapReduce implementation of matrix-vector multiplication.

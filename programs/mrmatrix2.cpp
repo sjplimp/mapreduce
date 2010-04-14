@@ -23,7 +23,7 @@ using namespace std;
 // initialize_matrix map function
 // Given MapReduce object containing edges, create matrix non-zeros.
 template <typename IDTYPE>
-static void initialize_matrix(uint64_t itask, char *key, int keybytes,
+static void mrm_initialize_matrix(uint64_t itask, char *key, int keybytes,
                               char *value, int valuebytes, 
                               KeyValue *kv, void *ptr)
 {
@@ -35,7 +35,7 @@ static void initialize_matrix(uint64_t itask, char *key, int keybytes,
 
 //--------------------------------------------------------------
 template <typename IDTYPE>
-static void initialize_transpose_matrix(uint64_t itask, char *key, int keybytes,
+static void mrm_initialize_transpose_matrix(uint64_t itask, char *key, int keybytes,
                                         char *value, int valuebytes,
                                         KeyValue *kv, void *ptr)
 {
@@ -46,7 +46,7 @@ static void initialize_transpose_matrix(uint64_t itask, char *key, int keybytes,
 }
 
 //--------------------------------------------------------------
-static void save_empty_rows(char *key, int keybytes, 
+static void mrm_save_empty_rows(char *key, int keybytes, 
                             char *multivalue, int nvalues, int *valuebytes,
                             KeyValue *kv, void *ptr)
 {
@@ -79,24 +79,24 @@ MRMatrix<IDTYPE>::MRMatrix(
   transposeFlag = transpose;
   if (transpose) {
     N = m; M = n;
-    mr->map(mredge, &initialize_transpose_matrix<IDTYPE>, NULL);
+    mr->map(mredge, mrm_initialize_transpose_matrix<IDTYPE>, NULL);
   }
   else {
     N = n; M = m;
-    mr->map(mredge, &initialize_matrix<IDTYPE>, NULL);
+    mr->map(mredge, mrm_initialize_matrix<IDTYPE>, NULL);
   }
 
   // Identify empty rows of matrix A (leaf nodes in graph).
   emptyRows = new MRVector<IDTYPE>(N, pagesize, fpath);
   MapReduce *emr = emptyRows->mr;
   emr->add(mredge);
-  nEmptyRows = emr->compress(&save_empty_rows, NULL);
+  nEmptyRows = emr->compress(mrm_save_empty_rows, NULL);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // Scale each matrix entry by value alpha.
 template <typename IDTYPE>
-static void scalematrix(uint64_t itask, char *key, int keybytes, 
+static void mrm_scalematrix(uint64_t itask, char *key, int keybytes, 
                         char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   double d = *((double *) ptr);
@@ -110,7 +110,7 @@ void MRMatrix<IDTYPE>::Scale(
   double alpha
 )
 {
-  mr->map(mr, scalematrix<IDTYPE>, &alpha);
+  mr->map(mr, mrm_scalematrix<IDTYPE>, &alpha);
 }
 
 
@@ -124,7 +124,7 @@ void MRMatrix<IDTYPE>::Scale(
 // output:  key = row index i; value = x_j * A_ij.
 
 template <typename IDTYPE>
-static void terms(char *key, int keybytes, 
+static void mrm_terms(char *key, int keybytes, 
                   char *multivalue, int nvalues, int *valuebytes,
                   KeyValue *kv, void *ptr)
 {
@@ -180,7 +180,7 @@ static void terms(char *key, int keybytes,
 //         y vector in ptr argument (optional; ptr == NULL is allowed.)
 // output: if ptr != NULL, vector entries in vector y
 //         else key,value pairs == row, value.
-static void rowsum(char *key, int keybytes, char *multivalue, 
+static void mrm_rowsum(char *key, int keybytes, char *multivalue, 
                    int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
 {
   double sum = 0.;
@@ -204,13 +204,12 @@ void MRMatrix<IDTYPE>::MatVec(
   MRVector<IDTYPE> *y      // Result of A*x
 )
 {
-  // Don't know whether or not I need these; perhaps the copy takes care of
-  // deleting old KVs and setting up new ones.
-  // delete y->mr;
-  // y->mr = new MapReduce(MPI_COMM_WORLD);
-
+  // Copy x->mr into y->mr and do processing in y->mr.  
+  // Need to keep x->mr to compute residual.  
+  // Plus, MatVec should not have side effect of changing x.
+  if (y->mr != NULL) delete y->mr;
+  y->mr = x->mr->copy();
   MapReduce *ymr = y->mr;
-  ymr->copy(x->mr);
   
   // Add matrix terms to vector.
   // For A, merging Matrix row i and x_i.
@@ -219,11 +218,11 @@ void MRMatrix<IDTYPE>::MatVec(
 
   // For A, compute terms x_i * A_ij.
   // For A^T, compute terms x_j * A_ij.
-  ymr->compress(&terms<IDTYPE>, NULL);
+  ymr->compress(mrm_terms<IDTYPE>, NULL);
 
   // Gather matrix now by rows.
   ymr->collate(NULL);
 
   // Compute sum of terms over rows.
-  ymr->reduce(&rowsum, NULL);
+  ymr->reduce(mrm_rowsum, NULL);
 }
