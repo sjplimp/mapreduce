@@ -1,7 +1,7 @@
 # RMAT matrix generation & statistics
 
 variable order equal 15
-variable nz equal 1
+variable nz equal 2
 variable nrows equal 2^v_order
 variable n equal v_nrows*v_nz
 
@@ -22,8 +22,8 @@ mrz.memsize(1)
 mrz.verbosity(1)
 mrz.timer(1)
 
-#cc(${nrows},mre,mrv,mrz)
-cc2(${nrows},0,mre,mrv,mrz)
+cc(${nrows},mre,mrv,mrz)
+#cc2(${nrows},0,mre,mrv,mrz)
 
 # print CC stats, destroys mrv
 

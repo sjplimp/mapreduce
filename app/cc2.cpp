@@ -65,11 +65,6 @@ void CC2::command(int narg, char **arg)
 
   mrv->map(nprocs,vs->appmap,vs->appptr);
 
-  //if (me == 0) printf("VERTEX ZONE pre-list:\n");
-  //mrv->print(-1,1,2,2);
-  //if (me == 0) printf("EDGE pre-list:\n");
-  //mre->print(-1,1,7,2);
-
   // loop until zones do not change
 
   MPI_Barrier(world);
@@ -85,9 +80,6 @@ void CC2::command(int narg, char **arg)
     mr->collate(NULL);
     mr->reduce(ezone->appreduce,ezone->appptr);
 
-    //if (me == 0) printf("EDGE ZONE list:\n");
-    //mr->print(-1,1,7,2);
-
     mr->collate(NULL);
     zwin->flag = 0;
     uint64_t foo = mr->reduce(zwin->appreduce,zwin->appptr);
@@ -95,24 +87,15 @@ void CC2::command(int narg, char **arg)
     MPI_Allreduce(&zwin->flag,&flagall,1,MPI_INT,MPI_SUM,world);
     if (!flagall) break;
 
-    //if (me == 0) printf("ZONE ZONE list:\n");
-    //mr->print(-1,1,2,2);
-
     mrv->map(mrv,im->appmap_mr,im->appptr);
     mrv->map(mr,zm->appmap_mr,zm->appptr,1);
     mrv->collate(NULL);
     mrv->reduce(zr2->appreduce,zr2->appptr);
-    
-    //if (me == 0) printf("VERTEX ZONE list:\n");
-    //mrv->print(-1,1,2,2);
   }
 
   // strip any hi-bits from final (Vi,Zi) key/values
 
   mrv->map(mrv,strip->appmap_mr,strip->appptr);
-
-  //if (me == 0) printf("VERTEX ZONE final list:\n");
-  //mrv->print(-1,1,2,2);
 
   MPI_Barrier(world);
   double tstop = MPI_Wtime();

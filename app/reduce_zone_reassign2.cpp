@@ -49,7 +49,7 @@ void ReduceZoneReassign2::reduce(char *key, int keybytes,
   int thresh = data->thresh;
   uint64_t lmask = data->lmask;
   
-  int i,hinew;
+  int i,hnew;
   char *value;
   uint64_t znew;
 
@@ -58,8 +58,9 @@ void ReduceZoneReassign2::reduce(char *key, int keybytes,
 
   uint64_t zcount = 0;
   uint64_t zone = *(uint64_t *) key;
-  int hibit = zone >> 63;
+  int hkey = zone >> 63;
   zone &= lmask;
+  int hwinner = 0;
 
   uint64_t nvalues_total;
   CHECK_FOR_BLOCKS(multivalue,valuebytes,nvalues,nvalues_total)
@@ -69,11 +70,11 @@ void ReduceZoneReassign2::reduce(char *key, int keybytes,
   for (i = 0; i < nvalues; i++) {
     if (valuebytes[i] != sizeof(uint64_t)) {
       znew = *(uint64_t *) value;
-      hinew = znew >> 63;
+      hnew = znew >> 63;
       znew &= INT64MAX;
       if (znew < zone) {
 	zone = znew;
-	hibit = hinew;
+	hwinner = hnew;
       }
       zcount++;
     }
@@ -85,7 +86,8 @@ void ReduceZoneReassign2::reduce(char *key, int keybytes,
   // emit one KV per vertex with zone ID as value
   // add hi-bit to zone if necessary
 
-  if (hibit || nvalues_total-zcount > thresh) zone |= HIBIT;
+  if (hkey || hwinner) zone |= HIBIT;
+  else if (nvalues_total-zcount > thresh) zone |= HIBIT;
 
   BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
 
