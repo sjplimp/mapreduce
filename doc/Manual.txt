@@ -80,6 +80,7 @@ email: sjplimp at sandia.gov, kddevin at sandia.gov.
   "MapReduce::convert()"_convert.html :l
   "MapReduce::gather()"_gather.html :l
   "MapReduce::map()"_map.html :l
+  "MapReduce::print()"_print.html :l
   "MapReduce::reduce()"_reduce.html :l
     "MapReduce::multivalue_blocks()"_reduce.html :ulb,l
     "MapReduce::multivalue_block()"_reduce.html :l,ule

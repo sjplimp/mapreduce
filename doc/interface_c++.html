@@ -49,6 +49,7 @@ how the various operations can be chained together in your program.
 <TR><TD >gather()</TD><TD > KV -> KV</TD><TD > collect pairs on many procs to few procs</TD><TD > parallel</TD><TD > 3 pages</TD></TR>
 <TR><TD >map()</TD><TD > create or add to a KV</TD><TD > calls back to user program to generate pairs</TD><TD > serial</TD><TD > 1 page</TD></TR>
 <TR><TD >reduce()</TD><TD > KMV -> KV</TD><TD > calls back to user program to process KMV pairs</TD><TD > serial</TD><TD > 3 pages</TD></TR>
+<TR><TD >print()</TD><TD > N/A</TD><TD > prints KV or KMV pairs to screen</TD><TD > serial</TD><TD > 1 page</TD></TR>
 <TR><TD >scrunch()</TD><TD > KV -> KMV</TD><TD > gather + collapse</TD><TD > parallel</TD><TD > 3 pages</TD></TR>
 <TR><TD >sort_keys()</TD><TD > KV -> KV</TD><TD > calls back to user program to sort pairs by key</TD><TD > serial</TD><TD > 5 pages</TD></TR>
 <TR><TD >sort_values()</TD><TD > KV -> KV</TD><TD > calls back to user program to sort pairs by value</TD><TD > serial</TD><TD > 5 pages</TD></TR>

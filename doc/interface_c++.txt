@@ -46,6 +46,7 @@ convert(), KV -> KMV, duplicate KV keys become one KMV key, serial, 4+ pages
 gather(), KV -> KV, collect pairs on many procs to few procs, parallel, 3 pages
 map(), create or add to a KV, calls back to user program to generate pairs, serial, 1 page
 reduce(), KMV -> KV, calls back to user program to process KMV pairs, serial, 3 pages
+print(), N/A, prints KV or KMV pairs to screen, serial, 1 page
 scrunch(), KV -> KMV, gather + collapse, parallel, 3 pages
 sort_keys(), KV -> KV, calls back to user program to sort pairs by key, serial, 5 pages
 sort_values(), KV -> KV, calls back to user program to sort pairs by value, serial, 5 pages
