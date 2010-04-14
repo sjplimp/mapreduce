@@ -18,37 +18,7 @@ using namespace std;
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 /////////////////////////////////////////////////////////////////////////////
-//  These should probably be in the include file for MapReduce library.
-typedef void MAPFUNCTION(int, KeyValue *, void *);
-typedef void MAPFILEFUNCTION(int, char *, int, KeyValue *, void *);
-typedef void REDUCEFUNCTION(char *, int, char *, int, int*, KeyValue *, void *);
-typedef int COMPAREFUNCTION(char *, int, char *, int);
-
-
-/////////////////////////////////////////////////////////////////////////////
-//  Data type for matrix and vector row/column indices.  
-//  For small problems, use uint32_t; for more than 2^31 rows, use uint64_t.  
-//  Change MPI_IDTYPE appropriately:  MPI_INT or MPI_LONG.
-//  Change routine for conversion from string appropriately:  atoi or atol.
-//  Eventually, do templating here.
-
-#define KDD32BIT
-#ifdef KDD32BIT
-typedef uint32_t IDTYPE;
-#define MPI_IDTYPE MPI_INT 
-#define ATOID atoi
-#define IDFORMAT "%u"
-#else
-typedef uint64_t IDTYPE;
-#define MPI_IDTYPE MPI_LONG
-#define ATOID atol
-#define IDFORMAT "%lu"
-#endif
-
-/////////////////////////////////////////////////////////////////////////////
-//  Data type for values emitted.
-#define XVECVALUE -1
-
+template <typename IDTYPE>
 class IDXDOUBLE {
 public:
   IDTYPE i;      // When INTDOUBLE is used as a nonzero A_ij in the matrix,
@@ -61,12 +31,5 @@ public:
   IDXDOUBLE(){};
   ~IDXDOUBLE(){};
 };
-
-static bool compare_idxdouble(IDXDOUBLE x, IDXDOUBLE y)
-{
-  if (x.i < y.i) return true;
-  else return false;
-}
-
 
 #endif

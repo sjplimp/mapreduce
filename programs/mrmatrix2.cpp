@@ -32,6 +32,7 @@ static void initialize_matrix(uint64_t itask, char *key, int keybytes,
   kv->add(key, keybytes, (char *) &v, sizeof(MRNonZero));
 }
 
+//--------------------------------------------------------------
 template <typename IDTYPE>
 static void initialize_transpose_matrix(uint64_t itask, char *key, int keybytes,
                                         char *value, int valuebytes,
@@ -43,14 +44,37 @@ static void initialize_transpose_matrix(uint64_t itask, char *key, int keybytes,
   kv->add(value, valuebytes, (char *) &v, sizeof(MRNonZero));
 }
 
+//--------------------------------------------------------------
+static void save_empty_rows(char *key, int keybytes, 
+                            char *multivalue, int nvalues, int *valuebytes,
+                            KeyValue *kv, void *ptr)
+{
+  double zero = 0.;
+  if (nvalues == 1) { 
+    // No edges originating at this vertex; matrix row is all zeros.
+    // This is an empty row; keep it.
+    kv->add(key, keybytes, (char *) &zero, sizeof(double));
+  }
+}
+                       
+//--------------------------------------------------------------
 template <typename IDTYPE>
 MRMatrix::MRMatrix(
   IDTYPE n,           // Number of matrix rows 
   IDTYPE m,           // Number of matrix columns 
   MapReduce *mredge,  // Edges of the graph == matrix nonzeros.
-  bool transpose      // Store matrix A or matrix transpose A^T?
+                      // Assuming mredge is already aggregated to processors.
+  bool transpose,     // Store matrix A or matrix transpose A^T?
+  int pagesize,       // Optional:  MR pagesize to be set by the application.
+  char *filepath      // Optional:  MR filepath to be set by the application.
 )
 {
+  // Create matrix MapReduce object mr.  Store as A or A^T, depending on
+  // transpose flag.
+  mr = new MapReduce(MPI_COMM_WORLD);
+  mr->memsize = pagesize;
+  mr->set_fpath(filepath);
+
   transposeFlag = transpose;
   if (transpose) {
     N = m; M = n;
@@ -60,6 +84,12 @@ MRMatrix::MRMatrix(
     N = n; M = m;
     mr->map(mredge, &initialize_matrix<IDTYPE>, NULL);
   }
+
+  // Identify empty rows of matrix A (leaf nodes in graph).
+  emptyRows = new MRVector(N, pagesize, filepath);
+  MapReduce *emr = emptyRows->mr;
+  emr->add(mredge);
+  nEmptyRows = emr->compress(&save_empty_rows, NULL);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -90,7 +120,7 @@ void MRMatrix::Scale(
 //         all i with nonzero A_ij.}
 // output:  key = row index i; value = x_j * A_ij.
 
-static void terms(char *key, int keylen, 
+static void terms(char *key, int keybytes, 
                   char *multivalue, int nvalues, int *valuebytes,
                   KeyValue *kv, void *ptr)
 {
@@ -98,7 +128,7 @@ static void terms(char *key, int keylen,
   if (nvalues == 1) {
     // No nonzeros in this column; just re-emit x_j.
     double zero = 0;
-    kv->add(key, keylen, (char *) &zero, sizeof(double));
+    kv->add(key, keybytes, (char *) &zero, sizeof(double));
     return;
   }
 

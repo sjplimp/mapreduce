@@ -47,6 +47,8 @@ class MRMatrix {
     void Scale(double);
     void MakeEmpty() {delete mr;};
     MapReduce *mr;  // Actual storage; perhaps should be private.
+    uint64_t nEmptyRows;  // Number of rows of A with no nonzeros.
+    MRVector<IDTYPE> *emptyRows; // Indices of rows of A with no nonzeros (leaf nodes).
   private:
     IDTYPE N;  // Number of rows
     IDTYPE M;  // Number of cols

@@ -41,7 +41,9 @@ static void initialize_vec(int itask, KeyValue *kv, void *ptr)
 // Initializes vector uniformly to 1/n.
 template <typename IDTYPE>
 MRVector::MRVector(
-  IDTYPE n                // Total number of vector entries 
+  IDTYPE n,                // Total number of vector entries 
+  int pagesize,            // Optional:  MR memsize
+  char *filepath           // Optional:  MR filepath
 )
 {
   if (n == 0) {
@@ -51,6 +53,8 @@ MRVector::MRVector(
   global_len = n;
 
   mr = new MapReduce(MPI_COMM_WORLD);
+  mr->memsize = pagesize;
+  mr->set_fpath(filepath);
 
   // Emit vector values
   mr->map(nprocs, &initialize_vec, &n);
