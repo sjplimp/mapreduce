@@ -238,7 +238,10 @@ class mrmpi:
     value = loads(cvalue[:valuebytes])
     if self.map_argcount == 4: self.map_caller(itask,key,value,self)
     else: self.map_caller(itask,key,value,self,self.map_ptr)
-    
+
+  def print(self,proc,nstride,kflag,vflag):
+    self.lib.print(self.mr,proc,nstride,kflag,vflag)
+
   def reduce(self,reduce,ptr=None):
     self.reduce_caller = reduce
     self.reduce_argcount = reduce.func_code.co_argcount
