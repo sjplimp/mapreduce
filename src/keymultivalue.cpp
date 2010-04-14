@@ -35,12 +35,16 @@ using namespace MAPREDUCE_NS;
 #define PARTITIONCHUNK 16
 #define SETCHUNK 16
 #define PAGECHUNK 16
-#define MINSPOOLBYTES 512
+#define MINSPOOLBYTES 16384
 #define INTMAX 0x7FFFFFFF
 
 enum{KVFILE,KMVFILE,SORTFILE,PARTFILE,SETFILE};   // same as in mapreduce.cpp
 
-//#define KMV_DEBUG 1
+#define ONEMAX INTMAX     // set small if wish to trigger multi-block KMV pairs
+                          // do not set smaller than MINSPOOLBYTES
+                          // do not set smaller than ALIGNFILE
+
+//#define KMV_DEBUG 1      // set if want debug output from convert()
 
 /* ---------------------------------------------------------------------- */
 
@@ -77,6 +81,9 @@ KeyMultiValue::KeyMultiValue(MapReduce *mr_caller,
 
   twolenbytes = 2*sizeof(int);
   threelenbytes = 3*sizeof(int);
+
+  if (ONEMAX < MINSPOOLBYTES || ONEMAX < ALIGNFILE)
+    error->all("KeyMultiValue settings are inconsistent");
 
   nkmv = ksize = vsize = esize = fsize = 0;
   init_page();
@@ -348,7 +355,7 @@ void KeyMultiValue::collapse(char *key, int keybytes, KeyValue *kv)
   totalsize += ksize_kv + vsize_kv;
   totalsize = roundup(totalsize,talign);
 
-  if (2*nkey_kv <= INTMAX && ksize_kv+vsize_kv <= INTMAX &&
+  if (2*nkey_kv <= ONEMAX && ksize_kv+vsize_kv <= ONEMAX &&
       totalsize <= pagesize)
     collapse_one(key,keybytes,kv,totalsize);
   else collapse_many(key,keybytes,kv);
@@ -791,10 +798,10 @@ int KeyMultiValue::unique2kmv_all()
 
     // test if KMV pair is part of a single-page or multi-page KMV
     // is multi-page if:
-    //   onesize exceeds page size, nvalues or mvbytes exceed INTMAX
+    //   onesize exceeds page size, nvalues or mvbytes exceed ONEMAX
 
     multiflag = 0;
-    if (onesize > pagesize || uptr->nvalue > INTMAX || uptr->mvbytes > INTMAX)
+    if (onesize > pagesize || uptr->nvalue > ONEMAX || uptr->mvbytes > ONEMAX)
       multiflag = 1;
 
     // single-page KMV pair
@@ -1191,7 +1198,7 @@ void KeyMultiValue::kv2kmv_extended(int iset)
   // leave leading int in first half for nvalue count
 
   uint64_t halfsize = pagesize/2;
-  int maxvalue = MIN(INTMAX,halfsize/sizeof(int)-1);
+  int maxvalue = MIN(ONEMAX,halfsize/sizeof(int)-1);
   int *valuesizes = (int *) &page[sizeof(int)];
   char *multivalue = &page[halfsize];
   char *valuestart = multivalue;
