@@ -17,6 +17,16 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[14 Apr 2010]
+
+Added a "print"_doc/print.html function to the library to print-out
+KeyValue and KeyMultiValue pairs to the screen, useful for debugging.
+
+This is the "list of changed files"_patches/files.14Apr10 from the 15
+Mar 2010 version.
+
+:line
+
 [15 Mar 2010]
 
 New release of MR-MPI library.  7102 lines of code in src dir.
