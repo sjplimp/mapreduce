@@ -1398,6 +1398,36 @@ uint64_t MapReduce::map(MapReduce *mr,
 }
 
 /* ----------------------------------------------------------------------
+   debug print of KV or KMV pairs
+   if all procs are printing, pass print token from proc to proc
+------------------------------------------------------------------------- */
+
+void MapReduce::print(int proc, int nstride, int kflag, int vflag)
+{
+  MPI_Status status;
+
+  if (kv == NULL && kmv == NULL)
+    error->all("Cannot print without KeyValue or KeyMultiValue");
+  if (kflag < 0 || vflag < 0) error->all("Invalid print args");
+  if (kflag > 7 || vflag > 7) error->all("Invalid print args");
+
+  if (proc == me) {
+    if (kv) kv->print(nstride,kflag,vflag);
+    if (kmv) kmv->print(nstride,kflag,vflag);
+  }
+
+  if (proc >= 0) return;
+
+  int token;
+  MPI_Barrier(comm);
+  if (me > 0) MPI_Recv(&token,0,MPI_INT,me-1,0,comm,&status);
+  if (kv) kv->print(nstride,kflag,vflag);
+  if (kmv) kmv->print(nstride,kflag,vflag);
+  if (me < nprocs-1) MPI_Send(&token,0,MPI_INT,me+1,0,comm);
+  MPI_Barrier(comm);
+}
+
+/* ----------------------------------------------------------------------
    create a KV from a KMV via a parallel reduce operation for nmap tasks
    make one call to appreduce() for each KMV pair
    each proc processes its owned KMV pairs
@@ -2161,36 +2191,6 @@ void MapReduce::cummulative_stats(int level, int reset)
     rsize = wsize = 0;
     cssize = crsize = 0;
   }
-}
-
-/* ----------------------------------------------------------------------
-   debug print of KV or KMV pairs
-   if all procs are printing, pass print token from proc to proc
-------------------------------------------------------------------------- */
-
-void MapReduce::print(int proc, int nstride, int kflag, int vflag)
-{
-  MPI_Status status;
-
-  if (kv == NULL && kmv == NULL)
-    error->all("Cannot print without KeyValue or KeyMultiValue");
-  if (kflag < 0 || vflag < 0) error->all("Invalid print args");
-  if (kflag > 7 || vflag > 7) error->all("Invalid print args");
-
-  if (proc == me) {
-    if (kv) kv->print(nstride,kflag,vflag);
-    if (kmv) kmv->print(nstride,kflag,vflag);
-  }
-
-  if (proc >= 0) return;
-
-  int token;
-  MPI_Barrier(comm);
-  if (me > 0) MPI_Recv(&token,0,MPI_INT,me-1,0,comm,&status);
-  if (kv) kv->print(nstride,kflag,vflag);
-  if (kmv) kmv->print(nstride,kflag,vflag);
-  if (me < nprocs-1) MPI_Send(&token,0,MPI_INT,me+1,0,comm);
-  MPI_Barrier(comm);
 }
 
 /* ----------------------------------------------------------------------

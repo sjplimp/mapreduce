@@ -85,6 +85,7 @@ class MapReduce {
 				     class KeyValue *, void *),
 	       void *, int addflag = 0);
 
+  void print(int, int, int, int);
   uint64_t reduce(void (*)(char *, int, char *,
 			   int, int *, class KeyValue *, void *),
 		  void *);
@@ -100,7 +101,6 @@ class MapReduce {
   void kv_stats(int);
   void kmv_stats(int);
   void cummulative_stats(int, int);
-  void print(int, int, int, int);
 
   void set_fpath(const char *);
 
