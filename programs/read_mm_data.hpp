@@ -126,7 +126,7 @@ void ReadMMData::run(
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  if (me == 0) printf("Reading input files...\n");
+  if (me == 0) printf("Reading input files %s...\n", filename);
   *nrawedges = mrraw->map(np,1,&filename,'\n',80,&readMM_fileread,this);
   int tmp = N;
   MPI_Allreduce(&tmp, &N, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
@@ -211,7 +211,8 @@ static void readMM_vertex_emit(int itask, KeyValue *kv, void *ptr)
 #endif
 
 
-static void readMM_fileread(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
+static void readMM_fileread(int itask, char *bytes, int nbytes, 
+                            KeyValue *kv, void *ptr)
 {
   ReadMMData *rfp = (ReadMMData *) ptr;
   uint64_t edge[4] = {0, 0, 0, 0};

@@ -82,7 +82,7 @@ double compute_local_allzero_adj(
 {
   double sum = 0.;
 
-  MapReduce *emr = A->emptyRows->mr;
+  MapReduce *emr = A->emptyRows;
 
   emr->add(x->mr);
   emr->compress(allzero_contribution, &sum);
@@ -131,6 +131,9 @@ MRVector<IDXTYPE> *pagerank(
   A->Scale(alpha);
   x->PutScalar(1./x->GlobalLen());
 
+cout << "KDDKDD After PutScalar" << endl;
+x->Print();
+
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
@@ -145,7 +148,8 @@ MRVector<IDXTYPE> *pagerank(
 
     // Compute local adjustment for all-zero rows.
     double allzeroadj = 0.;
-    allzeroadj = compute_local_allzero_adj(A, x, alpha);
+    if (A->nEmptyRows)
+      allzeroadj = compute_local_allzero_adj(A, x, alpha);
     ladj += allzeroadj;
 
     // Compute global adjustment via all-reduce-like operation.
@@ -155,14 +159,23 @@ MRVector<IDXTYPE> *pagerank(
     // Compute global adjustment.
     A->MatVec(x, y);
 
+cout << "KDDKDD After MatVec" << endl;
+y->Print();
+
     // Add adjustment to product vector in mr.
     y->AddScalar(gadj);
+
+cout << "KDDKDD After AddScalar" << endl;
+y->Print();
 
     // Compute max-norm of vector in mr.
     double gmax = y->GlobalMax();
 
     // Scale vector in mr by 1/maxnorm.
     y->Scale(1./gmax);
+
+cout << "KDDKDD After Scale" << endl;
+y->Print();
 
     // Compute local residual; this also empties x->mr.
     double lresid = 0.;
@@ -177,6 +190,8 @@ MRVector<IDXTYPE> *pagerank(
     MRVector<IDXTYPE> *tmp = x;
     x = y;
     y = tmp;
+cout << "KDDKDD After Swap" << endl;
+x->Print();
 
     if (me == 0) {
       cout << "iteration " << iter+1 << " resid " << gresid << endl; 
@@ -277,6 +292,12 @@ int main(int narg, char **args)
   int pagesize = 64;
   int filetype = RMAT;
 
+  if (me == 0) 
+    cout << "Syntax: pagerank "
+         << "[-a alpha] [-t tolerance] "
+         << "[-n NumberOfPageranks] [-p pagesize] "
+         << "[-r|-m|-k] [filetype parameters]" << endl;
+
   // Parse the command line.
   int ch;
   opterr = 0;
@@ -319,15 +340,6 @@ int main(int narg, char **args)
     }
   }
  
-  if ((narg-optind) < 2) {
-    if (me == 0) 
-      cout << "Syntax: pagerank "
-           << "[-a alpha] [-t tolerance] "
-           << "[-n NumberOfPageranks] [-p pagesize] "
-           << "[-r|-m|-k] [filetype parameters]" << endl;
-    MPI_Abort(MPI_COMM_WORLD, -1);
-  }
-
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
@@ -372,16 +384,20 @@ int main(int narg, char **args)
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
-  MRMatrix<IDXTYPE> A(nverts, nverts, mredge, 1,  pagesize, MYLOCALDISK);
+  MRMatrix<IDXTYPE> A(nverts, nverts, mrvert, mredge, pagesize, MYLOCALDISK);
 
   delete mredge;
   delete mrvert;  // Will need mrvert for MRVector constructor for FBFILE.
+
+  // For Pagerank, we prefer to store the transpose of the matrix,
+  // as that is what is used in MatVec.
+  A.Transpose();
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
   if (me == 0) {
-    cout << "Time to read/generate matrix " << tstop - tstart << endl;
+    cout << "Time to read/generate/transpose matrix " << tstop - tstart << endl;
     flush(cout);
   }
 
