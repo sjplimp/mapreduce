@@ -23,7 +23,7 @@ such as a <A HREF = "collate.html">collate()</A> and <A HREF = "reduce.html">red
 <PRE>MapReduce *mr1 = new MapReduce(MPI_COMM_WORLD);
 mr1->map(ntasks,&mymap,NULL);
 MapReduce *mr2 = mr1->copy();
-mr2->collate();
+mr2->collate(NULL);
 mr2->reduce(&myreduce2,NULL);
 mr1->add(mr2);
 delete mr2;
