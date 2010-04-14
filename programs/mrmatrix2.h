@@ -38,12 +38,13 @@ public:
 template <typename IDTYPE>
 class MRMatrix {
   public:  
-    MRMatrix(IDTYPE, MapReduce *, IDTYPE, MapReduce *, bool transpose=0);
+    MRMatrix(IDTYPE, IDTYPE, MapReduce *, bool transpose=0, 
+             int pagesize=64, const char *fpath=".");
     ~MRMatrix() {delete mr;};
 
     IDTYPE NumRows() { return N; };
     IDTYPE NumCols() { return M; };
-    void MatVec(MapReduce *, MRVector<IDTYPE> *, MRVector<IDTYPE> *);
+    void MatVec(MRVector<IDTYPE> *, MRVector<IDTYPE> *);
     void Scale(double);
     void MakeEmpty() {delete mr;};
     MapReduce *mr;  // Actual storage; perhaps should be private.

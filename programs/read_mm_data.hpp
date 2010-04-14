@@ -28,8 +28,8 @@ using namespace MAPREDUCE_NS;
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-void mm_fileread(int, char *, int, KeyValue *, void *);
-void mm_vertex_emit(int, KeyValue *, void *);
+static void readMM_fileread(int, char *, int, KeyValue *, void *);
+static void readMM_vertex_emit(int, KeyValue *, void *);
 
 // Data input information.
 class ReadMMData{
@@ -127,7 +127,7 @@ void ReadMMData::run(
   double tstart = MPI_Wtime();
 
   if (me == 0) printf("Reading input files...\n");
-  *nrawedges = mrraw->map(np,1,&filename,'\n',80,&mm_fileread,this);
+  *nrawedges = mrraw->map(np,1,&filename,'\n',80,&readMM_fileread,this);
   int tmp = N;
   MPI_Allreduce(&tmp, &N, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
@@ -139,7 +139,7 @@ void ReadMMData::run(
 
   if (me == 0) printf("Finding unique vertices...\n");
   MapReduce *mrvert = new MapReduce(MPI_COMM_WORLD);
-  *nverts = mrvert->map(np,&mm_vertex_emit,this);
+  *nverts = mrvert->map(np,&readMM_vertex_emit,this);
   if (me == 0) printf("        vertex_unique complete.\n");
 
   // mredge = unique I->J edges with I and J non-zero + edge weights
@@ -151,7 +151,7 @@ void ReadMMData::run(
 
   mredge->collate(NULL);
   // Use same reducer as FB data.
-  *nedges = mredge->reduce(&edge_unique<ReadMMData>,this);  
+  *nedges = mredge->reduce(&readFB_edge_unique<ReadMMData>,this);  
 
   *return_mrvert = mrvert;
   *return_mredge = mredge;
@@ -174,7 +174,7 @@ void ReadMMData::run(
    output KV: (Vi,NULL) for some range of vertices in [1:N].
 ------------------------------------------------------------------------- */
 
-void mm_vertex_emit(int itask, KeyValue *kv, void *ptr) 
+static void readMM_vertex_emit(int itask, KeyValue *kv, void *ptr) 
 {
   ReadMMData *rfp = (ReadMMData *) ptr;
   // Compute range for this task to emit.
@@ -193,7 +193,7 @@ void mm_vertex_emit(int itask, KeyValue *kv, void *ptr)
 }
 
 /* ----------------------------------------------------------------------
-   mm_fileread function for map
+   readMM_fileread function for map
    Read matrix-market file containing edge list.
    Assumption:  All non-zero values of matrix-market file are <= 1;
    this assumption allows us to remove the header line giving the matrix
@@ -211,7 +211,7 @@ void mm_vertex_emit(int itask, KeyValue *kv, void *ptr)
 #endif
 
 
-void mm_fileread(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
+static void readMM_fileread(int itask, char *bytes, int nbytes, KeyValue *kv, void *ptr)
 {
   ReadMMData *rfp = (ReadMMData *) ptr;
   uint64_t edge[4] = {0, 0, 0, 0};

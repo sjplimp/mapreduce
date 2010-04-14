@@ -36,12 +36,15 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-void fileread1(int, char *, KeyValue *, void *);
-void fileread2(int, KeyValue *, void *);
-void vertex_emit(char *, int, char *, int, int *, KeyValue *, void *);
-void vertex_unique(char *, int, char *, int, int *, KeyValue *, void *);
+static void readFB_fileread1(int, char *, KeyValue *, void *);
+static void readFB_fileread2(int, KeyValue *, void *);
+static void readFB_vertex_emit(char *, int, char *, int, int *, 
+                               KeyValue *, void *);
+static void readFB_vertex_unique(char *, int, char *, int, int *, 
+                                 KeyValue *, void *);
 template <class ReadFileType>
-void edge_unique(char *, int, char *, int, int *, KeyValue *, void *);
+static void readFB_edge_unique(char *, int, char *, int, int *, 
+                               KeyValue *, void *);
 
 // Data input information.
 // Standard format is 4 64-bit fields per record, for a total of 32 bytes.
@@ -163,8 +166,8 @@ void ReadFBData::run(
   double tstart = MPI_Wtime();
 
   if (me == 0) printf("Reading input files...\n");
-  if (onefile) *nrawedges = mrraw->map(onefile,&fileread1,this);
-  else *nrawedges = mrraw->map(nfiles,&fileread2,this);
+  if (onefile) *nrawedges = mrraw->map(onefile,&readFB_fileread1,this);
+  else *nrawedges = mrraw->map(nfiles,&readFB_fileread2,this);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tmap = MPI_Wtime();
@@ -181,11 +184,11 @@ void ReadFBData::run(
 
   mrvert->clone();
   if (me == 0) printf("        clone complete.\n");
-  mrvert->reduce(&vertex_emit,this);
+  mrvert->reduce(&readFB_vertex_emit,this);
   if (me == 0) printf("        vertex_emit complete.\n");
   mrvert->collate(NULL);
   if (me == 0) printf("        collate complete.\n");
-  *nverts = mrvert->reduce(&vertex_unique,NULL);
+  *nverts = mrvert->reduce(&readFB_vertex_unique,NULL);
   if (me == 0) printf("        vertex_unique complete.\n");
 
   // mredge = unique I->J edges with I and J non-zero + edge weights
@@ -196,7 +199,7 @@ void ReadFBData::run(
   MapReduce *mredge = mrraw;
 
   mredge->collate(NULL);
-  *nedges = mredge->reduce(&edge_unique<ReadFBData>,this);
+  *nedges = mredge->reduce(&readFB_edge_unique<ReadFBData>,this);
 
   *return_mrvert = mrvert;
   *return_mredge = mredge;
@@ -219,7 +222,7 @@ void ReadFBData::run(
    output KV: ([Vi Vj], NULL)  (EDGE is key; value is NULL.)
 ------------------------------------------------------------------------- */
 
-void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
+static void readFB_fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
 {
   ReadFBData *rfp = (ReadFBData *) ptr;
   char buf[rfp->CHUNK*(rfp->RECORDSIZE+rfp->GREG_BAYER)];
@@ -259,7 +262,7 @@ void fileread1(int itask, char *filename, KeyValue *kv, void *ptr)
    output KV: ([Vi Vj], NULL)  (EDGE is key; value is NULL.)
 ------------------------------------------------------------------------- */
 
-void fileread2(int itask, KeyValue *kv, void *ptr)
+static void readFB_fileread2(int itask, KeyValue *kv, void *ptr)
 {
   ReadFBData *rfp = (ReadFBData *) ptr;
   char buf[rfp->CHUNK*(rfp->RECORDSIZE+rfp->GREG_BAYER)];
@@ -300,7 +303,7 @@ void fileread2(int itask, KeyValue *kv, void *ptr)
    omit any Vertex if first 8 bytes is 0
 ------------------------------------------------------------------------- */
 
-void vertex_emit(char *key, int keybytes, char *multivalue,
+static void readFB_vertex_emit(char *key, int keybytes, char *multivalue,
                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   ReadFBData *rfp = (ReadFBData *) ptr;
@@ -316,7 +319,7 @@ void vertex_emit(char *key, int keybytes, char *multivalue,
    output KV: (Vi,NULL)
 ------------------------------------------------------------------------- */
 
-void vertex_unique(char *key, int keybytes, char *multivalue,
+static void readFB_vertex_unique(char *key, int keybytes, char *multivalue,
                    int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   kv->add(key,keybytes,NULL,0);
@@ -331,7 +334,7 @@ void vertex_unique(char *key, int keybytes, char *multivalue,
    only unique edges are emitted
 ------------------------------------------------------------------------- */
 template <class ReadFileType>
-void edge_unique(char *key, int keybytes, char *multivalue,
+static void readFB_edge_unique(char *key, int keybytes, char *multivalue,
                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   ReadFileType *rfp = (ReadFileType *) ptr;

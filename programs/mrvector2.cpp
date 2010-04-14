@@ -40,10 +40,10 @@ static void initialize_vec(int itask, KeyValue *kv, void *ptr)
 // Vector constructor.  Allocates memory and stores in persistent memory.
 // Initializes vector uniformly to 1/n.
 template <typename IDTYPE>
-MRVector::MRVector(
+MRVector<IDTYPE>::MRVector(
   IDTYPE n,                // Total number of vector entries 
   int pagesize,            // Optional:  MR memsize
-  char *filepath           // Optional:  MR filepath
+  const char *fpath        // Optional:  MR fpath
 )
 {
   if (n == 0) {
@@ -54,10 +54,10 @@ MRVector::MRVector(
 
   mr = new MapReduce(MPI_COMM_WORLD);
   mr->memsize = pagesize;
-  mr->set_fpath(filepath);
+  mr->set_fpath(fpath);
 
   // Emit vector values
-  mr->map(nprocs, &initialize_vec, &n);
+  mr->map(mr->num_procs(), &initialize_vec, &n);
 
   // Gather values to processors based on vector index.
   mr->aggregate(NULL);
@@ -65,7 +65,8 @@ MRVector::MRVector(
 
 /////////////////////////////////////////////////////////////////////////////
 // Empty a vector of all entries.
-void MRVector::MakeEmpty()
+template <typename IDTYPE>
+void MRVector<IDTYPE>::MakeEmpty()
 {
   delete mr;
 }
@@ -80,12 +81,12 @@ static void printvector(uint64_t itask, char *key, int keybytes,
   cout << *((IDTYPE *) key) << "\t" << *((double *) value) << endl;
 }
 
-void MRVector::Print()
+template <typename IDTYPE>
+void MRVector<IDTYPE>::Print()
 {
-  int me;
-  MPI_Comm_rank(MPI_COMM_WORLD, &me);
+  int me = mr->my_proc();
   cout << "Vector on processor " << me << endl;
-  mr->map(mr, &printvector, NULL, 1);  // set addflag to keep mr as is.
+  mr->map(mr, &printvector<IDTYPE>, NULL, 1);  // set addflag to keep mr as is.
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -98,7 +99,8 @@ static void setvector(uint64_t itask, char *key, int keybytes,
   kv->add(key, keybytes, (char *) &d, sizeof(double));
 }
 
-void MRVector::PutScalar(double d)
+template <typename IDTYPE>
+void MRVector<IDTYPE>::PutScalar(double d)
 {
   mr->map(mr, &setvector, &d);
 }
@@ -114,7 +116,8 @@ static void scalevector(uint64_t itask, char *key, int keybytes,
   kv->add(key, keybytes, (char *) &v, sizeof(double));
 }
 
-void MRVector::Scale(double d)
+template <typename IDTYPE>
+void MRVector<IDTYPE>::Scale(double d)
 {
   mr->map(mr, &scalevector, &d);
 }
@@ -130,7 +133,8 @@ static void addscalarvector(uint64_t itask, char *key, int keybytes,
   kv->add(key, keybytes, (char *) &v, sizeof(double));
 }
 
-void MRVector::AddScalar(double d)
+template <typename IDTYPE>
+void MRVector<IDTYPE>::AddScalar(double d)
 {
   mr->map(mr, &addscalarvector, &d);
 }
@@ -140,7 +144,8 @@ void MRVector::AddScalar(double d)
 // Compute min of all vector entries.
 // Requires communication
 // Cheating by using MPI_Allreduce instead of MapReduce.
-double MRVector::GlobalMin(MapReduce *mr)
+template <typename IDTYPE>
+double MRVector<IDTYPE>::GlobalMin()
 {
   double min = LocalMin(); 
   double gmin;
@@ -153,7 +158,8 @@ double MRVector::GlobalMin(MapReduce *mr)
 // Compute max of all vector entries.
 // Requires communication
 // Cheating by using MPI_Allreduce instead of MapReduce.
-double MRVector::GlobalMax(MapReduce *mr)
+template <typename IDTYPE>
+double MRVector<IDTYPE>::GlobalMax()
 {
   double max = LocalMax(); 
   double gmax;
@@ -166,7 +172,8 @@ double MRVector::GlobalMax(MapReduce *mr)
 // Compute sum of all vector entries.
 // Requires communication
 // Cheating by using MPI_Allreduce instead of MapReduce.
-double MRVector::GlobalSum(MapReduce *mr)
+template <typename IDTYPE>
+double MRVector<IDTYPE>::GlobalSum()
 {
   double sum = LocalSum(); 
   double gsum;
@@ -180,11 +187,12 @@ double MRVector::GlobalSum(MapReduce *mr)
 static void localsum(uint64_t itask, char *key, int keybytes, 
                      char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
-  double *sum = *((double *) ptr);
+  double *sum = (double *) ptr;
   *sum += *((double *) value);
 }
 
-double MRVector::LocalSum()
+template <typename IDTYPE>
+double MRVector<IDTYPE>::LocalSum()
 {
   double sum = 0.;
   mr->map(mr, &localsum, &sum, 1);  // Set addflag to retain mr as is.
@@ -202,7 +210,8 @@ static void localmin(uint64_t itask, char *key, int keybytes,
   if (v < *min) *min = v;
 }
 
-double MRVector::LocalMin()
+template <typename IDTYPE>
+double MRVector<IDTYPE>::LocalMin()
 {
   double min = DBL_MAX;
   mr->map(mr, &localmin, &min, 1);  // Set addflag to retain mr as is.
@@ -220,7 +229,8 @@ static void localmax(uint64_t itask, char *key, int keybytes,
   if (v > *max) *max = v;
 }
 
-double MRVector::LocalMax()
+template <typename IDTYPE>
+double MRVector<IDTYPE>::LocalMax()
 {
   double max = 0.;
   mr->map(mr, &localmax, &max, 1);  // Set addflag to retain mr as is.

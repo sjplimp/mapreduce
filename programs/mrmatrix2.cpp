@@ -11,6 +11,7 @@
 #include "keyvalue.h"
 #include "mrmatrix2.h"
 #include "mrvector2.h"
+#include "blockmacros.hpp"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
@@ -26,10 +27,10 @@ static void initialize_matrix(uint64_t itask, char *key, int keybytes,
                               char *value, int valuebytes, 
                               KeyValue *kv, void *ptr)
 {
-  MRNonZero v;
+  MRNonZero<IDTYPE> v;
   v.ij = *((IDTYPE *) value);
   v.nzv = 0.;
-  kv->add(key, keybytes, (char *) &v, sizeof(MRNonZero));
+  kv->add(key, keybytes, (char *) &v, sizeof(MRNonZero<IDTYPE>));
 }
 
 //--------------------------------------------------------------
@@ -38,10 +39,10 @@ static void initialize_transpose_matrix(uint64_t itask, char *key, int keybytes,
                                         char *value, int valuebytes,
                                         KeyValue *kv, void *ptr)
 {
-  MRNonZero v;
+  MRNonZero<IDTYPE> v;
   v.ij = *((IDTYPE *) key);
   v.nzv = 0.;
-  kv->add(value, valuebytes, (char *) &v, sizeof(MRNonZero));
+  kv->add(value, valuebytes, (char *) &v, sizeof(MRNonZero<IDTYPE>));
 }
 
 //--------------------------------------------------------------
@@ -59,21 +60,21 @@ static void save_empty_rows(char *key, int keybytes,
                        
 //--------------------------------------------------------------
 template <typename IDTYPE>
-MRMatrix::MRMatrix(
+MRMatrix<IDTYPE>::MRMatrix(
   IDTYPE n,           // Number of matrix rows 
   IDTYPE m,           // Number of matrix columns 
   MapReduce *mredge,  // Edges of the graph == matrix nonzeros.
                       // Assuming mredge is already aggregated to processors.
   bool transpose,     // Store matrix A or matrix transpose A^T?
   int pagesize,       // Optional:  MR pagesize to be set by the application.
-  char *filepath      // Optional:  MR filepath to be set by the application.
+  const char *fpath   // Optional:  MR filepath to be set by the application.
 )
 {
   // Create matrix MapReduce object mr.  Store as A or A^T, depending on
   // transpose flag.
   mr = new MapReduce(MPI_COMM_WORLD);
   mr->memsize = pagesize;
-  mr->set_fpath(filepath);
+  mr->set_fpath(fpath);
 
   transposeFlag = transpose;
   if (transpose) {
@@ -86,7 +87,7 @@ MRMatrix::MRMatrix(
   }
 
   // Identify empty rows of matrix A (leaf nodes in graph).
-  emptyRows = new MRVector(N, pagesize, filepath);
+  emptyRows = new MRVector<IDTYPE>(N, pagesize, fpath);
   MapReduce *emr = emptyRows->mr;
   emr->add(mredge);
   nEmptyRows = emr->compress(&save_empty_rows, NULL);
@@ -94,20 +95,22 @@ MRMatrix::MRMatrix(
 
 /////////////////////////////////////////////////////////////////////////////
 // Scale each matrix entry by value alpha.
+template <typename IDTYPE>
 static void scalematrix(uint64_t itask, char *key, int keybytes, 
                         char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   double d = *((double *) ptr);
-  MRNonZero *v = (MRNonZero *) value;
+  MRNonZero<IDTYPE> *v = (MRNonZero<IDTYPE> *) value;
   v->nzv *= d;
   kv->add(key, keybytes, value, valuebytes);
 }
 
-void MRMatrix::Scale(
+template <typename IDTYPE>
+void MRMatrix<IDTYPE>::Scale(
   double alpha
 )
 {
-  mr->map(mr, scalematrix, &alpha);
+  mr->map(mr, scalematrix<IDTYPE>, &alpha);
 }
 
 
@@ -120,6 +123,7 @@ void MRMatrix::Scale(
 //         all i with nonzero A_ij.}
 // output:  key = row index i; value = x_j * A_ij.
 
+template <typename IDTYPE>
 static void terms(char *key, int keybytes, 
                   char *multivalue, int nvalues, int *valuebytes,
                   KeyValue *kv, void *ptr)
@@ -140,8 +144,9 @@ static void terms(char *key, int keybytes,
 
   mvptr = multivalue;
   // Find the x_j value
-  for (int k = 0; k < nvalues; k++) {
-    if (valuebytes[k] != sizeof(MRNonZero))
+  int k;
+  for (k = 0; k < nvalues; k++) {
+    if (valuebytes[k] != sizeof(MRNonZero<IDTYPE>))
       break;
     mvptr += valuebytes[k];
   }
@@ -155,11 +160,11 @@ static void terms(char *key, int keybytes,
 
   mvptr = multivalue;
   for (int k = 0; k < nvalues; k++) {
-    if (valuebytes[k] != sizeof(MRNonZero)) {
+    if (valuebytes[k] != sizeof(MRNonZero<IDTYPE>)) {
       mvptr += valuebytes[k];
       continue; // don't add in x_j * x_j
     }
-    MRNonZero *aptr = (MRNonZero *) mvptr;
+    MRNonZero<IDTYPE> *aptr = (MRNonZero<IDTYPE> *) mvptr;
     double product = x_j * aptr->nzv;
     kv->add((char *) &aptr->ij, sizeof(aptr->ij), 
             (char *) &product, sizeof(product));
@@ -180,6 +185,7 @@ static void rowsum(char *key, int keybytes, char *multivalue,
 {
   double sum = 0.;
 
+  uint64_t totalnvalues;
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, totalnvalues)
   BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
@@ -193,7 +199,7 @@ static void rowsum(char *key, int keybytes, char *multivalue,
 }
 
 template <typename IDTYPE>
-void MRMatrix::MatVec(
+void MRMatrix<IDTYPE>::MatVec(
   MRVector<IDTYPE> *x,
   MRVector<IDTYPE> *y      // Result of A*x
 )
@@ -213,7 +219,7 @@ void MRMatrix::MatVec(
 
   // For A, compute terms x_i * A_ij.
   // For A^T, compute terms x_j * A_ij.
-  ymr->compress(&terms, NULL);
+  ymr->compress(&terms<IDTYPE>, NULL);
 
   // Gather matrix now by rows.
   ymr->collate(NULL);

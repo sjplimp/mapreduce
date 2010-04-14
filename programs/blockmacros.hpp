@@ -17,11 +17,11 @@
 
 #define CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, totalnvalues)  \
   int bbb_nblocks = 1; \
-  total_nvalues = nvalues; \
+  totalnvalues = nvalues; \
   MapReduce *bbb_mr = NULL; \
   if (!(multivalue)) { \
     bbb_mr = (MapReduce *) (valuebytes); \
-    total_nvalues = bbb_mr->multivalue_blocks(bbb_nblocks); \
+    totalnvalues = bbb_mr->multivalue_blocks(bbb_nblocks); \
   } 
 
 #define BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)  \

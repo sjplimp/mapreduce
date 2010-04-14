@@ -32,6 +32,9 @@
 #include "mrvector2.h"
 #include "blockmacros.hpp"
 #include "localdisks.hpp"
+#include "read_fb_data.hpp"
+#include "read_mm_data.hpp"
+#include "rmat.hpp"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
@@ -150,7 +153,7 @@ MRVector<IDTYPE> *pagerank(
     MPI_Allreduce(&ladj, &gadj, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
     // Compute global adjustment.
-    A->MatVec<IDTYPE>(x, y);
+    A->MatVec(x, y);
 
     // Add adjustment to product vector in mr.
     y->AddScalar(gadj);
@@ -212,7 +215,7 @@ int me = A->mr->my_proc();
 int np;  MPI_Comm_size(MPI_COMM_WORLD, &np);
 IDTYPE lnentry, maxnentry, minnentry, sumnentry;
 
-  lnentry = A->mr->nkv;
+  lnentry = A->mr->kv->nkv;
   MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_IDTYPE, MPI_MAX, MPI_COMM_WORLD);
   MPI_Allreduce(&lnentry, &minnentry, 1, MPI_IDTYPE, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_IDTYPE, MPI_SUM, MPI_COMM_WORLD);
@@ -220,13 +223,41 @@ IDTYPE lnentry, maxnentry, minnentry, sumnentry;
     cout << "Matrix Stats:  nonzeros/proc (max, min, avg):  "
          << maxnentry << " " << minnentry << " " <<  sumnentry/np << endl;
 
-  lnentry = x->mr->nkv;
+  lnentry = x->mr->kv->nkv;
   MPI_Allreduce(&lnentry, &maxnentry, 1, MPI_IDTYPE, MPI_MAX, MPI_COMM_WORLD);
   MPI_Allreduce(&lnentry, &minnentry, 1, MPI_IDTYPE, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(&lnentry, &sumnentry, 1, MPI_IDTYPE, MPI_SUM, MPI_COMM_WORLD);
   if (me == 0) 
     cout << "Vector Stats:  entries/proc (max, min, avg):  "
          << maxnentry << " " <<  minnentry << " " <<  sumnentry/np << endl;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// compare comparison function.
+// Compares two integer keys a and b; returns -1, 0, 1 if a<b, a==b, a>b,
+// respectively.
+int compare(char *a, int lena, char *b, int lenb)
+{
+IDTYPE ia = *(IDTYPE*)a;
+IDTYPE ib = *(IDTYPE*)b;
+  if (ia < ib) return -1;
+  if (ia > ib) return  1;
+  return 0;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// output reduce() function
+// input:  key = row index i; 
+//         multivalue = {x_j*A_ij for all j with nonzero A_ij}.
+// output: print (i, y_i).
+
+void output(char *key, int keybytes, 
+            char *multivalue, int nvalues, int *valuebytes,
+            KeyValue *kv, void *ptr)
+{
+  assert(nvalues == 1);
+  double *dptr = (double *) multivalue;
+  cout << *(IDTYPE*) key <<  "    " << dptr[0] << endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -249,7 +280,7 @@ int main(int narg, char **args)
   // Parse the command line.
   int ch;
   opterr = 0;
-  char *optstring = "a:t:m:n:";
+  const char *optstring = "a:t:m:n:";
 
   while ((ch = getopt(narg, args, optstring)) != -1) {
     switch (ch) {
@@ -298,7 +329,7 @@ int main(int narg, char **args)
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
-  tstart = MPI_Wtime();
+  double tstart = MPI_Wtime();
 
   MapReduce *mrvert = NULL;
   MapReduce *mredge = NULL;
@@ -308,6 +339,16 @@ int main(int narg, char **args)
   int vertexsize;
 
   if (filetype == FBFILE) { // FB files
+    // Not yet supported.  Still have assumption that vertices are named
+    // 1, 2, ..., nverts as in MatrixMarket or RMAT.  Cannot handle 
+    // non-consecutive hashkeys yet.  It wouldn't be too hard, I think;
+    // In MRVector, need to replace 1, 2, ..., nverts with hash-key IDs.
+    // Need to pass mrvert to MRVector constructor.
+    // Or need to renumber as in link2graph.
+    if (me == 0) {
+      cout << "FBFILE not yet supported." << endl;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
     ReadFBData readFB(narg, args, true);
     readFB.run(&mrvert, &mredge, &nverts, &nrawedges, &nedges);
     vertexsize = readFB.vertexsize;
@@ -326,15 +367,18 @@ int main(int narg, char **args)
   // Row IDs are currently int64_t; cannot support 128-bit keys yet.
   if (vertexsize != 8 && me == 0) {
     cout << "Vertexsize != 8 not yet supported.  Use -e1 option." << endl;
-    MPI_Abort(MPI_COMM_WORLD);
+    MPI_Abort(MPI_COMM_WORLD, -1);
   }
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
   MRMatrix<IDTYPE> A(nverts, nverts, mredge, 1,  pagesize, MYLOCALDISK);
 
+  delete mredge;
+  delete mrvert;  // Will need mrvert for MRVector constructor for FBFILE.
+
   MPI_Barrier(MPI_COMM_WORLD);
-  tstop = MPI_Wtime();
+  double tstop = MPI_Wtime();
 
   if (me == 0) {
     cout << "Time to read/generate matrix " << tstop - tstart << endl;
@@ -373,33 +417,5 @@ int main(int narg, char **args)
   }
 
   MPI_Finalize();
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// output reduce() function
-// input:  key = row index i; 
-//         multivalue = {x_j*A_ij for all j with nonzero A_ij}.
-// output: print (i, y_i).
-
-void output(char *key, int keybytes, 
-            char *multivalue, int nvalues, int *valuebytes,
-            KeyValue *kv, void *ptr)
-{
-  assert(nvalues == 1);
-  double *dptr = (double *) multivalue;
-  cout << *(IDTYPE*) key <<  "    " << dptr[0] << endl;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// compare comparison function.
-// Compares two integer keys a and b; returns -1, 0, 1 if a<b, a==b, a>b,
-// respectively.
-int compare(char *a, int lena, char *b, int lenb)
-{
-IDTYPE ia = *(IDTYPE*)a;
-IDTYPE ib = *(IDTYPE*)b;
-  if (ia < ib) return -1;
-  if (ia > ib) return  1;
-  return 0;
 }
 

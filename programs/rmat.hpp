@@ -42,19 +42,22 @@ using namespace MAPREDUCE_NS;
 #define VERSION1
 
 #ifndef VERSION1
-void do_nothing(int, KeyValue *, void *);
+static void rmat_do_nothing(int, KeyValue *, void *);
 #endif
-void generate_vertex(int, KeyValue *, void *);
-void generate_edge(int, KeyValue *, void *);
-void final_edge(char *, int, char *, int, int *, KeyValue *, void *);
-void cull(char *, int, char *, int, int *, KeyValue *, void *);
-void output(char *, int, char *, int, int *, KeyValue *, void *);
-void nonzero_in_row(char *, int, char *, int, int *, KeyValue *, void *);
-void nonzero_in_col(char *, int, char *, int, int *, KeyValue *, void *);
-void degree(char *, int, char *, int, int *, KeyValue *, void *);
-void histo(char *, int, char *, int, int *, KeyValue *, void *);
-int ncompare(char *, int, char *, int);
-void stats(uint64_t, char *, int, char *, int, KeyValue *, void *);
+static void rmat_generate_vertex(int, KeyValue *, void *);
+static void rmat_generate_edge(int, KeyValue *, void *);
+static void rmat_final_edge(char *, int, char *, int, int *, 
+                            KeyValue *, void *);
+static void rmat_cull(char *, int, char *, int, int *, KeyValue *, void *);
+static void rmat_output(char *, int, char *, int, int *, KeyValue *, void *);
+static void rmat_nonzero_in_row(char *, int, char *, int, int *, 
+                                KeyValue *, void *);
+static void rmat_nonzero_in_col(char *, int, char *, int, int *, 
+                                KeyValue *, void *);
+static void rmat_degree(char *, int, char *, int, int *, KeyValue *, void *);
+static void rmat_histo(char *, int, char *, int, int *, KeyValue *, void *);
+static int rmat_ncompare(char *, int, char *, int);
+static void rmat_stats(uint64_t, char *, int, char *, int, KeyValue *, void *);
 
 typedef uint64_t RMAT_VERTEX;
 typedef struct {
@@ -179,7 +182,7 @@ void GenerateRMAT::run(
   // Each processor generates a range of the vertices.
   if (me == 0) cout << "Generating vertices..." << endl;
   MapReduce *mrvert = new MapReduce(MPI_COMM_WORLD);
-  mrvert->map(nprocs, generate_vertex, this);
+  mrvert->map(nprocs, rmat_generate_vertex, this);
   if (me == 0) cout << "Vertex aggregate..." << endl;
   mrvert->aggregate(NULL); // Not necessary, but moves vertices to procs to 
                            // which they will be hashed later.  May be good to
@@ -192,7 +195,7 @@ void GenerateRMAT::run(
   MapReduce *mredge = new MapReduce(MPI_COMM_WORLD);
 #ifndef VERSION1
   // Put mredge in state where it has a KeyValue (empty).
-  mredge->map(1,&do_nothing,NULL);
+  mredge->map(1,&rmat_do_nothing,NULL);
 #endif
 //  mredge->verbosity = 2;
 //  mredge->timer = 1;
@@ -207,17 +210,17 @@ void GenerateRMAT::run(
     ngenerate = nremain/nprocs;
     if ((unsigned) me < (nremain % nprocs)) ngenerate++;
 #ifdef VERSION1
-    mredge->map(nprocs,&generate_edge,this,1);
+    mredge->map(nprocs,&rmat_generate_edge,this,1);
     uint64_t nunique = mredge->collate(NULL);
 #else
     MapReduce mrnew(MPI_COMM_WORLD);
-    mrnew.map(nprocs,&generate_edge,this);
+    mrnew.map(nprocs,&rmat_generate_edge,this);
     mrnew.aggregate(NULL);
     mredge->add(&mrnew);
     uint64_t nunique = mredge->convert();
 #endif
     if (nunique == ntotal) break;
-    mredge->reduce(&cull,NULL);
+    mredge->reduce(&rmat_cull,NULL);
     nremain = ntotal - nunique;
     if (me == 0) cout << "    Iteration " << niterate 
                       << ": cumulative edges generated " << nunique 
@@ -235,7 +238,7 @@ void GenerateRMAT::run(
       MPI_Abort(MPI_COMM_WORLD,1);
     }
     MapReduce *mr = mredge->copy();
-    mr->reduce(&output,this);
+    mr->reduce(&rmat_output,this);
     fclose(fp);
     delete mr;
   }
@@ -254,10 +257,10 @@ void GenerateRMAT::run(
     uint64_t gminmax[2];
     // Produce outdegree stats
     MapReduce *mr = mredge->copy();
-    mr->reduce(&nonzero_in_row,NULL);
+    mr->reduce(&rmat_nonzero_in_row,NULL);
     uint64_t nrow = mr->collate(NULL);  // # of nonempty rows
     minmax[0] = UINT64_MAX; minmax[1] = 0;
-    mr->reduce(&degree,minmax);
+    mr->reduce(&rmat_degree,minmax);
     if (nrow < order) minmax[0] = 0;   // some rows are empty
     MPI_Allreduce(&minmax[0], &gminmax[0], 1, MPI_UNSIGNED_LONG, 
                   MPI_MIN, MPI_COMM_WORLD);
@@ -268,12 +271,12 @@ void GenerateRMAT::run(
                  << "; Max = " << gminmax[1] << endl;
     if (printstats > 1) {
       mr->collate(NULL);
-      mr->reduce(&histo,NULL);
+      mr->reduce(&rmat_histo,NULL);
       mr->gather(1);
-      mr->sort_keys(&ncompare);
+      mr->sort_keys(&rmat_ncompare);
       if (me == 0) std::cout << "Outdegrees:  " << std::endl;
       uint64_t total = 0;
-      mr->map(mr,&stats,&total);
+      mr->map(mr,&rmat_stats,&total);
       if (me == 0) 
         std::cout << "   " << order - total 
                   << " vertices with 0 edges" << std::endl;
@@ -282,10 +285,10 @@ void GenerateRMAT::run(
 
     // Produce indegree stats
     mr = mredge->copy();
-    mr->reduce(&nonzero_in_col,NULL);
+    mr->reduce(&rmat_nonzero_in_col,NULL);
     uint64_t ncol = mr->collate(NULL);  // # of nonempty columns
     minmax[0] = UINT64_MAX; minmax[1] = 0;
-    mr->reduce(&degree,minmax);
+    mr->reduce(&rmat_degree,minmax);
     if (ncol < order) minmax[0] = 0;   // some columns are empty
     MPI_Allreduce(&minmax[0], &gminmax[0], 1, MPI_UNSIGNED_LONG, 
                   MPI_MIN, MPI_COMM_WORLD);
@@ -296,12 +299,12 @@ void GenerateRMAT::run(
                  << "; Max = " << gminmax[1] << endl;
     if (printstats > 1) {
       mr->collate(NULL);
-      mr->reduce(&histo,NULL);
+      mr->reduce(&rmat_histo,NULL);
       mr->gather(1);
-      mr->sort_keys(&ncompare);
+      mr->sort_keys(&rmat_ncompare);
       uint64_t total = 0;
       if (me == 0) std::cout << "Indegrees:  " << std::endl;
-      mr->map(mr,&stats,&total);
+      mr->map(mr,&rmat_stats,&total);
       if (me == 0) 
         std::cout << "   " << order - total 
                   << " vertices with 0 edges" << std::endl;
@@ -310,7 +313,7 @@ void GenerateRMAT::run(
   }
 
   // convert edges to correct format for return arguments
-  mredge->reduce(&final_edge,NULL);
+  mredge->reduce(&rmat_final_edge,NULL);
   *return_mredge = mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -325,7 +328,7 @@ void GenerateRMAT::run(
 // We need mredge MapReduce object to be in state where it has a KeyValue
 // structure, but we don't have anything to put in it yet.  This function 
 // will do the trick.
-void do_nothing(int itask, KeyValue *kv, void *ptr)
+static void rmat_do_nothing(int itask, KeyValue *kv, void *ptr)
 {
 }
 #endif
@@ -335,7 +338,7 @@ void do_nothing(int itask, KeyValue *kv, void *ptr)
    emit one KV per edge: key = edge, value = NULL
 ------------------------------------------------------------------------- */
 
-void generate_edge(int itask, KeyValue *kv, void *ptr)
+static void rmat_generate_edge(int itask, KeyValue *kv, void *ptr)
 {
   GenerateRMAT *rmat = (GenerateRMAT *) ptr;
 
@@ -396,8 +399,8 @@ void generate_edge(int itask, KeyValue *kv, void *ptr)
    output: one KV per edge: key = edge, value = NULL
 ------------------------------------------------------------------------- */
 
-void cull(char *key, int keybytes, char *multivalue,
-          int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+static void rmat_cull(char *key, int keybytes, char *multivalue,
+                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   kv->add(key,keybytes,NULL,0);
 }
@@ -406,8 +409,8 @@ void cull(char *key, int keybytes, char *multivalue,
    write edges to a file unique to this processor
 ------------------------------------------------------------------------- */
 
-void output(char *key, int keybytes, char *multivalue,
-            int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+static void rmat_output(char *key, int keybytes, char *multivalue,
+                   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   GenerateRMAT *rmat = (GenerateRMAT *) ptr;
   RMAT_EDGE *edge = (RMAT_EDGE *) key;
@@ -420,8 +423,8 @@ void output(char *key, int keybytes, char *multivalue,
    output: one KV per edge: key = row I, value = NULL
 ------------------------------------------------------------------------- */
 
-void nonzero_in_row(char *key, int keybytes, char *multivalue,
-             int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+static void rmat_nonzero_in_row(char *key, int keybytes, char *multivalue,
+                           int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   RMAT_EDGE *edge = (RMAT_EDGE *) key;
   kv->add((char *) &edge->vi,sizeof(RMAT_VERTEX),NULL,0);
@@ -433,8 +436,8 @@ void nonzero_in_row(char *key, int keybytes, char *multivalue,
    output: one KV per edge: key = column j, value = NULL
 ------------------------------------------------------------------------- */
 
-void nonzero_in_col(char *key, int keybytes, char *multivalue,
-             int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+static void rmat_nonzero_in_col(char *key, int keybytes, char *multivalue,
+                           int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   RMAT_EDGE *edge = (RMAT_EDGE *) key;
   kv->add((char *) &edge->vj,sizeof(RMAT_VERTEX),NULL,0);
@@ -445,8 +448,8 @@ void nonzero_in_col(char *key, int keybytes, char *multivalue,
    output: one KV: key = # of nonzeros, value = NULL
 ------------------------------------------------------------------------- */
 
-void degree(char *key, int keybytes, char *multivalue,
-         int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+static void rmat_degree(char *key, int keybytes, char *multivalue,
+                   int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   uint64_t total_nvalues;
   uint64_t *minmax = (uint64_t *) ptr;
@@ -462,8 +465,8 @@ void degree(char *key, int keybytes, char *multivalue,
    output: one KV: key = # of nonzeros, value = # of rows/col
 ------------------------------------------------------------------------- */
 
-void histo(char *key, int keybytes, char *multivalue,
-           int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+static void rmat_histo(char *key, int keybytes, char *multivalue,
+                  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   uint64_t total_nvalues;
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
@@ -475,7 +478,7 @@ void histo(char *key, int keybytes, char *multivalue,
    order values by count, largest first
 ------------------------------------------------------------------------- */
 
-int ncompare(char *p1, int len1, char *p2, int len2)
+static int rmat_ncompare(char *p1, int len1, char *p2, int len2)
 {
   uint64_t i1 = *(uint64_t *) p1;
   uint64_t i2 = *(uint64_t *) p2;
@@ -488,7 +491,7 @@ int ncompare(char *p1, int len1, char *p2, int len2)
    print # of rows with a specific # of nonzeros
 ------------------------------------------------------------------------- */
 
-void stats(uint64_t itask, char *key, int keybytes, char *value,
+static void rmat_stats(uint64_t itask, char *key, int keybytes, char *value,
            int valuebytes, KeyValue *kv, void *ptr)
 {
   uint64_t *total = (uint64_t *) ptr;
@@ -504,7 +507,7 @@ void stats(uint64_t itask, char *key, int keybytes, char *value,
 // Input:   order = total number of vertices; itask ~= processor number.
 // Output:  one KV for each vertex in itask * (order / nprocs).
 //----------------------------------------------------------------------- */
-void generate_vertex(int itask, KeyValue *kv, void *ptr)
+static void rmat_generate_vertex(int itask, KeyValue *kv, void *ptr)
 {
   GenerateRMAT *rmat = (GenerateRMAT *) ptr;
   uint64_t fraction = rmat->order / rmat->nprocs;
@@ -530,7 +533,7 @@ void generate_vertex(int itask, KeyValue *kv, void *ptr)
 // Input:   key = RMAT_EDGE
 // Output:  key = RMAT_EDGE.i  value = RMAT_EDGE.j + weight
 //----------------------------------------------------------------------- */
-void final_edge(char *key, int keybytes, char *multivalue,
+static void rmat_final_edge(char *key, int keybytes, char *multivalue,
                 int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
   RMAT_EDGE *edge = (RMAT_EDGE *) key;

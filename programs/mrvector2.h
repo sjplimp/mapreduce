@@ -23,15 +23,15 @@ using namespace std;
 template <typename IDTYPE>
 class MRVector {
   public:
-    MRVector(IDTYPE);
+    MRVector(IDTYPE, int pagesize=64, const char *fpath = ".");
     ~MRVector() {MakeEmpty();}
     void MakeEmpty();
     void PutScalar(double);
     void AddScalar(double);
     void Scale(double);
-    double GlobalSum(MapReduce *);
-    double GlobalMax(MapReduce *);
-    double GlobalMin(MapReduce *);
+    double GlobalSum();
+    double GlobalMax();
+    double GlobalMin();
     double LocalSum();
     double LocalMax();
     double LocalMin();
