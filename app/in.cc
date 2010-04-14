@@ -1,6 +1,6 @@
 # RMAT matrix generation & statistics
 
-variable order equal 10
+variable order equal 15
 variable nz equal 1
 variable nrows equal 2^v_order
 variable n equal v_nrows*v_nz

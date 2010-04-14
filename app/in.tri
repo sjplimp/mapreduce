@@ -1,7 +1,7 @@
 # triangle finding
 
-variable order equal 10
-variable nz equal 2
+variable order equal 16
+variable nz equal 4
 variable nrows equal 2^v_order
 variable n equal v_nrows*v_nz
 

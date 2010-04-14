@@ -20,16 +20,12 @@ ReduceNsqAngles(APP *app, char *idstr, int narg, char **arg) :
 }
 
 /* ---------------------------------------------------------------------- */
-// emit Nsq angles associated with each central vertex vi
-// emit KV as ((vj,vk),vi) where vj < vk
 
 void ReduceNsqAngles::reduce(char *key, int keybytes,
 			     char *multivalue, int nvalues, int *valuebytes,
 			     KeyValue *kv, void *ptr)
 {
   int j,k,nv,nv2,iblock,jblock;
-  char *multivalue2;
-  int *valuebytes2;
   VERTEX vj,vk;
   EDGE edge;
 
@@ -74,9 +70,9 @@ void ReduceNsqAngles::reduce(char *key, int keybytes,
 	}
 
 	for (jblock = iblock+1; jblock < nblocks; jblock++) { 
-	  nv2 = mr->multivalue_block(jblock,&multivalue2,&valuebytes2);
+	  nv2 = mr->multivalue_block(jblock,&multivalue,&valuebytes);
 	  for (k = 0; k < nv2; k++) {
-	    vk = *(VERTEX *) &multivalue2[k*sizeof(VERTEX)];
+	    vk = *(VERTEX *) &multivalue[k*sizeof(VERTEX)];
 	    if (vj < vk) {
 	      edge.vi = vj;
 	      edge.vj = vk;
