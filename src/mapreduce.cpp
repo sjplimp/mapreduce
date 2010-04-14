@@ -2457,11 +2457,16 @@ void MapReduce::allocate()
 
   // memory initialization
 
-  if (memsize <= 0) error->all("Invalid memsize setting");
+  if (memsize == 0) error->all("Invalid memsize setting");
   if (minpage < 0) error->all("Invalid minpage setting");
   if (maxpage && maxpage < minpage) error->all("Invalid maxpage setting");
 
-  pagesize = ((uint64_t) memsize) * 1024*1024;
+  if (memsize > 0)
+    pagesize = ((uint64_t) memsize) * 1024*1024;
+  else
+    pagesize = (uint64_t) (-memsize);
+
+  if (pagesize < ALIGNFILE) error->all("Page size smaller than ALIGNFILE");
 
   if (minpage) allocate_page(minpage);
 }

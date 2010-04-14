@@ -35,7 +35,7 @@ using namespace MAPREDUCE_NS;
 #define PARTITIONCHUNK 16
 #define SETCHUNK 16
 #define PAGECHUNK 16
-#define MINSPOOLBYTES 16384
+#define MINSPOOLBYTES 512
 #define INTMAX 0x7FFFFFFF
 
 enum{KVFILE,KMVFILE,SORTFILE,PARTFILE,SETFILE};   // same as in mapreduce.cpp
@@ -1486,6 +1486,8 @@ void KeyMultiValue::spool_memory(KeyValue *kv)
   // minspool = min size for Spool page = MAX(max KV size,MINSPOOLBYTES)
 
   minspool = MAX(kv->msize,MINSPOOLBYTES);
+
+  if (minspool > pagesize) error->all("Spool size exceeds page size");
 
   // query how many MR pages are available and request all of them
 
