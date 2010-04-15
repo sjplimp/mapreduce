@@ -1,0 +1,21 @@
+15Apr10 version files changed by 16Apr10 upgrade:
+
+doc/Manual.html
+doc/Manual.txt
+doc/add.html
+doc/add.txt
+doc/copy.html
+doc/copy.txt
+doc/interface_c++.html
+doc/interface_c++.txt
+doc/interface_c.html
+doc/interface_c.txt
+doc/interface_python.html
+doc/interface_python.txt
+doc/open.html
+doc/open.txt
+python/mrmpi.py
+src/cmapreduce.cpp
+src/cmapreduce.h
+src/mapreduce.cpp
+src/mapreduce.h
