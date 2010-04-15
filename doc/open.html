@@ -17,11 +17,11 @@ uint64_t MapReduce::close()
 </PRE>
 <P>These call the open() and close() methods of a MapReduce object.  This
 is only necessary when you will be performing a map() or reduce() that
-generates KeyValue pairs, and you wish to add pairs not only to the
+generates key/value pairs, and you wish to add pairs not only to the
 MapReduce object which is invoking the map() and reduce(), but also to
 one or more other MapReduce objects.  In order to do this, you need to
 invoke the open() and close() methods on the other MapReduce
-object(s), so that they can accumulate new KeyValue pairs properly.
+object(s), so that they can accumulate new key/value pairs properly.
 The close() method returns the total number of key/value pairs in the
 KeyValue object.
 </P>
@@ -41,10 +41,10 @@ mr2->close()
 } 
 </PRE>
 <P>The mymap() function is being called from the "mr" MapReduce object,
-and can add KeyValue pairs to "mr" in the usual way, via the kv->add()
-function call.  But it can also add KeyValue pairs to the "mr2"
-MapReduce object via the kv2->add() function call.  To do this, 3
-things were necessary:
+and can add key/value pairs to "mr" in the usual way, via the
+kv->add() function call.  But it can also add key/value pairs to the
+"mr2" MapReduce object via the kv2->add() function call.  To do this,
+3 things were necessary:
 </P>
 <UL><LI>call the open() method of mr2 before the map() was invoked
 <LI>pass a pointer to the map() which allows mymap() to retrieve the pointer to mr2's internal KeyValue object
@@ -56,7 +56,8 @@ a pointer to a data structure could be passed, which contains pointers
 to several other MapReduce objects.  In this case, the open() and
 close() methods for each of the other MapReduce objects would need to
 be called appropriately before and after the map() method, assuming
-they would each have KeyValue pairs added to them by the mymap() function.
+they would each have key/value pairs added to them by the mymap()
+function.
 </P>
 <P>You can call open() and close() as many times as needed, but note
 calls to open() and close() should always come in pairs.  You should
