@@ -39,21 +39,25 @@ and KMV objects.  This is useful to understand, since this determines
 how the various operations can be chained together in your program.
 </P>
 <DIV ALIGN=center><TABLE  BORDER=1 >
-<TR><TD >add()</TD><TD > KV -> KV</TD><TD > add pairs from one KV to another</TD><TD > serial</TD><TD > 1 page</TD></TR>
-<TR><TD >aggregate()</TD><TD > KV -> KV</TD><TD > pairs are aggregated onto procs</TD><TD > parallel</TD><TD > 7 pages</TD></TR>
-<TR><TD >clone()</TD><TD > KV -> KMV</TD><TD > each KV pair becomes a KMV pair</TD><TD > serial</TD><TD > 2 pages </TD></TR>
-<TR><TD >collapse()</TD><TD > KV -> KMV</TD><TD > all KV pairs become one KMV pair</TD><TD > serial</TD><TD > 2 pages</TD></TR>
-<TR><TD >collate()</TD><TD > KV -> KMV</TD><TD > aggregate + convert</TD><TD > parallel</TD><TD > 4+ pages</TD></TR>
-<TR><TD >compress()</TD><TD > KV -> KV</TD><TD > calls back to user program to compress duplicate keys</TD><TD > serial</TD><TD > 4+ pages</TD></TR>
-<TR><TD >convert()</TD><TD > KV -> KMV</TD><TD > duplicate KV keys become one KMV key</TD><TD > serial</TD><TD > 4+ pages</TD></TR>
-<TR><TD >gather()</TD><TD > KV -> KV</TD><TD > collect pairs on many procs to few procs</TD><TD > parallel</TD><TD > 3 pages</TD></TR>
-<TR><TD >map()</TD><TD > create or add to a KV</TD><TD > calls back to user program to generate pairs</TD><TD > serial</TD><TD > 1 page</TD></TR>
-<TR><TD >reduce()</TD><TD > KMV -> KV</TD><TD > calls back to user program to process KMV pairs</TD><TD > serial</TD><TD > 3 pages</TD></TR>
-<TR><TD >print()</TD><TD > N/A</TD><TD > prints KV or KMV pairs to screen</TD><TD > serial</TD><TD > 1 page</TD></TR>
-<TR><TD >scrunch()</TD><TD > KV -> KMV</TD><TD > gather + collapse</TD><TD > parallel</TD><TD > 3 pages</TD></TR>
-<TR><TD >sort_keys()</TD><TD > KV -> KV</TD><TD > calls back to user program to sort pairs by key</TD><TD > serial</TD><TD > 5 pages</TD></TR>
-<TR><TD >sort_values()</TD><TD > KV -> KV</TD><TD > calls back to user program to sort pairs by value</TD><TD > serial</TD><TD > 5 pages</TD></TR>
-<TR><TD >sort_multivalues()</TD><TD > KMV -> KMV</TD><TD > calls back to user program to sort multi-values within each pair</TD><TD > serial</TD><TD > 4 pages 
+<TR><TD ><A HREF = "add.html">add()</A></TD><TD > KV -> KV</TD><TD > add pairs from one KV to another</TD><TD > serial</TD><TD > 1 page</TD></TR>
+<TR><TD ><A HREF = "aggregate.html">aggregate()</A></TD><TD > KV -> KV</TD><TD > pairs are aggregated onto procs</TD><TD > parallel</TD><TD > 7 pages</TD></TR>
+<TR><TD ><A HREF = "clone.html">clone()</A></TD><TD > KV -> KMV</TD><TD > each KV pair becomes a KMV pair</TD><TD > serial</TD><TD > 2 pages </TD></TR>
+<TR><TD ><A HREF = "close.html">close()</A></TD><TD > KV</TD><TD > allows one MapReduce object to add KV pairs to another</TD><TD > serial</TD><TD > 0 pages</TD></TR>
+<TR><TD ><A HREF = "collapse.html">collapse()</A></TD><TD > KV -> KMV</TD><TD > all KV pairs become one KMV pair</TD><TD > serial</TD><TD > 2 pages</TD></TR>
+<TR><TD ><A HREF = "collate.html">collate()</A></TD><TD > KV -> KMV</TD><TD > aggregate + convert</TD><TD > parallel</TD><TD > 4+ pages</TD></TR>
+<TR><TD ><A HREF = "compress.html">compress()</A></TD><TD > KV -> KV</TD><TD > calls back to user program to compress duplicate keys</TD><TD > serial</TD><TD > 4+ pages</TD></TR>
+<TR><TD ><A HREF = "convert.html">convert()</A></TD><TD > KV -> KMV</TD><TD > duplicate KV keys become one KMV key</TD><TD > serial</TD><TD > 4+ pages</TD></TR>
+<TR><TD ><A HREF = "gather.html">gather()</A></TD><TD > KV -> KV</TD><TD > collect pairs on many procs to few procs</TD><TD > parallel</TD><TD > 3 pages</TD></TR>
+<TR><TD ><A HREF = "map.html">map()</A></TD><TD > create or add to a KV</TD><TD > calls back to user program to generate pairs</TD><TD > serial</TD><TD > 1 page</TD></TR>
+<TR><TD ><A HREF = "reduce.html">reduce()</A></TD><TD > KMV -> KV</TD><TD > calls back to user program to process KMV pairs</TD><TD > serial</TD><TD > 3 pages</TD></TR>
+<TR><TD ><A HREF = "open.html">open()</A></TD><TD > create or add to a KV</TD><TD > allows one MapReduce object to add KV pairs to another</TD><TD > serial</TD><TD > 0 pages</TD></TR>
+<TR><TD ><A HREF = "print.html">print()</A></TD><TD > KV or KMV</TD><TD > prints KV or KMV pairs to screen</TD><TD > serial</TD><TD > 1 page</TD></TR>
+<TR><TD ><A HREF = "scrunch.html">scrunch()</A></TD><TD > KV -> KMV</TD><TD > gather + collapse</TD><TD > parallel</TD><TD > 3 pages</TD></TR>
+<TR><TD ><A HREF = "sort_keys.html">sort_keys()</A></TD><TD > KV -> KV</TD><TD > calls back to user program to sort pairs by key</TD><TD > serial</TD><TD > 5 pages</TD></TR>
+<TR><TD ><A HREF = "sort_values.html">sort_values()</A></TD><TD > KV -> KV</TD><TD > calls back to user program to sort pairs by value</TD><TD > serial</TD><TD > 5 pages</TD></TR>
+<TR><TD ><A HREF = "sort_multivalues.html">sort_multivalues()</A></TD><TD > KMV -> KMV</TD><TD > calls back to user program to sort multi-values within each pair</TD><TD > serial</TD><TD > 4 pages</TD></TR>
+<TR><TD ><A HREF = "stats.html">kv_stats()</A></TD><TD > KV</TD><TD > print stats about a KV</TD><TD > serial</TD><TD > 0 pages</TD></TR>
+<TR><TD ><A HREF = "stats.html">kmv_stats()</A></TD><TD > KMV</TD><TD > print stats about a KMV</TD><TD > serial</TD><TD > 0 pages 
 </TD></TR></TABLE></DIV>
 
 <P>Note that each MapReduce object contains a single KV or KMV object (or
