@@ -17,6 +17,18 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[16 Apr 2010]
+
+Added "open()"_doc/open.html and "close()"_doc/open.html methods to
+the MR-MPI library, to make it easy to have a single
+"map()"_doc/map.html or "reduce()"_doc/reduce.html add key/value pairs
+to multiple MapReduce objects.
+
+This is the "list of changed files"_patches/files.15Apr10 from the 14
+Apr 2010 version.
+
+:line
+
 [15 Apr 2010]
 
 Added an internal debug option to KeyMultiValue to make it
@@ -30,7 +42,7 @@ Apr 2010 version.
 
 [14 Apr 2010]
 
-Added a "print"_doc/print.html function to the library to print-out
+Added a "print()"_doc/print.html function to the library to print-out
 KeyValue and KeyMultiValue pairs to the screen, useful for debugging.
 
 This is the "list of changed files"_patches/files.14Apr10 from the 15
@@ -76,11 +88,12 @@ This upgrade adds 3 small features:
 1) A timer setting that enables output of timing info from each
 library call.
 
-2) A new map() option to pass in an existing set of key/value pairs,
-operate on them via the user's map function (one key/value at a time),
-producing a new set of key/value pairs.  This is an alternative to
-using the clone() method to turn the key/value pairs into
-key/multivalue pairs and then perform a reduce() on them.
+2) A new "map()"_doc/open.html_doc/open.html option to pass in an
+existing set of key/value pairs, operate on them via the user's map
+function (one key/value at a time), producing a new set of key/value
+pairs.  This is an alternative to using the "clone()"_doc/clone.html
+method to turn the key/value pairs into key/multivalue pairs and then
+perform a reduce() on them.
 
 3) Some clean-up inside the library of KeyValue and KeyMultiValue
 objects when various calls transform data from one to the other.  This

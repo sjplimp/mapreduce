@@ -19,6 +19,18 @@ code.
 </P>
 <HR>
 
+<P><B>16 Apr 2010</B>
+</P>
+<P>Added <A HREF = "doc/open.html">open()</A> and <A HREF = "doc/open.html">close()</A> methods to
+the MR-MPI library, to make it easy to have a single
+<A HREF = "doc/map.html">map()</A> or <A HREF = "doc/reduce.html">reduce()</A> add key/value pairs
+to multiple MapReduce objects.
+</P>
+<P>This is the <A HREF = "patches/files.15Apr10">list of changed files</A> from the 14
+Apr 2010 version.
+</P>
+<HR>
+
 <P><B>15 Apr 2010</B>
 </P>
 <P>Added an internal debug option to KeyMultiValue to make it
@@ -32,7 +44,7 @@ Apr 2010 version.
 
 <P><B>14 Apr 2010</B>
 </P>
-<P>Added a <A HREF = "doc/print.html">print</A> function to the library to print-out
+<P>Added a <A HREF = "doc/print.html">print()</A> function to the library to print-out
 KeyValue and KeyMultiValue pairs to the screen, useful for debugging.
 </P>
 <P>This is the <A HREF = "patches/files.14Apr10">list of changed files</A> from the 15
@@ -78,11 +90,12 @@ Apr 2009 version.
 <P>1) A timer setting that enables output of timing info from each
 library call.
 </P>
-<P>2) A new map() option to pass in an existing set of key/value pairs,
-operate on them via the user's map function (one key/value at a time),
-producing a new set of key/value pairs.  This is an alternative to
-using the clone() method to turn the key/value pairs into
-key/multivalue pairs and then perform a reduce() on them.
+<P>2) A new <A HREF = "doc/open.html_doc/open.html">map()</A> option to pass in an
+existing set of key/value pairs, operate on them via the user's map
+function (one key/value at a time), producing a new set of key/value
+pairs.  This is an alternative to using the <A HREF = "doc/clone.html">clone()</A>
+method to turn the key/value pairs into key/multivalue pairs and then
+perform a reduce() on them.
 </P>
 <P>3) Some clean-up inside the library of KeyValue and KeyMultiValue
 objects when various calls transform data from one to the other.  This
