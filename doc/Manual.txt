@@ -72,6 +72,7 @@ email: sjplimp at sandia.gov, kddevin at sandia.gov.
   "MapReduce::add()"_add.html :l
   "MapReduce::aggregate()"_aggregate.html :l
   "MapReduce::clone()"_clone.html :l
+  "MapReduce::close()"_open.html :l
   "MapReduce::collapse()"_collapse.html :l
   "MapReduce::collate()"_collate.html :l
   "MapReduce::compress()"_compress.html :l
@@ -80,6 +81,7 @@ email: sjplimp at sandia.gov, kddevin at sandia.gov.
   "MapReduce::convert()"_convert.html :l
   "MapReduce::gather()"_gather.html :l
   "MapReduce::map()"_map.html :l
+  "MapReduce::open()"_open.html :l
   "MapReduce::print()"_print.html :l
   "MapReduce::reduce()"_reduce.html :l
     "MapReduce::multivalue_blocks()"_reduce.html :ulb,l

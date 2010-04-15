@@ -324,6 +324,7 @@ mr.aggregate(myhash)        # if specified, myhash is a hash function
 			    #   called back from the library as myhash(key)
 			    # myhash() should return an integer (a proc ID)
 mr.clone()
+mr.close()
 mr.collapse(key)
 mr.collate()
 mr.collate(myhash)          # if specified, myhash is the same function
@@ -375,6 +376,8 @@ mr.map_mr(mr2,mymap)         # pass key/values in mr2 to mymap
 			     #   library as mymap(itask,key,value,mr,ptr)
 			     # as above, ptr and addflag are optional args :pre
 
+mr.open()
+mr.open(addflag)
 mr.print(proc,nstride,kflag,vflag) :pre
                             
 mr.reduce(myreduce)         # myreduce is a function called back from the
