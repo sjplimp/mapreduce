@@ -63,6 +63,7 @@ class MapReduce {
   uint64_t add(MapReduce *);
   uint64_t aggregate(int (*)(char *, int));
   uint64_t clone();
+  uint64_t close();
   uint64_t collapse(char *, int);
   uint64_t collate(int (*)(char *, int));
   uint64_t compress(void (*)(char *, int, char *,
@@ -85,6 +86,7 @@ class MapReduce {
 				     class KeyValue *, void *),
 	       void *, int addflag = 0);
 
+  void open(int addflag = 0);
   void print(int, int, int, int);
   uint64_t reduce(void (*)(char *, int, char *,
 			   int, int *, class KeyValue *, void *),

@@ -1,5 +1,6 @@
 Luby's alg for maximal indenpendent sets in MapReduce
 SJP, 30 Apr 09
+original version for Python file
 
 notation:
   Vi = ID of vertex I
@@ -55,3 +56,60 @@ while any edges remain:
       emit 1 KV pair per edge:
         key = Eij, value = Ri Rj where Vi < Vj
   collate()
+
+----------------
+modified version for C++ and paper
+
+notation:
+  Vi = IDi Ri = ID of vertex I, random value assigned to each vertex
+  Ri can be dropped if Vi is randomized (see below)
+  Eij = I,J edge = Vi Vj = IDi Ri IDj Rj
+  flag assigned to a vertex = W (winner) or L (loser)
+
+initialize:
+  empty MR for accumulating maximal independent (MI) set vertices
+  store graph with edges as keys (Eij,NULL)
+  eliminate Vi = Vj edges
+  eliminate double-counted edges where both Eij and Eji exist
+  assign random values to each vertex:
+    a) store vertex as IDi Ri where Ri is a random #
+    b) randomly shuffle the 1-N IDs to have new IDs, then map back at end
+       map: emit (Ri,Vi) where Ri = random @, Vi = 1 to N
+       aggregate()
+       map: emit (Vi,Vi*) where Vi = old Vi, Vi* = new 1-N
+       use this to re-label the Eij keys
+  clone() to create initial KMV
+
+while any edges remain:
+  reduce1()
+    operate on edges, all with I < J
+    delete losing edges, flag vertices as W/L via Luby's game
+    input KMV: Eij: NULL NULL (one or both of NULL may be L)
+    each edge can have 2 values (or just 1 on initial iteration)
+    if any value is L, skip this edge (deletes it)
+    play the Luby game:
+      assign W to smallest vertex (break ties in RN with vertex IDs)
+      assign L to largest vertex
+    emit 2 KV pairs: (Vw, Vl W), (Vl, Vw L)
+  collate()
+  reduce2()
+    operate on vertices
+    pick winning vertices
+    input KMV, Vi: E E E E ... (one value per edge)
+    if all E are winners:
+      emit (Vi,NULL) to MR that is accumulating MI set vertices
+      emit 1 KV per edge: (Vj, Vi L)
+    else:
+      emit 1 KV per edge: (Vj,Vi)
+  collate()
+  reduce3()
+    operate on vertices
+    pick losing vertices, delete all their edges
+    input KMV, Vi: E E E E ... (one value per edge)
+    if any E are losers:
+      emit 1 KV per edge: (Eij,L) with Vi < Vj
+    else:      
+      emit 1 KV per edge: (Eij,NULL) with Vi < Vj
+  collate()
+
+complete the MR with MI set vertices

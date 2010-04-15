@@ -31,6 +31,7 @@ void *MR_copy(void *MRptr);
 uint64_t MR_add(void *MRptr, void *MRptr2);
 uint64_t MR_aggregate(void *MRptr, int (*myhash)(char *, int));
 uint64_t MR_clone(void *MRptr);
+uint64_t MR_close(void *MRptr);
 uint64_t MR_collapse(void *MRptr, char *key, int keybytes);
 uint64_t MR_collate(void *MRptr, int (*myhash)(char *, int));
 uint64_t MR_compress(void *MRptr, 
@@ -82,6 +83,8 @@ uint64_t MR_map_mr_add(void *MRptr, void *MRptr2,
 		       void (*mymap)(uint64_t, char *, int, char *, int, 
 				     void *KVptr, void *APPptr),
 		       void *APPptr, int addflag);
+void MR_open(void *MRptr);
+void MR_open_add(void *MRptr, int addflag);
 void MR_print(void *MRptr, int proc, int nstride, int kflag, int vflag);
 uint64_t MR_reduce(void *MRptr,
 		   void (*myreduce)(char *, int, char *,

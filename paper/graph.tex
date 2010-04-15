@@ -59,6 +59,8 @@ numeric value to the $A_{ij}$ edge), graphs without self edges
 Or the general R-MAT matrix can be further processed by MapReduce
 operations to meet these requirements.
 
+\subsection{PageRank}
+
 The PageRank algorithm assings a relative numeric rank to each
 vertex in a graph.
 
@@ -112,6 +114,8 @@ second {\it collate()} gathers, for each $j$, all contributions to the
 column sum $\sum a_{ij} x_i$, which is computed by a second {\it
 reduce()}.  MPI\_Allreduce calls are used to compute global norms and
 residuals.
+
+\subsection{Triangle enumeration}
 
 A triangle in a graph is any triplet of vertices $(V_i,V_j,V_k)$ where
 the edges $(V_i,V_j), (V_j,V_k), (V_i,V_k)$ exist.  Figure
@@ -195,6 +199,8 @@ by $G_0$, then there is a $(V_i,V_j)$ edge in the graph.  Thus all
 vertices in the multivalue are roots of angles which are complete
 triangles and can be emitted as a triplet key.
 
+\subsection{Connected component labeling}
+
 A connected component of a graph is a set of vertices where all pairs
 of vertices in the set are connected by a path of edges.  A sparse
 graph may contain many such components.  Figure \ref{fig:cc} outlines
@@ -253,7 +259,7 @@ Iterate: \\
   \end{tabbing}
  \end{minipage}}\end{center}
 
- \caption{MapReduce algorithm for connected component labelling.}
+ \caption{MapReduce algorithm for connected component labeling.}
 
  \label{fig:cc}
 \end{figure}
@@ -271,64 +277,67 @@ in the graph.
 
 The first {\it map()} operation emits the vertices in each edge as
 keys, with the edge as a value.  The current zone assignment of each
-vertex is added to the set of key/value pairs.  The first collate()
-operation collects all the edges of a vertex and its zone assignment
-together in one multi-value.  The first reduce operation then re-emits
-each edge, tagged by the zone assignment of one of its vertices.
+vertex is added to the set of key/value pairs.  The first {\it
+collate()} operation collects all the edges of a vertex and its zone
+assignment together in one multi-value.  The first {\it reduce()}
+operation then re-emits each edge, tagged by the zone assignment of
+one of its vertices.
 
-Since each edge was emitted twice, the second collate operation
-collects the zone assignments for its two vertices together.  If the
-two zone IDs are different, the second reduce operation chooses a
-winner (the min of the 2 IDs), and emits the loser ID as a key, with
-the winning ID as a value.  If no zone ID changes are emitted, the
-algorithm is finished, and the iteration exits.
+Since each edge was emitted twice, the second {\it collate()}
+operation collects the zone assignments for its two vertices together.
+If the two zone IDs are different, the second {\it reduce()} operation
+chooses a winner (the min of the 2 IDs), and emits the loser ID as a
+key, with the winning ID as a value.  If no zone ID changes are
+emitted, the algorithm is finished, and the iteration exits.
 
-The third map() operation inverts the vertex/zone key/value pairs to
-become zone/vertex pairs.  The third add operation adds the changing
-zone assignments to the set of key/value pairs.  The third collate()
-can then collects all the vertices of a zone and zero or more
-reassignments for the zone ID.  Since a zone could collide with
-multiple other zones on the same iteration due to shared edges, the
-new zone ID becomes the minimum ID of any of the neighboring zones.
-If no zone reassignment value appears in the multi-value, the zone ID
-is unchanged.  The final reduce() a key/value pair for each vertex in
-the zone, with the vertex as a key and the new zone ID as a value.
+The third {\it map()} operation inverts the vertex/zone key/value
+pairs to become zone/vertex pairs.  The third {\it add()} operation
+adds the changing zone assignments to the set of key/value pairs.  The
+third collate() can then collects all the vertices of a zone and zero
+or more reassignments for the zone ID.  Since a zone could collide
+with multiple other zones on the same iteration due to shared edges,
+the new zone ID becomes the minimum ID of any of the neighboring
+zones.  If no zone reassignment value appears in the multi-value, the
+zone ID is unchanged.  The final reduce() a key/value pair for each
+vertex in the zone, with the vertex as a key and the new zone ID as a
+value.
 
-Note that if a graph has only a few components, then the third collate
-operation, which keys on the zone ID, may generate a few very large
-key/multi-value (KMV) pairs.  For example, if the graph is fully
-connected, then on the last iteration, a single KMV pair will contain
-all vertices in the graph and be assigned to one processor.  This
-imbalance in memory and computational work can lead to poor parallel
-performance of the overall algorithm.  To counter this effect, the
-various operations of stage 3 include extra logic.  The idea is to
-partition zones whose vertex count exceeds a user-defined threshhold
-into $P$ sub-zones, where $P$ is the number of processors.  The 64-bit
-integer that stores the zone ID also stores a bit flag indicating the
-zone has been partitioned and a set of bits that encode the processor
-ID.
+Note that if a graph has only a few components, then the third {\it
+collate()} operation, which keys on the zone ID, may generate a few
+very large key/multi-value (KMV) pairs.  For example, if the graph is
+fully connected, then on the last iteration, a single KMV pair will
+contain all vertices in the graph and be assigned to one processor.
+This imbalance in memory and computational work can lead to poor
+parallel performance of the overall algorithm.  To counter this
+effect, the various operations of stage 3 include extra logic.  The
+idea is to partition zones whose vertex count exceeds a user-defined
+threshhold into $P$ sub-zones, where $P$ is the number of processors.
+The 64-bit integer that stores the zone ID also stores a bit flag
+indicating the zone has been partitioned and a set of bits that encode
+the processor ID.
 
-During the third map() operation, if the zone has been partitioned,
-then the vertex is assigned to a random processor and the processor ID
-bits are added to the zone ID, as indicated by the $Z_i^+$ notation in
-Figure \ref{fig:cc}.  Likewise, if $Z_i$ has been partitioned, the
-third add() operation emits the zone ID change key/value pair
-($Z_i$,$Z_{winner}$) as ($Z_i^+$,$Z_{winner}$).  In this case
-($Z_i$,$Z_{winner}$), is emitted not once, but $P+1$ times, once for
-each processor, and once as if $Z_i$ had not been partitioned (for a
-reason discussed below).
+During the third {\it map()} operation, if the zone has been
+partitioned, then the vertex is assigned to a random processor and the
+processor ID bits are added to the zone ID, as indicated by the
+$Z_i^+$ notation in Figure \ref{fig:cc}.  Likewise, if $Z_i$ has been
+partitioned, the third {\it add()} operation emits the zone ID change
+key/value pair ($Z_i$,$Z_{winner}$) as ($Z_i^+$,$Z_{winner}$).  In
+this case ($Z_i$,$Z_{winner}$), is emitted not once, but $P+1$ times,
+once for each processor, and once as if $Z_i$ had not been partitioned
+(for a reason discussed below).
 
-This additional partitioning logic means that the third collate()
-operation, which keys on zone IDs, some of which now include processor
-bits, will collect only a $1/P$ subset of the vertices in large zones
-onto each processor.  But the multivalue on each processor contains
-all the zone-reassignments relevant to the unpartitioned zone.  This
-allows the third reduce operation to change the zone ID (if necessary)
-in a consistent manner across all $P$ multi-values that contain the
-zone's vertices.  When the reduce() operation emits new zone
-assignments for each vertex, the zone retains its partitioned status,
-and the partition bit is also explicitly set if the vertex count
-exceeds the threshhold for the first time.
+This additional partitioning logic means that the third {\it
+collate()} operation, which keys on zone IDs, some of which now
+include processor bits, will collect only a $1/P$ subset of the
+vertices in large zones onto each processor.  But the multivalue on
+each processor contains all the zone-reassignments relevant to the
+unpartitioned zone.  This allows the third {\it reduce()} operation to
+change the zone ID (if necessary) in a consistent manner across all
+$P$ multi-values that contain the zone's vertices.  When the {\it
+reduce()} operation emits new zone assignments for each vertex, the
+zone retains its partitioned status, and the partition bit is also
+explicitly set if the vertex count exceeds the threshhold for the
+first time.
 
 Note that this logic does not guarantee that the partition bits of the
 zone IDs for all the vertices in a single zone will be set
@@ -336,37 +345,81 @@ consistently on a given iteration.  For example, an unpartitioned zone
 with a small ID may consume a partitioned zone.  The vertices from the
 partitioned zone will retain their partitioned status, but the
 original vertices in the small zone may not set the partition bit of
-their zone IDs.  On subsequent iterations, the third add() operation
-emits $P+1$ copies of new zone reassignments for both partitioned and
-unpartioned zone IDs, to insure all vertices in the zone will know the
-reassignment information.
+their zone IDs.  On subsequent iterations, the third {\it add()}
+operation emits $P+1$ copies of new zone reassignments for both
+partitioned and unpartioned zone IDs, to insure all vertices in the
+zone will know the reassignment information.
 
-Discussion of Luby algorithm for maximally independent sets.
+\subsection{Maximal independent set identification}
 
-footnote on NP-complete for maximal; MapReduce is unlikely to
-help with that issue.
+An ``independent'' set of vertices in a graph is one where no pair of
+vertices in the set share an edge.  The set is ``maximal'' if no
+additional vertex can be added to it \footnote{A maximal set is
+``maximum'' if it is the largest maximal set.  Finding a graph's
+maximum independent set is an NP-hard problem, which MapReduce is
+unlikely to help with.}.  Finding a maximal independent set is useful
+in several contexts, such as identifying large numbers of indepenent
+starting vertices for graph traversals.  Luby's algorithm \cite{Luby}
+is a well-known parallel method for finding a minimal set.  Figure
+\ref{fig:luby} outlines a MapReduce version of Luby's algorithm.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
   xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-$N_{\rm remain} = N_z$ \\
-while $N_{\rm remain} > 0$: \\
-\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
-           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
-\> Collate() \\
-\> Reduce(): \> {\bf Remove} duplicate edges \\
-              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
-              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
-\> $N_{\rm remain} = N_z - N_{kv}$
+Iterate: \\
+\> 1 Map: \> Convert edges to vertices \\
+    \> \> \> input Key = $E_{ij}$, Value = NULL \\
+    \> \> \> output Key = $V_i$, Value = $E_{ij}$ \\
+    \> \> \> output Key = $V_j$, Value = $E_{ij}$ \\
+\> 1 Add: \> Zone assignment of each vertex \\
+    \> \> \> output Key = $V_i$, Value = $Z_i$ \\
+\> 1 Collate: \> Vertex as key \\
+\> 1 Reduce: \> Emit edges of each vertex with zone of vertex \\
+       \> \> \> input Key = $V_i$, MultiValue = $E E E E ... Z$ \\
+       \> \> \> for each $E$ in MultiValue: \\
+      \> \> \> \> output Key = $E_{ij}$, Value = $Z_i$ \\
+
+\> 2 Collate: \> Edge as key \\
+\> 2 Reduce: \> Emit zone re-assignments \\
+       \> \> \> input Key = $E_{ij}$, MultiValue = $Z_i Z_j$ \\
+       \> \> \> $Z_{winner}$ = min($Z_i$,$Z_j$); $Z_{loser}$ = max($Z_i$,$Z_j$) \\
+       \> \> \> if $Z_i$ and $Z_j$ are different: \\
+      \> \> \> \> output Key = $Z_{loser}$, Value = $Z_{winner}$ \\
+\> 2 Exit: \> if no output by Reduce 2 \\
+\> 3 Map: \> Invert vertex/zone pairs \\
+    \> \> \> input Key = $V_i$, Value = $Z_i$ \\
+    \> \> \> if $Z_i$ is not partitioned: \\
+   \> \> \> \> output Key = $Z_i$, Value = $V_i$ \\
+    \> \> \> else: \\
+   \> \> \> \> output Key = $Z_i^+$, Value = $V_i$ for a random processor \\
+\> 3 Add: \> Changed zones ($Z_i$,$Z_{winner}$) \\
+    \> \> \> if $Z_i$ is not partitioned: \\
+   \> \> \> \> output Key = $Z_i$, Value = $Z_{winner}$ \\
+    \> \> \> else: \\
+   \> \> \> \> output Key = $Z_i^+$, Value = $Z_{winner}$ for every processor \\
+   \> \> \> \> output Key = $Z_i$, Value = $Z_{winner}$ \\
+\> 3 Collate: \> Zone ID as key \\
+\> 3 Reduce: \> Emit new zone assignment of each vertex \\
+       \> \> \> input Key = $Z_i$ or $Z_i^+$, MultiValue = $V V V V ... Z Z Z ...$ \\
+       \> \> \> $Z_{new}$ = min($Z_i$ or $Z_i^+$,Z,Z,Z,...) \\
+       \> \> \> partition $Z_{new}$ if number of $V$ > threshhold \\
+       \> \> \> for each $V$ in MultiValue: \\
+      \> \> \> \> output Key = $V_i$, Value = $Z_{new}$
 
   \end{tabbing}
  \end{minipage}}\end{center}
 
- \caption{MapReduce algorithm for R-MAT graog generation.}
+ \caption{MapReduce algorithm for finding amaximal independent set of
+ graph vertices.}
 
- \label{fig:rmat}
+ \label{fig:luby}
 \end{figure}
+
+
+
+
+
 
 Discussion of SSSP.
 
@@ -392,5 +445,5 @@ while $N_{\rm remain} > 0$: \\
  \caption{MapReduce algorithm for single-source shortest path (SSSP)
  determination.}
 
- \label{fig:rmat}
+ \label{fig:sssp}
 \end{figure}

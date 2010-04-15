@@ -70,6 +70,12 @@ uint64_t MR_clone(void *MRptr)
   return mr->clone();
 }
 
+uint64_t MR_close(void *MRptr)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->close();
+}
+
 uint64_t MR_collapse(void *MRptr, char *key, int keybytes)
 {
   MapReduce *mr = (MapReduce *) MRptr;
@@ -214,6 +220,18 @@ uint64_t MR_map_mr_add(void *MRptr, void *MRptr2,
   MapReduce *mr2 = (MapReduce *) MRptr2;
   MapFunc *appmap = (MapFunc *) mymap;
   return mr->map(mr2,appmap,APPptr,addflag);
+}
+
+void MR_open(void *MRptr)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->open();
+}
+
+void MR_open_add(void *MRptr, int addflag)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->open(addflag);
 }
 
 void MR_print(void *MRptr, int proc, int nstride, int kflag, int vflag)

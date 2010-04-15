@@ -107,6 +107,10 @@ class mrmpi:
     n = self.lib.MR_clone(self.mr)
     return n
 
+  def close(self):
+    n = self.lib.MR_close(self.mr)
+    return n
+
   def collapse(self,key):
     ckey = dumps(key,1)
     n = self.lib.MR_collapse(self.mr,ckey,len(ckey))
@@ -238,6 +242,10 @@ class mrmpi:
     value = loads(cvalue[:valuebytes])
     if self.map_argcount == 4: self.map_caller(itask,key,value,self)
     else: self.map_caller(itask,key,value,self,self.map_ptr)
+
+  def open(self,addflag=0):
+    if not addflag: self.lib.MR_open(self.mr)
+    else: self.lib.MR_open_add(self.mr,addflag)
 
   def print(self,proc,nstride,kflag,vflag):
     self.lib.print(self.mr,proc,nstride,kflag,vflag)

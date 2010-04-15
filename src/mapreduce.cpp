@@ -497,6 +497,25 @@ uint64_t MapReduce::clone()
 }
 
 /* ----------------------------------------------------------------------
+   close a KV that KV pairs were added to by another MR's map()
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::close()
+{
+  if (kv == NULL) error->all("Cannot close without KeyValue");
+  if (timer) start_timer();
+  if (verbosity) file_stats(0);
+
+  kv->complete();
+
+  stats("Complete",0);
+
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
    collapse KV into a KMV with a single key/value
    each proc collapses only its data
    new key = provided key name (same on every proc)
@@ -1395,6 +1414,30 @@ uint64_t MapReduce::map(MapReduce *mr,
   uint64_t nkeyall;
   MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
   return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
+   open a KV so KV pairs can be added to it by another MR's map
+------------------------------------------------------------------------- */
+
+void MapReduce::open(int addflag)
+{
+  if (!allocated) allocate();
+  if (kmv) myfree(kmv->memtag);
+  delete kmv;
+  kmv = NULL;
+
+  if (addflag == 0) {
+    if (kv) myfree(kv->memtag);
+    delete kv;
+    kv = new KeyValue(this,kalign,valign,memory,error,comm);
+    kv->set_page();
+  } else if (kv == NULL) {
+    kv = new KeyValue(this,kalign,valign,memory,error,comm);
+    kv->set_page();
+  } else {
+    kv->append();
+  }
 }
 
 /* ----------------------------------------------------------------------
