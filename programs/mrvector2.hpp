@@ -122,7 +122,8 @@ template <typename IDTYPE>
 void MRVector<IDTYPE>::Print()
 {
   int me = mr->my_proc();
-  cout << "Vector on processor " << me << endl;
+  cout << "Vector on processor " << me 
+       << " Local Length = " << mr->kv->nkv << endl;
   mr->map(mr, mrv_printvector<IDTYPE>, NULL, 1);  // set addflag to keep mr as is.
 }
 

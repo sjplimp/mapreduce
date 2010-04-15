@@ -198,6 +198,8 @@ MPI_Barrier(MPI_COMM_WORLD);
 KDDtmp = MPI_Wtime();
 #endif //KDDTIME
 
+double tt = MPI_Wtime();
+
     // Compute adjustment for irreducibility (1-alpha)/n
     double ladj = 0.;
     double gadj = 0.;
@@ -209,10 +211,13 @@ KDDtmp = MPI_Wtime();
                                            storage_aware);
     ladj += allzeroadj;
 
+cout << "allzero rows " << MPI_Wtime() - tt << endl;
+
     // Compute global adjustment via all-reduce-like operation.
     // Cheating here!  Should be done through MapReduce.
     MPI_Allreduce(&ladj, &gadj, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+tt = MPI_Wtime();
 #ifdef KDDTIME
 KDDallzero += (MPI_Wtime() - KDDtmp);
 MPI_Barrier(MPI_COMM_WORLD);
@@ -222,6 +227,8 @@ KDDtmp = MPI_Wtime();
     // Compute global adjustment.
     A->MatVec(mr, x, y, 1, storage_aware);
 
+cout << "matvec " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
 #ifdef KDDTIME
 KDDmatvec += (MPI_Wtime() - KDDtmp);
 MPI_Barrier(MPI_COMM_WORLD);
@@ -231,12 +238,18 @@ KDDtmp = MPI_Wtime();
     // Add adjustment to product vector in mr.
     y->AddScalar(gadj);
 
+cout << "addscalar " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
     // Compute max-norm of vector in mr.
     double gmax = y->GlobalMax(mr);
 
+cout << "globalmax " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
     // Scale vector in mr by 1/maxnorm.
     y->Scale(1./gmax);
 
+cout << "scale " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
 #ifdef KDDTIME
 KDDadjust += (MPI_Wtime() - KDDtmp);
 MPI_Barrier(MPI_COMM_WORLD);
@@ -261,6 +274,7 @@ KDDtmp = MPI_Wtime();
       mr->collate(NULL);
       mr->reduce(compute_lmax_residual, &lresid);
     }
+cout << "residual " << MPI_Wtime() - tt << endl;
 
     // Compute global max residual.
     // Cheating here!  Should be done through MapReduce.
@@ -276,10 +290,10 @@ KDDresid += (MPI_Wtime() - KDDtmp);
     x = y;
     y = tmp;
 
-    // if (me == 0) {
-    //   cout << "iteration " << iter+1 << " resid " << gresid << endl; 
-    //   flush(cout);
-    // }
+    if (me == 0) {
+      cout << "iteration " << iter+1 << " resid " << gresid << endl; 
+      flush(cout);
+    }
 
     if (gresid < tolerance) 
       break;  // Iterations are done.
@@ -391,7 +405,7 @@ int main(int narg, char **args)
   // Parse the command line.
   int ch;
   opterr = 0;
-  char *optstring = "a:t:m:n:g:s:";
+  const char *optstring = "a:t:m:n:g:s:";
 
   int pagesize = 64;
 
@@ -478,6 +492,7 @@ int main(int narg, char **args)
     if (me == 0) {cout << "Pagerank done..." << endl; flush(cout);}
 
     // Output results:  Gather results to proc 0, sort and print.
+    simple_stats(mr, &A, x);
     double xmin = x->GlobalMin(mr);    
     double xmax = x->GlobalMax(mr);       
     double xavg = x->GlobalSum(mr) / x->GlobalLen();
@@ -495,7 +510,6 @@ int main(int narg, char **args)
       cout << "      Min Value:  " << xmin << endl;
       cout << "      Avg Value:  " << xavg << endl;
     }
-    simple_stats(mr, &A, x);
     delete x;
   }
 

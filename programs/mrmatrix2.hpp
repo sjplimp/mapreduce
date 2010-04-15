@@ -41,7 +41,7 @@ public:
 template <typename IDTYPE>
 class MRMatrix {
   public:  
-    MRMatrix(IDTYPE, IDTYPE, MapReduce *, MapReduce *, 
+    MRMatrix(IDTYPE, IDTYPE, MapReduce *, MapReduce *, bool transpose = 0,
              int pagesize=64, const char *fpath=".");
     ~MRMatrix() {delete mr;};
 
@@ -54,11 +54,12 @@ class MRMatrix {
     MapReduce *mr;  // Actual storage; perhaps should be private.
     uint64_t nEmptyRows;  // Number of rows of A with no nonzeros.
     MapReduce *emptyRows; // Indices of rows of A with no nonzeros (leaf nodes).
+    void Print();
+    bool transposeFlag;  // State variable; indicates whether matrix is stored
+                         // as A or as A^T.
   private:
     IDTYPE N;  // Number of rows
     IDTYPE M;  // Number of cols
-    bool transposeFlag;  // State variable; indicates whether matrix is stored
-                         // as A or as A^T.
 };
 
 
@@ -73,6 +74,10 @@ class MRMatrix {
 // Given MapReduce object containing edges and vertices, 
 // create matrix non-zeros.  Give initial value of 1/(outdegree of v_i) to
 // each nonzero in row i.  
+// Store KVs by column index to make MatVec more efficient: 
+// key = j, value = (i, a_ij).
+// If transposeFlag is set, store A^T (i.e., store key=i, value=(j, a_ij)).
+// Aggregate before returning from constructor.
 // For rows with outdegree = 0, add a KV to the MapReduce object provided
 // in ptr.
 template <typename IDTYPE>
@@ -81,7 +86,9 @@ static void mrm_initialize_matrix(char *key, int keybytes,
                   KeyValue *kv, void *ptr)
 {
   // To receive entries for all-zero rows...
-  KeyValue *emptyRowsKV = (KeyValue *) ptr;
+  MRMatrix<IDTYPE> *A = (MRMatrix<IDTYPE> *) ptr;
+  KeyValue *emptyRowsKV = A->emptyRows->kv;
+  bool transposeFlag = A->transposeFlag;
 
   uint64_t totalnvalues;
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, totalnvalues)
@@ -97,8 +104,16 @@ static void mrm_initialize_matrix(char *key, int keybytes,
     char *mptr = multivalue;
     for (int k = 0; k < nvalues; k++) {
       if (valuebytes[k] == 0) continue;  // NULL Entry for vertex
-      v.ij = *((IDTYPE *) mptr);
-      kv->add(key, keybytes, (char *) &v, sizeof(MRNonZero<IDTYPE>));
+      if (transposeFlag) {
+        // Storing by row index of A == column index of A^T.
+        v.ij = *((IDTYPE *) mptr);
+        kv->add(key, keybytes, (char *) &v, sizeof(MRNonZero<IDTYPE>));
+      }
+      else {
+        // Storing by column index of A.
+        v.ij = *((IDTYPE *) key);
+        kv->add(mptr, valuebytes[k], (char *) &v, sizeof(MRNonZero<IDTYPE>));
+      }
       mptr += valuebytes[k];
     }
     
@@ -129,10 +144,12 @@ MRMatrix<IDTYPE>::MRMatrix(
                       // Assuming mrvert is already aggregated to processors.
   MapReduce *mredge,  // Edges of the graph == matrix nonzeros.
                       // Assuming mredge is already aggregated to processors.
+  bool transpose,     // Flag indicating to store A^T instead of A.
   int pagesize,       // Optional:  MR pagesize to be set by the application.
   const char *fpath   // Optional:  MR filepath to be set by the application.
 )
 {
+  transposeFlag = transpose;
   // Create matrix MapReduce object mr.  
   mr = mredge->copy();
   mr->memsize = pagesize;
@@ -147,11 +164,20 @@ MRMatrix<IDTYPE>::MRMatrix(
 
   // In mrm_initialize_matrix, we emit both to the matrix and to the
   // emptyRows MapReduce object so that we need only one pass over the edges.
+  emptyRows = emr;
   emr->kv->append();
-  mr->compress(mrm_initialize_matrix<IDTYPE>, emr->kv);
+  mr->compress(mrm_initialize_matrix<IDTYPE>, this);
   emr->kv->complete();
+  if (!transposeFlag) {
+    // Need to aggregate by column index.  When transposeFlag, however,
+    // mredge is already aggregated by row index, so the matrix will already
+    // be aggregated correctly.
+    mr->aggregate(NULL);
+  }
  
-  N = n; M = m;
+  if (transposeFlag) {N = m; M = n;}
+  else {N = n; M = m;}
+
   MPI_Allreduce(&emr->kv->nkv, &nEmptyRows, 1, MPI_UNSIGNED_LONG, MPI_SUM,
                 MPI_COMM_WORLD);
 }
@@ -301,36 +327,51 @@ void MRMatrix<IDTYPE>::MatVec(
   // Plus, MatVec should not have side effect of changing x.
   if (y->mr != NULL) delete y->mr;
   y->mr = x->mr->copy();
-
-cout << "    KDDKDD IN MATVEC After copy " << endl;
-y->Print();
-
   MapReduce *ymr = y->mr;
+  MRVector<IDTYPE> zerovec(x->GlobalLen());
   
   // Add matrix terms to vector.
   // For A, merging Matrix row i and x_i.
   // For A^T, merging Matrix column j and x_j.
   ymr->add(mr);
 
-cout << "    KDDKDD IN MATVEC After add " << endl;
-y->Print();
-
   // For A, compute terms x_i * A_ij.
   // For A^T, compute terms x_j * A_ij.
   ymr->compress(mrm_terms<IDTYPE>, NULL);
 
-cout << "    KDDKDD IN MATVEC After compress " << endl;
-y->Print();
-
   // Gather matrix now by rows.
-  ymr->collate(NULL);
+  ymr->aggregate(NULL);
+  
+  // Need to add in zero terms to keep y-vector entries for all-zero columns.
+  ymr->add(zerovec.mr);
 
   // Compute sum of terms over rows.
-  ymr->reduce(mrm_rowsum, NULL);
+  ymr->compress(mrm_rowsum, NULL);
+}
 
-cout << "    KDDKDD IN MATVEC After reduce " << endl;
-y->Print();
 
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+// Print each matrix entry.
+template <typename IDTYPE>
+static void mrm_print(uint64_t itask, char *key, int keybytes, 
+                      char *value, int valuebytes, KeyValue *kv, void *ptr)
+{
+  MRNonZero<IDTYPE> *v = (MRNonZero<IDTYPE> *) value;
+  cout << "        " << v->ij 
+       << " " << *((IDTYPE *)key) 
+       << ":  " << v->nzv << endl;
+}
+
+template <typename IDTYPE>
+void MRMatrix<IDTYPE>::Print()
+{
+  cout << "Matrix Info on processor " << mr->my_proc() 
+       << " global nEmptyRows= " << nEmptyRows
+       << " local NNZ= " << mr->kv->nkv << endl;
+  cout << "Matrix Entries on processor " << mr->my_proc() << endl;
+  mr->map(mr, mrm_print<IDTYPE>, NULL, 1);
+  
 }
 
 #endif

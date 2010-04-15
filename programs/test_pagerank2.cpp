@@ -131,9 +131,6 @@ MRVector<IDXTYPE> *pagerank(
   A->Scale(alpha);
   x->PutScalar(1./x->GlobalLen());
 
-cout << "KDDKDD After PutScalar" << endl;
-x->Print();
-
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
@@ -141,6 +138,8 @@ x->Print();
   // PageRank iteration
   for (iter = 0; iter < maxniter; iter++) {
 
+MPI_Barrier(MPI_COMM_WORLD);
+double tt = MPI_Wtime();
     // Compute adjustment for irreducibility (1-alpha)/n
     double ladj = 0.;
     double gadj = 0.;
@@ -152,35 +151,44 @@ x->Print();
       allzeroadj = compute_local_allzero_adj(A, x, alpha);
     ladj += allzeroadj;
 
+cout << "allzero rows " << MPI_Wtime() - tt << endl;
+
     // Compute global adjustment via all-reduce-like operation.
     // Cheating here!  Should be done through MapReduce.
     MPI_Allreduce(&ladj, &gadj, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+tt = MPI_Wtime();
     // Compute global adjustment.
     A->MatVec(x, y);
 
-cout << "KDDKDD After MatVec" << endl;
-y->Print();
+cout << "matvec " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
 
     // Add adjustment to product vector in mr.
     y->AddScalar(gadj);
 
-cout << "KDDKDD After AddScalar" << endl;
-y->Print();
+cout << "addscalar " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
 
     // Compute max-norm of vector in mr.
     double gmax = y->GlobalMax();
 
+cout << "globalmax " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
+
     // Scale vector in mr by 1/maxnorm.
     y->Scale(1./gmax);
 
-cout << "KDDKDD After Scale" << endl;
-y->Print();
+cout << "scale " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
 
     // Compute local residual; this also empties x->mr.
     double lresid = 0.;
     x->mr->add(y->mr);
     x->mr->compress(compute_lmax_residual, &lresid);
+
+cout << "residual " << MPI_Wtime() - tt << endl;
+tt = MPI_Wtime();
 
     // Compute global max residual.
     double gresid;
@@ -190,8 +198,6 @@ y->Print();
     MRVector<IDXTYPE> *tmp = x;
     x = y;
     y = tmp;
-cout << "KDDKDD After Swap" << endl;
-x->Print();
 
     if (me == 0) {
       cout << "iteration " << iter+1 << " resid " << gresid << endl; 
@@ -383,15 +389,13 @@ int main(int narg, char **args)
   }
 
   // Persistent storage of the matrix. Will be loaded from files initially.
+  // Store the transposed matrix, since it is needed in pagerank's MatVecs.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
-  MRMatrix<IDXTYPE> A(nverts, nverts, mrvert, mredge, pagesize, MYLOCALDISK);
+  MRMatrix<IDXTYPE> A(nverts, nverts, mrvert, mredge, true, 
+                      pagesize, MYLOCALDISK);
 
   delete mredge;
   delete mrvert;  // Will need mrvert for MRVector constructor for FBFILE.
-
-  // For Pagerank, we prefer to store the transpose of the matrix,
-  // as that is what is used in MatVec.
-  A.Transpose();
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -411,6 +415,7 @@ int main(int narg, char **args)
     if (me == 0) {cout << "Pagerank done..." << endl; flush(cout);}
 
     // Output results:  Gather results to proc 0, sort and print.
+    simple_stats(&A, x);
     double xmin = x->GlobalMin();    
     double xmax = x->GlobalMax();       
     double xavg = x->GlobalSum() / x->GlobalLen();
@@ -428,7 +433,6 @@ int main(int narg, char **args)
       cout << "      Min Value:  " << xmin << endl;
       cout << "      Avg Value:  " << xavg << endl;
     }
-    simple_stats(&A, x);
     delete x;
   }
 
