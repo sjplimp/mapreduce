@@ -354,72 +354,121 @@ zone will know the reassignment information.
 
 An ``independent'' set of vertices in a graph is one where no pair of
 vertices in the set share an edge.  The set is ``maximal'' if no
-additional vertex can be added to it \footnote{A maximal set is
-``maximum'' if it is the largest maximal set.  Finding a graph's
-maximum independent set is an NP-hard problem, which MapReduce is
-unlikely to help with.}.  Finding a maximal independent set is useful
-in several contexts, such as identifying large numbers of indepenent
+additional vertex can be added \footnote{A maximal set is ``maximum''
+if it is the largest maximal set.  Finding a graph's maximum
+independent set is an NP-hard problem, which MapReduce is unlikely to
+help with.}.  Finding a maximal independent set (MIS) is useful in
+several contexts, such as identifying large numbers of indepenent
 starting vertices for graph traversals.  Luby's algorithm \cite{Luby}
-is a well-known parallel method for finding a minimal set.  Figure
-\ref{fig:luby} outlines a MapReduce version of Luby's algorithm.
+is a well-known parallel method for finding a MIS.  Figure
+\ref{fig:luby} outlines a MapReduce version of Luby's algorithm,
+assuming an input graph of undirected edges $(V_i,V_j)$ where $V_i <
+V_j$ for every edge, i.e. an upper-triangular R-MAT matrix.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+  xxxx\=xxxxxxxxxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-Iterate: \\
-\> 1 Map: \> Convert edges to vertices \\
-    \> \> \> input Key = $E_{ij}$, Value = NULL \\
-    \> \> \> output Key = $V_i$, Value = $E_{ij}$ \\
-    \> \> \> output Key = $V_j$, Value = $E_{ij}$ \\
-\> 1 Add: \> Zone assignment of each vertex \\
-    \> \> \> output Key = $V_i$, Value = $Z_i$ \\
+Assign random values to each vertex \\
+Clone: convert edge key/values directly to key/multivalues \\
+Create empty MapReduce MRv for maximal independent set vertices \\
+\\
+while $N_{edges} > 0$: \\
+\> 1 Reduce: \> Determine winner/loser vertex of each edge \\
+       \> \> \> input Key = $E_{ij}$, Multivalue = NULLS or LOSER \\
+       \> \> \> if any value is LOSER, emit nothing \\
+       \> \> \> $V_w$ = WINNER vertex, $V_l$ = LOSER vertex \\
+       \> \> \> output Key = $V_w$, Value = $V_l$ WINNER \\
+       \> \> \> output Key = $V_l$, Value = $V_w$ LOSER \\
 \> 1 Collate: \> Vertex as key \\
-\> 1 Reduce: \> Emit edges of each vertex with zone of vertex \\
-       \> \> \> input Key = $V_i$, MultiValue = $E E E E ... Z$ \\
-       \> \> \> for each $E$ in MultiValue: \\
-      \> \> \> \> output Key = $E_{ij}$, Value = $Z_i$ \\
-
-\> 2 Collate: \> Edge as key \\
-\> 2 Reduce: \> Emit zone re-assignments \\
-       \> \> \> input Key = $E_{ij}$, MultiValue = $Z_i Z_j$ \\
-       \> \> \> $Z_{winner}$ = min($Z_i$,$Z_j$); $Z_{loser}$ = max($Z_i$,$Z_j$) \\
-       \> \> \> if $Z_i$ and $Z_j$ are different: \\
-      \> \> \> \> output Key = $Z_{loser}$, Value = $Z_{winner}$ \\
-\> 2 Exit: \> if no output by Reduce 2 \\
-\> 3 Map: \> Invert vertex/zone pairs \\
-    \> \> \> input Key = $V_i$, Value = $Z_i$ \\
-    \> \> \> if $Z_i$ is not partitioned: \\
-   \> \> \> \> output Key = $Z_i$, Value = $V_i$ \\
-    \> \> \> else: \\
-   \> \> \> \> output Key = $Z_i^+$, Value = $V_i$ for a random processor \\
-\> 3 Add: \> Changed zones ($Z_i$,$Z_{winner}$) \\
-    \> \> \> if $Z_i$ is not partitioned: \\
-   \> \> \> \> output Key = $Z_i$, Value = $Z_{winner}$ \\
-    \> \> \> else: \\
-   \> \> \> \> output Key = $Z_i^+$, Value = $Z_{winner}$ for every processor \\
-   \> \> \> \> output Key = $Z_i$, Value = $Z_{winner}$ \\
-\> 3 Collate: \> Zone ID as key \\
-\> 3 Reduce: \> Emit new zone assignment of each vertex \\
-       \> \> \> input Key = $Z_i$ or $Z_i^+$, MultiValue = $V V V V ... Z Z Z ...$ \\
-       \> \> \> $Z_{new}$ = min($Z_i$ or $Z_i^+$,Z,Z,Z,...) \\
-       \> \> \> partition $Z_{new}$ if number of $V$ > threshhold \\
-       \> \> \> for each $V$ in MultiValue: \\
-      \> \> \> \> output Key = $V_i$, Value = $Z_{new}$
+\> 2 Reduce: \> Find WINNER vertices \\
+       \> \> \> input Key = $V_i$, MultiValue = $V V V V ...$ \\
+       \> \> \> if all $V$ are WINNERs: \\
+      \> \> \> \> output to MRv, Key = $V_i$, Value = NULL \\
+      \> \> \> \> for each $V$ in Multivalue: \\
+     \> \> \> \> \> output Key = $V_j$, Value = $Vi$ LOSER \\
+       \> \> \> else: \\
+      \> \> \> \> for each $V$ in Multivalue: \\
+     \> \> \> \> \> output Key = $V_j$, Value = $V_i$ \\
+\> 2 Collate: \> Vertex as key \\
+\> 3 Reduce: \> Find LOSER vertices, delete their edges \\
+       \> \> \> input Key = $V_i$, MultiValue = $V V V V ...$ \\
+       \> \> \> if any $V$ is LOSER: \\
+      \> \> \> \> for each $V$ in Multivalue: \\
+     \> \> \> \> \> output Key = $E_{ij}$, Value = LOSER \\
+	\> \> \> else: \\
+      \> \> \> \> for each $V$ in Multivalue: \\
+     \> \> \> \> \> output Key = $E_{ij}$, Value = NULL \\
+\> 3 Collate: \> Edge as key \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
 
- \caption{MapReduce algorithm for finding amaximal independent set of
+ \caption{MapReduce algorithm for finding a maximal independent set of
  graph vertices.}
 
  \label{fig:luby}
 \end{figure}
 
+Before the iterations begin, a random value is assigned to each
+vertex, which will be used to compare pairs of vertices.  The vertex
+ID itself could be used as the random value, but since the vertices
+eventually selected for the MIS depend on the randomization, this may
+introduce an unwanted bias.  Instead a random number generator can be
+used to assign a random value $R_i$ to each vertex (during a map()
+operation), which is then carried along with the vertex ID through
+each stage of the algorithm.  In the notation of Figure
+\ref{fig:luby}, each $V_i$ is then really two quantities, a vertex ID
+(1 to $N$) and $R_i$.  Alternatively, the $R_i$ can be used to relabel
+the vertices in a random manner, assigning each a new, unique vertex
+ID from 1 to $N$.  In this case, $V_i$ is simply the new vertex ID,
+and the vertices in the final MIS could be remapped to recover their
+original IDs.  These operations can be performed with a few extra
+MapReduce stages, outside the iteration loop.
 
+The pre-iteration clone() operation converts the initial list of edge
+key/values one by one to key/multivalue pairs, with the edge as the
+key, and NULL as the value.  This is so that the iteration can begin
+with a reduce() operation, without need for a collate() operation.  A
+second empty MapReduce object is also initialized, which will
+accumulate MIS vertices as the iterations proceed.
 
+At each iteration, the current set of edges are examined to identify
+winning vertices.  There are removed and added to the MIS.  Vertices
+adjacent to winners are flagged as losers, and all edges adjacent to
+losers are flagged for removal at the start of the next iteration.
+Thus each iteration removes edges from the initially full graph, and
+adds vertices to the MIS.  When the graph is empty, the MIS is
+complete.
 
+The first reduce() operation flags the two vertices in each edge as a
+potential winner or loser.  This is done by comparing the two random
+values for the vertices (or the randomized vertex IDs as explained
+above).  The first collate() operation thus produces a multivalue for
+each vertex which contains all the vertices it shares an edge with and
+associated winner/loser flags for $V_i$.  In the second reduce()
+operation, if $V_i$ won the comparison with all its edge neighbors,
+then it is a ``winner'' vertex and is emitted to the second MapReduce
+object.  All vertices connected to the winner are emitted with a loser
+flag.  If $V_i$ is not an overall winner, its edge vertices are
+emitted without the loser flag.  The second collate() operation
+collects this new information for each vertex.
 
+In the third reduce() operation, if $V_i$ was flagged as a loser by
+any edge neighbor who was a winner, then it becomes a loser.  All of
+its edges are emitted with a loser flag.  If $V_i$ was not flagged as
+a loser, its edges are emitted with no flag.  The final collate()
+operation gathers this information for each edge; each edge will have
+two values (from each vertex), which are either a loser flag or NULL.
+At the first stage of the next iteration, any edge flagged as a loser
+does not compare its two vertices; it is effectively deleted from the
+graph.
+
+The Luby iterations end when all edges have been removed from the
+graph.  At this point, the second MapReduce object contains a complete
+MIS of vertices.
+
+\subsection{Single source shortest path}
 
 Discussion of SSSP.
 
