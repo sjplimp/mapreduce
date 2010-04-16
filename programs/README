@@ -18,7 +18,16 @@ ccnd.cpp             Function form of connected components algorithm without
 test_cc_nodist.cpp   Main program that calls ccnd.cpp.
 test_gs.cpp	     global sum
 test_matvec.cpp	     matrix-vector multiply of a sparse matrix
-test_pagerank.cpp    PageRank on a sparse matrix
+test_pagerank.cpp    PageRank on a sparse matrix; stores matrix and vectors
+                     in memory, so problem size is limited.
+
+test_pagerank2.cpp   PageRank on a sparse matrix; stores matrix and vectors
+                     in MapReduce objects, so works with out-of-core
+                     implementations.
+mrmatrix2.hpp        Matrix and vector classes using out-of-core MR-MPI
+mrvector2.hpp        for matrix and vector operations.
+                     Used in test_pagerank2.cpp.  Templated on global
+                     ordinal type.
 
 tri.py		     find and output triangles in a matrix market file
 

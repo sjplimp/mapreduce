@@ -14,7 +14,7 @@ OBJ = 		$(SRC:.cpp=.o)
 
 # Targets
 
-all:	matvec pagerank gs ccd ccnd link2graph_weighted wordfreq sssp sssp_v2 stress_test1 stress_test2 tri_new zerokv
+all:	matvec pagerank pagerank2 gs ccd ccnd link2graph_weighted wordfreq sssp sssp_v2 stress_test1 stress_test2 tri_new zerokv
 
 # Connected Components without distances; two versions of the 
 # algorithm (original Cohen + more scalable Plimpton) can be run 
