@@ -47,7 +47,7 @@ class MRMatrix {
 
     IDTYPE NumRows() { return N; };
     IDTYPE NumCols() { return M; };
-    void MatVec(MRVector<IDTYPE> *, MRVector<IDTYPE> *);
+    void MatVec(MRVector<IDTYPE> *, MRVector<IDTYPE> *, MRVector<IDTYPE> *);
     void Transpose();
     void Scale(double);
     void MakeEmpty() {delete mr;};
@@ -130,10 +130,20 @@ static void mrm_initialize_matrix(char *key, int keybytes,
 // We need emptyRows MapReduce object to be in state where it has a KeyValue
 // structure, but we don't have anything to put in it yet.  This function 
 // will do the trick.
-static void mrm_do_nothing(int itask, KeyValue *kv, void *ptr)
+static void mrm_do_nothing_map(int itask, KeyValue *kv, void *ptr)
 {
 }
 
+// Initial call to convert for a given MapReduce object incurs additional
+// overhead; absorb that overhead here, returning the mr in the same state
+// as before.  Assumes the mr was empty upon calling this function, so
+// this function is actually never called.
+static void mrm_do_nothing_reduce(char *key, int keybytes, char *multivalue,
+                                  int nvalues, int *valuebytes,
+                                  KeyValue *kv, void *ptr)
+{
+
+}
                        
 //--------------------------------------------------------------
 template <typename IDTYPE>
@@ -160,7 +170,13 @@ MRMatrix<IDTYPE>::MRMatrix(
 
   // Create MapReduce object for all-zero rows.
   MapReduce *emr = new MapReduce(MPI_COMM_WORLD);
-  emr->map(1, mrm_do_nothing, NULL);
+  emr->map(1, mrm_do_nothing_map, NULL);
+  
+  // The initial call to convert incurs overhead for a mapreduce object.
+  // We'll incur the overhead here so it doesn't pollute our computational
+  // timings.
+  emr->convert();  
+  emr->reduce(mrm_do_nothing_reduce, NULL);
 
   // In mrm_initialize_matrix, we emit both to the matrix and to the
   // emptyRows MapReduce object so that we need only one pass over the edges.
@@ -276,15 +292,19 @@ static void mrm_terms(char *key, int keybytes,
 
   mvptr = multivalue;
   for (int k = 0; k < nvalues; k++) {
-    if (valuebytes[k] != sizeof(MRNonZero<IDTYPE>)) {
+    if (valuebytes[k] == sizeof(MRNonZero<IDTYPE>)) {
+      MRNonZero<IDTYPE> *aptr = (MRNonZero<IDTYPE> *) mvptr;
+      double product = x_j * aptr->nzv;
+      kv->add((char *) &aptr->ij, sizeof(aptr->ij), 
+              (char *) &product, sizeof(product));
       mvptr += valuebytes[k];
-      continue; // don't add in x_j * x_j
     }
-    MRNonZero<IDTYPE> *aptr = (MRNonZero<IDTYPE> *) mvptr;
-    double product = x_j * aptr->nzv;
-    kv->add((char *) &aptr->ij, sizeof(aptr->ij), 
-            (char *) &product, sizeof(product));
-    mvptr += valuebytes[k];
+    else {
+      // This is the x_j value.
+      // don't add in x_j * x_j
+      mvptr += valuebytes[k];
+      continue; 
+    }
   }
 
   END_BLOCK_LOOP
@@ -316,20 +336,34 @@ static void mrm_rowsum(char *key, int keybytes, char *multivalue,
 }
 
 //--------------------------------------------------------------
+//  Deleting mr object and then copying from another mr
+//  has a lot of overhead.  Just map x into y instead.
+//  Calling map with this function is equivalent to
+//     if (y->mr != NULL) delete y->mr;
+//     y->mr = x->mr->copy();
+//  but doesn't have the start-up overhead of a new mapreduce object.
+static void copy_x(uint64_t itask, char *key, int keybytes,
+                   char *value, int valuebytes, KeyValue *kv, void *ptr)
+{
+  kv->add(key, keybytes, value, valuebytes);
+}
+
+//--------------------------------------------------------------
 template <typename IDTYPE>
 void MRMatrix<IDTYPE>::MatVec(
   MRVector<IDTYPE> *x,
-  MRVector<IDTYPE> *y      // Result of A*x
+  MRVector<IDTYPE> *y,       // Result of A*x
+  MRVector<IDTYPE> *zerovec  // Vector with all row IDs and zero values.
 )
 {
   // Copy x->mr into y->mr and do processing in y->mr.  
   // Need to keep x->mr to compute residual.  
   // Plus, MatVec should not have side effect of changing x.
-  if (y->mr != NULL) delete y->mr;
-  y->mr = x->mr->copy();
+
+  y->mr->map(x->mr, copy_x, NULL);
+
   MapReduce *ymr = y->mr;
-  MRVector<IDTYPE> zerovec(x->GlobalLen());
-  
+
   // Add matrix terms to vector.
   // For A, merging Matrix row i and x_i.
   // For A^T, merging Matrix column j and x_j.
@@ -343,7 +377,7 @@ void MRMatrix<IDTYPE>::MatVec(
   ymr->aggregate(NULL);
   
   // Need to add in zero terms to keep y-vector entries for all-zero columns.
-  ymr->add(zerovec.mr);
+  ymr->add(zerovec->mr);
 
   // Compute sum of terms over rows.
   ymr->compress(mrm_rowsum, NULL);

@@ -198,8 +198,6 @@ MPI_Barrier(MPI_COMM_WORLD);
 KDDtmp = MPI_Wtime();
 #endif //KDDTIME
 
-double tt = MPI_Wtime();
-
     // Compute adjustment for irreducibility (1-alpha)/n
     double ladj = 0.;
     double gadj = 0.;
@@ -211,13 +209,10 @@ double tt = MPI_Wtime();
                                            storage_aware);
     ladj += allzeroadj;
 
-cout << "allzero rows " << MPI_Wtime() - tt << endl;
-
     // Compute global adjustment via all-reduce-like operation.
     // Cheating here!  Should be done through MapReduce.
     MPI_Allreduce(&ladj, &gadj, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-tt = MPI_Wtime();
 #ifdef KDDTIME
 KDDallzero += (MPI_Wtime() - KDDtmp);
 MPI_Barrier(MPI_COMM_WORLD);
@@ -227,8 +222,6 @@ KDDtmp = MPI_Wtime();
     // Compute global adjustment.
     A->MatVec(mr, x, y, 1, storage_aware);
 
-cout << "matvec " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
 #ifdef KDDTIME
 KDDmatvec += (MPI_Wtime() - KDDtmp);
 MPI_Barrier(MPI_COMM_WORLD);
@@ -238,18 +231,12 @@ KDDtmp = MPI_Wtime();
     // Add adjustment to product vector in mr.
     y->AddScalar(gadj);
 
-cout << "addscalar " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
     // Compute max-norm of vector in mr.
     double gmax = y->GlobalMax(mr);
 
-cout << "globalmax " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
     // Scale vector in mr by 1/maxnorm.
     y->Scale(1./gmax);
 
-cout << "scale " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
 #ifdef KDDTIME
 KDDadjust += (MPI_Wtime() - KDDtmp);
 MPI_Barrier(MPI_COMM_WORLD);
@@ -274,7 +261,6 @@ KDDtmp = MPI_Wtime();
       mr->collate(NULL);
       mr->reduce(compute_lmax_residual, &lresid);
     }
-cout << "residual " << MPI_Wtime() - tt << endl;
 
     // Compute global max residual.
     // Cheating here!  Should be done through MapReduce.

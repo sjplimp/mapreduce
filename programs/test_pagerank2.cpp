@@ -122,6 +122,8 @@ MRVector<IDXTYPE> *pagerank(
                                              A->mr->memsize, A->mr->fpath);
   MRVector<IDXTYPE> *y = new MRVector<IDXTYPE>(x->GlobalLen(), 
                                              A->mr->memsize, A->mr->fpath);
+  MRVector<IDXTYPE> *zerovec = new MRVector<IDXTYPE>(x->GlobalLen(), 
+                                             A->mr->memsize, A->mr->fpath);
 
   double randomlink = (1.-alpha)/(double)(x->GlobalLen());
   int iter; 
@@ -138,8 +140,6 @@ MRVector<IDXTYPE> *pagerank(
   // PageRank iteration
   for (iter = 0; iter < maxniter; iter++) {
 
-MPI_Barrier(MPI_COMM_WORLD);
-double tt = MPI_Wtime();
     // Compute adjustment for irreducibility (1-alpha)/n
     double ladj = 0.;
     double gadj = 0.;
@@ -151,44 +151,26 @@ double tt = MPI_Wtime();
       allzeroadj = compute_local_allzero_adj(A, x, alpha);
     ladj += allzeroadj;
 
-cout << "allzero rows " << MPI_Wtime() - tt << endl;
-
     // Compute global adjustment via all-reduce-like operation.
     // Cheating here!  Should be done through MapReduce.
     MPI_Allreduce(&ladj, &gadj, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-tt = MPI_Wtime();
     // Compute global adjustment.
-    A->MatVec(x, y);
-
-cout << "matvec " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
+    A->MatVec(x, y, zerovec);
 
     // Add adjustment to product vector in mr.
     y->AddScalar(gadj);
 
-cout << "addscalar " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
-
     // Compute max-norm of vector in mr.
     double gmax = y->GlobalMax();
 
-cout << "globalmax " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
-
     // Scale vector in mr by 1/maxnorm.
     y->Scale(1./gmax);
-
-cout << "scale " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
 
     // Compute local residual; this also empties x->mr.
     double lresid = 0.;
     x->mr->add(y->mr);
     x->mr->compress(compute_lmax_residual, &lresid);
-
-cout << "residual " << MPI_Wtime() - tt << endl;
-tt = MPI_Wtime();
 
     // Compute global max residual.
     double gresid;

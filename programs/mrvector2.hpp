@@ -27,7 +27,7 @@ template <typename IDTYPE>
 class MRVector {
   public:
     MRVector(IDTYPE, int pagesize=64, const char *fpath = ".");
-    ~MRVector() {MakeEmpty();}
+    ~MRVector() {delete mr;}
     void MakeEmpty();
     void PutScalar(double);
     void AddScalar(double);
@@ -74,6 +74,26 @@ static void mrv_initialize_vec(int itask, KeyValue *kv, void *ptr)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// Empty a vector of all entries, but don't delete the mr object.
+static void mrv_do_nothing_map(int itask, KeyValue *kv, void *ptr)
+{
+
+}
+
+static void mrv_do_nothing_reduce(char *key, int keybytes, char *multivalue,
+                                  int nvalues, int *valuebytes,
+                                  KeyValue *kv, void *ptr)
+{
+
+}
+
+template <typename IDTYPE>
+void MRVector<IDTYPE>::MakeEmpty()
+{
+  mr->map(1, mrv_do_nothing_map, NULL);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // Vector constructor.  Allocates memory and stores in persistent memory.
 // Initializes vector uniformly to 1/n.
 template <typename IDTYPE>
@@ -93,19 +113,17 @@ MRVector<IDTYPE>::MRVector(
   mr->memsize = pagesize;
   mr->set_fpath(fpath);
 
+  // First calls to map and convert incur overhead; we'll incur that
+  // cost here rather than have it pollute our computation timings.
+  mr->map(1, mrv_do_nothing_map, NULL);
+  mr->convert();
+  mr->reduce(mrv_do_nothing_reduce, NULL);
+
   // Emit vector values
   mr->map(mr->num_procs(), mrv_initialize_vec<IDTYPE>, &n);
 
   // Gather values to processors based on vector index.
   mr->aggregate(NULL);
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Empty a vector of all entries.
-template <typename IDTYPE>
-void MRVector<IDTYPE>::MakeEmpty()
-{
-  delete mr;
 }
 
 /////////////////////////////////////////////////////////////////////////////
