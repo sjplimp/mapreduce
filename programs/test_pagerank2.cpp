@@ -318,7 +318,8 @@ int main(int narg, char **args)
       filetype = FBFILE;
       iarg++;
     } else {
-      cout << "Passing option " << args[iarg] << " to file reader" << endl;
+      if (me ==0) 
+        cout << "Passing option " << args[iarg] << " to file reader" << endl;
       iarg++;
     }
   }

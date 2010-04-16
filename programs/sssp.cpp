@@ -499,6 +499,7 @@ bool SSSP<VERTEX, EDGE>::run()
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
   mrpath->set_fpath(MYLOCALDISK); 
   mrpath->memsize = MRMEMSIZE;
+  mrpath->verbosity = 0;
 
   if (me == 0) cout << counter << ": BEGINNING SOURCE " << source << endl;
 

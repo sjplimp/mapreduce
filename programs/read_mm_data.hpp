@@ -184,7 +184,6 @@ static void readMM_vertex_emit(int itask, KeyValue *kv, void *ptr)
   int minv = 1 + rfp->me * ndiv + MIN(rfp->me, nrem);
   int maxv = minv + nemit;
   uint64_t v[2] = {0, 0};
-  printf("%d MM VERTEX EMIT range %d to %d\n", rfp->me, minv, maxv-1);
 
   for (int i = minv; i < maxv; i++) {
     v[0] = i;
