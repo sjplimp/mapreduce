@@ -287,44 +287,39 @@ int main(int narg, char **args)
          << "[-r|-m|-k] [filetype parameters]" << endl;
 
   // Parse the command line.
-  int ch;
-  opterr = 0;
-  const char *optstring = "a:t:m:n:";
+  int iarg = 0;
+  while (iarg < narg) {
 
-  while ((ch = getopt(narg, args, optstring)) != -1) {
-    switch (ch) {
-    case 'a':
+    if (strcmp(args[iarg], "-a") == 0) {
       // Pagerank relaxation param
-      alpha = atof(optarg);
-      break;
-    case 't': 
+      alpha = atof(args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg], "-t") == 0) {
       // Pagerank tolerance
-      tolerance = atof(optarg);
-      break;
-    case 'n':
+      tolerance = atof(args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg], "-n") == 0) {
       // Number of times to do pagerank
-      NumberOfPageranks = atoi(optarg);
-      break;
-    case 'p':
+      NumberOfPageranks = atoi(args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg], "-p") == 0) {
       // Memsize value for out-of-core MapReduce.
-      pagesize = atoi(optarg);
-      break;
-    case 'r':
+      pagesize = atoi(args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg], "-r") == 0) {
       // Generate rmat input; must also include parameters for rmat.hpp.
       filetype = RMAT;
-      break;
-    case 'm':
-      // Read matrix-market file; must include parameters for read_mm_data.hpp.
+      iarg++;
+    } else if (strcmp(args[iarg], "-m") == 0) {
       filetype = MMFILE;
-      break;
-    case 'k':
+      iarg++;
+    } else if (strcmp(args[iarg], "-k") == 0) {
       // Read Karl's files; must include parameters for read_fb_data.hpp.
       filetype = FBFILE;
-      break;
-    case '?':
-      printf("Invalid option -%c\n", optopt);
-      MPI_Abort(MPI_COMM_WORLD, -1);
-      break;
+      iarg++;
+    } else {
+      cout << "Passing option " << args[iarg] << " to file reader" << endl;
+      iarg++;
     }
   }
  

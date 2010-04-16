@@ -39,11 +39,8 @@
 
 using namespace MAPREDUCE_NS;
 
-#define VERSION1
 
-#ifndef VERSION1
 static void rmat_do_nothing(int, KeyValue *, void *);
-#endif
 static void rmat_generate_vertex(int, KeyValue *, void *);
 static void rmat_generate_edge(int, KeyValue *, void *);
 static void rmat_final_edge(char *, int, char *, int, int *, 
@@ -193,10 +190,8 @@ void GenerateRMAT::run(
   // Now generate mredge; this is harder, as it requires the RMAT algorithm.
   if (me == 0) cout << "Generating edges..." << endl;
   MapReduce *mredge = new MapReduce(MPI_COMM_WORLD);
-#ifndef VERSION1
   // Put mredge in state where it has a KeyValue (empty).
   mredge->map(1,&rmat_do_nothing,NULL);
-#endif
 //  mredge->verbosity = 2;
 //  mredge->timer = 1;
 
@@ -209,16 +204,11 @@ void GenerateRMAT::run(
     niterate++;
     ngenerate = nremain/nprocs;
     if ((unsigned) me < (nremain % nprocs)) ngenerate++;
-#ifdef VERSION1
-    mredge->map(nprocs,&rmat_generate_edge,this,1);
-    uint64_t nunique = mredge->collate(NULL);
-#else
     MapReduce mrnew(MPI_COMM_WORLD);
     mrnew.map(nprocs,&rmat_generate_edge,this);
     mrnew.aggregate(NULL);
     mredge->add(&mrnew);
     uint64_t nunique = mredge->convert();
-#endif
     if (nunique == ntotal) break;
     mredge->reduce(&rmat_cull,NULL);
     nremain = ntotal - nunique;
@@ -324,14 +314,12 @@ void GenerateRMAT::run(
               << " procs in " << niterate << " iterations" << std::endl;
 }
 
-#ifndef VERSION1
 // We need mredge MapReduce object to be in state where it has a KeyValue
 // structure, but we don't have anything to put in it yet.  This function 
 // will do the trick.
 static void rmat_do_nothing(int itask, KeyValue *kv, void *ptr)
 {
 }
-#endif
 
 /* ----------------------------------------------------------------------
    generate RMAT matrix entries
