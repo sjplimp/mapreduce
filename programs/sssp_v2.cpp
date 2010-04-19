@@ -77,7 +77,6 @@ void add_source(int nmap, KeyValue *kv, void *ptr)
   d.current = false;
   kv->add((char *) v, sizeof(VERTEX),
           (char *) &d, sizeof(DISTANCE<VERTEX, EDGE>));
-//  cout << "KDDKDD add_source " << *v << endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -90,7 +89,6 @@ void move_to_new_mr(uint64_t itask, char *key, int keybytes,
 {
   MapReduce *mr = (MapReduce *) ptr;
   mr->kv->add(key, keybytes, value, valuebytes);
-//  cout << "KDDKDD Move_to_new_mr " << *((uint64_t *) key) << endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -104,7 +102,6 @@ void initialize_vertex_distances(uint64_t itask, char *key, int keybytes,
 {
   DISTANCE<VERTEX, EDGE> d;
   kv->add(key, keybytes, (char *) &d, sizeof(DISTANCE<VERTEX, EDGE>));
-//  cout << "KDDKDD initialize_vertex_distances " << *((uint64_t *) key) << " current " << d.current << endl;
 }
 
 
@@ -128,7 +125,6 @@ void pick_shortest_distances(char *key, int keybytes, char *multivalue,
   DISTANCE<VERTEX, EDGE> previous; // Previous best answer.
   bool modified = false;
 
-// cout << " KDDKDD PICK_SHORTEST_DISTANCES " << *((uint64_t *) key) << " total_nvalues = " << total_nvalues << endl;
   if (total_nvalues > 1) {
     // Need to find the shortest distance to Vi.
 
@@ -137,7 +133,6 @@ void pick_shortest_distances(char *key, int keybytes, char *multivalue,
     uint64_t offset = 0;
     for (int j = 0; j < nvalues; j++) {
       DISTANCE<VERTEX, EDGE> *d = (DISTANCE<VERTEX, EDGE>*) (multivalue+offset);
-// cout << "      KDDKDD COMPARE DISTANCES " << *((uint64_t *) key) << " D " << d->e.wt << " current " << d->current << " S " << shortest.e.wt << endl;
       if (d->e.wt < shortest.e.wt) {
         shortest = *d;   // shortest path so far.
       }
@@ -157,7 +152,6 @@ void pick_shortest_distances(char *key, int keybytes, char *multivalue,
   // Did we change the vertex's distance?
   if (previous != shortest) modified = true;
 
-//cout << "    KDDKDD RESULT " << *((uint64_t *) key) << " DISTANCE " << shortest.e.wt << " PREVIOUS " << previous.e.wt <<  " MODIFIED " << modified << endl;
 
   // Emit vertex with updated distance back into mrvert.
   shortest.current = true;
@@ -168,7 +162,6 @@ void pick_shortest_distances(char *key, int keybytes, char *multivalue,
   if (modified) {
     mrpath->kv->add(key, keybytes,
                    (char *) &shortest, sizeof(DISTANCE<VERTEX, EDGE>));
-// cout << "KDDKDD VTXUPDATE ADD " << *((uint64_t *) key) << " DISTANCE " << shortest.e.wt << endl;
   }
 
 }
@@ -213,11 +206,9 @@ void update_adjacent_distances(char *key, int keybytes, char *multivalue,
 
   // If an updated distance was found, need to update distances for 
   // outward adjacencies.  Add these updates to mrpath.
-// cout << "KDDKDD FOUND = " << found << endl;
   if (found) {
     BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
-// cout << "KDDKDD HEY nvalues = " << nvalues << endl;
     uint64_t offset = 0;
     for (int j = 0; j < nvalues; j++) {
       // Multivalues are either edges or distances.  Distances use more bytes.
@@ -225,7 +216,6 @@ void update_adjacent_distances(char *key, int keybytes, char *multivalue,
         // This is an edge value.  Emit the updated distance.
         EDGE *e = (EDGE *) (multivalue+offset);
 
-// cout << "     KDDKDD EDGE = " << *e << " V " << *vi << " SHORTEST " << shortest.e << endl;
         // with all wt > 0, don't follow (1) loops back to predecessor or
         // (2) self-loops.
         if ((shortest.e.v != e->v) && (e->v != *vi)) {
@@ -235,7 +225,6 @@ void update_adjacent_distances(char *key, int keybytes, char *multivalue,
           dist.current = false;
           mrpath->kv->add((char *) &(e->v), sizeof(VERTEX),
                           (char *) &dist, sizeof(DISTANCE<VERTEX, EDGE>));
-// cout << "KDDKDD ADJ ADD " << e->v << " DISTANCE " << dist.e.wt << endl;
         }
       }
       offset += valuebytes[j];
@@ -310,12 +299,11 @@ public:
   double twrite;    // Write time
   uint64_t tnlabeled;  // Total number of vtx labeled in all experiments.
   vector<VERTEX> sourcelist;    // For generated RMAT inputs,
-                                // create a list of sources with
-                                // outdegree > 1% * nverts.  Want
+                                // create a list of MAX_NUM_EXPERIMENTS sources
+                                // with outdegree > zero.  Want
                                 // to avoid singletons as sources
                                 // as they skew the output for 
                                 // different numbers of processors.
-  uint64_t sourcelimit;         // 1% * nverts.
 private:
   int me;
   int np;
@@ -349,13 +337,8 @@ SSSP<VERTEX,EDGE> *sssp = (SSSP<VERTEX,EDGE> *) ptr;
   // Check whether already have enough sources.
   if (sssp->sourcelist.size() >= MAX_NUM_EXPERIMENTS) return;
 
-  uint64_t total_nvalues;
-  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
-
-
-  // Don't include a source if it has low outdegree.
-  if (total_nvalues < sssp->sourcelimit) return;
-
+  // If vertex made it to this routine, it has non-zero outdegree.  Use it
+  // as a source.
   sssp->sourcelist.push_back(*((VERTEX *) key));
 }
 
@@ -423,17 +406,23 @@ SSSP<VERTEX, EDGE>::SSSP(
       // Sources will be randomly selected vertices.
       filetype = RMAT;
       
-      // Generate a list of valid sources.  Disallow a source vertex
-      // if its outdegree is less than 1% of the number of vertices.
+      // Generate a list of valid sources.  Disallow singletons as 
+      // source vertices.
       // Trying to make the test results more fair when generating
       // rmat on different numbers of processors; if one run picks lots
       // of singletons for sources, it will not compare well with other
       // runs.  Ideally, total number of iterations and vertices 
       // visited should be close to the same.
-      sourcelimit = MAX(1, 0.01 * nverts);
       MapReduce *mrlist = mredge->copy();  // edges are already aggregated.
       mrlist->compress(get_good_sources<VERTEX, EDGE>, this);
       delete mrlist;
+      if (me == 0 && sourcelist.size() < MIN(MAX_NUM_EXPERIMENTS,nverts))
+        cout << "*****************************************************" << endl 
+             << "WARNING on proc " << me 
+             << ":  number of possible sources " << sourcelist.size()
+             << " is smaller than requested " 
+             << MIN(MAX_NUM_EXPERIMENTS,nverts) << endl
+             << "*****************************************************" << endl;
     }
     else if (strcmp(args[iarg], "-o") == 0) {
       write_files = true;
@@ -561,7 +550,6 @@ bool SSSP<VERTEX, EDGE>::run()
 
   // Initialize vertex distances.
   mrvert->map(mrvert, initialize_vertex_distances<VERTEX, EDGE>, (void *) NULL, 0);
-// cout << "    KDDKDD MRVERT->NKV " << mrvert->kv->nkv << endl;
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
   mrpath->set_fpath(MYLOCALDISK); 
@@ -570,7 +558,6 @@ bool SSSP<VERTEX, EDGE>::run()
   if (me == 0) cout << counter << ": BEGINNING SOURCE " << source << endl;
 
   mrpath->map(1, add_source<VERTEX,EDGE>, &source);
-// printf("    KDDKDD MRVERT %d   MRPATH %d\n", mrvert->kv->nkv, mrpath->kv->nkv);
 
   //  Perform a BFS from S, editing distances as visit vertices.
   int done = 0;
@@ -578,22 +565,14 @@ bool SSSP<VERTEX, EDGE>::run()
   while (!done) {
     done = 1;
  
-    // Add Edges to Paths.
-    // Collate Paths by vertex; collects edges and any distances 
-    // computed so far.
-//    mrpath->add(mredge);
-
     // First, determine which, if any, vertex distances have changed.
     // Add updated distances existing distances.
     mrpath->aggregate(NULL);
-// printf("    KDDKDD2 MRVERT %d   MRPATH %d\n", mrvert->kv->nkv, mrpath->kv->nkv);
 
-// cout << " KDDKDD MOVING TO MRVERT " << endl;
     mrvert->kv->append();
     mrpath->map(mrpath, move_to_new_mr, mrvert);
     mrvert->kv->complete();
 
-// printf("    KDDKDD3 MRVERT %d   MRPATH %d\n", mrvert->kv->nkv, mrpath->kv->nkv);
     // Pick best distances.  For vertices with changed distances,
     // emit new distances into mrpath.
     uint64_t tmp_nv = 0, tmp_ne = 0;
@@ -601,7 +580,6 @@ bool SSSP<VERTEX, EDGE>::run()
     mrpath->kv->append();
     tmp_nv = mrvert->compress(pick_shortest_distances<VERTEX, EDGE>, mrpath);
     mrpath->kv->complete();
-// printf("    KDDKDD4 MRVERT %d   MRPATH %d\n", mrvert->kv->nkv, mrpath->kv->nkv);
 
     uint64_t nchanged;
     MPI_Allreduce(&(mrpath->kv->nkv), &nchanged, 1, MPI_UNSIGNED_LONG,
@@ -610,16 +588,13 @@ bool SSSP<VERTEX, EDGE>::run()
       // Some vtxs' distances changed; 
       // need to emit new distances for adjacent vtxs.
       done = 0;
-// cout << " KDDKDD MOVING TO MREDGE " << endl;
       mredge->kv->append();
       mrpath->map(mrpath, move_to_new_mr, mredge);
       mredge->kv->complete();
-// printf("    KDDKDD5 MREDGE %d   MRPATH %d\n", mredge->kv->nkv, mrpath->kv->nkv);
 
       mrpath->kv->append();
-      tmp_ne = mredge->compress(update_adjacent_distances<VERTEX, EDGE>, mrpath);
+      tmp_ne = mredge->compress(update_adjacent_distances<VERTEX,EDGE>, mrpath);
       mrpath->kv->complete();
-// printf("    KDDKDD6 MREDGE %d   MRPATH %d\n", mredge->kv->nkv, mrpath->kv->nkv);
     }
     else done = 1;
 
