@@ -27,6 +27,7 @@ using namespace std;
 using namespace MAPREDUCE_NS;
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 
 static void readMM_fileread(int, char *, int, KeyValue *, void *);
 static void readMM_vertex_emit(int, KeyValue *, void *);

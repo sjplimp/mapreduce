@@ -14,6 +14,7 @@
 #include <iostream>
 #include <fstream>
 #include <float.h>
+#include <vector>
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "blockmacros.hpp"
@@ -300,6 +301,7 @@ public:
   {
     if (sourcefp) fclose(sourcefp);
     sourcemap.clear();
+    sourcelist.clear();
   };
 
   bool run();
@@ -307,6 +309,13 @@ public:
   double tcompute;  // Compute time
   double twrite;    // Write time
   uint64_t tnlabeled;  // Total number of vtx labeled in all experiments.
+  vector<VERTEX> sourcelist;    // For generated RMAT inputs,
+                                // create a list of sources with
+                                // outdegree > 1% * nverts.  Want
+                                // to avoid singletons as sources
+                                // as they skew the output for 
+                                // different numbers of processors.
+  uint64_t sourcelimit;         // 1% * nverts.
 private:
   int me;
   int np;
@@ -330,6 +339,27 @@ private:
 // Sets options from command line.
 // Builds MapReduce object with outdegree of all unique vertices.
 // Modifies MapReduce edge list to include vertex outdegree in keys.
+
+template <typename VERTEX, typename EDGE>
+void get_good_sources(char *key, int keybytes, char *multivalue,
+                      int nvalues, int *valuebytes, KeyValue *kv, void *ptr)
+{
+SSSP<VERTEX,EDGE> *sssp = (SSSP<VERTEX,EDGE> *) ptr;
+
+  // Check whether already have enough sources.
+  if (sssp->sourcelist.size() > MAX_NUM_EXPERIMENTS) return;
+
+  uint64_t total_nvalues;
+  CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
+
+  // Don't include a source if it has low outdegree.
+  if (total_nvalues < sssp->sourcelimit) return;
+
+  sssp->sourcelist.push_back(*((VERTEX *) key));
+}
+
+
+
 template <typename VERTEX, typename EDGE>
 SSSP<VERTEX, EDGE>::SSSP(
   int narg, 
@@ -391,6 +421,18 @@ SSSP<VERTEX, EDGE>::SSSP(
       // Automatically generate RMAT input.
       // Sources will be randomly selected vertices.
       filetype = RMAT;
+      
+      // Generate a list of valid sources.  Disallow a source vertex
+      // if its outdegree is less than 1% of the number of vertices.
+      // Trying to make the test results more fair when generating
+      // rmat on different numbers of processors; if one run picks lots
+      // of singletons for sources, it will not compare well with other
+      // runs.  Ideally, total number of iterations and vertices 
+      // visited should be close to the same.
+      sourcelimit = MAX(1, 0.01 * nverts);
+      MapReduce *mrlist = mredge->copy();  // edges are already aggregated.
+      mrlist->compress(get_good_sources<VERTEX, EDGE>, this);
+      delete mrlist;
     }
     else if (strcmp(args[iarg], "-o") == 0) {
       write_files = true;
@@ -463,12 +505,16 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
       }
     }
     else if (filetype == RMAT) {
-      static uint64_t vv = 1;
-      if (vv <= nverts) source->v[0] = vv;
-      else source->reset();
-      vv++;
+      //static uint64_t vv = 1;
+      //if (vv <= nverts) source->v[0] = vv;
+      //else source->reset();
+      //vv++;
       // Randomly select a vertex in range [0..nverts-1].
       // source->v[0] = ((uint64_t) (drand48() * nverts)) + 1;
+      if (counter < sourcelist.size())
+        source = &(sourcelist[counter]);
+      else 
+        source->reset();
     }
 
     else {
