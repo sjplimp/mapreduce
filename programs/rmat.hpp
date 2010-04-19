@@ -306,7 +306,7 @@ void GenerateRMAT::run(
   }
 
   // convert edges to correct format for return arguments
-  mredge->reduce(&rmat_final_edge,NULL);
+  *nrawedges = *nedges = mredge->reduce(&rmat_final_edge,NULL);
   *return_mredge = mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
