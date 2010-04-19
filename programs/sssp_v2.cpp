@@ -347,10 +347,11 @@ void get_good_sources(char *key, int keybytes, char *multivalue,
 SSSP<VERTEX,EDGE> *sssp = (SSSP<VERTEX,EDGE> *) ptr;
 
   // Check whether already have enough sources.
-  if (sssp->sourcelist.size() > MAX_NUM_EXPERIMENTS) return;
+  if (sssp->sourcelist.size() >= MAX_NUM_EXPERIMENTS) return;
 
   uint64_t total_nvalues;
   CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, total_nvalues)
+
 
   // Don't include a source if it has low outdegree.
   if (total_nvalues < sssp->sourcelimit) return;
@@ -512,7 +513,7 @@ bool SSSP<VERTEX, EDGE>::get_next_source(
       // Randomly select a vertex in range [0..nverts-1].
       // source->v[0] = ((uint64_t) (drand48() * nverts)) + 1;
       if (counter < sourcelist.size())
-        source = &(sourcelist[counter]);
+        *source = sourcelist[counter];
       else 
         source->reset();
     }
