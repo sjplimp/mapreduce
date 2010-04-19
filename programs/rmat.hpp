@@ -179,6 +179,7 @@ void GenerateRMAT::run(
   // Each processor generates a range of the vertices.
   if (me == 0) cout << "Generating vertices..." << endl;
   MapReduce *mrvert = new MapReduce(MPI_COMM_WORLD);
+  mrvert->set_fpath(MYLOCALDISK);
   mrvert->map(nprocs, rmat_generate_vertex, this);
   if (me == 0) cout << "Vertex aggregate..." << endl;
   mrvert->aggregate(NULL); // Not necessary, but moves vertices to procs to 
@@ -190,6 +191,7 @@ void GenerateRMAT::run(
   // Now generate mredge; this is harder, as it requires the RMAT algorithm.
   if (me == 0) cout << "Generating edges..." << endl;
   MapReduce *mredge = new MapReduce(MPI_COMM_WORLD);
+  mredge->set_fpath(MYLOCALDISK);
   // Put mredge in state where it has a KeyValue (empty).
   mredge->map(1,&rmat_do_nothing,NULL);
 //  mredge->verbosity = 2;
@@ -205,6 +207,7 @@ void GenerateRMAT::run(
     ngenerate = nremain/nprocs;
     if ((unsigned) me < (nremain % nprocs)) ngenerate++;
     MapReduce mrnew(MPI_COMM_WORLD);
+    mrnew.set_fpath(MYLOCALDISK);
     mrnew.map(nprocs,&rmat_generate_edge,this);
     mrnew.aggregate(NULL);
     mredge->add(&mrnew);
