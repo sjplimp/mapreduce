@@ -200,7 +200,8 @@ void GenerateRMAT::run(
   // loop until desired number of unique nonzero entries
 
   int niterate = 0;
-  uint64_t ntotal = (1 << nlevels) * avgdeg;
+  uint64_t one = 1;
+  uint64_t ntotal = (one << nlevels) * avgdeg;
   uint64_t nremain = ntotal;
   while (nremain) {
     niterate++;
