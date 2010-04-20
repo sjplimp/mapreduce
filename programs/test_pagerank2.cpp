@@ -41,8 +41,8 @@ using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////
 // Global ordinal type for matrix row/column numbers.
-#define IDXTYPE int64_t
-#define MPI_IDXTYPE MPI_LONG
+#define IDXTYPE uint64_t
+#define MPI_IDXTYPE MPI_UNSIGNED_LONG
 
 // Input file types
 #define FBFILE 0
@@ -360,7 +360,7 @@ int main(int narg, char **args)
     vertexsize = 8;
   }
 
-  // Row IDs are currently int64_t; cannot support 128-bit keys yet.
+  // Row IDs are currently uint64_t; cannot support 128-bit keys yet.
   if (vertexsize != 8 && me == 0) {
     cout << "Vertexsize != 8 not yet supported.  Use -e1 option." << endl;
     MPI_Abort(MPI_COMM_WORLD, -1);

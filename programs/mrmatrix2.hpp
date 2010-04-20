@@ -197,6 +197,12 @@ MRMatrix<IDTYPE>::MRMatrix(
 
   MPI_Allreduce(&emr->kv->nkv, &nEmptyRows, 1, MPI_UNSIGNED_LONG, MPI_SUM,
                 MPI_COMM_WORLD);
+
+uint64_t gnnz;
+MPI_Allreduce(&mr->kv->nkv, &gnnz, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+cout << mr->my_proc() << "KDDKDD " << N << "x" << M 
+     << " nnz " << mr->kv->nkv << " of " << gnnz
+     << " EmptyRows " << emr->kv->nkv << " of " << nEmptyRows << endl;
 }
 
 
