@@ -747,8 +747,8 @@ int main(int narg, char **args)
 
   // Aggregate mredge and mrvert by key.  No need to convert yet.
   // These then are, essentially, local mapreduce objects.
-  mredge->aggregate(NULL);
-  mrvert->aggregate(NULL);
+  // mredge->aggregate(NULL);  // Actually, aggregate is done by the readers.
+  // mrvert->aggregate(NULL);  // No need to re-aggregate.
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tmap = MPI_Wtime();

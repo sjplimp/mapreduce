@@ -176,11 +176,7 @@ void ReadFBData::run(
   // mrvert = unique non-zero vertices
 
   if (me == 0) printf("Finding unique vertices...\n");
-#ifdef NEW_OUT_OF_CORE
   MapReduce *mrvert = mrraw->copy();
-#else
-  MapReduce *mrvert = new MapReduce(*mrraw);
-#endif
 
   mrvert->clone();
   if (me == 0) printf("        clone complete.\n");
@@ -200,6 +196,7 @@ void ReadFBData::run(
 
   mredge->collate(NULL);
   *nedges = mredge->reduce(&readFB_edge_unique<ReadFBData>,this);
+  mredge->aggregate(NULL);
 
   *return_mrvert = mrvert;
   *return_mredge = mredge;

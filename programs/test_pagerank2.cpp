@@ -284,7 +284,7 @@ int main(int narg, char **args)
     cout << "Syntax: pagerank "
          << "[-a alpha] [-t tolerance] "
          << "[-n NumberOfPageranks] [-p pagesize] "
-         << "[-r|-m|-k] [filetype parameters]" << endl;
+         << "[-rmat|-mm|-karl] [filetype parameters]" << endl;
 
   // Parse the command line.
   int iarg = 0;
@@ -306,14 +306,14 @@ int main(int narg, char **args)
       // Memsize value for out-of-core MapReduce.
       pagesize = atoi(args[iarg+1]);
       iarg += 2;
-    } else if (strcmp(args[iarg], "-r") == 0) {
+    } else if (strcmp(args[iarg], "-rmat") == 0) {
       // Generate rmat input; must also include parameters for rmat.hpp.
       filetype = RMAT;
       iarg++;
-    } else if (strcmp(args[iarg], "-m") == 0) {
+    } else if (strcmp(args[iarg], "-mm") == 0) {
       filetype = MMFILE;
       iarg++;
-    } else if (strcmp(args[iarg], "-k") == 0) {
+    } else if (strcmp(args[iarg], "-karl") == 0) {
       // Read Karl's files; must include parameters for read_fb_data.hpp.
       filetype = FBFILE;
       iarg++;

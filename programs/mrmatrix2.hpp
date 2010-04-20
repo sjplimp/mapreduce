@@ -170,6 +170,7 @@ MRMatrix<IDTYPE>::MRMatrix(
 
   // Create MapReduce object for all-zero rows.
   MapReduce *emr = new MapReduce(MPI_COMM_WORLD);
+  emr->set_fpath(fpath);
   emr->map(1, mrm_do_nothing_map, NULL);
   
   // The initial call to convert incurs overhead for a mapreduce object.
@@ -391,8 +392,10 @@ template <typename IDTYPE>
 static void mrm_print(uint64_t itask, char *key, int keybytes, 
                       char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
+  int me;
+  MPI_Comm_rank(MPI_COMM_WORLD, &me);
   MRNonZero<IDTYPE> *v = (MRNonZero<IDTYPE> *) value;
-  cout << "        " << v->ij 
+  cout << me << "        " << v->ij 
        << " " << *((IDTYPE *)key) 
        << ":  " << v->nzv << endl;
 }

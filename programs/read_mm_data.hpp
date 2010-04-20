@@ -141,6 +141,8 @@ void ReadMMData::run(
   if (me == 0) printf("Finding unique vertices...\n");
   MapReduce *mrvert = new MapReduce(MPI_COMM_WORLD);
   *nverts = mrvert->map(np,&readMM_vertex_emit,this);
+  mrvert->aggregate(NULL);
+
   if (me == 0) printf("        vertex_unique complete.\n");
 
   // mredge = unique I->J edges with I and J non-zero + edge weights
@@ -153,6 +155,7 @@ void ReadMMData::run(
   mredge->collate(NULL);
   // Use same reducer as FB data.
   *nedges = mredge->reduce(&readFB_edge_unique<ReadMMData>,this);  
+  mredge->aggregate(NULL);
 
   *return_mrvert = mrvert;
   *return_mredge = mredge;

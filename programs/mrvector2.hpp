@@ -133,7 +133,9 @@ template <typename IDTYPE>
 static void mrv_printvector(uint64_t itask, char *key, int keybytes,
                         char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
-  cout << *((IDTYPE *) key) << "\t" << *((double *) value) << endl;
+  int me;
+  MPI_Comm_rank(MPI_COMM_WORLD, &me);
+  cout << me << " " << *((IDTYPE *) key) << "\t" << *((double *) value) << endl;
 }
 
 template <typename IDTYPE>
