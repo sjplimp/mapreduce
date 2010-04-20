@@ -107,10 +107,12 @@ ReadMMData::ReadMMData(int narg, char *args[], bool invwtflag) :
 void ReadMMData::run(
   MapReduce **return_mrvert,   // Output:  Unique vertices
                                //          Key = Vi hashkey ID; value = NULL.
+                               //          Aggregated by Vi.
   MapReduce **return_mredge,   // Output:  Unique edges
                                //          Key = Vi hashkey ID; 
                                //          Value = {Vj hashkey ID, Wij} for
                                //          edge Vi->Vj with weight Wij
+                               //          Aggregated by Vi.
   uint64_t *nverts,            // Output:  Number of unique non-zero vertices.
   uint64_t *nrawedges,         // Output:  Number of edges in input files.
   uint64_t *nedges             // Output:  Number of unique edges in input file.

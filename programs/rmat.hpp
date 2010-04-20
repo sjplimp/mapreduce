@@ -163,10 +163,12 @@ GenerateRMAT::GenerateRMAT(int narg, char **args)
 void GenerateRMAT::run(
   MapReduce **return_mrvert,   // Output:  Unique vertices
                                //          Key = Vi hashkey ID; value = NULL.
+                               //          Aggregated by Vi.
   MapReduce **return_mredge,   // Output:  Unique edges
                                //          Key = Vi hashkey ID; 
                                //          Value = {Vj hashkey ID, Wij} for
                                //          edge Vi->Vj with weight Wij
+                               //          Aggregated by Vi.
   uint64_t *nverts,            // Output:  Number of unique non-zero vertices.
   uint64_t *nrawedges,         // Output:  Number of edges in input files.
   uint64_t *nedges             // Output:  Number of unique edges in input file.
@@ -182,9 +184,8 @@ void GenerateRMAT::run(
   mrvert->set_fpath(MYLOCALDISK);
   mrvert->map(nprocs, rmat_generate_vertex, this);
   if (me == 0) cout << "Vertex aggregate..." << endl;
-  mrvert->aggregate(NULL); // Not necessary, but moves vertices to procs to 
-                           // which they will be hashed later.  May be good to
-                           // do it once up front.
+  mrvert->aggregate(NULL); 
+
   *nverts = order;
   *return_mrvert = mrvert;
 
@@ -308,6 +309,7 @@ void GenerateRMAT::run(
 
   // convert edges to correct format for return arguments
   *nrawedges = *nedges = mredge->reduce(&rmat_final_edge,NULL);
+  mredge->aggregate(NULL);
   *return_mredge = mredge;
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -510,7 +512,7 @@ static void rmat_generate_vertex(int itask, KeyValue *kv, void *ptr)
   uint64_t utask = (uint64_t) itask;
 
   if (utask > 0) 
-    first_vtx = (utask-1) * fraction + MIN((utask-1), remainder);
+    first_vtx = (utask) * fraction + MIN((utask), remainder);
 
   RMAT_VERTEX last_vtx = first_vtx + fraction + (utask < remainder);
 
