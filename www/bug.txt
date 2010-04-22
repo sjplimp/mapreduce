@@ -17,6 +17,18 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[22 Apr 2010]
+
+Added a compiler flag option for the "memsize and fpath" settings,
+so that the default values of 64 Mbyte pages and the current
+working directory can be overridden, if desired, when the
+library is built.
+
+This is the "list of changed files"_patches/files.22Apr10 from the 15
+Apr 2010 version.
+
+:line
+
 [16 Apr 2010]
 
 Added "open()"_doc/open.html and "close()"_doc/open.html methods to
