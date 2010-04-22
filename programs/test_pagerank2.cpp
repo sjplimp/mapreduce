@@ -278,7 +278,7 @@ int main(int narg, char **args)
   double alpha = 0.8;
   double tolerance = 0.00001;
   int NumberOfPageranks = 1;
-  int pagesize = 64;
+  int pagesize = MRMPI_MEMSIZE;
   int filetype = RMAT;
 
   if (me == 0) 

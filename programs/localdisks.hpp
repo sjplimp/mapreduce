@@ -6,23 +6,27 @@
 #define _LOCALDISKS_HPP
 
 /////////////////////////////////////////////////////////////////////////////
-// LOCALDISK can be defined in the build environment, allowing it to be
+// MRMPI_FPATH can be defined in the build environment, allowing it to be
 // specified easily on different architectures.  If it is not specified,
 // the current working directory is used. 
 // Applications can then specify MYLOCALDISK as a macro when setting 
 // the local disk for a MapReduce object.
 
-#ifdef LOCALDISK
-// This magic converts a LOCALDISK specified with a -D compiler flag
+#ifdef MRMPI_FPATH
+// This magic converts a MRMPI_FPATH specified with a -D compiler flag
 // to a string that can be passed as an argument to MapReduce methods.
 #define _QUOTEME(x) #x
 #define QUOTEME(x) _QUOTEME(x)
-#define MYLOCALDISK QUOTEME(LOCALDISK)
+#define MYLOCALDISK QUOTEME(MRMPI_FPATH)
 
 #else
 
 #define MYLOCALDISK "."
 
+#endif
+
+#ifndef MRMPI_MEMSIZE
+#define MRMPI_MEMSIZE 64
 #endif
 
 /////////////////////////////////////////////////////////////////////////////

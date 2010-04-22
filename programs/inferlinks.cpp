@@ -91,7 +91,7 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
   if (np < 100) greetings();
-#ifdef LOCALDISK
+#ifdef MRMPI_FPATH
   // Test the file system for writing; some nodes seem to have 
   // trouble writing to local disk.
   test_local_disks();

@@ -497,8 +497,6 @@ bool SSSP<VERTEX, EDGE>::run()
     return false;  // no unique source remains; quit execution and return.
 
   MapReduce *mrpath = new MapReduce(MPI_COMM_WORLD);
-  mrpath->set_fpath(MYLOCALDISK); 
-  mrpath->memsize = MRMEMSIZE;
   mrpath->verbosity = 0;
 
   if (me == 0) cout << counter << ": BEGINNING SOURCE " << source << endl;
@@ -587,11 +585,7 @@ bool SSSP<VERTEX, EDGE>::run()
 #else
     //  Single filename per processor; will be rewritten for each source, 
     //  so it is useful only for timings.
-#ifdef LOCALDISK
     sprintf(filename, "%s/distance.%03d", MYLOCALDISK, me);
-#else
-    sprintf(filename, "distance.%03d", me);
-#endif
 #endif
 
     ofstream fp;
@@ -621,7 +615,7 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
   if (np < 100) greetings();
-#ifdef LOCALDISK
+#ifdef MRMPI_FPATH
   // Test the file system for writing; some nodes seem to have 
   // trouble writing to local disk.
   test_local_disks();

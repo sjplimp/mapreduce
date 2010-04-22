@@ -74,18 +74,13 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-#ifdef NEW_OUT_OF_CORE
-  mr->set_fpath(MYLOCALDISK); 
-#endif
   mr->verbosity = 1;
 // mr->timer = 1;
 
   int N = atoi(args[2]);
   if (N > 3) FREQ = (1 << (N-3))/nprocs;
   else FREQ = 1;
-#ifdef NEW_OUT_OF_CORE
   mr->memsize=atoi(args[4]);
-#endif
 
   if (me == 0) {printf("KDD: genwords...map\n"); fflush(stdout);}
   MPI_Barrier(MPI_COMM_WORLD);
@@ -139,9 +134,7 @@ int main(int narg, char **args)
 
   if (me == 0) printf("nwords = %llu : nunique = %llu : Time = %f\n", nwords, nunique, tstop - tstart);
 
-#ifdef NEW_OUT_OF_CORE
   mr->cummulative_stats(2, 0);
-#endif
   delete mr;
 
   MPI_Finalize();

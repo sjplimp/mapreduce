@@ -393,7 +393,7 @@ int main(int narg, char **args)
   opterr = 0;
   const char *optstring = "a:t:m:n:g:s:";
 
-  int pagesize = 64;
+  int pagesize = MRMPI_MEMSIZE;
 
   while ((ch = getopt(narg, args, optstring)) != -1) {
     switch (ch) {
@@ -463,7 +463,6 @@ int main(int narg, char **args)
   mr->verbosity = 0;
   mr->timer = 0;
   mr->mapstyle = 1;  // mapstyle == 0 does not work for this code.
-  mr->set_fpath(MYLOCALDISK);
   mr->memsize = pagesize;
 
   // Persistent storage of the matrix. Will be loaded from files initially.

@@ -67,7 +67,7 @@ int main(int narg, char **args)
   // parse command-line args
 
   cc.root = -1;
-  cc.maxmem = 100;
+  cc.maxmem = MRMPI_MEMSIZE;
   cc.input = NOINPUT;
   cc.nfiles = 0;
   cc.permute = 0;
@@ -162,10 +162,7 @@ int main(int narg, char **args)
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 0;
-#ifdef NEW_OUT_OF_CORE
-  mr->set_fpath(MYLOCALDISK);
   mr->memsize = cc.maxmem;
-#endif
 
 
   if (cc.input == FILES) {

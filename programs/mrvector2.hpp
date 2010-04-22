@@ -13,6 +13,7 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "mrall2.h"
+#include "localdisks.hpp"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
@@ -26,7 +27,7 @@ using namespace std;
 template <typename IDTYPE>
 class MRVector {
   public:
-    MRVector(IDTYPE, int pagesize=64, const char *fpath = ".");
+    MRVector(IDTYPE, int pagesize=MRMPI_MEMSIZE, const char *fpath=MYLOCALDISK);
     ~MRVector() {delete mr;}
     void MakeEmpty();
     void PutScalar(double);

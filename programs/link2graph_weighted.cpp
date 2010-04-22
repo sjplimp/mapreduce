@@ -94,7 +94,7 @@ int main(int narg, char **args)
 
   if (nprocs < 100) greetings();
 
-#ifdef LOCALDISK
+#ifdef MRMPI_FPATH
   // On odin, test the file system for writing; some nodes seem to have 
   // trouble writing to local disk.
   test_local_disks();
@@ -234,7 +234,7 @@ int main(int narg, char **args)
     if (me == 0) {
       printf("Printing hash-key files ...\n");
       char fname[254];
-#ifdef LOCALDISK
+#ifndef KEEP_OUTPUT
       sprintf(fname,"%s/%s.header",MYLOCALDISK,hfile);
 #else
       sprintf(fname,"%s.header",hfile);
@@ -245,7 +245,7 @@ int main(int narg, char **args)
     }
     
     char fname[254];
-#ifdef LOCALDISK
+#ifndef KEEP_OUTPUT
     sprintf(fname,"%s/%s.%d",MYLOCALDISK,hfile,me);
 #else
     sprintf(fname,"%s.%d",hfile,me);
@@ -287,21 +287,21 @@ int main(int narg, char **args)
     
     char fname[254];
     FILE *fp[3];
-#ifdef LOCALDISK
+#ifndef KEEP_OUTPUT
     sprintf(fname,"%s/%s.srcs.%d",MYLOCALDISK,tsfile,me);
 #else
     sprintf(fname,"%s.srcs.%d",tsfile,me);
 #endif
     fp[0] = fopen(fname,"w");
 
-#ifdef LOCALDISK
+#ifndef KEEP_OUTPUT
     sprintf(fname,"%s/%s.dests.%d",MYLOCALDISK,tsfile,me);
 #else
     sprintf(fname,"%s.dests.%d",tsfile,me);
 #endif
     fp[1] = fopen(fname,"w");
 
-#ifdef LOCALDISK
+#ifndef KEEP_OUTPUT
     sprintf(fname,"%s/%s.freq.%d",MYLOCALDISK,tsfile,me);
 #else
     sprintf(fname,"%s.freq.%d",tsfile,me);
@@ -323,7 +323,7 @@ int main(int narg, char **args)
     // sort; output to files.
     // Files then must be cat'ed in order of processor number.
     // Processor ID in filename should allow that.
-#ifdef LOCALDISK
+#ifndef KEEP_OUTPUT
     sprintf(fname, "%s/%s.vmap.%04d", MYLOCALDISK, tsfile, me);
 #else
     sprintf(fname, "%s.vmap.%04d", tsfile, me);
@@ -456,7 +456,7 @@ int main(int narg, char **args)
     if (me == 0) printf("Generating matrix-market file...\n");
     if (me == 0) {
       char fname[254];
-#ifdef LOCALDISK
+#ifndef KEEP_OUTPUT
       sprintf(fname,"%s/%s.header",MYLOCALDISK,mfile);
 #else
       sprintf(fname,"%s.header",mfile);
@@ -467,7 +467,7 @@ int main(int narg, char **args)
     }
     
     char fname[128];
-#ifdef LOCALDISK
+#ifndef KEEP_OUTPUT
     sprintf(fname,"%s/%s.%d",MYLOCALDISK,mfile,me);
 #else
     sprintf(fname,"%s.%d",mfile,me);

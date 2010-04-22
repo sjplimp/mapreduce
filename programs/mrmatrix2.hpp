@@ -19,6 +19,7 @@
 #include "mrvector2.hpp"
 #include "blockmacros.hpp"
 #include "mrall2.h"
+#include "localdisks.hpp"
 
 using namespace MAPREDUCE_NS;
 using namespace std;
@@ -42,7 +43,7 @@ template <typename IDTYPE>
 class MRMatrix {
   public:  
     MRMatrix(IDTYPE, IDTYPE, MapReduce *, MapReduce *, bool transpose = 0,
-             int pagesize=64, const char *fpath=".");
+             int pagesize=MRMPI_MEMSIZE, const char *fpath=MYLOCALDISK);
     ~MRMatrix() {delete mr; delete emptyRows;};
 
     IDTYPE NumRows() { return N; };
@@ -171,6 +172,7 @@ MRMatrix<IDTYPE>::MRMatrix(
   // Create MapReduce object for all-zero rows.
   MapReduce *emr = new MapReduce(MPI_COMM_WORLD);
   emr->set_fpath(fpath);
+  emr->memsize = pagesize;
   emr->map(1, mrm_do_nothing_map, NULL);
   
   // The initial call to convert incurs overhead for a mapreduce object.

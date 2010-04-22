@@ -78,7 +78,7 @@ int main(int narg, char **args)
   bool postprocess = false;
   enum GenPowerLawEnum gen_flag = GEN_DEFAULT;
   int N = -1;
-  int memsize = 64;
+  int memsize = MRMPI_MEMSIZE;
   const char *optstring = "bcf:m:n:p";
 
   char ch;
@@ -133,10 +133,7 @@ int main(int narg, char **args)
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
 // mr->verbosity = 1;
 // mr->timer = 1;
-#ifdef NEW_OUT_OF_CORE
-  mr->set_fpath(MYLOCALDISK);
   mr->memsize=memsize;
-#endif
 
   MAPFN *genmap;
   int nmaptasks;
@@ -194,9 +191,7 @@ int main(int narg, char **args)
     mr->reduce(&genPowerLaw_RedistributeReduce, NULL);
   }
 
-#ifdef NEW_OUT_OF_CORE
   mr->cummulative_stats(2, 1);
-#endif
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tread = MPI_Wtime();
@@ -229,17 +224,11 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
-#ifdef NEW_OUT_OF_CORE
   mr->cummulative_stats(2, 0);
-#endif
 
   if (postprocess) {
     if (me == 0) {printf("Begin post-process...copy\n"); fflush(stdout);}
-#ifdef NEW_OUT_OF_CORE
     MapReduce *mrout = mr->copy();
-#else
-    MapReduce *mrout = new MapReduce(*mr);
-#endif
     if (me == 0) {printf("                  ...sort_values\n");fflush(stdout);}
     mrout->sort_values(&ncompare);
 
@@ -248,11 +237,7 @@ int main(int narg, char **args)
     count.limit = 10;
     count.flag = 0;
     if (me == 0) {printf("                  ...map\n");fflush(stdout);}
-#ifdef NEW_OUT_OF_CORE
     mrout->map(mrout, &output, &count);
-#else
-    mrout->map(mrout->kv, &output, &count);
-#endif
   
     if (me == 0) {printf("                  ...gather\n");fflush(stdout);}
     mrout->gather(1);
@@ -263,11 +248,7 @@ int main(int narg, char **args)
     count.limit = 10;
     count.flag = 1;
     if (me == 0) {printf("                  ...map\n");fflush(stdout);}
-#ifdef NEW_OUT_OF_CORE
     mrout->map(mrout, &output, &count);
-#else
-    mrout->map(mrout->kv, &output, &count);
-#endif
 
     delete mrout;
   }  // if postprocess

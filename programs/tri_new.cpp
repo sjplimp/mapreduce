@@ -66,11 +66,8 @@ int main(int narg, char **args)
   strcpy(outfile,args[2]);
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->set_fpath(MYLOCALDISK);
   mr->verbosity = 1;
   mr->timer = 1;
-  //mr->memsize = 1;
-  //mr->memsize = 128;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();

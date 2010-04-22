@@ -181,9 +181,6 @@ int main(int narg, char **args)
   // find connected components via MapReduce
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-#ifdef NEW_OUT_OF_CORE
-  mr->set_fpath(MYLOCALDISK);
-#endif
   mr->verbosity = 0;
 
   if (cc.input == FILES) {

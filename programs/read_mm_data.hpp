@@ -121,10 +121,6 @@ void ReadMMData::run(
   // mrraw = all edges in file data
   MapReduce *mrraw = new MapReduce(MPI_COMM_WORLD);
   mrraw->verbosity = 0;
-#ifdef NEW_OUT_OF_CORE
-  mrraw->set_fpath((char *) MYLOCALDISK);
-  mrraw->memsize = MRMEMSIZE;
-#endif
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
