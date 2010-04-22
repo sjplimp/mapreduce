@@ -158,6 +158,15 @@ after that, it will have no effect.
 </P>
 <P>The default value for <I>memsize</I> is 64, meaning 64 Mbyte pages.
 </P>
+<P>The default value can be changed by a compiler setting when the MR-MPI
+library is built.  Using this flag for the compilation of
+the src/mapreduce.cpp file:
+</P>
+<PRE>-DMRMPI_MEMSIZE=n 
+</PRE>
+<P>where n = 16, for example, will build the library with the default
+set to 16 Mbyte pages, instead of 64.
+</P>
 <HR>
 
 <P>The <I>minpage</I> setting determines how many memory pages each processor
@@ -251,6 +260,13 @@ after that, it will have no effect.
 <P>The default value for <I>fpath</I> is ".", which means the current working
 directory.
 </P>
-<HR>
-
+<P>The default value can be changed by a compiler setting when the MR-MPI
+library is built.  Using this flag for the compilation of
+the src/mapreduce.cpp file:
+</P>
+<PRE>-DMRMPI_FPATH=foo 
+</PRE>
+<P>where foo is the desired pathname, will build the library with the
+default fpath set to foo, instead of the current working directory.
+</P>
 </HTML>
