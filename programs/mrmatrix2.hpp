@@ -43,7 +43,7 @@ class MRMatrix {
   public:  
     MRMatrix(IDTYPE, IDTYPE, MapReduce *, MapReduce *, bool transpose = 0,
              int pagesize=64, const char *fpath=".");
-    ~MRMatrix() {delete mr;};
+    ~MRMatrix() {delete mr; delete emptyRows;};
 
     IDTYPE NumRows() { return N; };
     IDTYPE NumCols() { return M; };

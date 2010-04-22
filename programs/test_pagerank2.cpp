@@ -204,6 +204,7 @@ MRVector<IDXTYPE> *pagerank(
          << time_sum / time_cnt << endl;
   }
   delete y;
+  delete zerovec;
   double gsum = x->GlobalSum();
   x->Scale(1./gsum);
   A->Scale(1./alpha);  // Return A to original condition
