@@ -176,13 +176,28 @@ void MapReduce::defaults()
   all2all = 1;
   verbosity = 0;
   timer = 0;
+
+#ifdef MRMPI_MEMSIZE
+  memsize = MRMPI_MEMSIZE;
+#else
   memsize = MBYTES;
+#endif
+
   minpage = 0;
   maxpage = 0;
   keyalign = valuealign = ALIGNKV;
 
+#ifdef MRMPI_FPATH
+#define _QUOTEME(x) #x
+#define QUOTEME(x) _QUOTEME(x)
+#define QMRMPI_FPATH QUOTEME(MRMPI_FPATH)
+  int n = strlen(QMRMPI_FPATH) + 1;
+  fpath = new char[n];
+  strcpy(fpath,QMRMPI_FPATH);
+#else
   fpath = new char[2];
   strcpy(fpath,".");
+#endif
 
   collateflag = 0;
   fcounter_kv = fcounter_kmv = fcounter_sort = 
