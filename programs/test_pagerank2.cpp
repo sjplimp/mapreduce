@@ -129,8 +129,13 @@ MRVector<IDXTYPE> *pagerank(
   int iter; 
   int maxniter = (int) ceil(log10(tolerance) / log10(alpha));
 
-  // Scale matrix A.
-  A->Scale(alpha);
+  // If pre-scaled A by alpha in the constructor, don't need to do it here.
+  // Would like to avoid the additional pass over A here and at end.
+  if (alpha != A->scaleFactor) {
+    if (me == 0)
+      cout << "Scaling A by " << alpha << " " << A->scaleFactor << endl;
+    A->Scale(alpha/A->scaleFactor);
+  }
   x->PutScalar(1./x->GlobalLen());
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -206,8 +211,9 @@ MRVector<IDXTYPE> *pagerank(
   delete y;
   delete zerovec;
   double gsum = x->GlobalSum();
+  // Return matrix to pre-pagerank state.
+  if (alpha != A->scaleFactor) A->Scale(A->scaleFactor/alpha);
   x->Scale(1./gsum);
-  A->Scale(1./alpha);  // Return A to original condition
   return x;
 }
 
@@ -369,8 +375,9 @@ int main(int narg, char **args)
 
   // Persistent storage of the matrix. Will be loaded from files initially.
   // Store the transposed matrix, since it is needed in pagerank's MatVecs.
+  // Pre-scale the matrix by alpha, so don't need another pass for scaling.
   if (me == 0) {cout << "Loading matrix..." << endl; flush(cout);}
-  MRMatrix<IDXTYPE> A(nverts, nverts, mrvert, mredge, true, 
+  MRMatrix<IDXTYPE> A(nverts, nverts, mrvert, mredge, alpha, true, 
                       pagesize, MYLOCALDISK);
 
   delete mredge;

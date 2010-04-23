@@ -42,7 +42,8 @@ public:
 template <typename IDTYPE>
 class MRMatrix {
   public:  
-    MRMatrix(IDTYPE, IDTYPE, MapReduce *, MapReduce *, bool transpose = 0,
+    MRMatrix(IDTYPE, IDTYPE, MapReduce *, MapReduce *, 
+             double alpha = 1., bool transpose = 0,
              int pagesize=MRMPI_MEMSIZE, const char *fpath=MYLOCALDISK);
     ~MRMatrix() {delete mr; delete emptyRows;};
 
@@ -58,6 +59,8 @@ class MRMatrix {
     void Print();
     bool transposeFlag;  // State variable; indicates whether matrix is stored
                          // as A or as A^T.
+    double scaleFactor;  // Factor by which all read/generated entries 
+                         // are scaled.
   private:
     IDTYPE N;  // Number of rows
     IDTYPE M;  // Number of cols
@@ -98,7 +101,7 @@ static void mrm_initialize_matrix(char *key, int keybytes,
   if (outdegree != 0) {
     // Add matrix entries.
     MRNonZero<IDTYPE> v;
-    v.nzv = 1. / (double) outdegree;
+    v.nzv = A->scaleFactor / (double) outdegree;
     
     BEGIN_BLOCK_LOOP(multivalue, valuebytes, nvalues)
 
@@ -155,12 +158,14 @@ MRMatrix<IDTYPE>::MRMatrix(
                       // Assuming mrvert is already aggregated to processors.
   MapReduce *mredge,  // Edges of the graph == matrix nonzeros.
                       // Assuming mredge is already aggregated to processors.
+  double alpha,       // Factor by which to scale all entries.
   bool transpose,     // Flag indicating to store A^T instead of A.
   int pagesize,       // Optional:  MR pagesize to be set by the application.
   const char *fpath   // Optional:  MR filepath to be set by the application.
 )
 {
   transposeFlag = transpose;
+  scaleFactor = alpha;
   // Create matrix MapReduce object mr.  
   mr = mredge->copy();
   mr->memsize = pagesize;
