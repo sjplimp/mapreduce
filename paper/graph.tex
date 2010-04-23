@@ -1,4 +1,4 @@
-\section{Graph Algoriths in MapReduce}
+\section{Graph Algorithms in MapReduce}
 \label{sec:graph}
 
 We begin with a MapReduce procedure for creating large, sparse,
@@ -64,12 +64,12 @@ operations to meet these requirements.
 The PageRank algorithm assings a relative numeric rank to each
 vertex in a graph.
 
-It models the web as a directed graph $G(V,E)$, with each vertex $v
-\in V$ representing a web page and each edge $e_{ij} \in E$
-representing a hyperlink from $v_i$ to $v_j$.  The probability of
+It models the web as a directed graph $G(V,E)$, with each vertex $v_i
+\in V$ representing a web page and each edge $E_{ij} \in E$
+representing a hyperlink from $v_i$ TO $v_j$.  The probability of
 moving from $v_i$ to another vertex $v_j$ is $\alpha/d_{out}(v_i) +
 (1-\alpha)/|V|$, where $\alpha$ is a user-defined parameter (usually
-0.8-0.9), $d_{out}(v)$ is the outdegree of vertex $v$, and $|V|$ is
+0.8-0.9), $d_{out}(v_i)$ is the outdegree of vertex $v_i$, and $|V|$ is
 the cardinality of $V$.  The first term represents the probability of
 following a given link on page $v_i$; the second represents the
 probability of moving to a random page.  For pages with no outlinks,
@@ -77,7 +77,7 @@ the first term is $\alpha/|V|$, indicating equal likelihood to move to
 any other page.  Equivalently, the graph can be represented by a
 matrix $A$~\cite{LangvilleMeyer05a}, with matrix entries $A_{ij} =
 \alpha/d_{out}(v_i)$ if vertex $v_i$ links to $v_j$.  The PageRank
-algorithm, then, is simply a power-method iteration in which the
+algorithm, then, is essentially a power-method iteration in which the
 dominating computation is matrix-vector multiplication $A^T x=y$,
 where $x$ is the PageRank vector from the previous iteration.
 
@@ -86,17 +86,38 @@ iterations.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+  xxxx\=xxxxx\=xxxxx\=xxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-$N_{\rm remain} = N_z$ \\
-while $N_{\rm remain} > 0$: \\
-\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
-           \> \> output Key = $(V_i,V_j)$, Value = NULL \\
-\> Collate() \\
-\> Reduce(): \> {\bf Remove} duplicate edges \\
-              \> \> input Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
-              \> \> output Key = $(V_i,V_j)$, Value = NULL \\
-\> $N_{\rm remain} = N_z - N_{kv}$
+Input from R-MAT generator: \\
+\> MapReduce object $V$ containing all graph vertices:  Key=$v_i$, Value = NULL.  \\
+\> MapReduce object $E$ containing all graph edges: Key=$v_i$, Value = $v_j$. \\
+Initialize MapReduce object for matrix $A$  and \\
+MapReduce object $MT$ containing all vertices with no outlinks.\\
+\> Copy: $A = E$ \\
+\> Add: $V$ to $A$ \\
+\> Collate $A$: Vertex is Key \\
+\> Reduce $A$:  \\
+\> \> Input:  Key = $v_i$; MultiValue = NULL,$v_j$,$v_k$,... \\
+\> \> If (${nvalues} > 1$) \\
+\> \> \> Compute: $d_{out}(v_i) = {nvalues} - 1$. \\
+\> \> \> Output:  For each $v_j$ in MultiValue, Key = $v_i$; Value = ($v_j$, $\alpha/d_{out}(v_i)$). \\
+\> \> else \\
+\> \> \> Output to $MT$: Key = $v_i$; Value = 0. \\
+Initialize MapReduce object for pagerank vector $x$. \\
+\> Map:   \\
+\> \> Input:  Graph vertices $V$. \\
+\> \> Output:  For each vertex, Key = $v_i$; Value = $1/|V|$. \\
+While (${residual} > {tolerance}$) \\
+\> Compute contribution for random jumps and vertices with no outlinks. \\
+\> \> Add: $V$ to $MT$. \\
+\> \> Collate $MT$:  Vertex is Key. \\
+\> \> Reduce $MT$:   \\
+\> \> \> Input:  Key = $v_i$; MultiValue = $x_i, 0$ if $v_i \in {MT}$; MultiValue = $x_i$ if $v_i \notin {MT}$. \\
+\> \> \> Compute:  Contributions; store in data pointer. \\
+\> \> \> Output:  If ${nvalues} = 2$, Key = $v_i$; Value = 0. \\
+\> \> MPI\_Allreduce with MPI\_SUM to compute global contributions. \\
+\> Compute $y = A^T x$. 
+
 
   \end{tabbing}
  \end{minipage}}\end{center}
