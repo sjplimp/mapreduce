@@ -67,7 +67,6 @@ notation:
   flag assigned to a vertex = W (winner) or L (loser)
 
 initialize:
-  empty MR for accumulating maximal independent (MI) set vertices
   store graph with edges as keys (Eij,NULL)
   eliminate Vi = Vj edges
   eliminate double-counted edges where both Eij and Eji exist
@@ -79,6 +78,8 @@ initialize:
        map: emit (Vi,Vi*) where Vi = old Vi, Vi* = new 1-N
        use this to re-label the Eij keys
   clone() to create initial KMV
+
+open() empty MRv for accumulating maximal independent (MI) set vertices
 
 while any edges remain:
   reduce1()
@@ -110,6 +111,7 @@ while any edges remain:
       emit 1 KV per edge: (Eij,L) with Vi < Vj
     else:      
       emit 1 KV per edge: (Eij,NULL) with Vi < Vj
+  break if no non-LOSER edges left
   collate()
 
-complete the MR with MI set vertices
+Mrv close()

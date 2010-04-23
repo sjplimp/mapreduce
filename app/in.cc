@@ -1,4 +1,4 @@
-# RMAT matrix generation & statistics
+# connected-component identification
 
 variable order equal 15
 variable nz equal 2
