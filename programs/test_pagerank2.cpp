@@ -52,42 +52,95 @@ using namespace std;
 #define ABS(a) ((a) >= 0. ? (a) : -1*(a));
 
 ////////////////////////////////////////////////////////////////////////////
-// Compute local contribution to adjustment for allzero rows.
+// Compute local contribution to adjustment for randomlinks and allzero rows.
 //
-// allzero_contribution reduce() function
-// Performs a dot product of emptyRows and vector x.
+struct LADJUSTMENT {
+  double randomlink;
+  double alpha_over_len;
+  double sum;
+};
+
+// adjustment_contribution reduce() function
+// Computes alpha / N * dot_product(emptyRows, x) + randomlink * x->LocalSum().
 // Re-emits emptyRows for next iteration.
 // Input:  vector entries (i, v_i) + indices of allzero rows (i, 0)
-// Output:  sum of v_j for each allzero row j; stored in ptr.
-void allzero_contribution(char *key, int keybytes, char *multivalue, 
-                          int nvalues, int *valuebytes,
-                          KeyValue *kv, void *ptr)
+// Output:  adjustment computed, stored in ptr; re-emit emptyRows.
+void adjustment_contribution(char *key, int keybytes, char *multivalue, 
+                             int nvalues, int *valuebytes,
+                             KeyValue *kv, void *ptr)
 {
-  if (nvalues == 2) {
+  struct LADJUSTMENT *adj = (struct LADJUSTMENT *) ptr;
+  assert (nvalues == 1 || nvalues == 2);
+  if (nvalues == 1) {
+    // This is not an allzero row; 
+    // multivalue has only v_j (from x).
+    // Compute adjustment due to randomlink only.
+    adj->sum += adj->randomlink * *((double*)multivalue);
+  }
+  else {
     // This is an allzero row; 
     // multivalue has 0 (from emptyRows) and v_j (from x).
+    // Compute adjustment, then re-emit the emptyRow.
     const double zero = 0.;
-    double *sum = (double *) ptr;
     double *values = (double *) multivalue;
-    *sum += (values[0] + values[1]);
+    adj->sum += (adj->alpha_over_len + adj->randomlink) * (values[0]+values[1]);
     kv->add(key, keybytes, (char *) &zero, sizeof(double));
   }
 }
 
-double compute_local_allzero_adj(
+double compute_local_adj(
   MRMatrix<IDXTYPE> *A,
   MRVector<IDXTYPE> *x,
-  double alpha
+  double alpha,
+  double randomlink
 )
 {
-  double sum = 0.;
+  struct LADJUSTMENT adj;
+  adj.randomlink = randomlink;
+  adj.alpha_over_len = alpha / x->GlobalLen();
+  adj.sum = 0.;
 
   MapReduce *emr = A->emptyRows;
 
   emr->add(x->mr);
-  emr->compress(allzero_contribution, &sum);
+  emr->compress(adjustment_contribution, &adj);
 
-  return (alpha * sum / x->GlobalLen());
+  return(adj.sum);
+}
+
+////////////////////////////////////////////////////////////////////////////
+// With one pass over y vector, add in the global adjustment and then
+// compute the local max norm.  Return the global max norm.
+struct GADJUSTMENT {
+  double adjustment;
+  double max;
+};
+
+void add_and_max(uint64_t itask, char *key, int keybytes,
+                 char *value, int valuebytes, KeyValue *kv, void *ptr)
+{
+  struct GADJUSTMENT *adj = (struct GADJUSTMENT *) ptr;
+  double *v = (double *) value;
+
+  *v += adj->adjustment;
+  if (*v > adj->max) adj->max = *v;
+  kv->add(key, keybytes, value, valuebytes);
+}
+
+double add_scalar_and_compute_gmax_norm(
+  MRVector<IDXTYPE> *y,
+  double scalar
+)
+{
+  struct GADJUSTMENT adj;
+  adj.adjustment = scalar;
+  adj.max = 0.;
+
+  y->mr->map(y->mr, add_and_max, &adj);
+
+  double gmax;
+  MPI_Allreduce(&adj.max, &gmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  return gmax; 
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -145,16 +198,10 @@ MRVector<IDXTYPE> *pagerank(
   // PageRank iteration
   for (iter = 0; iter < maxniter; iter++) {
 
-    // Compute adjustment for irreducibility (1-alpha)/n
-    double ladj = 0.;
+    // Compute local adjustment for irreducibility (1-alpha)/n 
+    // plus local adjustment for all-zero rows.
     double gadj = 0.;
-    ladj = randomlink * x->LocalSum();
-
-    // Compute local adjustment for all-zero rows.
-    double allzeroadj = 0.;
-    if (A->nEmptyRows)
-      allzeroadj = compute_local_allzero_adj(A, x, alpha);
-    ladj += allzeroadj;
+    double ladj = compute_local_adj(A, x, alpha, randomlink);
 
     // Compute global adjustment via all-reduce-like operation.
     // Cheating here!  Should be done through MapReduce.
@@ -163,11 +210,11 @@ MRVector<IDXTYPE> *pagerank(
     // Compute global adjustment.
     A->MatVec(x, y, zerovec);
 
-    // Add adjustment to product vector in mr.
-    y->AddScalar(gadj);
-
-    // Compute max-norm of vector in mr.
-    double gmax = y->GlobalMax();
+    // Add adjustment to y and compute the resulting max norm.
+    // Can do these with one pass over y vector.
+    // y->AddScalar(gadj);
+    // double gmax = y->GlobalMax();
+    double gmax = add_scalar_and_compute_gmax_norm(y, gadj);
 
     // Scale vector in mr by 1/maxnorm.
     y->Scale(1./gmax);
