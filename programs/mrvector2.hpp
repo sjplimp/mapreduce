@@ -67,8 +67,10 @@ static void mrv_initialize_vec(int itask, KeyValue *kv, void *ptr)
   IDTYPE share = n / nprocs;
   IDTYPE rem = n % nprocs;
   IDTYPE first = itask * share + 1;  // Matrix-market is one-based.
-  first += (itask < rem);
-  IDTYPE last = first + share + ((itask + 1) < rem);
+
+  first += MIN(itask, rem);
+
+  IDTYPE last = first + share + (itask < rem);
 
   for (IDTYPE i = first; i < last; i++)
     kv->add((char *) &i, sizeof(i), (char *)&zero, sizeof(zero));
