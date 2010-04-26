@@ -12,5 +12,6 @@
 #include "map_print_triangle.h"
 #include "map_rmat_edge.h"
 #include "map_strip.h"
+#include "map_vertex_random.h"
 #include "map_vertex_self.h"
 #include "map_zone_multi.h"
