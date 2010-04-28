@@ -8,23 +8,23 @@ graphs with power-law degree distributions.  They are commonly used to
 represent web and social networks.  The user specifices 6 parameters
 which define the graph: the number of vertices $N$ and edges $M$, and
 4 parameters $a$, $b$, $c$, $d$ which sum to 1.0 and are discussed
-below.  The algorithm in Figure \ref{fig:rmat} generates $N_z = MN$
-unique non-zero entries in a sparse $NxN$ matrix $A$, where each entry
+below.  The algorithm in Figure \ref{fig:rmat} generates $M$ unique
+non-zero entries in a sparse $NxN$ matrix $A$, where each entry
 $A_{ij}$ represents an edge between graph vertices $(V_i,V_j)$.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
   xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-$N_{\rm remain} = N_z$ \\
-while $N_{\rm remain} > 0$: \\
-\> 1 Map: \> Generate $N_{\rm remain}/P$ random edges on each processor \\
+$M_{\rm remain} = M$ \\
+while $M_{\rm remain} > 0$: \\
+\> 1 Map: \> Generate $M_{\rm remain}/P$ random edges on each processor \\
            \> \> output Key = $(V_i,V_j)$, Value = NULL \\
 \> 1 Collate \\
 \> 1 Reduce: \> Remove duplicate edges \\
               \> \> input Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
               \> \> output Key = $(V_i,V_j)$, Value = NULL \\
-\> $N_{\rm remain} = N_z - N_{kv}$
+\> $M_{\rm remain} = M - N_{kv}$
 
   \end{tabbing}
  \end{minipage}}\end{center}
@@ -46,8 +46,8 @@ element $A_{ij}$.
 The map() will often generate some small number of duplicate edges.
 The collate() and reduce() operations remove the duplicates.  The
 entire map-collate-reduce sequence is repeated until the number of
-resulting key/value pairs $N_{kv}$ equals $N_z$.  For reasonably
-sparse graphs this typically takes only a few iterations.
+resulting key/value pairs $N_{kv} = M$.  For reasonably sparse graphs
+this typically takes only a few iterations.
 
 Note that the degree distribution of vertices in the graph depends on
 the choice of parameters $a$, $b$, $c$, $d$.  If one of the four
@@ -390,14 +390,14 @@ V_j$ for every edge, i.e. an upper-triangular R-MAT matrix.
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
   xxxx\=xxxxxxxxxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-Assign random values to each vertex \\
+Map: assign random values to each vertex \\
 Clone: convert edge key/values directly to key/multivalues \\
-Create empty MapReduce MRv for maximal independent set vertices \\
+Create: empty MapReduce MRv for maximal independent set vertices \\
 \\
 while $N_{edges} > 0$: \\
-\> 1 Reduce: \> Determine winner/loser vertex of each edge \\
-       \> \> \> input Key = $E_{ij}$, Multivalue = NULLS or LOSER \\
-       \> \> \> if any value is LOSER, emit nothing \\
+\> 1 Reduce: \> Determine WINNER/LOSER vertex of each edge \\
+       \> \> \> input Key = $E_{ij}$ with $V_i < V_j$, Multivalue = NULL or LOSER \\
+       \> \> \> if either value is LOSER, emit nothing \\
        \> \> \> $V_w$ = WINNER vertex, $V_l$ = LOSER vertex \\
        \> \> \> output Key = $V_w$, Value = $V_l$ WINNER \\
        \> \> \> output Key = $V_l$, Value = $V_w$ LOSER \\
@@ -405,28 +405,37 @@ while $N_{edges} > 0$: \\
 \> 2 Reduce: \> Find WINNER vertices \\
        \> \> \> input Key = $V_i$, MultiValue = $V V V V ...$ \\
        \> \> \> if all $V$ are WINNERs: \\
-      \> \> \> \> output to MRv, Key = $V_i$, Value = NULL \\
       \> \> \> \> for each $V$ in Multivalue: \\
      \> \> \> \> \> output Key = $V_j$, Value = $Vi$ LOSER \\
        \> \> \> else: \\
       \> \> \> \> for each $V$ in Multivalue: \\
      \> \> \> \> \> output Key = $V_j$, Value = $V_i$ \\
 \> 2 Collate: \> Vertex as key \\
-\> 3 Reduce: \> Find LOSER vertices, delete their edges \\
+\> 3 Reduce: \> Find LOSER vertices \\
        \> \> \> input Key = $V_i$, MultiValue = $V V V V ...$ \\
        \> \> \> if any $V$ is LOSER: \\
       \> \> \> \> for each $V$ in Multivalue: \\
-     \> \> \> \> \> output Key = $E_{ij}$, Value = LOSER \\
-	\> \> \> else: \\
+     \> \> \> \> \> output Key = $V_j$, Value = $Vi$ LOSER \\
+       \> \> \> else: \\
       \> \> \> \> for each $V$ in Multivalue: \\
-     \> \> \> \> \> output Key = $E_{ij}$, Value = NULL \\
-\> 3 Collate: \> Edge as key \\
+     \> \> \> \> \> output Key = $V_j$, Value = $V_i$ \\
+\> 3 Collate: \> Vertex as key \\
+\> 4 Reduce: \> Emit WINNER vertices and LOSER edges \\
+       \> \> \> input Key = $V_i$, MultiValue = $V V V V ...$ \\
+       \> \> \> if all $V$ are LOSERs: \\
+      \> \> \> \> output to MRv, Key = $V_i$, Value = NULL \\
+       \> \> \> for each $V$ in Multivalue: \\
+      \> \> \> \> if $V$ is LOSER: \\
+     \> \> \> \> \> output Key = $E_{ij}$ with $V_i < V_j$, Value = LOSER \\
+      \> \> \> \> else: \\
+     \> \> \> \> \> output Key = $E_{ij}$ with $V_i < V_j$, Value = NULL \\
+\> 4 Collate: \> Edge as key \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
 
  \caption{MapReduce algorithm for finding a maximal independent set of
- graph vertices.}
+ graph vertices via Luby's algorithm.}
 
  \label{fig:luby}
 \end{figure}
@@ -436,58 +445,68 @@ vertex, which will be used to compare pairs of vertices.  The vertex
 ID itself could be used as the random value, but since the vertices
 eventually selected for the MIS depend on the randomization, this may
 introduce an unwanted bias.  Instead a random number generator can be
-used to assign a random value $R_i$ to each vertex (during a map()
-operation), which is then carried along with the vertex ID through
-each stage of the algorithm.  In the notation of Figure
-\ref{fig:luby}, each $V_i$ is then really two quantities, a vertex ID
-(1 to $N$) and $R_i$.  Alternatively, the $R_i$ can be used to relabel
-the vertices in a random manner, assigning each a new, unique vertex
-ID from 1 to $N$.  In this case, $V_i$ is simply the new vertex ID,
-and the vertices in the final MIS could be remapped to recover their
-original IDs.  These operations can be performed with a few extra
-MapReduce stages, outside the iteration loop.
+used to assign a consistent random value $R_i$ to each vertex in each
+edge (via a map() operation), which is then carried along with the
+vertex ID through each stage of the algorithm.  In the notation of
+Figure \ref{fig:luby}, each $V_i$ is then really two quantities, a
+vertex ID (1 to $N$) and $R_i$.  Alternatively, the $R_i$ can be used
+to relabel the vertices in a random manner, assigning each a new,
+unique vertex ID from 1 to $N$.  In this case, $V_i$ is simply the new
+vertex ID, and the vertices in the final MIS could be remapped to
+recover their original IDs.  These operations could be performed with
+a few extra MapReduce steps, outside the iteration loop.
 
 The pre-iteration clone() operation converts the initial list of edge
 key/values one by one to key/multivalue pairs, with the edge as the
-key, and NULL as the value.  This is so that the iteration can begin
-with a reduce() operation, without need for a collate() operation.  A
+key, and NULL as the value.  This is so the iterations can begin with
+a reduce() operation, without need for a collate() operation.  A
 second empty MapReduce object is also initialized, which will
 accumulate MIS vertices as the iterations proceed.
 
 At each iteration, the current set of edges are examined to identify
-winning vertices.  There are removed and added to the MIS.  Vertices
-adjacent to winners are flagged as losers, and all edges adjacent to
-losers are flagged for removal at the start of the next iteration.
-Thus each iteration removes edges from the initially full graph, and
-adds vertices to the MIS.  When the graph is empty, the MIS is
-complete.
+winning vertices.  Vertices adjacent to winners are flagged as losers,
+and all edges adjacent to losers are flagged for removal at the start
+of the next iteration.  Vertices with all losing edges are flagged as
+winners.  At each iteration edges are removed from the graph, and
+winning vertices are added to the MIS.  When the graph is empty, the
+MIS is complete.
 
 The first reduce() operation flags the two vertices in each edge as a
 potential winner or loser.  This is done by comparing the two random
 values for the vertices (or the randomized vertex IDs as explained
 above).  The first collate() operation thus produces a multivalue for
-each vertex which contains all the vertices it shares an edge with and
-associated winner/loser flags for $V_i$.  In the second reduce()
+each vertex $V_i$ which contains all the vertices it shares an edge
+with, and associated winner/loser flags.  In the second reduce()
 operation, if $V_i$ won the comparison with all its edge neighbors,
-then it is a ``winner'' vertex and is emitted to the second MapReduce
-object.  All vertices connected to the winner are emitted with a loser
-flag.  If $V_i$ is not an overall winner, its edge vertices are
-emitted without the loser flag.  The second collate() operation
-collects this new information for each vertex.
+then it is a ``winner'' vertex.  All vertices connected to the winner
+are emitted with a loser flag.  If $V_i$ is not an overall winner, its
+edge vertices are emitted without the loser flag.  The second
+collate() operation collects this new information for each vertex.
 
 In the third reduce() operation, if $V_i$ was flagged as a loser by
-any edge neighbor who was a winner, then it becomes a loser.  All of
-its edges are emitted with a loser flag.  If $V_i$ was not flagged as
-a loser, its edges are emitted with no flag.  The final collate()
-operation gathers this information for each edge; each edge will have
-two values (from each vertex), which are either a loser flag or NULL.
-At the first stage of the next iteration, any edge flagged as a loser
-does not compare its two vertices; it is effectively deleted from the
-graph.
+any edge neighbor who was a winner, then it becomes a losing vertex
+and emits all its edge vertices with a loser flag.  Otherwise it emits
+all its edge vertices without the flag.
 
-The Luby iterations end when all edges have been removed from the
-graph.  At this point, the second MapReduce object contains a complete
-MIS of vertices.
+In the fourth reduce() operation, some vertices will have all their
+edge vertices flagged as losers.  These vertices are all winners,
+either the ones identified in the second reduce() operation, or
+additional vertices who would become singletons (having no edges) when
+edges containing a loser vertex are removed (on the next iteration).
+All of these winning vertices are emitted to the MapReduce object that
+stores the accumulating MIS.
+
+All edges of each vertex are also emitted, retaining the loser flag if
+they have it.  They are emitted with $E_ij$ as their key, with $V_i <
+V_j$.  This is to insure both copies of the edge come together via the
+fourth collate() operation.  The multivalue for each edge will now
+have two values, either of which may be NULL or a loser flag.
+
+At the first stage of the next iteration, any edge flagged by either
+value as a loser does not compare its two vertices; it is effectively
+deleted from the graph.  The Luby iterations end when all edges have
+been removed from the graph.  At this point, the second MapReduce
+object contains a complete MIS of vertices.
 
 \subsection{Single source shortest path}
 
