@@ -31,6 +31,10 @@ double TriFind::run(MapReduce *mre, MapReduce *mrt, uint64_t &ntri)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
+  // load mre edges into mrt
+
+  mrt->add(mre);
+
   // augment edges with degree of each vertex
   // mrt = (Eij,(Di,Dj))
 

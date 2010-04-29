@@ -58,10 +58,12 @@ int main(int narg, char **args)
   MatrixUpper upper;
   upper.run(mre,newedge);
 
-  // MRT for triangles, initially a copy of MRE
+  // MRT for triangles
   // enumerate triangles
 
-  MapReduce *mrt = mre->copy();
+  MapReduce *mrt = new MapReduce(MPI_COMM_WORLD);
+  mrt->verbosity = 1;
+  mrt->timer = 1;
 
   uint64_t ntri;
   TriFind tri;
