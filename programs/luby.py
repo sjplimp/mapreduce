@@ -59,13 +59,13 @@ def edge_game(key,mvalue,mr):
   if LOSER in mvalue: return
   ri = mvalue[0][0]
   rj = mvalue[0][1]
-  if ri > rj:
+  if ri < rj:
     mr.add(key[0],(WINNER,ri,key[1],rj))
     mr.add(key[1],(LOSER,rj,key[0],ri))
-  elif rj > ri:
+  elif rj < ri:
     mr.add(key[1],(WINNER,rj,key[0],ri))
     mr.add(key[0],(LOSER,ri,key[1],rj))
-  elif key[0] > [1]:
+  elif key[0] < [1]:
     mr.add(key[0],(WINNER,ri,key[1],rj))
     mr.add(key[1],(LOSER,rj,key[0],ri))
   else:
@@ -146,7 +146,7 @@ if me == 0: print nedges,"edges in input file"
 # eliminate duplicate edges = both I,J and J,I exist
 # results in ((vi,vj),None) with all vi < vj
 
-mr.map_kv(mr,invert_edges)
+mr.map_mr(mr,invert_edges)
 mr.collate()
 nedges = mr.reduce(remove_duplicates)
 if me == 0: print nedges,"edges after duplicates removed"
@@ -154,7 +154,7 @@ if me == 0: print nedges,"edges after duplicates removed"
 # assign a random # to each vertex
 # results in ((vi,vj),(Ri,Rj)) with all vi < vj
 
-mr.map_kv(mr,add_random)
+mr.map_mr(mr,add_random)
 nedges = mr.clone()
 
 # loop until no more edges in graph

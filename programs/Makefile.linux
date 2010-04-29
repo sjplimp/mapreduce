@@ -1,9 +1,9 @@
 # Linux/MPI Makefile for MapReduce programs
 
 CC =		g++
-CCFLAGS =	-g -I../src  -DMPICH_IGNORE_CXX_SEEK
+CCFLAGS =	-g -O -I../src  -DMPICH_IGNORE_CXX_SEEK
 LINK =		g++
-LINKFLAGS =	-g  
+LINKFLAGS =	-g -O 
 USRLIB =	-L../src -lmrmpi
 SYSLIB =	-lmpich -lpthread -lrt
 DEPFLAGS = 	-M

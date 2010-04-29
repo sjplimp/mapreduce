@@ -2,6 +2,11 @@ Luby's alg for maximal indenpendent sets in MapReduce
 SJP, 30 Apr 09
 original version for Python file
 
+PROBLEM: it does not detect singleton vertices (no edges)
+         that remain after deleting a winner vertex, its
+	 edges, the loser vertices adjacent to winner, and
+	 all edges attacthed to losers
+
 notation:
   Vi = ID of vertex I
   Eij = I,J edge = Vi Vj
@@ -58,7 +63,12 @@ while any edges remain:
   collate()
 
 ----------------
-modified version for C++ and paper
+modified version for C++
+
+PROBLEM: it does not detect singleton vertices (no edges)
+         that remain after deleting a winner vertex, its
+	 edges, the loser vertices adjacent to winner, and
+	 all edges attacthed to losers
 
 notation:
   Vi = IDi Ri = ID of vertex I, random value assigned to each vertex
@@ -70,7 +80,8 @@ initialize:
   store graph with edges as keys (Eij,NULL)
   eliminate Vi = Vj edges
   eliminate double-counted edges where both Eij and Eji exist
-  assign random values to each vertex:
+  store with each Eij with Vi < Vj
+  assign random values consistently to each vertex:
     a) store vertex as IDi Ri where Ri is a random #
     b) randomly shuffle the 1-N IDs to have new IDs, then map back at end
        map: emit (Ri,Vi) where Ri = random @, Vi = 1 to N
@@ -112,6 +123,70 @@ while any edges remain:
     else:      
       emit 1 KV per edge: (Eij,NULL) with Vi < Vj
   break if no non-LOSER edges left
+  collate()
+
+Mrv close()
+
+----------------
+2nd modified version for C++ and paper
+it does detect singleton vertices, takes an extra collate/reduce
+
+notation:
+  Vi = IDi Ri = ID of vertex I, random value assigned to each vertex
+  Ri can be dropped if Vi is randomized (see below)
+  Eij = I,J edge = Vi Vj = IDi Ri IDj Rj
+  flag assigned to a vertex = W (winner) or L (loser)
+
+initialize:
+  store graph with edges as keys (Eij,NULL)
+  eliminate Vi = Vj edges
+  eliminate double-counted edges where both Eij and Eji exist
+  store with each Eij with Vi < Vj
+  assign random values consistently to each vertex:
+    a) store vertex as IDi Ri where Ri is a random #
+    b) randomly shuffle the 1-N IDs to have new IDs, then map back at end
+       map: emit (Ri,Vi) where Ri = random @, Vi = 1 to N
+       aggregate()
+       map: emit (Vi,Vi*) where Vi = old Vi, Vi* = new 1-N
+       use this to re-label the Eij keys
+  clone() to create initial KMV
+
+open() empty MRv for accumulating maximal independent (MI) set vertices
+don't worry about singletons initially, since aren't in graph of edges
+
+while (1):
+  reduce1()
+    operate on edges, all with Vi < Vj
+    delete losing edges, flag vertices as W/L via Luby's game
+    input KMV: Eij: NULL NULL (one or both of NULL may be L)
+    each edge has 2 values (just 1 on initial iteration)
+    if either of 2 values is L, skip this edge (deletes it)
+    play the Luby game:
+      assign W to smallest vertex (break ties in RN with vertex IDs)
+      assign L to largest vertex
+    emit 2 KV pairs: (Vw, Vl W), (Vl, Vw L)
+  break if all edges deleted (nothing to collate)
+  collate()
+  reduce2()
+    operate on vertices, pick winning vertices, flag their edges
+    input KMV, Vi: E E E E ... (one value per edge)
+    if all E are winners: emit 1 KV per edge: (Vj, Vi L)
+    else: emit 1 KV per edge: (Vj,Vi)
+  collate()
+  reduce3()
+    operate on vertices, pick losing vertices, flag their edges
+    input KMV, Vi: E E E E ... (one value per edge)
+    if any E are losers:  emit 1 KV per edge: (Vj, Vi L)
+    else: emit 1 KV per edge: (Vj,Vi)
+  collate()
+  reduce4()
+    operate on vertices, emit winner vertices to set, emit edges
+    input KMV, Vi: E E E E ... (one value per edge)
+    if all E are losers, then I am a winner, emit (Vi,NULL) to MRv
+      could be original winner or singleton winner (all neighs are losers)
+    emit 1 KV per edge, all with Vi < Vj in Eij
+      (Eij,NULL) if E is not a loser
+      (Eij,L) if E is a loser
   collate()
 
 Mrv close()
