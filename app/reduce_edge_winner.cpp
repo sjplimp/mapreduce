@@ -23,9 +23,9 @@ void ReduceEdgeWinner::reduce(char *key, int keybytes,
 			      char *multivalue, int nvalues, int *valuebytes,
 			      KeyValue *kv, void *ptr)
 {
-  EDGE *edge = (EDGE *) key;
-  if (valuebytes[0] || (nvalues == 2 && valuebytes[1])) return;
+  if (nvalues == 2 && (valuebytes[0] || valuebytes[1])) return;
 
+  EDGE *edge = (EDGE *) key;
   int winner;
   if (edge->ri < edge->rj) winner = 0;
   else if (edge->rj < edge->ri) winner = 1;
@@ -40,14 +40,14 @@ void ReduceEdgeWinner::reduce(char *key, int keybytes,
     vf.v = edge->vj;
     vf.r = edge->rj;
     vf.flag = 1;
-    printf("EWIN EMIT: %u %g %u %g %d\n",v.v,v.r,vf.v,vf.r,vf.flag);
+    //printf("EWIN EMIT: %u %g %u %g %d\n",v.v,v.r,vf.v,vf.r,vf.flag);
     kv->add((char *) &v,sizeof(VERTEX),(char *)&vf,sizeof(VFLAG));
     v.v = edge->vj;
     v.r = edge->rj;
     vf.v = edge->vi;
     vf.r = edge->ri;
     vf.flag = 0;
-    printf("EWIN EMIT: %u %g %u %g %d\n",v.v,v.r,vf.v,vf.r,vf.flag);
+    //printf("EWIN EMIT: %u %g %u %g %d\n",v.v,v.r,vf.v,vf.r,vf.flag);
     kv->add((char *) &v,sizeof(VERTEX),(char *) &vf,sizeof(VFLAG));
   } else {
     v.v = edge->vj;
@@ -55,14 +55,14 @@ void ReduceEdgeWinner::reduce(char *key, int keybytes,
     vf.v = edge->vi;
     vf.r = edge->ri;
     vf.flag = 1;
-    printf("EWIN EMIT: %u %g %u %g %d\n",v.v,v.r,vf.v,vf.r,vf.flag);
+    //printf("EWIN EMIT: %u %g %u %g %d\n",v.v,v.r,vf.v,vf.r,vf.flag);
     kv->add((char *) &v,sizeof(VERTEX),(char *) &vf,sizeof(VFLAG));
     v.v = edge->vi;
     v.r = edge->ri;
     vf.v = edge->vj;
     vf.r = edge->rj;
     vf.flag = 0;
-    printf("EWIN EMIT: %u %g %u %g %d\n",v.v,v.r,vf.v,vf.r,vf.flag);
+    //printf("EWIN EMIT: %u %g %u %g %d\n",v.v,v.r,vf.v,vf.r,vf.flag);
     kv->add((char *) &v,sizeof(VERTEX),(char *) &vf,sizeof(VFLAG));
   }
 }

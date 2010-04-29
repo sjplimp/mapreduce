@@ -17,6 +17,8 @@ class MapVertexRandom : public Map {
   ~MapVertexRandom() {}
 
  private:
+  int seed;
+
   typedef struct {
     uint64_t vi,vj;
   } VPAIR;

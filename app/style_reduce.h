@@ -6,6 +6,7 @@
 #include "reduce_nsq_angles.h"
 #include "reduce_second_degree.h"
 #include "reduce_sum.h"
+#include "reduce_vertex_emit.h"
 #include "reduce_vertex_loser.h"
 #include "reduce_vertex_winner.h"
 #include "reduce_zone_reassign.h"

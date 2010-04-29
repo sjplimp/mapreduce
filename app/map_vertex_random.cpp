@@ -16,13 +16,10 @@ MapVertexRandom(APP *app, char *idstr, int narg, char **arg) :
 {
   if (narg != 1) error->all("Illegal map vertex_random command");
 
-  int seed = atoi(arg[0]);
-
-  int me;
-  MPI_Comm_rank(world,&me);
-  srand48(seed+me);
+  seed = atoi(arg[0]);
 
   appmap_mr = map;
+  appptr = this;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -33,9 +30,13 @@ void MapVertexRandom::map(uint64_t itask, char *key, int keybytes,
   VPAIR *vpair = (VPAIR *) key;
   EDGE edge;
 
+  MapVertexRandom *data = (MapVertexRandom *) ptr;
+
   edge.vi = vpair->vi;
-  edge.ri = vpair->vi;
+  srand48(edge.vi + data->seed);
+  edge.ri = drand48();
   edge.vj = vpair->vj;
-  edge.rj = vpair->vj;
+  srand48(edge.vj + data->seed);
+  edge.rj = drand48();
   kv->add((char *) &edge,sizeof(EDGE),NULL,0);
 }

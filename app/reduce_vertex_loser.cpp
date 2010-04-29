@@ -1,9 +1,12 @@
 #include "reduce_vertex_loser.h"
+#include "blockmacros.h"
 #include "error.h"
 
+#include "mapreduce.h"
 #include "keyvalue.h"
 
 using namespace APP_NS;
+using MAPREDUCE_NS::MapReduce;
 using MAPREDUCE_NS::KeyValue;
 
 /* ---------------------------------------------------------------------- */
@@ -23,44 +26,51 @@ void ReduceVertexLoser::reduce(char *key, int keybytes,
 			       char *multivalue, int nvalues, int *valuebytes,
 			       KeyValue *kv, void *ptr)
 {
+  int i;
   int size = 2*sizeof(uint64_t);
-
   int loseflag = 0;
-  for (int i = 0; i < nvalues; i++) {
+
+  uint64_t nvalues_total;
+  CHECK_FOR_BLOCKS(multivalue,valuebytes,nvalues,nvalues_total)
+  BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
+
+  for (i = 0; i < nvalues; i++) {
     if (valuebytes[i] > size) {
       loseflag = 1;
       break;
     }
   }
+  if (i < nvalues) break;
+
+  END_BLOCK_LOOP
 
   VERTEX *v = (VERTEX *) key;
   VFLAG *vf;
-  EDGE edge;
-  int flag = 0;
+  VERTEX v1out,v2out;
+  VFLAG vfout;
 
-  for (int i = 0; i < nvalues; i++) {
+  BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
+
+  for (i = 0; i < nvalues; i++) {
     vf = (VFLAG *) multivalue;
-    if (v->v < vf->v) {
-      edge.vi = v->v;
-      edge.ri = v->r;
-      edge.vj = vf->v;
-      edge.rj = vf->r;
-    } else {
-      edge.vi = vf->v;
-      edge.ri = vf->r;
-      edge.vj = v->v;
-      edge.rj = v->r;
-    }
+    v1out.v = vf->v;
+    v1out.r = vf->r;
     if (loseflag) {
-      printf("VLOSE EDGE (%u %g) (%u %g): %d\n",
-	     edge.vi,edge.ri,edge.vj,edge.rj,flag);
-      kv->add((char *) &edge,sizeof(EDGE),(char *) &flag,sizeof(int));
+      vfout.v = v->v;
+      vfout.r = v->r;
+      vfout.flag = 0;
+      //printf("VLOSE EDGE (%u %g) (%u %g %d)\n",
+      //	     v1out.v,v1out.r,vfout.v,vfout.r,vfout.flag);
+      kv->add((char *) &v1out,sizeof(VERTEX),(char *) &vfout,sizeof(VFLAG));
     } else {
-      printf("VLOSE EDGE (%u %g) (%u %g): NULL\n",
-	     edge.vi,edge.ri,edge.vj,edge.rj);
-      kv->add((char *) &edge,sizeof(EDGE),NULL,0);
+      v2out.v = v->v;
+      v2out.r = v->r;
+      //printf("VLOSE EDGE (%u %g) (%u %g)\n",
+      //     v1out.v,v1out.r,v2out.v,v2out.r);
+      kv->add((char *) &v1out,sizeof(VERTEX),(char *) &v2out,sizeof(VERTEX));
     }
     multivalue += valuebytes[i];
   }
 
+  END_BLOCK_LOOP
 }

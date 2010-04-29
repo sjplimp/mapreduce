@@ -13,6 +13,7 @@
 #include "reduce_edge_winner.h"
 #include "reduce_vertex_winner.h"
 #include "reduce_vertex_loser.h"
+#include "reduce_vertex_emit.h"
 #include "error.h"
 
 using namespace APP_NS;
@@ -37,7 +38,6 @@ void Luby::command(int narg, char **arg)
   MapReduce *mr = (MapReduce *) obj->find_object(arg[1],MAPREDUCE);
   if (!mr) error->all("Luby MRMPI for edges is invalid");
   MapReduce *mrv = (MapReduce *) obj->find_object(arg[2],MAPREDUCE);
-
   if (!mrv) error->all("Luby MRMPI for vertex set is invalid");
 
   // map and reduce functions
@@ -48,29 +48,33 @@ void Luby::command(int narg, char **arg)
 
   MapVertexRandom *vran = new MapVertexRandom(app,"vran",1,&arg[0]);
   ReduceEdgeWinner *ewin = new ReduceEdgeWinner(app,"ewin",0,NULL);
-  ReduceVertexWinner *vwin = new ReduceVertexWinner(app,"vwin",1,&arg[2]);
+  ReduceVertexWinner *vwin = new ReduceVertexWinner(app,"vwin",0,NULL);
   ReduceVertexLoser *vlose = new ReduceVertexLoser(app,"vlose",0,NULL);
+  ReduceVertexEmit *vemit = new ReduceVertexEmit(app,"vemit",1,&arg[2]);
 
-  // assign each vertex initially to its own zone
+  // assign a consistent RN to each vertex in each edge, convert to KMV
 
   mr->map(mr,vran->appmap_mr,vran->appptr);
   uint64_t nedge = mr->clone();
 
-  // loop until zones do not change
+  // loop until all edges deleted
 
   MPI_Barrier(world);
   double tstart = MPI_Wtime();
 
   int niterate = 0;
 
-  while (nedge) {
-    niterate++;
-    mr->reduce(ewin->appreduce,ewin->appptr);
+  while (1) {
+    uint64_t n = mr->reduce(ewin->appreduce,ewin->appptr);
+    if (n == 0) break;
     mr->collate(NULL);
     mr->reduce(vwin->appreduce,vwin->appptr);
     mr->collate(NULL);
     mr->reduce(vlose->appreduce,vlose->appptr);
-    nedge = mr->collate(NULL);
+    mr->collate(NULL);
+    mr->reduce(vemit->appreduce,vemit->appptr);
+    mr->collate(NULL);
+    niterate++;
   }
 
   mrv->close();
@@ -84,6 +88,7 @@ void Luby::command(int narg, char **arg)
   delete ewin;
   delete vwin;
   delete vlose;
+  delete vemit;
 
   if (me == 0)
     printf("%g secs to perform Luby on %d procs in %d iterations\n",

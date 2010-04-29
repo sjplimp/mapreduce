@@ -1,12 +1,12 @@
 # triangle finding
 
-variable order equal 16
-variable nz equal 16
+variable order equal 10
+variable nz equal 4
 variable nrows equal 2^v_order
 variable n equal v_nrows*v_nz
 
 mr = mrmpi()
-mr.memsize(1)
+#mr.memsize(1)
 mr.verbosity(1)
 mr.timer(1)
 
@@ -49,7 +49,7 @@ ld = map.low_degree()
 nsq = reduce.nsq_angles()
 et = reduce.emit_triangles()
 
-mrc.map_mr(mr,ld)
+mrc.map_mr(mrc,ld)
 mrc.collate()
 mrc.reduce(nsq)
 mrc.add(mr)
