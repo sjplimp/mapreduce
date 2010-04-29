@@ -92,6 +92,30 @@ stress_test1:	stress_test1.o $(LIB)
 zerokv:	zerokv.o $(LIB)
 	$(LINK) $(LINKFLAGS) zerokv.o $(USRLIB) $(SYSLIB) -o zerokv
 
+# benchmark for RMAT generation
+
+rmat_driver:	rmat_driver.o rmat_generate.o matrix_stats.o $(LIB)
+	$(LINK) $(LINKFLAGS) rmat_driver.o rmat_generate.o matrix_stats.o \
+	$(USRLIB) $(SYSLIB) -o rmat_driver
+
+# benchmark for triangle finding
+
+tri_driver:	tri_driver.o rmat_generate.o matrix_upper.o tri_find.o $(LIB)
+	$(LINK) $(LINKFLAGS) tri_driver.o rmat_generate.o matrix_upper.o \
+	tri_find.o $(USRLIB) $(SYSLIB) -o tri_driver
+
+# benchmark for Luby's MIS algorithm
+
+luby_driver:	luby_driver.o rmat_generate.o matrix_upper.o luby_find.o $(LIB)
+	$(LINK) $(LINKFLAGS) luby_driver.o rmat_generate.o matrix_upper.o \
+	luby_find.o $(USRLIB) $(SYSLIB) -o luby_driver
+
+# benchmark for CC algorithm
+
+cc_driver:	cc_driver.o rmat_generate.o cc_find.o cc_stats.o $(LIB)
+	$(LINK) $(LINKFLAGS) cc_driver.o rmat_generate.o \
+	cc_find.o cc_stats.o $(USRLIB) $(SYSLIB) -o cc_driver
+
 clean:
 	rm *.o *.d
 	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp sssp_v2 stress_test1 stress_test2 wordfreq
