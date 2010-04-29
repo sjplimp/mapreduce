@@ -300,14 +300,24 @@ void MapReduce::copy_kmv(KeyMultiValue *kmv_src)
 
 uint64_t MapReduce::add(MapReduce *mr)
 {
-  if (kv == NULL) error->all("Cannot add without KeyValue");
   if (mr->kv == NULL) 
     error->all("MapReduce passed to add() does not have KeyValue pairs");
   if (mr == this) error->all("Cannot add to self");
   if (timer) start_timer();
   if (verbosity) file_stats(0);
 
-  kv->append();
+  if (!allocated) allocate();
+  if (kmv) myfree(kmv->memtag);
+  delete kmv;
+  kmv = NULL;
+
+  if (kv == NULL) {
+    kv = new KeyValue(this,kalign,valign,memory,error,comm);
+    kv->set_page();
+  } else {
+    kv->append();
+  }
+
   kv->add(mr->kv);
   kv->complete();
 
