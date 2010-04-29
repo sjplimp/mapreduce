@@ -11,10 +11,11 @@ uint64_t MapReduce::add(MapReduce *mr2) :pre
 
 This calls the add() method of a MapReduce object, to add the KeyValue
 pairs contained in a second MapReduce object mr2, to the KeyValue
-object of the first MapReduce object.  This is useful if multiple
-MapReduce objects have been created and populated with key/value pairs
-and you wish to combine them before performing further operations,
-such as a "collate()"_collate.html and "reduce()"_reduce.html.
+object of the first MapReduce object, which is created if one does not
+exist.  This is useful if multiple MapReduce objects have been created
+and populated with key/value pairs and you wish to combine them before
+performing further operations, such as a "collate()"_collate.html and
+"reduce()"_reduce.html.
 
 For example, this sequence of calls:
 
