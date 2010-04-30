@@ -651,23 +651,55 @@ object contains a complete MIS of vertices.
 
 \subsection{Single source shortest path}
 
-Discussion of SSSP.
+The single-source shortest path (SSSP) algorithm computes, for a directed graph
+with weighted edges,
+the shortest weighted distance from a given source vertex to
+all other vertices in the graph.  This operation is straightforward
+when global graph information is available.  The source vertex is labeled with
+distance zero.  Then in each iteration, edge adjacencies of labeled vertices
+are followed, and adjacent vertices are labeled with updated distances.  When
+no distances change, the iterations are complete.  Most importantly, only
+edges from modified vertices are visited in each iteration.
 
-Discuss new optimization in SSSP?
+In MapReduce, global information about edge adjacencies and labeled vertices
+is not available.  Instead, following the Bellman-Ford-style 
+algorithm of~\cite{SSSPMapReduce, BellmanFord},
+every edge of the graph is visited in each iteration,
+although labels for an edge's vertices are updated only if the breadth-first
+traversal has reached those vertices.  The algorithm begins with a {\it map()}
+function loading edges $(v_i, v_j)$ and source vertex $v_s$ with distance 0.
+In each iteration, the edges $(v_i, v_j)$ are collated with respect to
+$v_i$, and a {\it reduce()} operation updates each $v_j$'s distance if
+$v_i$'s distance is non-zero.  The algorithm is fully described in
+Figure~\ref{fig:sssp}.
+
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+  xxxx\=xxxx\=xxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-$N_{\rm remain} = N_z$ \\
-while $N_{\rm remain} > 0$: \\
-\> Map(): \> {\bf Generate} $N_{\rm remain}/P$ random edges on each processor \\
-           \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
-\> Collate() \\
-\> Reduce(): \> {\bf Remove} duplicate edges \\
-              \> \> input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
-              \> \> output: Key = $(V_i,V_j)$, Value = NULL \\
-\> $N_{\rm remain} = N_z - N_{kv}$
+Input:  \\
+\> Source vertex $v_s$.\\
+\> MapReduce object $V$ containing graph vertices $v_i$ with distances $d_i$ from $v_s$ (initially $\infty$):  \\
+\> \> Key = $v_i$; Value = $\infty$.\\
+\> MapReduce object $E$ containing graph edges ($v_i, v_j$) with weights $w_{ij}$: \\
+\> \>  Key = $v_i$; Value = $[v_j, w_{ij}]$ \\
+Map $V$:  Set distance for source vertex $v_s$ to zero. \\
+\> Input:  Key = $v_i$; Value = $\infty$ \\
+\> Output:  Key = $v_i$; Value = 0 if $v_i = v_s$, otherwise Value = $\infty$. \\
+while not done: \\
+\> done = 1; \\
+\> Add $E$ to $V$. \\
+\> Collate $V$:  Key is vertex $v_i$. \\
+\> Reduce $V$:  Loop over all edges to perform breadth-first search from labeled vertices. \\
+\> \> Input:  Key = $v_i$; Multivalue = edges $[v_j, w_{ij}]$, candidate distances $d_i$. \\
+\> \> Compute:  Find smallest candidate distance $d_{min}$ for $v_i$.  \\
+\> \> \> If $d_{min} \ne d_i$, done = 0; \\
+\> \> Output:  Key = $v_i$; Value = $d_{min}$ (updated distance for $v_i$) \\
+\> \> \> and if $d_{min} \ne d_i$, Key = $v_j$; Value = $d_{min} + w_{ij}$ for each edge ($v_i, v_j$). \\
+\> MPI\_Allreduce on done with MPI\_MIN. \\
+Output: MapReduce object $V$ with Key = $v_i$, Value = $d_i$. 
+
 
   \end{tabbing}
  \end{minipage}}\end{center}
@@ -677,3 +709,9 @@ while $N_{\rm remain} > 0$: \\
 
  \label{fig:sssp}
 \end{figure}
+
+As with PageRank and R-MAT generation, 
+significant savings in communication and execution time
+can be achieved by pre-aggregating certain MapReduce objects and 
+storing data in more than one MapReduce object.  The improved algorithm
+is shown in Figure~\ref{fig:sssp2}.
