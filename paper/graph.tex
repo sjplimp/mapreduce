@@ -414,7 +414,7 @@ Iterate: \\
 \> 3 Reduce: \> Emit new zone assignment of each vertex \\
        \> \> \> input Key = $Z_i$ or $Z_i^+$, MultiValue = $V V V V ... Z Z Z ...$ \\
        \> \> \> $Z_{new}$ = min($Z_i$ or $Z_i^+$,Z,Z,Z,...) \\
-       \> \> \> partition $Z_{new}$ if number of $V$ > threshhold \\
+       \> \> \> partition $Z_{new}$ if number of $V >$ threshhold \\
        \> \> \> for each $V$ in MultiValue: \\
       \> \> \> \> output Key = $V_i$, Value = $Z_{new}$
 
