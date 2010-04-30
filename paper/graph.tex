@@ -714,4 +714,58 @@ As with PageRank and R-MAT generation,
 significant savings in communication and execution time
 can be achieved by pre-aggregating certain MapReduce objects and 
 storing data in more than one MapReduce object.  The improved algorithm
-is shown in Figure~\ref{fig:sssp2}.
+is shown in Figure~\ref{fig:sssp2}.  The MapReduce objects storing
+vertices and edges are aggregated to processors only once at the beginning
+of the computation.  Then, in each iteration of 
+SSSP, only a small number of new candidate distances are generated.
+The improved algorithm uses MapReduce object $MR$ to store these updates.
+All communication is performed using $MR$, so the total amount of communication
+needed is small compared to the original algorithm (which aggregates all
+graph edges in each iteration).  Updated vertex distances are stored back
+in the the MapReduce object for vertices.
+
+\begin{figure}[htb]
+ \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+  xxxx\=xxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+
+Input:  \\
+\> Source vertex $v_s$.\\
+\> Pre-aggregated MapReduce object $V$ containing graph vertices $v_i$ with distances $d_i$ from $v_s$:  \\
+\> \> Key = $v_i$; Value = $\infty$.\\
+\> Pre-aggregated MapReduce object $E$ containing graph edges ($v_i, v_j$) with weights $w_{ij}$: \\
+\> \>  Key = $v_i$; Value = $[v_j, w_{ij}]$ \\
+$U$ = new MapReduce object to store updates to distances. \\
+Map $U$:  Add $v_s$ with distance $d_s = 0$ to $U$. \\
+\> Input:  $v_s$ \\
+\> Output:  Key = $v_s$; Value = 0. \\
+while not done: \\
+\> done = 1; \\
+\> Aggregate $U$. \\
+\> Add $U$ to $V$. Empty $U$.\\
+\> Convert $V$:  Key is vertex $v_i$. \\
+\> Reduce $V$:  Pick best candidate distance for each vertex. \\
+\> \> Input:  Key = $v_i$; Multivalue = candidate distances $d_i$. \\
+\> \> Compute:  Find smallest candidate distance $d_{min}$ for $v_i$.  \\
+\> \> \> If $d_{min} \ne d_i$, done = 0; \\
+\> \> Output to $V$:  Key = $v_i$; Value = $d_{min}$. \\
+\> \> Output to $U$: if $d_{min} \ne d_i$, Key = $v_i$; Value = $d_{min}$. \\
+\> MPI\_Allreduce on done with MPI\_MIN. \\
+\> if not done \\
+\> \> Add $U$ to $E$.  Empty $U$. \\
+\> \> Convert $E$. \\
+\> \> Reduce $E$:  Generate candidate distances for neighbors of changed vertices. \\
+\> \> \> Input:  Key = $v_i$; Multivalue = $[v_j, w_{ij}]$ for edges ($v_i, v_j$) \\
+\> \> \> \> and distance $d_i$ if updated in previous step. \\
+\> \> \> Output to $U$:  If updated distance $d_i$ exists, \\
+\> \> \> \> Key = $v_j$; Value = $d_i+w_{ij}$ for each edge ($v_i, v_j$). \\
+Output: MapReduce object $V$ with Key = $v_i$, Value = $d_i$. 
+
+  \end{tabbing}
+ \end{minipage}}\end{center}
+
+ \caption{MapReduce algorithm for single-source shortest path (SSSP)
+ determination.}
+
+ \label{fig:sssp2}
+\end{figure}
+
