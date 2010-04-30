@@ -718,8 +718,10 @@ is shown in Figure~\ref{fig:sssp2}.  The MapReduce objects storing
 vertices and edges are aggregated to processors only once at the beginning
 of the computation.  Then, in each iteration of 
 SSSP, only a small number of new candidate distances are generated.
-The improved algorithm uses MapReduce object $MR$ to store these updates.
-All communication is performed using $MR$, so the total amount of communication
+The improved algorithm uses MapReduce object $U$ to store these updates.
+Only the updates are communicated; each update is aggregated to the 
+same processor that stores the corresponding vertex and its edges.
+Communication is performed using $U$, so the total amount of communication
 needed is small compared to the original algorithm (which aggregates all
 graph edges in each iteration).  Updated vertex distances are stored back
 in the the MapReduce object for vertices.
