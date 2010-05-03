@@ -335,7 +335,7 @@ presented in \cite{Cohen}.
 \end{figure}
 
 The initial step is to store a copy of the graph edges as key/value
-(KV) pairs in a auxiliary MapReduce object $G_0$, for use later in the
+(KV) pairs in an auxiliary MapReduce object $G_0$, for use later in the
 algorithm.  The first {\it map()} operation converts edge keys to
 vertex keys with edge values.  After the {\it collate()}, each vertex
 has a list of vertices it is connected to; the first {\it reduce()}
