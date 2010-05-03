@@ -5,11 +5,11 @@ We begin with a MapReduce procedure for creating large, sparse,
 randomized graphs, since they are the input for the algorithms
 discussed below.  R-MAT graphs ~\cite{RMAT} are recursively generated
 graphs with power-law degree distributions.  They are commonly used to
-represent web and social networks.  The user specifices 6 parameters
-which define the graph: the number of vertices $N$ and edges $M$, and
-4 parameters $a$, $b$, $c$, $d$ which sum to 1.0 and are discussed
+represent web and social networks.  The user specifices six parameters
+that define the graph: the number of vertices $N$ and edges $M$, and
+four parameters $a$, $b$, $c$, $d$ that sum to 1.0 and are discussed
 below.  The algorithm in Figure \ref{fig:rmat} generates $M$ unique
-non-zero entries in a sparse $NxN$ matrix $A$, where each entry
+non-zero entries in a sparse $N \times N$ matrix $A$, where each entry
 $A_{ij}$ represents an edge between graph vertices $(V_i,V_j)$.
 
 \begin{figure}[htb]
@@ -18,12 +18,12 @@ $A_{ij}$ represents an edge between graph vertices $(V_i,V_j)$.
 
 $M_{\rm remain} = M$ \\
 while $M_{\rm remain} > 0$: \\
-\> 1 Map: \> Generate $M_{\rm remain}/P$ random edges on each processor \\
-           \> \> output Key = $(V_i,V_j)$, Value = NULL \\
-\> 1 Collate \\
-\> 1 Reduce: \> Remove duplicate edges \\
-              \> \> input Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
-              \> \> output Key = $(V_i,V_j)$, Value = NULL \\
+\> Map: \> Generate $M_{\rm remain}/P$ random edges on each processor \\
+           \> \> output Key = $(i,j)$, Value = NULL \\
+\> Collate \\
+\> Reduce: \> Remove duplicate edges \\
+           \> \> input Key = $(i,j)$, MultiValue = one or more NULLs \\
+           \> \> output Key = $(i,j)$, Value = NULL \\
 \> $M_{\rm remain} = M - N_{kv}$
 
   \end{tabbing}
@@ -34,8 +34,8 @@ while $M_{\rm remain} > 0$: \\
  \label{fig:rmat}
 \end{figure}
 
-In the map() operation, each of $P$ processors generates a $1/P$
-fraction of the desired edges.  A single random $i,j$ edge is computed
+In the {\it map()} operation, each of $P$ processors generates a $1/P$
+fraction of the desired edges.  A single random edge ($i,j$) is computed
 recursively as follows.  Pick a random quadrant of the $A$ matrix with
 relative probabilities $a$, $b$, $c$, and $d$.  Treat the chosen
 quadrant as a sub-matrix and select a random quadrant within it, in
@@ -43,31 +43,35 @@ the same manner.  Repeat this process $n$ times where $N = 2^n$.  At
 the end of the recursion, the final ``quadrant'' is non-zero matrix
 element $A_{ij}$.
 
-The map() will often generate some small number of duplicate edges.
-The collate() and reduce() operations remove the duplicates.  The
+The {\it map()} will often generate some small number of duplicate edges.
+The {\it collate()} and {\it reduce()} operations remove the duplicates.  The
 entire map-collate-reduce sequence is repeated until the number of
 resulting key/value pairs $N_{kv} = M$.  For reasonably sparse graphs
 this typically takes only a few iterations.
 
 Note that the degree distribution of vertices in the graph depends on
 the choice of parameters $a$, $b$, $c$, $d$.  If one of the four
-values is larger than the other 3, a highly skewed distribution
+values is larger than the other three, a highly skewed distribution
 results.  Variants of the above algorithm can be used when $N$ is not
 a power-of-two, to generate graphs with weighted edges (assign a
 numeric value to the $A_{ij}$ edge), graphs without self edges
-(require $i != j$), or graphs with undirected edges (require $i < $j).
+(require $i \ne j$), or graphs with undirected edges (require $i < j$).
 Or the general R-MAT matrix can be further processed by MapReduce
 operations to meet these requirements.
 
 By using more than one MapReduce object, we can improve the performance
 of the R-MAT generation algorithm.  In the improved algorithm
-(Figure~\ref{fig:rmat2}, we emit newly created edges into MapReduce object
-$E_{new}$ and aggregate the edges to processors.  We then add those edges
+(Figure~\ref{fig:rmat2}), we emit newly created edges into MapReduce object
+$E_{new}$ and {\it aggregate()} the edges to processors.  
+We then add those edges
 to the MapReduce object $E_{old}$, containing all previously generated
-unique edges.  We convert the total set of key/values to key/multivalues
-and use a reduce operation to remove duplicates.  Performance improvements
-in this algorithm result from the reduced number of key/values in the aggregate
-operation, compared to the collate operation in the original algorithm, 
+unique edges; the edges of $E_{old}$ are already aggregated to processors
+using the same mapping as $E_{new}$.  We can then use the {\it compress()}
+function to reduce duplicates locally on each processor.
+Performance improvements
+in this algorithm result from the reduced number of KV pairs communicated in
+{\it aggregate()},
+compared to the collate operation in the original algorithm, 
 particularly in later iterations of the generation where few
 edges are created.
 
@@ -77,13 +81,13 @@ edges are created.
 
 $M_{\rm remain} = M$ \\
 while $M_{\rm remain} > 0$: \\
-\> 1 Map $E_{new}$: \> Generate $M_{\rm remain}/P$ random edges on each processor \\
-           \> \> output Key = $(V_i,V_j)$, Value = NULL \\
-\> 1 Aggregate $E_{new}$. \\
-\> 1 Add $E_{new}$ to $E_{old}$. \\
-\> 1 Compress $E_{old}$: \> Remove duplicate edges \\
-              \> \> input Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
-              \> \> output Key = $(V_i,V_j)$, Value = NULL \\
+\> Map $E_{new}$: \> Generate $M_{\rm remain}/P$ random edges on each processor \\
+           \> \> output Key = $(i,j)$, Value = NULL \\
+\> Aggregate $E_{new}$. \\
+\> Add $E_{new}$ to $E_{old}$. \\
+\> Compress $E_{old}$: Remove duplicate edges \\
+            \> \> input Key = $(i,j)$, MultiValue = one or more NULLs \\
+            \> \> output Key = $(i,j)$, Value = NULL \\
 \> $M_{\rm remain} = M - N_{kv}$
 
   \end{tabbing}
@@ -98,24 +102,22 @@ while $M_{\rm remain} > 0$: \\
 
 The PageRank algorithm assings a relative numeric rank to each
 vertex in a graph.
-
-It models the web as a directed graph $G(V,E)$, with each vertex $v_i
-\in V$ representing a web page and each edge $E_{ij} \in E$
-representing a hyperlink from $v_i$ TO $v_j$.  The probability of
-moving from $v_i$ to another vertex $v_j$ is $\alpha/d_{out}(v_i) +
+It models the web as a directed graph $G(V,E)$, with each vertex $V_i
+\in V$ representing a web page and each edge $(V_i, V_j) \in E$
+representing a hyperlink from $V_i$ to $V_j$.  The probability of
+moving from $V_i$ to another vertex $V_j$ is $\alpha/d_{out}(V_i) +
 (1-\alpha)/|V|$, where $\alpha$ is a user-defined parameter (usually
-0.8-0.9), $d_{out}(v_i)$ is the outdegree of vertex $v_i$, and $|V|$ is
+0.8-0.9), $d_{out}(V_i)$ is the outdegree of vertex $V_i$, and $|V|$ is
 the cardinality of $V$.  The first term represents the probability of
-following a given link on page $v_i$; the second represents the
+following a given link on page $V_i$; the second represents the
 probability of moving to a random page.  For pages with no outlinks,
 the first term is $\alpha/|V|$, indicating equal likelihood to move to
 any other page.  Equivalently, the graph can be represented by a
 matrix $A$~\cite{LangvilleMeyer05a}, with matrix entries $A_{ij} =
-\alpha/d_{out}(v_i)$ if vertex $v_i$ links to $v_j$.  The PageRank
+\alpha/d_{out}(V_i)$ if vertex $V_i$ links to $V_j$.  The PageRank
 algorithm, then, is essentially a power-method iteration in which the
 dominating computation is matrix-vector multiplication $A^T x=y$,
 where $x$ is the PageRank vector from the previous iteration.
-
 The algorithm in Figure \ref{fig:pr} performs these
 iterations.
 
@@ -124,24 +126,24 @@ iterations.
   xxxx\=xxxxx\=xxxxx\=xxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
 %Input from R-MAT generator: \\
-%\> MapReduce object $V$ containing all graph vertices:  Key=$v_i$, Value = NULL.  \\
-%\> MapReduce object $E$ containing all graph edges: Key=$v_i$, Value = $v_j$. \\
+%\> MapReduce object $V$ containing all graph vertices:  Key=$V_i$, Value = NULL.  \\
+%\> MapReduce object $E$ containing all graph edges: Key=$V_i$, Value = $V_j$. \\
 %Initialize MapReduce object for matrix $A$  and \\
 %MapReduce object $MT$ containing all vertices with no outlinks.\\
 %\> Copy: $A = E$ \\
 %\> Add: $V$ to $A$ \\
 %\> Collate $A$: Vertex is Key \\
 %\> Reduce $A$:  \\
-%\> \> Input:  Key = $v_i$; MultiValue = NULL,$v_j$,$v_k$,... \\
+%\> \> Input:  Key = $V_i$; MultiValue = NULL,$V_j$,$V_k$,... \\
 %\> \> If (${nvalues} > 1$) \\
-%\> \> \> Compute: $d_{out}(v_i) = {nvalues} - 1$. \\
-%\> \> \> Output:  For each $v_j$ in MultiValue, Key = $v_i$; Value = ($v_j$, $\alpha/d_{out}(v_i)$). \\
+%\> \> \> Compute: $d_{out}(V_i) = {nvalues} - 1$. \\
+%\> \> \> Output:  For each $V_j$ in MultiValue, Key = $V_i$; Value = ($V_j$, $\alpha/d_{out}(V_i)$). \\
 %\> \> else \\
-%\> \> \> Output to $MT$: Key = $v_i$; Value = 0. \\
+%\> \> \> Output to $MT$: Key = $V_i$; Value = 0. \\
 %Initialize MapReduce object for pagerank vector $x$. \\
 %\> Map:   \\
 %\> \> Input:  Graph vertices $V$. \\
-%\> \> Output:  For each vertex, Key = $v_i$; Value = $1/|V|$. \\
+%\> \> Output:  For each vertex, Key = $V_i$; Value = $1/|V|$. \\
 Input: \\
 \> MapReduce object $A$ containing $|V| \times |V|$ matrix:  Key = $i$, Value = $[j, a_{ij}]$ \\
 \> MapReduce object $MT$ containing indices of empty rows of $A$:  Key = $i$, Value = 0. \\
@@ -153,7 +155,7 @@ While (${residual} > {tolerance}$) \\
 \> \> Reduce $MT$:   \\
 \> \> \> Input:  Key = $i$; MultiValue = $x_i, 0$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$. \\
 \> \> \> Compute:  Local contributions $cont$. \\
-\> \> \> Output:  If ${nvalues} = 2$, Key = $v_i$; Value = 0. \\
+\> \> \> Output:  If ${nvalues} = 2$, Key = $i$; Value = 0. \\
 \> \> MPI\_Allreduce with MPI\_SUM to compute global contribution $gcont$. \\
 \> Compute $y = A^T x$.  \\
 \> \> Copy $x$ to $y$. \\
@@ -234,7 +236,7 @@ $*$\> \> Convert $MT$:  Vertex is Key. \\
 \> \> Reduce $MT$:   \\
 \> \> \> Input:  Key = $i$; MultiValue = $x_i, 0$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$. \\
 \> \> \> Compute:  Local contributions $cont$. \\
-\> \> \> Output:  If ${nvalues} = 2$, Key = $v_i$; Value = 0. \\
+\> \> \> Output:  If ${nvalues} = 2$, Key = $i$; Value = 0. \\
 \> \> MPI\_Allreduce with MPI\_SUM to compute global contribution $gcont$. \\
 \> Compute $y = A^T x$.  \\
 \> \> Copy $x$ to $y$. \\
@@ -666,10 +668,10 @@ algorithm of~\cite{SSSPMapReduce, BellmanFord},
 every edge of the graph is visited in each iteration,
 although labels for an edge's vertices are updated only if the breadth-first
 traversal has reached those vertices.  The algorithm begins with a {\it map()}
-function loading edges $(v_i, v_j)$ and source vertex $v_s$ with distance 0.
-In each iteration, the edges $(v_i, v_j)$ are collated with respect to
-$v_i$, and a {\it reduce()} operation updates each $v_j$'s distance if
-$v_i$'s distance is non-zero.  The algorithm is fully described in
+function loading edges $(V_i, V_j)$ and source vertex $V_s$ with distance 0.
+In each iteration, the edges $(V_i, V_j)$ are collated with respect to
+$V_i$, and a {\it reduce()} operation updates each $V_j$'s distance if
+$V_i$'s distance is non-zero.  The algorithm is fully described in
 Figure~\ref{fig:sssp}.
 
 
@@ -678,26 +680,26 @@ Figure~\ref{fig:sssp}.
   xxxx\=xxxx\=xxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
 Input:  \\
-\> Source vertex $v_s$.\\
-\> MapReduce object $V$ containing graph vertices $v_i$ with distances $d_i$ from $v_s$ (initially $\infty$):  \\
-\> \> Key = $v_i$; Value = $\infty$.\\
-\> MapReduce object $E$ containing graph edges ($v_i, v_j$) with weights $w_{ij}$: \\
-\> \>  Key = $v_i$; Value = $[v_j, w_{ij}]$ \\
-Map $V$:  Set distance for source vertex $v_s$ to zero. \\
-\> Input:  Key = $v_i$; Value = $\infty$ \\
-\> Output:  Key = $v_i$; Value = 0 if $v_i = v_s$, otherwise Value = $\infty$. \\
+\> Source vertex $V_s$.\\
+\> MapReduce object $V$ containing graph vertices $V_i$ with distances $d_i$ from $V_s$ (initially $\infty$):  \\
+\> \> Key = $V_i$; Value = $\infty$.\\
+\> MapReduce object $E$ containing graph edges ($V_i, V_j$) with weights $w_{ij}$: \\
+\> \>  Key = $V_i$; Value = $[V_j, w_{ij}]$ \\
+Map $V$:  Set distance for source vertex $V_s$ to zero. \\
+\> Input:  Key = $V_i$; Value = $\infty$ \\
+\> Output:  Key = $V_i$; Value = 0 if $V_i = V_s$, otherwise Value = $\infty$. \\
 while not done: \\
 \> done = 1; \\
 \> Add $E$ to $V$. \\
-\> Collate $V$:  Key is vertex $v_i$. \\
+\> Collate $V$:  Key is vertex $V_i$. \\
 \> Reduce $V$:  Loop over all edges to perform breadth-first search from labeled vertices. \\
-\> \> Input:  Key = $v_i$; Multivalue = edges $[v_j, w_{ij}]$, candidate distances $d_i$. \\
-\> \> Compute:  Find smallest candidate distance $d_{min}$ for $v_i$.  \\
+\> \> Input:  Key = $V_i$; Multivalue = edges $[V_j, w_{ij}]$, candidate distances $d_i$. \\
+\> \> Compute:  Find smallest candidate distance $d_{min}$ for $V_i$.  \\
 \> \> \> If $d_{min} \ne d_i$, done = 0; \\
-\> \> Output:  Key = $v_i$; Value = $d_{min}$ (updated distance for $v_i$) \\
-\> \> \> and if $d_{min} \ne d_i$, Key = $v_j$; Value = $d_{min} + w_{ij}$ for each edge ($v_i, v_j$). \\
+\> \> Output:  Key = $V_i$; Value = $d_{min}$ (updated distance for $V_i$) \\
+\> \> \> and if $d_{min} \ne d_i$, Key = $V_j$; Value = $d_{min} + w_{ij}$ for each edge ($V_i, V_j$). \\
 \> MPI\_Allreduce on done with MPI\_MIN. \\
-Output: MapReduce object $V$ with Key = $v_i$, Value = $d_i$. 
+Output: MapReduce object $V$ with Key = $V_i$, Value = $d_i$. 
 
 
   \end{tabbing}
@@ -730,34 +732,34 @@ in the the MapReduce object for vertices.
   xxxx\=xxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
 Input:  \\
-\> Source vertex $v_s$.\\
-\> Pre-aggregated MapReduce object $V$ containing graph vertices $v_i$ with distances $d_i$ from $v_s$:  \\
-\> \> Key = $v_i$; Value = $\infty$.\\
-\> Pre-aggregated MapReduce object $E$ containing graph edges ($v_i, v_j$) with weights $w_{ij}$: \\
-\> \>  Key = $v_i$; Value = $[v_j, w_{ij}]$ \\
+\> Source vertex $V_s$.\\
+\> Pre-aggregated MapReduce object $V$ containing graph vertices $V_i$ with distances $d_i$ from $V_s$:  \\
+\> \> Key = $V_i$; Value = $\infty$.\\
+\> Pre-aggregated MapReduce object $E$ containing graph edges ($V_i, V_j$) with weights $w_{ij}$: \\
+\> \>  Key = $V_i$; Value = $[V_j, w_{ij}]$ \\
 $U$ = new MapReduce object to store updates to distances. \\
-Map $U$:  Add $v_s$ with distance $d_s = 0$ to $U$. \\
-\> Input:  $v_s$ \\
-\> Output:  Key = $v_s$; Value = 0. \\
+Map $U$:  Add $V_s$ with distance $d_s = 0$ to $U$. \\
+\> Input:  $V_s$ \\
+\> Output:  Key = $V_s$; Value = 0. \\
 while not done: \\
 \> done = 1; \\
 \> Aggregate $U$. \\
 \> Add $U$ to $V$. Empty $U$.\\
 \> Compress $V$:  Pick best candidate distance for each vertex. \\
-\> \> Input:  Key = $v_i$; Multivalue = candidate distances $d_i$. \\
-\> \> Compute:  Find smallest candidate distance $d_{min}$ for $v_i$.  \\
+\> \> Input:  Key = $V_i$; Multivalue = candidate distances $d_i$. \\
+\> \> Compute:  Find smallest candidate distance $d_{min}$ for $V_i$.  \\
 \> \> \> If $d_{min} \ne d_i$, done = 0; \\
-\> \> Output to $V$:  Key = $v_i$; Value = $d_{min}$. \\
-\> \> Output to $U$: if $d_{min} \ne d_i$, Key = $v_i$; Value = $d_{min}$. \\
+\> \> Output to $V$:  Key = $V_i$; Value = $d_{min}$. \\
+\> \> Output to $U$: if $d_{min} \ne d_i$, Key = $V_i$; Value = $d_{min}$. \\
 \> MPI\_Allreduce on done with MPI\_MIN. \\
 \> if not done \\
 \> \> Add $U$ to $E$.  Empty $U$. \\
 \> \> Compress $E$:  Generate candidate distances for neighbors of changed vertices. \\
-\> \> \> Input:  Key = $v_i$; Multivalue = $[v_j, w_{ij}]$ for edges ($v_i, v_j$) \\
+\> \> \> Input:  Key = $V_i$; Multivalue = $[V_j, w_{ij}]$ for edges ($V_i, V_j$) \\
 \> \> \> \> and distance $d_i$ if updated in previous step. \\
 \> \> \> Output to $U$:  If updated distance $d_i$ exists, \\
-\> \> \> \> Key = $v_j$; Value = $d_i+w_{ij}$ for each edge ($v_i, v_j$). \\
-Output: MapReduce object $V$ with Key = $v_i$, Value = $d_i$. 
+\> \> \> \> Key = $V_j$; Value = $d_i+w_{ij}$ for each edge ($V_i, V_j$). \\
+Output: MapReduce object $V$ with Key = $V_i$, Value = $d_i$. 
 
   \end{tabbing}
  \end{minipage}}\end{center}
