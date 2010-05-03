@@ -6,8 +6,8 @@ researchers Dean and Ghemawat \cite{Dean}.  Their motivation was to
 enable rapid development and deployment of analysis programs to
 operate on massive data sets residing on Google's large distributed
 clusters.  They introduced a novel way of thinking about certain kinds
-of large-scale computations as a "map" operation followed by a
-"reduce" operation.  The power of the paradigm is that when cast in
+of large-scale computations as a ``map'' operation followed by a
+``reduce'' operation.  The power of the paradigm is that when cast in
 this way, a nominally serial algorithm now becomes two highly parallel
 operations working on data local to each processor, sandwiched around
 an intermediate data-shuffling operation that requires inter-processor
@@ -41,7 +41,7 @@ The paper by Tu et al \cite{Tu} was particularly insightful to us,
 because it described how MapReduce could be implemented on top of the
 ubiquitous distributed-memory message-passing interface (MPI), and how
 the intermediate data-shuffle operation is conceptually identical to
-the familiar $MPI_Alltoall$ operation.  Their implementation of
+the familiar MPI\_Alltoall operation.  Their implementation of
 MapReduce was within a Python wrapper to simplify the writing of user
 programs.  The paper motivated us to develop our own C++ library built
 on top of MPI for use in graph analytics, which we initially released
@@ -64,10 +64,10 @@ For map and reduce operations, the library calls back to user-provided
 map() and reduce() functions.  The use of C++ allows precise control
 over the memory and format of data allocated by each processor during
 a MapReduce.  Library calls for performing a map, reduce, or data
-shuffle, are synncrhonous, meaning all the processors participate and
+shuffle, are synchronous, meaning all the processors participate and
 finish the operation before proceeding.  Similarly, the use of MPI
-within the library is the traditional mode of $MPI_Send()$ and
-$MPI_Recv$ calls between processor pairs using large aggregated
+within the library is the traditional mode of MPI\_Send and
+MPI\_Recv calls between processor pairs using large aggregated
 messages to improve bandwidth performance and reduce latency costs.  A
 recent paper by \cite{Dongarra} also outlines the MapReduce formalism
 from an MPI perspective, though they advocate a more asyncrhonous
@@ -81,8 +81,8 @@ library (provided) can be substituted.  As a library, it can be
 embedded in other codes \cite{Titan,TitanURL} to enable them to
 perform MapReduces.
 
-\item {\it In-core or out-of-core operation:} Each MapReduce object a
-processor defines, allocates per-processor "pages" of memory, where
+\item {\it In-core or out-of-core operation:} Each MapReduce object that a
+processor defines allocates per-processor ``pages'' of memory, where
 the page size is determined by the user.  Typical MapReduce operations
 can be performed using a few such pages.  If the data set fits in a
 single page (per processor), then the library performs its operations
@@ -95,19 +95,19 @@ processors, i.e. up to the available aggregate disk space.
 \item {\it Flexible programmability:} An advantage of writing a
 MapReduce program on top of MPI, is that the user program can invoke
 MPI calls directly, if desired.  For example, one-line calls to
-$MPI_Allreduce$ are often useful in determining the status of an
+MPI\_Allreduce are often useful in determining the status of an
 iterative graph algorithm, as described in Section \ref{sec:graph}.
 The library interface also provides a user data pointer as an argument
 passed back to all callback functions, so it is easy for the user
 program to store ``state'' on each processor, accessible during the
-map and reduce operaions.  For example, various flags can be stored
+map and reduce operations.  For example, various flags can be stored
 that alter the operation of a map or reduce function, as can richer
 data structures, that accumulate the results.
 
 \item {\it C++, C, and Python interfaces:} A C++ interface to the
 MR-MPI library means a user program instantiates and then invokes
 methods in one or more MapReduce objects.  A C interface means the
-library can also be called from C or other hi-level languages such as
+library can also be called from C or other high-level languages such as
 Fortran.  A C interface also means the library can be easily wrapped
 by Python via the Python ``ctypes'' module.  The library can then be
 called from a Python script, allowing the user to write map() and
@@ -132,11 +132,12 @@ operations in the MR-MPI library.  Section \ref{sec:graph} briefly
 describes the formulation of several common graph algorithms as
 MapReduce operations.  Section \ref{sec:results} gives performance
 results for these algorithms running on a parallel cluster for graphs
+%KDDKDD CHECK SIZES
 ranging in size from 1 million to 1 trillion vertices or edges.  In
 this section, we highlight the performance and complexity trade-offs
 of a MapReduce approach versus other more special-purpose algorithms.
 The latter generally perform better but are harder to implement
 efficiently on distributed memory machines, due to the required
 explicit management of parallelism, particularly for large out-of-core
-data sets.  Section \ref{sec:lessons} summarizes some lessons learned
+data sets.  Section~\ref{sec:lessons} summarizes some lessons learned
 from the implementation and use of our library.

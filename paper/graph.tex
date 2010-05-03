@@ -81,8 +81,7 @@ while $M_{\rm remain} > 0$: \\
            \> \> output Key = $(V_i,V_j)$, Value = NULL \\
 \> 1 Aggregate $E_{new}$. \\
 \> 1 Add $E_{new}$ to $E_{old}$. \\
-\> 1 Convert $E_{old}$ from KV to KMV. \\
-\> 1 Reduce $E_{old}$: \> Remove duplicate edges \\
+\> 1 Compress $E_{old}$: \> Remove duplicate edges \\
               \> \> input Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
               \> \> output Key = $(V_i,V_j)$, Value = NULL \\
 \> $M_{\rm remain} = M - N_{kv}$
@@ -744,8 +743,7 @@ while not done: \\
 \> done = 1; \\
 \> Aggregate $U$. \\
 \> Add $U$ to $V$. Empty $U$.\\
-\> Convert $V$:  Key is vertex $v_i$. \\
-\> Reduce $V$:  Pick best candidate distance for each vertex. \\
+\> Compress $V$:  Pick best candidate distance for each vertex. \\
 \> \> Input:  Key = $v_i$; Multivalue = candidate distances $d_i$. \\
 \> \> Compute:  Find smallest candidate distance $d_{min}$ for $v_i$.  \\
 \> \> \> If $d_{min} \ne d_i$, done = 0; \\
@@ -754,8 +752,7 @@ while not done: \\
 \> MPI\_Allreduce on done with MPI\_MIN. \\
 \> if not done \\
 \> \> Add $U$ to $E$.  Empty $U$. \\
-\> \> Convert $E$. \\
-\> \> Reduce $E$:  Generate candidate distances for neighbors of changed vertices. \\
+\> \> Compress $E$:  Generate candidate distances for neighbors of changed vertices. \\
 \> \> \> Input:  Key = $v_i$; Multivalue = $[v_j, w_{ij}]$ for edges ($v_i, v_j$) \\
 \> \> \> \> and distance $d_i$ if updated in previous step. \\
 \> \> \> Output to $U$:  If updated distance $d_i$ exists, \\
