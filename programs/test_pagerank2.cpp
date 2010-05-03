@@ -327,6 +327,12 @@ int main(int narg, char **args)
   MPI_Comm_size(MPI_COMM_WORLD,&np);
   if (me == 0) {cout << "Here we go..." << endl; flush(cout);}
 
+#ifdef MRMPI_FPATH
+  // Test the file system for writing; some nodes seem to have 
+  // trouble writing to local disk.
+  test_local_disks();
+#endif
+
   // Default parameters
   double alpha = 0.8;
   double tolerance = 0.00001;

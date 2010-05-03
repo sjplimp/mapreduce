@@ -189,39 +189,58 @@ void GenerateRMAT::run(
   *return_mrvert = mrvert;
 
   // Now generate mredge; this is harder, as it requires the RMAT algorithm.
-  if (me == 0) cout << "Generating edges..." << endl;
-  MapReduce *mredge = new MapReduce(MPI_COMM_WORLD);
-  // Put mredge in state where it has a KeyValue (empty).
-  mredge->map(1,&rmat_do_nothing,NULL);
-//  mredge->verbosity = 2;
-//  mredge->timer = 1;
+  // Loop until desired number of unique nonzero entries
 
-  // loop until desired number of unique nonzero entries
+  if (me == 0) cout << "Generating edges..." << endl;
+
+  MapReduce *mrnew = new MapReduce(MPI_COMM_WORLD);
+  mrnew->timer = 1;
+  mrnew->verbosity = 1;
+  MapReduce *mredge = NULL;
 
   int niterate = 0;
   uint64_t one = 1;
   uint64_t ntotal = (one << nlevels) * avgdeg;
   uint64_t nremain = ntotal;
+
   while (nremain) {
     niterate++;
     ngenerate = nremain/nprocs;
     if ((unsigned) me < (nremain % nprocs)) ngenerate++;
-    MapReduce mrnew(MPI_COMM_WORLD);
-    mrnew.map(nprocs,&rmat_generate_edge,this);
-    mrnew.aggregate(NULL);
-    mredge->add(&mrnew);
+    if (me == 0) {cout << "  map rmat_generate_edge..." << endl; flush(cout);}
+    mrnew->map(nprocs,&rmat_generate_edge,this);
+    if (me == 0) {cout << "  aggregate..." << endl; flush(cout);}
+    mrnew->aggregate(NULL);
+    if (me == 0) {cout << "  add..." << endl; flush(cout);}
+    if (niterate > 1) {
+      mredge->add(mrnew);
+      mrnew->map(1, rmat_do_nothing, NULL);  // Empty mrnew.
+    }
+    else {  // First iteration -- no need to add; just set the pointer.
+      mredge = mrnew;
+      mrnew = new MapReduce(MPI_COMM_WORLD);
+      mrnew->timer = 1;
+      mrnew->verbosity = 1;
+    }
+    if (me == 0) {cout << "  convert..." << endl; flush(cout);}
     uint64_t nunique = mredge->convert();
     if (nunique == ntotal) break;
+    if (me == 0) {cout<<"  reduce rmat_cull..."<<nunique<<endl; flush(cout);}
     mredge->reduce(&rmat_cull,NULL);
     nremain = ntotal - nunique;
-    if (me == 0) cout << "    Iteration " << niterate 
+    if (me == 0) {cout << "    Iteration " << niterate 
                       << ": cumulative edges generated " << nunique 
                       << " of " << ntotal << "; nremain = " << nremain << endl;
+                  flush(cout);}
   }
+  delete mrnew;
+  mredge->timer = 0;
+  mredge->verbosity = 0;
 
   // output matrix if requested
 
   if (outfile) {
+    if (me == 0) {cout << "Writing output file..." << endl; flush(cout);}
     char fname[128];
     sprintf(fname,"%s.%04d",outfile,me);
     fp = fopen(fname,"w");
@@ -239,8 +258,8 @@ void GenerateRMAT::run(
   // include stats on number of nonzeros per row
 
   if (me == 0) {
-    std::cout << order << " rows in matrix" << std::endl;
-    std::cout << ntotal << " nonzeros in matrix" << std::endl;
+    std::cout << order << " rows in matrix" << std::endl; flush(std::cout);
+    std::cout << ntotal << " nonzeros in matrix" << std::endl; flush(std::cout);
   }
  
   if (printstats > 0) {
@@ -258,9 +277,11 @@ void GenerateRMAT::run(
                   MPI_MIN, MPI_COMM_WORLD);
     MPI_Allreduce(&minmax[1], &gminmax[1], 1, MPI_UNSIGNED_LONG, 
                   MPI_MAX, MPI_COMM_WORLD);
-    if (me == 0)
+    if (me == 0) {
        std::cout << "Outdegrees:  Min = " << gminmax[0] 
                  << "; Max = " << gminmax[1] << endl;
+       flush(std::cout);
+    }
     if (printstats > 1) {
       mr->collate(NULL);
       mr->reduce(&rmat_histo,NULL);
@@ -286,9 +307,11 @@ void GenerateRMAT::run(
                   MPI_MIN, MPI_COMM_WORLD);
     MPI_Allreduce(&minmax[1], &gminmax[1], 1, MPI_UNSIGNED_LONG, 
                   MPI_MAX, MPI_COMM_WORLD);
-    if (me == 0)
+    if (me == 0) {
        std::cout << "Indegrees:   Min = " << gminmax[0] 
                  << "; Max = " << gminmax[1] << endl;
+       flush(std::cout);
+    }
     if (printstats > 1) {
       mr->collate(NULL);
       mr->reduce(&rmat_histo,NULL);
@@ -305,6 +328,7 @@ void GenerateRMAT::run(
   }
 
   // convert edges to correct format for return arguments
+  if (me == 0) {cout << "Converting to output format..." << endl; flush(cout);}
   *nrawedges = *nedges = mredge->reduce(&rmat_final_edge,NULL);
   mredge->aggregate(NULL);
   *return_mredge = mredge;
@@ -312,14 +336,17 @@ void GenerateRMAT::run(
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
-  if (me == 0)
+  if (me == 0) {
     std::cout << tstop-tstart << " secs to generate matrix on " << nprocs
               << " procs in " << niterate << " iterations" << std::endl;
+    flush(std::cout);
+  }
 }
 
 // We need mredge MapReduce object to be in state where it has a KeyValue
 // structure, but we don't have anything to put in it yet.  This function 
 // will do the trick.
+// Also useful for emptying a MapReduce object.
 static void rmat_do_nothing(int itask, KeyValue *kv, void *ptr)
 {
 }
@@ -341,12 +368,15 @@ static void rmat_generate_edge(int itask, KeyValue *kv, void *ptr)
   double c = rmat->c;
   double d = rmat->d;
   double fraction = rmat->fraction;
+  uint64_t print_freq = MAX(ngenerate / 100, 10000);
 
   uint64_t i,j,delta;
   int ilevel;
   double a1,b1,c1,d1,total,rn;
   RMAT_EDGE edge;
 
+  uint64_t print_cnt = 0;
+  if (itask == 0) cout << "Generating " << ngenerate << " edges" << endl;
   for (uint64_t m = 0; m < ngenerate; m++) {
     delta = order >> 1;
     a1 = a; b1 = b; c1 = c; d1 = d;
@@ -377,6 +407,11 @@ static void rmat_generate_edge(int itask, KeyValue *kv, void *ptr)
         d1 /= total;
       }
     }
+    if (print_cnt == print_freq) {
+      if (itask == 0) cout << "R-MAT    " << m << " of " << ngenerate << endl;
+      print_cnt = 0;
+    }
+    print_cnt++;
 
     edge.vi = i+1;  // Vertex IDs are one-based, so need to add one here.
     edge.vj = j+1;  // Vertex IDs are one-based, so need to add one here.
