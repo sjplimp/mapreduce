@@ -12,14 +12,18 @@ for MR-MPI, each node of the cluster has one local disk, which is used
 for out-of-core operations in MR-MPI.  To avoid contention for disk I/O, we 
 ran all experiments with one MPI process per node.
 
-We ran each of the algorithms on three R-MAT graphs of
+We ran each of the algorithms on four R-MAT graphs of
 different sizes, each on a varying number of processors.  Details of the
 input data are shown in Table~\ref{t:rmats}.
-The {\it small} problem size (around 134M edges) was a 
-problem that could be run
-on a single processor.  The {\it medium} problem size (around 2B
-edges) could be run on a few processors.  The {\it large} problem size
-(around 34B edges) required most of the machine to run.
+The {\it tiny} problem size (around 8M edges) can typically be used
+on a single processor without significant out-of-core operations.
+The {\it small} problem size (around 134M edges) is a 
+problem that can be run
+on a single processor with out-of-core operations; larger processor 
+configurations, however, do not necessary need out-of-core operations.
+The {\it medium} problem size (around 2B
+edges) can be used on a few processors.  The {\it large} problem size
+(around 34B edges) requires most of the machine to run.
 All data sets used R-MAT parameters $(a, b, c, d) = (0.57, 0.19, 0.19, 0.05)$.
 
 \begin{table}
@@ -28,6 +32,7 @@ All data sets used R-MAT parameters $(a, b, c, d) = (0.57, 0.19, 0.19, 0.05)$.
 Data & \# of    & \# of & Maximum \\
 Set  & vertices & edges & vertex degree\\
 \hline
+tiny   &$2^{20} \approx 1M$ & $2^{23} \approx 8M$ &   \\
 small  &$2^{24} \approx 17M$ & $2^{27} \approx 134M$ &   \\
 medium &$2^{28} \approx 268M$ & $2^{31} \approx 2B$&   \\
 large  &$2^{32} \approx 4B$ & $2^{35} \approx 34B$ &   \\
@@ -41,7 +46,8 @@ experiments.}
 The resulting timings give a sense of the inherent scalability of the
 MapReduce algorithms as graph size grows on a fixed number of
 processors, and of the parallel scalability for computing on a graph
-of fixed size on a growing number of processors.
+of fixed size on a growing number of processors.  Where available, we
+compare the MapReduce algorithm with other parallel implementations.
 
 Discuss R-MAT generation times.
 
