@@ -19,10 +19,10 @@ nearby spatially-decomposed data, etc.
 
 MapReduce algorithms can be hard to design, but are often relatively
 easy to write and debug.  Thinking about a computational task from a
-MapReduce perspective is different than traditional distributed-memory
+MapReduce perspective is different from traditional distributed-memory
 parallel algorithm design.  For example, with an MPI mindset, it often
 seems heretical to intentionally ignore data locality.  However,
-writing small map() and reduce() functions is typically easy.  And
+writing small {\it map()} and {\it reduce()} functions is typically easy.  And
 writing an algorithm that involves complex parallel operations,
 without actually needing to write application-specific parallel code
 to move data via MPI calls, is often a pleasant surprise.  Moreover,
@@ -36,7 +36,7 @@ conceptual model than that of cloud-computing MapReduces using (for
 example) Hadoop.  In the former case, one can potentially control
 which processor owns which data at various stages of an algorithm.
 This is somewhat hidden from the user in a typical cloud-computing
-model, where data simply exists somehere in the cloud, and Hadoop
+model, where data simply exists somewhere in the cloud and Hadoop
 ensures data moves where it needs to and is operated on by some
 processor.  The cloud model is a nice data-centric abstraction which
 allows for fault tolerance both to data loss (via redundant storage)
@@ -60,6 +60,6 @@ efficiently during subsequent map and reduce operations.
 Finally, though this paper focuses on graph algorithms expressed as
 MapReduce operations, there is nothing about the MR-MPI library itself
 that is graph centric.  We hope the library can be generally useful on
-large-scale monolithic or cloud-style parallel machines which support
+large-scale monolithic or cloud-style parallel machines that support
 MPI, for a variety of data-intense or compute-intense problems that
 are amenable to solution using a MapReduce paradigm.
