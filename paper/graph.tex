@@ -114,12 +114,36 @@ probability of moving to a random page.  For pages with no outlinks,
 the first term is $\alpha/|V|$, indicating equal likelihood to move to
 any other page.  Equivalently, the graph can be represented by a
 matrix $A$~\cite{LangvilleMeyer05a}, with matrix entries $A_{ij} =
-\alpha/d_{out}(V_i)$ if vertex $V_i$ links to $V_j$.  The PageRank
-algorithm, then, is essentially a power-method iteration in which the
-dominating computation is matrix-vector multiplication $A^T x=y$,
-where $x$ is the PageRank vector from the previous iteration.
+\alpha/d_{out}(V_i)$ if vertex $V_i$ links to $V_j$.  To maintain the 
+sparsity of $A$, terms for random jumps and zero out-degree vertices are
+not explicitly stored in $A$.  Rather, they are computed separately
+as adjustments to the PageRank vector.  The kernel of the PageRank
+algorithm, then, is a power-method iteration consisting of 
+matrix-vector multiplication $A^T x=y$,
+where $x$ is the PageRank vector from the previous iteration, and
+a few dot product and norm computations.
+
 The algorithm in Figure \ref{fig:pr} performs these
-iterations.
+iterations.  The nonzeros of matrix $A$ are initialized as described above;
+the PageRank vector $x$ is initialized uniformly.  A MapReduce object $MT$
+contains the indices of all-zero rows of $A$, corresponding to vertices
+with no outlinks.  In step 1 of a PageRank interation, $MT$ is used 
+in dot products to compute adjustments to the
+PageRank vector to represent uniform probability of going from a leaf page
+to any other page.  Adjustments for random jumps from any page are also
+computed in this step.  Step 2, the matrix-vector product $A^T x$, is the most
+expensive part of the computation, requiring two passes over the nonzero
+structure of $A$.  In the first pass, {\it collate()} 
+gathers all row entries $a_{ij}$ with their
+associated $x_i$ entry, and {\it reduce()} computes $a_{ij} x_i$.  
+In the second pass, 
+{\it collate()} gathers, for each $j$, all contributions to the
+column sum $\sum_i a_{ij} x_i$, which is computed by a second {\it reduce()}. 
+Steps 3 and 4 adjust and scale the 
+product vector; the work is proportional to $|V|$.  Step 6 computes the
+residual to determine whether the PageRank vector has converged; work is
+again proportional to $|V|$.  Throughout the algorithm, we exploit the
+ability to call MPI\_Allreduce to compute global norms and residuals. 
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
@@ -146,18 +170,18 @@ iterations.
 %\> \> Output:  For each vertex, Key = $V_i$; Value = $1/|V|$. \\
 Input: \\
 \> MapReduce object $A$ containing $|V| \times |V|$ matrix:  Key = $i$, Value = $[j, a_{ij}]$ \\
-\> MapReduce object $MT$ containing indices of empty rows of $A$:  Key = $i$, Value = 0. \\
+\> MapReduce object $MT$ containing indices of all-zero rows of $A$:  Key = $i$, Value = 0. \\
 \> MapReduce object $x$ containing initial PageRank vector:  Key = $i$, Value = $1/|V|$. \\
 While (${residual} > {tolerance}$) \\
-\> Compute contribution for random jumps and zero-outdegree vertices. \\
+\> 1. Compute contribution for random jumps and zero-outdegree vertices. \\
 \> \> Add: $x$ to $MT$. \\
 \> \> Collate $MT$:  Vertex is Key. \\
 \> \> Reduce $MT$:   \\
 \> \> \> Input:  Key = $i$; MultiValue = $x_i, 0$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$. \\
-\> \> \> Compute:  Local contributions $cont$. \\
+\> \> \> Compute:  Local contributions $c_{local}$. \\
 \> \> \> Output:  If ${nvalues} = 2$, Key = $i$; Value = 0. \\
-\> \> MPI\_Allreduce with MPI\_SUM to compute global contribution $gcont$. \\
-\> Compute $y = A^T x$.  \\
+\> \> MPI\_Allreduce $c_{local}$ with MPI\_SUM to compute global contribution $c_{global}$. \\
+\> 2. Compute $y = A^T x$.  \\
 \> \> Copy $x$ to $y$. \\
 \> \> Add $A$ to $y$. \\
 \> \> Collate $y$:  Key is row index of $A$. \\
@@ -168,24 +192,24 @@ While (${residual} > {tolerance}$) \\
 \> \> Reduce $y$:  \\
 \> \> \> Input:  Key = $j$; Multivalue = $a_{ij} y_i$ for all non-zero entries $a_{ij}$ of column $j$ \\
 \> \> \> Output:  Key = $j$; Value = $\sum_i a_{ij} y_i$. \\
-\> Add contribution $gcont$ to $y$; compute local max norm $norm$ of $y$. \\
+\> 3. Add contribution $c_{global}$ to $y$; compute local max norm $n_{local}$ of $y$. \\
 \> \> Map $y$:  \\
 \> \> \> Input:  Key = $i$, Value = $y_i$. \\
-\> \> \> Compute: $y_i = y_i + gcont$; if $y_i > {norm}$, $norm = y_i$. \\
+\> \> \> Compute: $y_i = y_i + c_{global}$; if $y_i > n_{local}$, $n_{local} = y_i$. \\
 \> \> \> Output:  Key = $i$, Value = $y_i$. \\
-\> \> MPI\_Allreduce $norm$ with MPI\_MAX to compute global max norm $gnorm$. \\
-\> Scale $y$ by $gnorm$. \\
+\> \> MPI\_Allreduce $n_{local}$ with MPI\_MAX to compute global max norm $n_{global}$. \\
+\> 4. Scale $y$ by $n_{global}$. \\
 \> \> Map $y$: \\
 \> \> \> Input:  Key = $i$, Value = $y_i$. \\
-\> \> \> Output:  Key = $i$, Value = $y_i / {gnorm}$. \\
-\> Compute residual. \\
+\> \> \> Output:  Key = $i$, Value = $y_i / {n_{global}}$. \\
+\> 5. Compute residual. \\
 \> \> Add $y$ to $x$. \\
 \> \> Collate $x$:  Key is index $i$. \\
 \> \> Reduce $x$:   \\
 \> \> \> Input:  Key = $i$; Multivalue = $x_i, y_i$. \\
 \> \> \> Compute:  if $|x_i - y_i| > {resid}$, ${resid} = |x_i - y_i|$ \\
 \> \> MPI\_Allreduce with MPI\_MAX to compute $residual$. \\
-\> $x = y$; \\
+\> 6. $x = y$; \\
 Output:  PageRank vector $x$.
   \end{tabbing}
  \end{minipage}}\end{center}
@@ -194,17 +218,6 @@ Output:  PageRank vector $x$.
 
  \label{fig:pr}
 \end{figure}
-
-%The MapReduce implementation performs two {\it map()} operations to
-%initialize the graph matrix $A$ and PageRank vector $x$.  
-The key kernel of PageRank is the matrix-vector multiplication $y = A^T x$.
-In it, a {\it
-collate()} operation gathers all row entries $a_{ij}$ with their
-associated $x_i$ entry, and a {\it reduce()} computes $a_{ij} x_i$.  A
-second {\it collate()} gathers, for each $j$, all contributions to the
-column sum $\sum_i a_{ij} x_i$, which is computed by a second {\it
-reduce()}.  MPI\_Allreduce calls are used to compute global norms and
-residuals.
 
 The entire PageRank algorithm can be made more efficient by calling
 {\it aggregate()} on the MapReduce objects representing the matrix $A$, 
@@ -235,9 +248,9 @@ While (${residual} > {tolerance}$) \\
 $*$\> \> Convert $MT$:  Vertex is Key. \\
 \> \> Reduce $MT$:   \\
 \> \> \> Input:  Key = $i$; MultiValue = $x_i, 0$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$. \\
-\> \> \> Compute:  Local contributions $cont$. \\
+\> \> \> Compute:  Local contributions $c_{local}$. \\
 \> \> \> Output:  If ${nvalues} = 2$, Key = $i$; Value = 0. \\
-\> \> MPI\_Allreduce with MPI\_SUM to compute global contribution $gcont$. \\
+\> \> MPI\_Allreduce $c_{local}$ with MPI\_SUM to compute global contribution $c_{global}$. \\
 \> Compute $y = A^T x$.  \\
 \> \> Copy $x$ to $y$. \\
 \> \> Add $A$ to $y$. \\
@@ -249,16 +262,16 @@ $*$\> \> Convert $y$:  Key is row index of $A$. \\
 \> \> Reduce $y$:  \\
 \> \> \> Input:  Key = $j$; Multivalue = $a_{ij} y_i$ for all non-zero entries $a_{ij}$ of column $j$ \\
 \> \> \> Output:  Key = $j$; Value = $\sum_i a_{ij} y_i$. \\
-\> Add contribution $gcont$ to $y$; compute local max norm $norm$ of $y$. \\
+\> Add contribution $c_{global}$ to $y$; compute local max norm $n_{local}$ of $y$. \\
 \> \> Map $y$:  \\
 \> \> \> Input:  Key = $i$, Value = $y_i$. \\
-\> \> \> Compute: $y_i = y_i + gcont$; if $y_i > {norm}$, $norm = y_i$. \\
+\> \> \> Compute: $y_i = y_i + c_{global}$; if $y_i > {n_{local}}$, $n_{local} = y_i$. \\
 \> \> \> Output:  Key = $i$, Value = $y_i$. \\
-\> \> MPI\_Allreduce $norm$ with MPI\_MAX to compute global max norm $gnorm$. \\
-\> Scale $y$ by $gnorm$. \\
+\> \> MPI\_Allreduce $n_{local}$ with MPI\_MAX to compute global max norm $n_{global}$. \\
+\> Scale $y$ by $n_{global}$. \\
 \> \> Map $y$: \\
 \> \> \> Input:  Key = $i$, Value = $y_i$. \\
-\> \> \> Output:  Key = $i$, Value = $y_i / {gnorm}$. \\
+\> \> \> Output:  Key = $i$, Value = $y_i / {n_{global}}$. \\
 \> Compute residual. \\
 \> \> Add $y$ to $x$. \\
 $*$\> \> Convert $x$:  Key is index $i$. \\
