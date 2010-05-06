@@ -57,10 +57,17 @@ a power-of-two, to generate graphs with weighted edges (assign a
 numeric value to the $A_{ij}$ edge), graphs without self edges
 (require $i \ne j$), or graphs with undirected edges (require $i < j$).
 Or the general R-MAT matrix can be further processed by MapReduce
-operations to meet these requirements.
+operations to meet these requirements.  For some algorithms below
+(e.g., triangle finding and maximal independent set generation), we
+post-process R-MAT matrices to create upper-triangular R-MAT
+matrices representing undirected graphs.  For each edge $(i,j)$ 
+with $i>j$, we add edge $(j,i)$, essentially symmetrizing the matrix; 
+we then remove duplicate edges and self edges,
+leaving only edges with $i<j$.
 
 By using more than one MapReduce object, we can improve the performance
-of the R-MAT generation algorithm.  In the enhanced algorithm
+of the R-MAT generation algorithm, particularly when out-of-core operations
+are needed.  In the enhanced algorithm
 (Figure~\ref{fig:rmat2}), we emit newly created edges into MapReduce object
 $E_{new}$ and {\it aggregate()} the edges to processors.  
 We then add those edges
@@ -68,7 +75,7 @@ to the MapReduce object $E_{old}$, containing all previously generated
 unique edges; the edges of $E_{old}$ are already aggregated to processors
 using the same mapping as $E_{new}$.  We can then use the {\it compress()}
 function to reduce duplicates locally on each processor.
-Performance improvements
+Time reductions
 in this algorithm result from the reduced number of KV pairs communicated in
 {\it aggregate()},
 compared to the collate operation in the original algorithm, 
@@ -545,7 +552,7 @@ V_j$ for every edge, i.e. an upper-triangular R-MAT matrix.
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
   xxxx\=xxxxxxxxxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-Map: assign random values to each vertex \\
+Map: assign random values to each vertex $V_i$ and $V_j$ of edge $E_{ij}$. \\
 Clone: convert edge key/values directly to key/multivalues \\
 Create: empty MapReduce object MRv for maximal independent set vertices \\
 \\
