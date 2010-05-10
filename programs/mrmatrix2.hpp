@@ -12,6 +12,7 @@
 // The dimensions of the matrix A are given by N and M (N rows, M columns).
 
 #include <iostream>
+#include <fstream>
 #include <list>
 #include "mpi.h"
 #include "mapreduce.h"
@@ -56,7 +57,7 @@ class MRMatrix {
     MapReduce *mr;  // Actual storage; perhaps should be private.
     uint64_t nEmptyRows;  // Number of rows of A with no nonzeros.
     MapReduce *emptyRows; // Indices of rows of A with no nonzeros (leaf nodes).
-    void Print();
+    void Print(const char *filename = NULL);
     bool transposeFlag;  // State variable; indicates whether matrix is stored
                          // as A or as A^T.
     double scaleFactor;  // Factor by which all read/generated entries 
@@ -64,6 +65,7 @@ class MRMatrix {
   private:
     IDTYPE N;  // Number of rows
     IDTYPE M;  // Number of cols
+    IDTYPE NNZ; // Number of nonzeros
 };
 
 
@@ -198,6 +200,9 @@ MRMatrix<IDTYPE>::MRMatrix(
     // be aggregated correctly.
     mr->aggregate(NULL);
   }
+
+  MPI_Allreduce(&(mr->kv->nkv), &NNZ, 1, MPI_UNSIGNED_LONG, MPI_SUM,
+                MPI_COMM_WORLD);
  
   if (transposeFlag) {N = m; M = n;}
   else {N = n; M = m;}
@@ -400,22 +405,71 @@ static void mrm_print(uint64_t itask, char *key, int keybytes,
                       char *value, int valuebytes, KeyValue *kv, void *ptr)
 {
   int me;
+  fstream *fout = (fstream *) ptr;
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
   MRNonZero<IDTYPE> *v = (MRNonZero<IDTYPE> *) value;
-  cout << me << "        " << v->ij 
-       << " " << *((IDTYPE *)key) 
-       << ":  " << v->nzv << endl;
+  *fout << v->ij 
+        << " " << *((IDTYPE *)key) 
+        << " " << v->nzv << endl;
+}
+
+// Print each matrix-transpose entry.
+template <typename IDTYPE>
+static void mrm_print_transpose(uint64_t itask, char *key, int keybytes, 
+                      char *value, int valuebytes, KeyValue *kv, void *ptr)
+{
+  int me;
+  fstream *fout = (fstream *) ptr;
+  MPI_Comm_rank(MPI_COMM_WORLD, &me);
+  MRNonZero<IDTYPE> *v = (MRNonZero<IDTYPE> *) value;
+  *fout << *((IDTYPE *)key) 
+        << " " << v->ij 
+        << " " << v->nzv << endl;
 }
 
 template <typename IDTYPE>
-void MRMatrix<IDTYPE>::Print()
+void MRMatrix<IDTYPE>::Print(const char *filename)
 {
-  cout << "Matrix Info on processor " << mr->my_proc() 
-       << " global nEmptyRows= " << nEmptyRows
-       << " local NNZ= " << mr->kv->nkv << endl;
-  cout << "Matrix Entries on processor " << mr->my_proc() << endl;
-  mr->map(mr, mrm_print<IDTYPE>, NULL, 1);
-  
+  fstream *fout;
+
+  // Print header info
+  if (filename) {
+    // Matrix-Market header
+    if (mr->my_proc() ==0) {
+      char ff[267];
+      sprintf(ff, "%s.header", filename);
+      fstream fhead;
+      fhead.open(ff, ios::out);
+      fhead << "%%MatrixMarket matrix coordinate real general" << endl 
+            << "%" << endl;
+      fhead << N << " " << M << " " << NNZ << "\n";
+      fhead.close();
+    }
+  }
+  else {
+    // Just print some stats.
+    cout << "Matrix Info on processor " << mr->my_proc() 
+         << " global nEmptyRows= " << nEmptyRows
+         << " local NNZ= " << mr->kv->nkv << endl;
+    cout << "Matrix Entries on processor " << mr->my_proc() << endl;
+  }
+
+  // Print matrix nonzeros.
+  if (filename) {
+    char ff[267];
+    sprintf(ff, "%s.%03d", filename, mr->my_proc());
+    fout = new fstream;
+    fout->open(ff, ios::out);
+  }
+  else {
+    fout = (fstream *) &cout;
+  }
+  if (!transposeFlag) 
+    mr->map(mr, mrm_print<IDTYPE>, fout, 1);
+  else
+    mr->map(mr, mrm_print_transpose<IDTYPE>, fout, 1);
+
+  if (filename) fout->close();
 }
 
 #endif

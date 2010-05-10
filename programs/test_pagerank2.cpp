@@ -436,6 +436,8 @@ int main(int narg, char **args)
   delete mredge;
   delete mrvert;  // Will need mrvert for MRVector constructor for FBFILE.
 
+  A.Print("KDD");
+
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
