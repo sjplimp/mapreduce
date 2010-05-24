@@ -9,7 +9,6 @@
 // 
 // Syntax: concomp switch args switch args ...
 // switches:
-//   -r N = define N as root vertex, compute all distances from it
 //   -o file = output to this file, else no output except screen summary
 //   -t style params = input from a test problem
 //      style params = ring N = 1d ring with N vertices
@@ -36,6 +35,7 @@
 #include "test_cc_common.h"
 #include "ccnd.h"
 
+#include <iostream>
 using namespace std;
 using namespace MAPREDUCE_NS;
 
@@ -171,14 +171,16 @@ int main(int narg, char **args)
     MPI_Allreduce(&tmp, &cc.nvtx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
   } else if (cc.input == RMAT) {
-    int ntotal = (1 << cc.nlevels) * cc.nnonzero;
-    int nremain = ntotal;
+    uint64_t ntotal = ((uint64_t) 1 << cc.nlevels) * cc.nnonzero;
+    uint64_t nremain = ntotal;
     while (nremain) {
+      if (me == 0) 
+        cout << "Generating " << nremain << " edges." << endl;
       cc.ngenerate = nremain/nprocs;
       if (me < nremain % nprocs) cc.ngenerate++;
-      mr->verbosity = 1;
+      mr->verbosity = 0;
       mr->map(nprocs,&rmat_generate,&cc,1);
-      int nunique = mr->collate(NULL);
+      uint64_t nunique = mr->collate(NULL);
       if (nunique == ntotal) break;
       mr->reduce(&rmat_cull,&cc);
       nremain = ntotal - nunique;

@@ -189,14 +189,15 @@ int main(int narg, char **args)
     MPI_Allreduce(&tmp, &cc.nvtx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
   } else if (cc.input == RMAT) {
-    int ntotal = (1 << cc.nlevels) * cc.nnonzero;
-    int nremain = ntotal;
+    uint64_t ntotal = ((uint64_t) 1 << cc.nlevels) * cc.nnonzero;
+    uint64_t nremain = ntotal;
     while (nremain) {
+      if (me == 0) cout << "Generating " << nremain << " edges" << endl;
       cc.ngenerate = nremain/nprocs;
       if (me < nremain % nprocs) cc.ngenerate++;
       mr->verbosity = 1;
       mr->map(nprocs,&rmat_generate,&cc,1);
-      int nunique = mr->collate(NULL);
+      uint64_t nunique = mr->collate(NULL);
       if (nunique == ntotal) break;
       mr->reduce(&rmat_cull,&cc);
       nremain = ntotal - nunique;
