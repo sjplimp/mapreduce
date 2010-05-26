@@ -2,7 +2,7 @@
 \label{sec:intro}
 
 MapReduce is the programming paradigm popularized by Google
-researchers Dean and Ghemawat \cite{Dean}.  Their motivation was to
+researchers Dean and Ghemawat~\cite{MapReduce2004}.  Their motivation was to
 enable rapid development and deployment of analysis programs to
 operate on massive data sets residing on Google's large distributed
 clusters.  They introduced a novel way of thinking about certain kinds
@@ -22,10 +22,10 @@ It allows for fault tolerance when large numbers of machines are used,
 and can use disks as out-of-core memory to process petabyte-scale data
 sets.  Tens of thousands of MapReduce programs have since been written
 by Google researchers and are a significant part of the daily compute
-tasks run by the company \cite{Dean2}.
+tasks run by the company~\cite{MapReduce2008}.
 
-Similarly, the open-source Hadoop implementation of MapReduce
-\cite{Hadoop}, has become widely popular in the past few years for
+Similarly, the open-source Hadoop implementation of MapReduce~\cite{Hadoop}, 
+has become widely popular in the past few years for
 parallel analysis of large-scale data sets at Yahoo and other
 data-centric companies, as well as in university and laboratory
 research groups, due to its free availability.  MapReduce programs in
@@ -35,9 +35,9 @@ scripts or in other languages.
 
 More recently, MapReduce formulations of traditional number-crunching
 kinds of scientific computational tasks have been described, such as
-post-processing analysis of simulation data \cite{Tu}, graph
-algorithmics \cite{Cohen}, and linear algebra operations \cite{Fox}.
-The paper by Tu et al \cite{Tu} was particularly insightful to us,
+post-processing analysis of simulation data~\cite{Tu08}, graph
+algorithmics~\cite{Cohen09}, and linear algebra operations~\cite{Ekanayake09}.
+The paper by Tu et al.~\cite{Tu08} was particularly insightful to us,
 because it described how MapReduce could be implemented on top of the
 ubiquitous distributed-memory message-passing interface (MPI), and how
 the intermediate data-shuffle operation is conceptually identical to
@@ -45,11 +45,11 @@ the familiar MPI\_Alltoall operation.  Their implementation of
 MapReduce was within a Python wrapper to simplify the writing of user
 programs.  The paper motivated us to develop our own C++ library built
 on top of MPI for use in graph analytics, which we initially released
-as open-source software in mid-2009 \cite{MRMPI}.  We have since
+as open-source software in mid-2009~\cite{MRMPI}.  We have since
 worked to optimize several of the library's underlying algorithms and
 to enable its operation in out-of-core mode on larger data sets.
 These algorithmic improvements are described in this paper and are
-part of the current downloadable version \cite{MRMPI}.
+part of the current downloadable version~\cite{MRMPI}.
 
 The MapReduce-MPI (MR-MPI) library described in this paper is a
 simple, lightweight implementation of basic MapReduce functionality,
@@ -69,7 +69,7 @@ finish the operation before proceeding.  Similarly, the use of MPI
 within the library is the traditional mode of MPI\_Send and
 MPI\_Recv calls between processor pairs using large aggregated
 messages to improve bandwidth performance and reduce latency costs.  A
-recent paper by \cite{Dongarra} also outlines the MapReduce formalism
+recent paper~\cite{Hoefler09} also outlines the MapReduce formalism
 from an MPI perspective, though they advocate a more asyncrhonous
 approach, using one-way communication of small messages.
 
@@ -78,7 +78,7 @@ lines of standard C++ code.  For parallel operation, the program is
 linked with MPI, a standard message passing library available on all
 distributed memory machines.  For serial operation, a dummy MPI
 library (provided) can be substituted.  As a library, it can be
-embedded in other codes \cite{Titan,TitanURL} to enable them to
+embedded in other codes~\cite{Titan} to enable them to
 perform MapReduces.
 
 \item {\it In-core or out-of-core operation:} Each MapReduce object that a
@@ -96,7 +96,7 @@ processors, i.e. up to the available aggregate disk space.
 MapReduce program on top of MPI, is that the user program can invoke
 MPI calls directly, if desired.  For example, one-line calls to
 MPI\_Allreduce are often useful in determining the status of an
-iterative graph algorithm, as described in Section \ref{sec:graph}.
+iterative graph algorithm, as described in Section~\ref{sec:graph}.
 The library interface also provides a user data pointer as an argument
 passed back to all callback functions, so it is easy for the user
 program to store ``state'' on each processor, accessible during the
@@ -126,14 +126,14 @@ available, but these typically provide no data redundancy.
 \end{itemize}
 
 The remainder of the paper is organized as follows.  The next two
-sections \ref{sec:mr} and \ref{sec:outcore} describe how in-core and
+sections~\ref{sec:mr} and~\ref{sec:outcore} describe how in-core and
 out-of-core MapReduce primitives are formulated as MPI-based
-operations in the MR-MPI library.  Section \ref{sec:graph} briefly
+operations in the MR-MPI library.  Section~\ref{sec:graph} briefly
 describes the formulation of several common graph algorithms as
-MapReduce operations.  Section \ref{sec:results} gives performance
+MapReduce operations.  Section~\ref{sec:results} gives performance
 results for these algorithms running on a parallel cluster for graphs
 %KDDKDD CHECK SIZES
-ranging in size from 1 million to 1 trillion vertices or edges.  In
+ranging in size from 1 million to 2 billion vertices or edges.  In
 this section, we highlight the performance and complexity trade-offs
 of a MapReduce approach versus other more special-purpose algorithms.
 The latter generally perform better but are harder to implement
