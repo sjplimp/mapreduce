@@ -31,10 +31,10 @@ All data sets used R-MAT parameters $(a, b, c, d) = (0.57, 0.19, 0.19, 0.05)$.
 Data & \# of    & \# of & Maximum \\
 Set  & vertices & edges & vertex degree\\
 \hline
-small   &$2^{20} \approx 1M$ & $2^{23} \approx 8M$ &   \\
-medium  &$2^{24} \approx 17M$ & $2^{27} \approx 134M$ &   \\
-large   &$2^{28} \approx 268M$ & $2^{31} \approx 2B$&   \\
-%x-large &$2^{32} \approx 4B$ & $2^{35} \approx 34B$ &   \\
+RMAT-20 (small)   &$2^{20} \approx 1M$ & $2^{23} \approx 8M$ &   \\
+RMAT-24 (medium)  &$2^{24} \approx 17M$ & $2^{27} \approx 134M$ &   \\
+RMAT-28 (large)   &$2^{28} \approx 268M$ & $2^{31} \approx 2B$&   \\
+%RMAT-32 (x-large) &$2^{32} \approx 4B$ & $2^{35} \approx 34B$ &   \\
 \hline
 \end{tabular}
 \caption{Characteristics of R-MAT input data for graph algorithm
@@ -53,10 +53,13 @@ Discuss R-MAT generation times.
 
 \subsection{PageRank results}
 
-In Figure~\ref{f:pr}, we show the performance of the MR-MPI PageRank algorithm
+In Figure~\ref{fig:pr}, we show the performance of the MR-MPI PageRank algorithm
 compared to a
 distributed-memory matrix-based implementation using the linear
-algebra toolkit Trilinos~\cite{Trilinos-Overview}.
+algebra toolkit Trilinos~\cite{Trilinos-Overview} 
+and a multi-threaded
+implementation
+in the Multi-Threaded Graph Library (MTGL)~\cite{MTGL}.
 The matrix-based distributed-memory implementation of PageRank
 uses Trilinos' Epetra matrix/vector classes to represent the graph and
 PageRank vector.
@@ -68,22 +71,46 @@ multiplication and sums partial products into the $y$ vector.
 Most communication is point-to-point communication,
 but some global communication is needed for computing
 residuals and norms of $x$ and $y$.
+In the multi-threaded MTGL~\cite{MTGL} implementation,
+rank propagates via adjacency list traversal
+in a compressed sparse-row data structure.
+To maintain scalability, code must
+be written so that a single thread spawns the loop that processes all
+in-neighbors of a given vertex; this detail enables the compiler to generate
+hotspot-free code.
 
-%We compare our MapReduce implementations with a multi-threaded
-%implementations
-%in the Multi-Threaded Graph Library (MTGL)~\cite{MTGL}.
-%In the MTGL~\cite{MTGL} implementation,
-%rank propagates via adjacency list traversal
-%in a compressed sparse-row data structure.
-%To maintain scalability, code must
-%be written so that a single thread spawns the loop that processes all
-%in-neighbors of a given vertex; this detail enables the compiler to generate
-%hotspot-free code.
+Figure~\ref{fig:pr} shows the execution time per PageRank iteration for
+R-MAT matrices RMAT-20, RMAT-24 and RMAT-28.  
+Converging the PageRank iterations
+to tolerance $0.002$ requires five or six iterations.
+Several R-MAT matrices of 
+each size were generated for the experiments; the average time over the
+matrices is reported here.  
+The Trilinos implementations show near-perfect
+strong scaling for RMAT-20 and RMAT-24.  The MR-MPI 
+implementations also demonstrate good strong scaling.  However, MR-MPI's
+execution time is at least an order of magnitude greater than the Trilinos
+implementation.  This result is due to two factors:  ({\it i}) a 
+higher volume of
+communication in the MapReduce implementation (where all edges are communicated
+in each iteration), compared to the Trilinos implementation (where only
+vertex-based data are communicated), and ({\it ii}) out-of-core operations
+in MR-MPI were performed because of the page-size restriction, while all
+Trilinos operations were performed in-core.  The benefit of MR-MPI's
+out-of-core implementation is seen, however, with the RMAT-28 data set, 
+which could be solved on smaller processor sets than the Trilinos 
+implementation.  For these experiments, the Trilinos implementation required
+64 processors for the RMAT-28 data set. 
 
-%This result is likely due to higher volume of
-%communication in the MapReduce implementation (where all edges are communicated
-%in each iteration), compared to the Trilinos implementation (where only
-%vertex-based data are communicated).  
+KDD NOTE:  Need to add XMT results; PBGL would be nice, too.
+
+
+\begin{figure}[h!]
+\includegraphics[width=\textwidth]{fig_pagerank.pdf}
+\caption{Comparison of PageRank implementations using MapReduce,
+Trilinos, and MTGL on R-MAT data sets.}
+\label{fig:pr}
+\end{figure}
 
 
 
@@ -124,7 +151,7 @@ Components scalability experiments.}
 \label{t:rmat}
 \end{table}
 
-In Figure~\ref{f:prbig}, we show the performance 
+In Figure~\ref{fig:prbig}, we show the performance 
 of the various PageRank
 implementations on distributed memory and multi-threaded architectures.
 The MR-MPI implementation demonstrated good scalability up to 1024 processors; 
@@ -136,21 +163,21 @@ in MTGL on the Cray XMT.
 
 \begin{figure}[h!]
 \includegraphics[width=\textwidth]{fig_pagerank_big.pdf}
-\caption{Comparison of PageRank implementations using MapReduce,
+\caption{Scalability comparison of PageRank implementations using MapReduce,
 Trilinos, and MTGL on R-MAT data sets.}
-\label{f:prbig}
+\label{fig:prbig}
 \end{figure}
 
 Similar results were obtained for the Connected Components algorithm, as
-we show in Figure~\ref{f:ccbig}.  As with PageRank, the MR-MPI implementation
+we show in Figure~\ref{fig:ccbig}.  As with PageRank, the MR-MPI implementation
 showed good scalability up to 1024 processors, but required significantly
 more time than the Giant Connected Components algorithms using MTGL and
 Trilinos.
 
 \begin{figure}[h!]
 \includegraphics[width=\textwidth]{fig_cc_big.pdf}
-\caption{Comparison of Connected Components implementations using MapReduce,
+\caption{Scalability comparison of Connected Components implementations using MapReduce,
 Trilinos, and MTGL on R-MAT data sets.}
-\label{f:prbig}
+\label{fig:ccbig}
 \end{figure}
 
