@@ -130,18 +130,34 @@ matrix-vector multiplication $A^T x=y$,
 where $x$ is the PageRank vector from the previous iteration, and
 a few dot product and norm computations.
 
-The algorithm in Figure~\ref{fig:pr} performs these
+The algorithm in Figure~\ref{fig:pr2} performs these
 iterations.  The nonzeros of matrix $A$ are initialized as described above;
 the PageRank vector $x$ is initialized uniformly.  A MapReduce object $MT$
 contains the indices of all-zero rows of $A$, corresponding to vertices
-with no outlinks.  In step 1 of a PageRank interation, $MT$ is used 
+with no outlinks.  
+The PageRank algorithm is made more efficient by calling
+{\it aggregate()} on the MapReduce objects representing the matrix $A$, 
+the all-zero matrix rows $MT$, and the vector $x$ once before the PageRank 
+iterations begin.  Since these three MapReduce
+objects have the same key types, pre-aggregating the objects moves all
+Key-Value pairs with a given key to a single processor.  Thus, many of
+the PageRank operations become local operations, replacing 
+{\it collate()} operations (which is equivalent to {\it aggregate()} 
+followed by {\it convert()}) with only local {\it convert()} calls. 
+In Figure~\ref{fig:pr2}, steps where {\it convert()} operations can be
+substituted for {\it convert()} operations are marked with an asterisk.
+This strategy of pre-aggregating to improve data locality is useful in
+many MapReduce algorithms, but assumes that keys are always mapped to
+the same processor.
+
+In step 1 of a PageRank interation, $MT$ is used 
 in dot products to compute adjustments to the
 PageRank vector to represent uniform probability of going from a leaf page
 to any other page.  Adjustments for random jumps from any page are also
 computed in this step.  Step 2, the matrix-vector product $A^T x$, is the most
 expensive part of the computation, requiring two passes over the nonzero
-structure of $A$.  In the first pass, {\it collate()} 
-gathers all row entries $a_{ij}$ with their
+structure of $A$.  In the first pass, {\it convert()} 
+gathers all local row entries $a_{ij}$ with their
 associated $x_i$ entry, and {\it reduce()} computes $a_{ij} x_i$.  
 In the second pass, 
 {\it collate()} gathers, for each $j$, all contributions to the
@@ -152,94 +168,60 @@ residual to determine whether the PageRank vector has converged; work is
 again proportional to $|V|$.  Throughout the algorithm, we exploit the
 ability to call MPI\_Allreduce to compute global norms and residuals. 
 
-\begin{figure}[htb]
- \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxxx\=xxxxx\=xxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-%Input from R-MAT generator: \\
-%\> MapReduce object $V$ containing all graph vertices:  Key=$V_i$, Value = NULL.  \\
-%\> MapReduce object $E$ containing all graph edges: Key=$V_i$, Value = $V_j$. \\
-%Initialize MapReduce object for matrix $A$  and \\
-%MapReduce object $MT$ containing all vertices with no outlinks.\\
-%\> Copy: $A = E$ \\
-%\> Add: $V$ to $A$ \\
-%\> Collate $A$: Vertex is Key \\
-%\> Reduce $A$:  \\
-%\> \> Input:  Key = $V_i$; MultiValue = NULL,$V_j$,$V_k$,... \\
-%\> \> If (${nvalues} > 1$) \\
-%\> \> \> Compute: $d_{out}(V_i) = {nvalues} - 1$. \\
-%\> \> \> Output:  For each $V_j$ in MultiValue, Key = $V_i$; Value = ($V_j$, $\alpha/d_{out}(V_i)$). \\
-%\> \> else \\
-%\> \> \> Output to $MT$: Key = $V_i$; Value = 0. \\
-%Initialize MapReduce object for pagerank vector $x$. \\
-%\> Map:   \\
-%\> \> Input:  Graph vertices $V$. \\
-%\> \> Output:  For each vertex, Key = $V_i$; Value = $1/|V|$. \\
-Input: \\
-\> MapReduce object $A$ containing $|V| \times |V|$ matrix:  Key = $i$, Value = $[j, a_{ij}]$ \\
-\> MapReduce object $MT$ containing indices of all-zero rows of $A$:  Key = $i$, Value = 0. \\
-\> MapReduce object $x$ containing initial PageRank vector:  Key = $i$, Value = $1/|V|$. \\
-While (${residual} > {tolerance}$) \\
-\> 1. Compute contribution for random jumps and zero-outdegree vertices. \\
-\> \> Add: $x$ to $MT$. \\
-\> \> Collate $MT$:  Vertex is Key. \\
-\> \> Reduce $MT$:   \\
-\> \> \> Input:  Key = $i$; MultiValue = $x_i, 0$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$. \\
-\> \> \> Compute:  Local contributions $c_{local}$. \\
-\> \> \> Output:  If ${nvalues} = 2$, Key = $i$; Value = 0. \\
-\> \> MPI\_Allreduce $c_{local}$ with MPI\_SUM to compute global contribution $c_{global}$. \\
-\> 2. Compute $y = A^T x$.  \\
-\> \> Copy $x$ to $y$. \\
-\> \> Add $A$ to $y$. \\
-\> \> Collate $y$:  Key is row index of $A$. \\
-\> \> Reduce $y$: \\
-\> \> \>  Input: Key = $i$; Multivalue = $i, [j, a_{ij}]$ for nonzeros $a_{ij}$ in $A$ \\
-\> \> \>  Output:  Key = $j$; Value = $a_{ij} y_i$. \\
-\> \> Collate $y$:  Key is column index of $A$. \\
-\> \> Reduce $y$:  \\
-\> \> \> Input:  Key = $j$; Multivalue = $a_{ij} y_i$ for all non-zero entries $a_{ij}$ of column $j$ \\
-\> \> \> Output:  Key = $j$; Value = $\sum_i a_{ij} y_i$. \\
-\> 3. Add contribution $c_{global}$ to $y$; compute local max norm $n_{local}$ of $y$. \\
-\> \> Map $y$:  \\
-\> \> \> Input:  Key = $i$, Value = $y_i$. \\
-\> \> \> Compute: $y_i = y_i + c_{global}$; if $y_i > n_{local}$, $n_{local} = y_i$. \\
-\> \> \> Output:  Key = $i$, Value = $y_i$. \\
-\> \> MPI\_Allreduce $n_{local}$ with MPI\_MAX to compute global max norm $n_{global}$. \\
-\> 4. Scale $y$ by $n_{global}$. \\
-\> \> Map $y$: \\
-\> \> \> Input:  Key = $i$, Value = $y_i$. \\
-\> \> \> Output:  Key = $i$, Value = $y_i / {n_{global}}$. \\
-\> 5. Compute residual. \\
-\> \> Add $y$ to $x$. \\
-\> \> Collate $x$:  Key is index $i$. \\
-\> \> Reduce $x$:   \\
-\> \> \> Input:  Key = $i$; Multivalue = $x_i, y_i$. \\
-\> \> \> Compute:  if $|x_i - y_i| > {resid}$, ${resid} = |x_i - y_i|$ \\
-\> \> MPI\_Allreduce with MPI\_MAX to compute $residual$. \\
-\> 6. $x = y$; \\
-Output:  PageRank vector $x$.
-  \end{tabbing}
- \end{minipage}}\end{center}
-
- \caption{MapReduce algorithm for PageRank vertex ranking.}
-
- \label{fig:pr}
-\end{figure}
-
-The entire PageRank algorithm can be made more efficient by calling
-{\it aggregate()} on the MapReduce objects representing the matrix $A$, 
-the all-zero matrix rows $MT$, and the vector $x$ once before the PageRank 
-iterations begin.  Since these three MapReduce
-objects have the same key types, pre-aggregating the objects moves all
-Key-Value pairs with a given key to a single processor.  Thus, many of
-the PageRank operations become local operations, replacing 
-the {\it collate()} operation (which is equivalent to {\it aggregate()} 
-followed by {\it convert()}) with only a local {\it convert()} call. 
-Figure~\ref{fig:pr2} shows the
-enhanced algorithm; modified operations are marked with an asterisk.
-This strategy of pre-aggregating to improve data locality is useful in
-many MapReduce algorithms, but assumes that keys are always mapped to
-the same processor.
+%\begin{figure}[htb]
+% \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+%  xxxx\=xxxxx\=xxxxx\=xxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+%Input: \\
+%\> MapReduce object $A$ containing $|V| \times |V|$ matrix:  Key = $i$, Value = $[j, a_{ij}]$ \\
+%\> MapReduce object $MT$ containing indices of all-zero rows of $A$:  Key = $i$, Value = 0. \\
+%\> MapReduce object $x$ containing initial PageRank vector:  Key = $i$, Value = $1/|V|$. \\
+%While (${residual} > {tolerance}$) \\
+%\> 1. Compute contribution for random jumps and zero-outdegree vertices. \\
+%\> \> Add: $x$ to $MT$. \\
+%\> \> Collate $MT$:  Vertex is Key. \\
+%\> \> Reduce $MT$:   \\
+%\> \> \> Input:  Key = $i$; MultiValue = $x_i, 0$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$. \\
+%\> \> \> Compute:  Local contributions $c_{local}$. \\
+%\> \> \> Output:  If ${nvalues} = 2$, Key = $i$; Value = 0. \\
+%\> \> MPI\_Allreduce $c_{local}$ with MPI\_SUM to compute global contribution $c_{global}$. \\
+%\> 2. Compute $y = A^T x$.  \\
+%\> \> Copy $x$ to $y$. \\
+%\> \> Add $A$ to $y$. \\
+%\> \> Collate $y$:  Key is row index of $A$. \\
+%\> \> Reduce $y$: \\
+%\> \> \>  Input: Key = $i$; Multivalue = $i, [j, a_{ij}]$ for nonzeros $a_{ij}$ in $A$ \\
+%\> \> \>  Output:  Key = $j$; Value = $a_{ij} y_i$. \\
+%\> \> Collate $y$:  Key is column index of $A$. \\
+%\> \> Reduce $y$:  \\
+%\> \> \> Input:  Key = $j$; Multivalue = $a_{ij} y_i$ for all non-zero entries $a_{ij}$ of column $j$ \\
+%\> \> \> Output:  Key = $j$; Value = $\sum_i a_{ij} y_i$. \\
+%\> 3. Add contribution $c_{global}$ to $y$; compute local max norm $n_{local}$ of $y$. \\
+%\> \> Map $y$:  \\
+%\> \> \> Input:  Key = $i$, Value = $y_i$. \\
+%\> \> \> Compute: $y_i = y_i + c_{global}$; if $y_i > n_{local}$, $n_{local} = y_i$. \\
+%\> \> \> Output:  Key = $i$, Value = $y_i$. \\
+%\> \> MPI\_Allreduce $n_{local}$ with MPI\_MAX to compute global max norm $n_{global}$. \\
+%\> 4. Scale $y$ by $n_{global}$. \\
+%\> \> Map $y$: \\
+%\> \> \> Input:  Key = $i$, Value = $y_i$. \\
+%\> \> \> Output:  Key = $i$, Value = $y_i / {n_{global}}$. \\
+%\> 5. Compute residual. \\
+%\> \> Add $y$ to $x$. \\
+%\> \> Collate $x$:  Key is index $i$. \\
+%\> \> Reduce $x$:   \\
+%\> \> \> Input:  Key = $i$; Multivalue = $x_i, y_i$. \\
+%\> \> \> Compute:  if $|x_i - y_i| > {resid}$, ${resid} = |x_i - y_i|$ \\
+%\> \> MPI\_Allreduce with MPI\_MAX to compute $residual$. \\
+%\> 6. $x = y$; \\
+%Output:  PageRank vector $x$.
+  %\end{tabbing}
+ %\end{minipage}}\end{center}
+%
+ %\caption{MapReduce algorithm for PageRank vertex ranking.}
+%
+ %\label{fig:pr}
+%\end{figure}
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
@@ -291,7 +273,7 @@ Output:  PageRank vector $x$.
   \end{tabbing}
  \end{minipage}}\end{center}
 
- \caption{Enhanced MapReduce algorithm for PageRank vertex ranking; pre-aggregating the MapReduce objects allows many communication intensive {\it collate()} 
+ \caption{MapReduce algorithm for PageRank vertex ranking; pre-aggregating the MapReduce objects allows many communication intensive {\it collate()} 
 operations to be replaced by with strictly local {\it convert()} operations (as marked by the asterisks).}
 
  \label{fig:pr2}
