@@ -719,7 +719,7 @@ can be achieved by pre-aggregating certain MapReduce objects and
 storing data in more than one MapReduce object.  The enhanced algorithm
 is shown in Figure~\ref{fig:sssp2}.  The MapReduce objects storing
 vertices and edges are aggregated to processors only once at the beginning
-of the computation.  Then, in each iteration of 
+of the computation.  In each iteration of 
 SSSP, only a small number of new candidate distances are generated.
 The enhanced algorithm uses MapReduce object $U$ to store these updates.
 Only the updates are communicated; each update is aggregated to the 

@@ -53,7 +53,7 @@ Discuss R-MAT generation times.
 
 \subsection{PageRank results}
 
-In Figure~\ref{fig:pr}, we show the performance of the MR-MPI PageRank algorithm
+In Figure~\ref{f:pr}, we show the performance of the MR-MPI PageRank algorithm
 compared to a
 distributed-memory matrix-based implementation using the linear
 algebra toolkit Trilinos~\cite{Trilinos-Overview} 
@@ -79,7 +79,7 @@ be written so that a single thread spawns the loop that processes all
 in-neighbors of a given vertex; this detail enables the compiler to generate
 hotspot-free code.
 
-Figure~\ref{fig:pr} shows the execution time per PageRank iteration for
+Figure~\ref{f:pr} shows the execution time per PageRank iteration for
 R-MAT matrices RMAT-20, RMAT-24 and RMAT-28.  
 Converging the PageRank iterations
 to tolerance $0.002$ requires five or six iterations.
@@ -109,20 +109,94 @@ KDD NOTE:  Need to add XMT results; PBGL would be nice, too.
 \includegraphics[width=\textwidth]{fig_pagerank.pdf}
 \caption{Comparison of PageRank implementations using MapReduce,
 Trilinos, and MTGL on R-MAT data sets.}
-\label{fig:pr}
+\label{f:pr}
 \end{figure}
-
 
 
 \subsection{Triangle finding results}
 Discuss triangle finding times.
 
+KDD NOTE:  Need to add XMT results.
+
+\subsection{Connected Components}
+Discuss Luby maximally independent sets times.
+
+KDD NOTE:  Need to add XMT results.
 
 \subsection{Maximally independent set results}
 Discuss Luby maximally independent sets times.
 
+KDD NOTE:  Need to add XMT results; PBGL would be nice, too.
+
 \subsection{Single-source shortest path results}
-Discuss SSSP times.
+
+The execution times for the single-source shortest path algorithms
+(Figures~\ref{fig:sssp} and \ref{fig:sssp2})
+are shown in Figure~\ref{f:sssp}.  The results show the benefit of
+using the enhanced algorithm, providing at least a 17\% (and often greater)
+reduction in execution time due to reduced communication; only the updated
+distances are communicated throughout most of the enhanced algorithm.
+However, the execution times are still large compared to multi-threaded
+implementations; for example, Madduri et al.~\cite{Madduri07} report
+execution times of only 11 seconds on 40 
+processors for a multithreaded implementation on a Cray MTA-2
+(the predecessor of the XMT) on graphs with one billion edges.
+
+\begin{figure}[h!]
+\includegraphics[width=\textwidth]{fig_sssp.pdf}
+\caption{Execution times for SSSP using MR-MPI with R-MAT matrices.  
+Both the original algorithm (Figure~\ref{fig:sssp}) and the enhanced 
+algorithm (Figure~\ref{fig:sssp2}) are included.}
+\label{f:sssp}
+\end{figure}
+
+KDD NOTE:  Need to add XMT results; PBGL would be nice, too.
+
+To compare our MR-MPI implementation with a wider set of implementations,
+we performed experiments MR-MPI, Hadoop, PBGL (Parallel
+Boost Graph Library)~\cite{PBGL} and a multi-threaded implementation on the
+Cray XMT using two web graphs: {WebGraphA} with 13.2M
+vertices and 31.9M edges, and {WebGraphB} with 187.6M vertices and 531.9M edges.
+In Figure~\ref{f:ssspA}, we show execution times for the SSSP algorithm
+using {WebGraphA}.   Like our MR-MPI implementation, the Hadoop 
+implementation is a Bellman-Ford-style~\cite{Bellman58,Ford62}  algorithm.  
+The XMT and PBGL implementations are based on 
+delta-stepping~\cite{MeyerSanders98}, and do not require full iterations
+over the entire edge list to advance a breadth-first search.  
+We observe that the MR-MPI
+implementation runs in less time than the Hadoop implementation, but requires
+significantly more time than the XMT and PBGL implementations.  
+The Bellman-Ford-style iterations are especially harmful to the MR-MPI and
+Hadoop implementations for {WebGraphB}, which required 109 iterations to 
+complete the search; 
+execution times for this data set are show in Table~\ref{t:ssspB}.
+
+\begin{figure}[h!]
+\includegraphics[width=\textwidth]{fig_ssspA.pdf}
+\caption{SSSP using MR-MPI for WebGraphA with
+13.2M vertices and 31.9M edges.  Runtimes using Hadoop and PBGL
+are also shown.}
+\label{f:ssspA}
+\end{figure}
+
+\begin{table}
+\begin{tabular}{|l|c|r|}
+\hline
+Implementation & Number of Processes & SSSP Execution Time \\
+\hline
+Hadoop & 48  & 38,925 secs.\\
+MR-MPI & 48 &  13,724 secs.\\
+XMT/C  & 32 &  37 secs.\\
+%Out-of-core MR-MPI & 96 &   8,358 secs.\\
+%Out-of-core MR-MPI & 64 &  12,882 secs.\\
+%Out-of-core MR-MPI & 100 &  6,280 secs.\\
+\hline
+\end{tabular}
+\caption{Execution times for SSSP with {WebGraphB}.}
+\label{t:ssspB}
+\end{table}
+
+
 
 \subsection{Scalability to large numbers of processors}
 Finally, we demonstrate the scalability of MR-MPI to large numbers of 
@@ -151,7 +225,7 @@ Components scalability experiments.}
 \label{t:rmat}
 \end{table}
 
-In Figure~\ref{fig:prbig}, we show the performance 
+In Figure~\ref{f:prbig}, we show the performance 
 of the various PageRank
 implementations on distributed memory and multi-threaded architectures.
 The MR-MPI implementation demonstrated good scalability up to 1024 processors; 
@@ -165,11 +239,11 @@ in MTGL on the Cray XMT.
 \includegraphics[width=\textwidth]{fig_pagerank_big.pdf}
 \caption{Scalability comparison of PageRank implementations using MapReduce,
 Trilinos, and MTGL on R-MAT data sets.}
-\label{fig:prbig}
+\label{f:prbig}
 \end{figure}
 
 Similar results were obtained for the Connected Components algorithm, as
-we show in Figure~\ref{fig:ccbig}.  As with PageRank, the MR-MPI implementation
+we show in Figure~\ref{f:ccbig}.  As with PageRank, the MR-MPI implementation
 showed good scalability up to 1024 processors, but required significantly
 more time than the Giant Connected Components algorithms using MTGL and
 Trilinos.
@@ -178,6 +252,6 @@ Trilinos.
 \includegraphics[width=\textwidth]{fig_cc_big.pdf}
 \caption{Scalability comparison of Connected Components implementations using MapReduce,
 Trilinos, and MTGL on R-MAT data sets.}
-\label{fig:ccbig}
+\label{f:ccbig}
 \end{figure}
 
