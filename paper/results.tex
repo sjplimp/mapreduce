@@ -49,12 +49,30 @@ of fixed size on a growing number of processors.  Where available, we
 compare the MapReduce algorithm with other parallel implementations.
 
 \subsection{R-MAT generation results}
-Discuss R-MAT generation times.
+
+In Figure~\ref{f:rmat}, we show the scalability of the R-MAT generation 
+algorithm (Figure~\ref{fig:rmat2}) for RMAT-20, RMAT-24 and RMAT-28.  For
+RMAT-20 and RMAT-24, superlinear speed-up is shown.  This speed-up is due
+to the decreased amount of file I/O needed with greater numbers of 
+processors; with a larger total memory, a fixed-size problem requires
+less I/O with more processors.  For RMAT-28, where most operation require
+significant out-of-core operation, parallel efficiency ranges from 52\% to
+97\%.  Comparisons between the enhanced algorithm (Figure~\ref{fig:rmat2}) and
+the original algorithm (Figure~\ref{fig:rmat}) showed approximately 
+10\% reduction in execution time for the enhanced algorithm.
+
+KDD NOTE:  Add XMT or PBGL results here.
+
+\begin{figure}[h!]
+\includegraphics[width=\textwidth]{fig_rmat.pdf}
+\caption{Performance of R-MAT generation algorithm (Figure~\ref{fig:rmat2}).}
+\label{f:rmat}
+\end{figure}
 
 \subsection{PageRank results}
 
 In Figure~\ref{f:pr}, we show the performance of the MR-MPI PageRank algorithm
-compared to a
+(Figure~\ref{fig:pr2}) compared to a
 distributed-memory matrix-based implementation using the linear
 algebra toolkit Trilinos~\cite{Trilinos-Overview} 
 and a multi-threaded
@@ -124,9 +142,23 @@ Discuss Luby maximally independent sets times.
 KDD NOTE:  Need to add XMT results.
 
 \subsection{Maximally independent set results}
-Discuss Luby maximally independent sets times.
+
+The execution times for the maximally independent set algorithm
+(Figure~\ref{fig:luby}) are shown in Figure~\ref{f:luby}.  Like the R-MAT
+generation results, superlinear speed-up of the algorithm occurs for RMAT-20
+and RMAT-24, as more of the graph fits into processor memory and less file
+I/O is needed.  For RMAT-28, the algorithm requires significant out-of-core
+operations. In this case, parallel efficiency is nearly perfect going from 
+8 to 32 processors; some loss of efficiency is seen at 64 processors,
+where the parallel efficiency compared to the 8-processor case is ??\%.
 
 KDD NOTE:  Need to add XMT results; PBGL would be nice, too.
+
+\begin{figure}[h!]
+\includegraphics[width=\textwidth]{fig_luby.pdf}
+\caption{Performance of maximally independent set algorithm (Figure~\ref{fig:luby}).}
+\label{f:luby}
+\end{figure}
 
 \subsection{Single-source shortest path results}
 
@@ -164,12 +196,15 @@ The XMT and PBGL implementations are based on
 delta-stepping~\cite{MeyerSanders98}, and do not require full iterations
 over the entire edge list to advance a breadth-first search.  
 We observe that the MR-MPI
-implementation runs in less time than the Hadoop implementation, but requires
+implementation runs in less time than the Hadoop implementation,but requires
 significantly more time than the XMT and PBGL implementations.  
-The Bellman-Ford-style iterations are especially harmful to the MR-MPI and
-Hadoop implementations for {WebGraphB}, which required 109 iterations to 
-complete the search; 
-execution times for this data set are show in Table~\ref{t:ssspB}.
+In experiments with {WebGraphB},
+the benefit of the enhanced algorithm (Figure~\ref{fig:sssp2}) is clearly
+shown, with a 40\% reduction in execution time compared to the original
+SSSP algorith (Figure~\ref{fig:sssp}).
+But the Bellman-Ford-style iterations are especially harmful to the MR-MPI and
+Hadoop implementations for {WebGraphB}, which required 110 iterations to 
+complete; execution times for this data set are show in Table~\ref{t:ssspB}.
 
 \begin{figure}[h!]
 \includegraphics[width=\textwidth]{fig_ssspA.pdf}
@@ -185,7 +220,8 @@ are also shown.}
 Implementation & Number of Processes & SSSP Execution Time \\
 \hline
 Hadoop & 48  & 38,925 secs.\\
-MR-MPI & 48 &  13,724 secs.\\
+MR-MPI original (Figure~\ref{fig:sssp}) & 48 &  13,505 secs.\\
+MR-MPI enhanced (Figure~\ref{fig:sssp2}) & 48 &  8,031 secs.\\
 XMT/C  & 32 &  37 secs.\\
 %Out-of-core MR-MPI & 96 &   8,358 secs.\\
 %Out-of-core MR-MPI & 64 &  12,882 secs.\\
