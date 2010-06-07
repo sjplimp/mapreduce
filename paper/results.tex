@@ -73,16 +73,18 @@ significant out-of-core operations, parallel efficiency ranges from 52\% to
 the original algorithm (Figure~\ref{fig:rmat}) showed approximately 
 10\% reduction in execution time for the enhanced algorithm.
 
-Also in Figure~\ref{f:rmat}, we compare our MR-MPI implementation with an 
-R-MAT generator in MTGL on the Cray XMT.  In the MTGL implementation, 
-threads generate edges independently.  A global hash table is used to remove
-duplicate edges.  Our MR-MPI implementation runs more quickly than the MTGL
-implementation.  The differences in execution time are greatest on 64
-processors, where MR-MPI needs the least file I/O for out-of-core operations.
+%Also in Figure~\ref{f:rmat}, we compare our MR-MPI implementation with an 
+%R-MAT generator in MTGL on the Cray XMT.  In the MTGL implementation, 
+%threads generate edges independently.  A global hash table is used to remove
+%duplicate edges.  Our MR-MPI implementation runs more quickly than the MTGL
+%implementation.  The differences in execution time are greatest on 64
+%processors, where MR-MPI needs the least file I/O for out-of-core operations.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_rmat.pdf}
-\caption{Performance of the MR-MPI R-MAT generation algorithm (Figure~\ref{fig:rmat2}) and an MTGL implementation.}
+\caption{Performance of the MR-MPI R-MAT generation algorithm (Figure~\ref{fig:rmat2}) 
+%and an MTGL implementation.
+}
 \label{f:rmat}
 \end{figure}
 
@@ -144,16 +146,17 @@ In Figure~\ref{f:tri}, we show the performance of the triangle finding
 algorithm (Figure~\ref{fig:tri}).  Execution times for this algorithm were
 too large to allow the problem to be run with RMAT-28 on our cluster.
 Parallel efficiencies for RMAT-20 ranged from 80\% to 140\%; for RMAT-24, they
-ranged from 50\% to 120\%.  Comparisons with an MTGL implementation on the 
-Cray XMT give mixed results.  When MR-MPI uses the least file I/O for 
-out-of-core operations (e.g., RMAT-20 on 32 and 64 processors), it 
-outperforms the MTGL implementation.  However, when significant out-of-core
-operations are needed (e.g., for RMAT-24), the MTGL implementation is faster.
+ranged from 50\% to 120\%.  
+%Comparisons with an MTGL implementation on the 
+%Cray XMT give mixed results.  When MR-MPI uses the least file I/O for 
+%out-of-core operations (e.g., RMAT-20 on 32 and 64 processors), it 
+%outperforms the MTGL implementation.  However, when significant out-of-core
+%operations are needed (e.g., for RMAT-24), the MTGL implementation is faster.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_tri.pdf}
-\caption{Comparison of triangle-finding implementations using
-MR-MPI (Figure~\ref{fig:tri}) and MTGL.}
+\caption{Performance of the MR-MPI triangle-finding algorithm
+(Figure~\ref{fig:tri}).}
 \label{f:tri}
 \end{figure}
 
