@@ -120,17 +120,17 @@ and RMAT-24.  The MR-MPI implementations also demonstrate good strong
 scaling.  However, MR-MPI's execution time is at least an order of
 magnitude greater than the Trilinos implementation.  This result is
 due to two factors: ({\it i}) a higher volume of communication in the
-MapReduce implementation (where all edges are communicated in each
-iteration), compared to the Trilinos implementation (where only
-vertex-based data is communicated), and ({\it ii}) out-of-core
-operations in MR-MPI were performed because of the page-size
-restriction, while all Trilinos operations were performed in-core.
-The benefit of MR-MPI's out-of-core implementation is seen, however,
-with the RMAT-28 data set, which could be solved on smaller processor
-sets than the Trilinos implementation.  For these experiments, the
-Trilinos implementation required 64 processors for the RMAT-28 data
-set, since it will not operate on matrices that exceed the aggregate
-memory of the processors.
+MapReduce implementation (which comunicates one datum per graph edge
+in each iteration), compared to the Trilinos implementation which only
+communicates a volume of data proportional to the number of vertices,
+and ({\it ii}) out-of-core operations in MR-MPI were performed because
+of the page-size restriction, while all Trilinos operations were
+performed in-core.  The benefit of MR-MPI's out-of-core implementation
+is seen, however, with the RMAT-28 data set, which could be solved on
+smaller processor sets than the Trilinos implementation.  For these
+experiments, the Trilinos implementation required 64 processors for
+the RMAT-28 data set, since it will not operate on matrices that
+exceed the aggregate memory of the processors.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_pagerank.pdf}
