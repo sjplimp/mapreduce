@@ -28,10 +28,10 @@ operations are relatively simple.  As a {\it map()} generates KV pairs
 via the user function, a page of memory fills up, one KV pair at a
 time.  When the page is full, it is written to disk.  If the source of
 data for the {\it map()} operation is an existing set of KV pairs,
-then those datums are read in, one page at a time, and a pointer to
+those datums are read, one page at a time, and a pointer to
 each KV pair is given to the user function.  Similarly, a {\it
-reduce()} reads one page of KMV pairs from disk, passes a pointer, one
-at a time, to each pair to the user function which typically generates
+reduce()} reads one page of KMV pairs from disk, passes a pointer
+to each pair, one at a time, to the user function that typically generates
 new KV pairs.  The generated pairs fill up a new page, which is
 written to disk when full, just as with the {\it map()} operation.
 Thus for both a {\it map()} and {\it reduce()}, out-of-core disk files
@@ -43,7 +43,7 @@ This can happen, for example, in a connected component finding
 algorithm if the graph collapses into one or a few giant components.
 In this case, the set of values (graph vertices and edges) associated
 with a unique key (the component ID), may not fit in one page of
-memory.  The individual values in the multivalue will then be spread
+memory.  The individual values in the multivalue are then spread
 across as many pages as needed.  The user function that processes the
 KMV pair is passed a flag indicating it received only a portion of the
 values.  Once it has processed them, it can request a new set of
@@ -55,14 +55,14 @@ hashed to ``owning'' processors and the KV datums are communicated to
 new processors in an all-to-all fashion.  In out-of-core mode, this 
 operation is
 performed on one page of KV data at a time.  Each processor reads in a page of
-KV pairs, the communication pattern (which processors will receive 
+KV pairs, the communication pattern (which processors receive 
 which datums in that page) is
 determined, and all-to-all communication is
 performed.  Each processor allocates a two-page chunk of memory to
 receive incoming KV pairs.  On average each processor should receive
 one page of KV pairs; the two-page allocation allows for some
-load-imbalance.  If the KV pairs are distributed unevenly so that this
-limit is exceeded, then the all-to-all communication is performed in
+load imbalance.  If the KV pairs are distributed unevenly so that this
+limit is exceeded, the all-to-all communication is performed in
 smaller, multiple passes until the full page contributed by every
 processor has been communicated.  Performing an MPI\_Alltoall(), or
 using the custom all-to-all routines provided by the MR-MPI library,
@@ -88,7 +88,7 @@ number of memory pages and performs a minimal number of passes through
 the KV disk file.  An algorithm that meets these goals is diagrammed
 in Figure \ref{fig:collate}; it reads the KV pages at most four times, and
 writes out new KV or KMV pages at most three times.  It also uses a
-finite-size in-memory hash table, which stores unique keys as they are
+finite-size in-memory hash table, that stores unique keys as they are
 encountered while looping over the KV pages, as well as auxiliary
 information needed to construct the output pages of KMV pairs.
 
@@ -104,15 +104,15 @@ pairs; HT is an in-memory hash table; KMV is key/multivalue pairs.}
 
 \item (Pass 1) The KV pairs are read, one page at a time, and split
 into ``partition'' files, represented by KVp in the figure.  Each
-partition file contains KV pairs whose unique keys will (likely) fit
+partition file contains KV pairs whose unique keys (likely) fit
 in the hash table (HT).  Initially, all KV pairs are assigned to the
 first partition file as the HT is populated.  When the HT becomes
 full, e.g. at the point represented by the horizontal line shown on
-the leftmost vertical line as a downward scan is performed, then the
+the leftmost vertical line as a downward scan is performed, the
 fraction of KV pairs read thus far is used to estimate the number of
-additional partition files needed.  As subsequent KV pairs are read
-in, they are assigned to the original partition file if the KV pair's
-key is already in the current HT.  If not, then a subset of bits in
+additional partition files needed.  As subsequent KV pairs are read,
+they are assigned to the original partition file if the KV pair's
+key is already in the current HT.  If not, a subset of bits in
 the hash value of the key is used to assign the KV pair to one of the
 new partition files.  The number of needed partition files is
 estimated conservatively, rounding up to the next power-of-two, so
@@ -129,14 +129,14 @@ pairs.
 
 \item (Pass 3) The unique keys in the HT for one partition are
 scanned to determine the total size of KMV for keys in the HT.  
-The associated values may create KMV pairs that will span
-$M$ memory pages.  If $M > 1$ the associated partition file of KV
+The associated values create KMV pairs that span
+$M$ memory pages.  If $M > 1$, the associated partition file of KV
 pairs is read again, and each KV pair is assigned to one of $M$
 smaller ``set'' files, represented by KVs in the figure.  Each set
-file contains the KV pairs that will contribute to the KMV pairs that
-will populate one page of KMV output.  If a single KMV pair spans
-multiple pages, because it contains a very large number of values,
-then the corresponding KV pairs will still be written to a single set
+file contains the KV pairs that contribute to the KMV pairs that
+populate one page of KMV output.  If a single KMV pair spans
+multiple pages because it contains a very large number of values,
+the corresponding KV pairs are still written to a single set
 file.  Eventually, this pass reads all partition files, entailing both
 a read and write of all KV pairs.
 
@@ -169,13 +169,13 @@ Intermediate passes 2 and 3 can require numerous partition or set
 files to be opened simultaneously and written to.  To avoid small
 writes of individual KV datums, a buffer of at least 16K bytes is
 allocated for each file.  The precise number of simultaneously open
-files is difficult to bound, but typically one or two additional pages'
+files is difficult to bound, but typically one or two additional pages of 
 memory suffice for all needed buffers.  Thus the total number of pages required
 for the data reorganization stage of the {\it collate()} operation is
 less than the seven used by the all-to-all communication stage.
 
 Other MR-MPI library calls discussed in the previous section, such as
-{\it compress()}, {\it convert()}, {\it collapse()}, and {\it gather()},
+{\it clone()}, {\it collapse()}, and {\it gather()},
 can also operate in out-of-core mode, typically with one pass
 through the KV or KMV data and the use of one or two memory pages.
 Sorting KV pairs, by key or value, is an exception.  An out-of-core

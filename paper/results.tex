@@ -13,18 +13,18 @@ other implementations, we used either the same cluster or, where noted,
 Sandia's Cray XMT, a multi-threaded parallel computer with 500 {MHz} processors
 and a 3D-Torus network.
 
-We ran each of the algorithms on four R-MAT graphs of
+We ran each of the algorithms on three R-MAT graphs of
 different sizes, each on a varying number of processors.  Details of the
 input data are shown in Table~\ref{t:rmats}.
-The {\it small} problem size (around 8M edges) can typically be used
+The {\it small} problem (around 8M edges) can typically be used
 on a single processor without significant out-of-core operations.
-The {\it medium} problem size (around 134M edges) is a 
+The {\it medium} problem (around 134M edges) is a 
 problem that can be run
 on a single processor with out-of-core operations; larger processor 
 configurations, however, do not necessarily need out-of-core operations.
-The {\it large} problem size (around 2B
+The {\it large} problem (around 2B
 edges) requires out-of-core operations and higher processor counts.
-%The {\it x-large} problem size
+%The {\it x-large} problem 
 %(around 34B edges) requires most of the machine to run.
 All data sets used R-MAT parameters $(a, b, c, d) = (0.57, 0.19, 0.19, 0.05)$.
 
@@ -51,7 +51,10 @@ The resulting timings give a sense of the inherent scalability of the
 MapReduce algorithms as graph size grows on a fixed number of
 processors, and of the parallel scalability for computing on a graph
 of fixed size on a growing number of processors.  Where available, we
-compare the MapReduce algorithm with other parallel implementations.
+compare the MapReduce algorithm with other parallel implementations,
+including more traditional distributed-memory algorithms and 
+multi-threaded algorithms
+in the Multi-Threaded Graph Library (MTGL)~\cite{MTGL} on the Cray XMT.
 We compute parallel efficiency on $p$ processors
 as $({time}_{m} \times m) / ({time}_p \times p)$
 where $m$ is the smallest number of processors on which the experiment
@@ -64,29 +67,32 @@ algorithm (Figure~\ref{fig:rmat2}) for RMAT-20, RMAT-24 and RMAT-28.  For
 RMAT-20 and RMAT-24, superlinear speed-up is shown.  This speed-up is due
 to the decreased amount of file I/O needed with greater numbers of 
 processors; with a larger total memory, a fixed-size problem requires
-less I/O with more processors.  For RMAT-28, where most operation require
-significant out-of-core operation, parallel efficiency ranges from 52\% to
+less I/O with more processors.  For RMAT-28, which requires
+significant out-of-core operations, parallel efficiency ranges from 52\% to
 97\%.  Comparisons between the enhanced algorithm (Figure~\ref{fig:rmat2}) and
 the original algorithm (Figure~\ref{fig:rmat}) showed approximately 
 10\% reduction in execution time for the enhanced algorithm.
 
-KDD NOTE:  Add XMT or PBGL results here.
+Also in Figure~\ref{f:rmat}, we compare our MR-MPI implementation with an 
+R-MAT generator in MTGL on the Cray XMT.  In the MTGL implementation, 
+threads generate edges independently.  A global hash table is used to remove
+duplicate edges.  Our MR-MPI implementation runs more quickly than the MTGL
+implementation.  The differences in execution time are greatest on 64
+processors, where MR-MPI needs the least file I/O for out-of-core operations.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_rmat.pdf}
-\caption{Performance of R-MAT generation algorithm (Figure~\ref{fig:rmat2}).}
+\caption{Performance of the MR-MPI R-MAT generation algorithm (Figure~\ref{fig:rmat2}) and an MTGL implementation.}
 \label{f:rmat}
 \end{figure}
 
 \subsection{PageRank results}
+\label{subsec:results_pagerank}
 
 In Figure~\ref{f:pr}, we show the performance of the MR-MPI PageRank algorithm
 (Figure~\ref{fig:pr2}) compared to a
 distributed-memory matrix-based implementation using the linear
-algebra toolkit Trilinos~\cite{Trilinos-Overview} 
-and a multi-threaded
-implementation
-in the Multi-Threaded Graph Library (MTGL)~\cite{MTGL}.
+algebra toolkit Trilinos~\cite{Trilinos-Overview}.
 The matrix-based distributed-memory implementation of PageRank
 uses Trilinos' Epetra matrix/vector classes to represent the graph and
 PageRank vector.
@@ -98,13 +104,6 @@ multiplication and sums partial products into the $y$ vector.
 Most communication is point-to-point communication,
 but some global communication is needed for computing
 residuals and norms of $x$ and $y$.
-In the multi-threaded MTGL~\cite{MTGL} implementation,
-rank propagates via adjacency list traversal
-in a compressed sparse-row data structure.
-To maintain scalability, code must
-be written so that a single thread spawns the loop that processes all
-in-neighbors of a given vertex; this detail enables the compiler to generate
-hotspot-free code.
 
 Figure~\ref{f:pr} shows the execution time per PageRank iteration for
 R-MAT matrices RMAT-20, RMAT-24 and RMAT-28.  
@@ -129,13 +128,12 @@ which could be solved on smaller processor sets than the Trilinos
 implementation.  For these experiments, the Trilinos implementation required
 64 processors for the RMAT-28 data set. 
 
-KDD NOTE:  Need to add XMT results; PBGL would be nice, too.
-
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_pagerank.pdf}
-\caption{Comparison of PageRank implementations using MapReduce,
-Trilinos, and MTGL on R-MAT data sets.}
+\caption{Comparison of PageRank implementations using 
+MR-MPI (Figure~\ref{fig:pr2}) and 
+Trilinos' matrix/vector classes on R-MAT data sets.}
 \label{f:pr}
 \end{figure}
 
@@ -146,13 +144,16 @@ In Figure~\ref{f:tri}, we show the performance of the triangle finding
 algorithm (Figure~\ref{fig:tri}).  Execution times for this algorithm were
 too large to allow the problem to be run with RMAT-28 on our cluster.
 Parallel efficiencies for RMAT-20 ranged from 80\% to 140\%; for RMAT-24, they
-ranged from 50\% to 120\%.
-
-KDD NOTE:  Need to add XMT results; triangle enumeration is not implemented in PBGL.
+ranged from 50\% to 120\%.  Comparisons with an MTGL implementation on the 
+Cray XMT give mixed results.  When MR-MPI uses the least file I/O for 
+out-of-core operations (e.g., RMAT-20 on 32 and 64 processors), it 
+outperforms the MTGL implementation.  However, when significant out-of-core
+operations are needed (e.g., for RMAT-24), the MTGL implementation is faster.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_tri.pdf}
-\caption{Performance of the MR-MPI triangle-finding algorithm (Figure~\ref{fig:tri}).}
+\caption{Comparison of triangle-finding implementations using
+MR-MPI (Figure~\ref{fig:tri}) and MTGL.}
 \label{f:tri}
 \end{figure}
 
@@ -176,8 +177,6 @@ RMAT-24 by 80-99\%, as shown in Figure~\ref{f:cc}.  The benefit of MR-MPI
 is seen, however, for RMAT-28, where the problem is too large to fit into
 memory for our hybrid algorithm.  
 
-KDD NOTE:  Need to add XMT results.
-
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_cc.pdf}
 \caption{Performance of the MR-MPI connected components algorithm (Figure~\ref{fig:cc}) compared with a hybrid ``Giant Connected Component'' algorithm based
@@ -187,23 +186,17 @@ on Trilinos.}
 
 \subsection{Maximally independent set results}
 
-The execution times for the maximally independent set algorithm
+The execution times for the maximal independent set algorithm
 (Figure~\ref{fig:luby}) are shown in Figure~\ref{f:luby}.  Like the R-MAT
 generation results, superlinear speed-up of the algorithm occurs for RMAT-20
 and RMAT-24, as more of the graph fits into processor memory and less file
 I/O is needed.  For RMAT-28, the algorithm requires significant out-of-core
 operations. In this case, parallel efficiency is nearly perfect going from 
-8 to 32 processors; some loss of efficiency is seen at 64 processors,
-where the parallel efficiency compared to the 8-processor case is 69\%.
-
-KDD NOTE:  I think I had a bad node for the 64-processor run; I am 
-rerunning it now and soon will have revised RMAT-28 results on 64 processors.
-
-KDD NOTE:  Need to add XMT results; PBGL would be nice, too.
+8 to 64 processors.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_luby.pdf}
-\caption{Performance of maximally independent set algorithm (Figure~\ref{fig:luby}).}
+\caption{Performance of the MR-MPI maximal independent set algorithm (Figure~\ref{fig:luby}).}
 \label{f:luby}
 \end{figure}
 
@@ -229,8 +222,6 @@ algorithm (Figure~\ref{fig:sssp2}) are included.}
 \label{f:sssp}
 \end{figure}
 
-KDD NOTE:  Need to add XMT results; PBGL would be nice, too.
-
 To compare our MR-MPI implementation with a wider set of implementations,
 we performed experiments MR-MPI, Hadoop, PBGL (Parallel
 Boost Graph Library)~\cite{PBGL} and a multi-threaded implementation on the
@@ -243,15 +234,15 @@ The XMT and PBGL implementations are based on
 delta-stepping~\cite{MeyerSanders98}, and do not require full iterations
 over the entire edge list to advance a breadth-first search.  
 We observe that the MR-MPI
-implementation runs in less time than the Hadoop implementation,but requires
+implementation runs in less time than the Hadoop implementation, but requires
 significantly more time than the XMT and PBGL implementations.  
 In experiments with {WebGraphB},
 the benefit of the enhanced algorithm (Figure~\ref{fig:sssp2}) is clearly
 shown, with a 40\% reduction in execution time compared to the original
-SSSP algorith (Figure~\ref{fig:sssp}).
+SSSP algorithm (Figure~\ref{fig:sssp}).
 But the Bellman-Ford-style iterations are especially harmful to the MR-MPI and
 Hadoop implementations for {WebGraphB}, which required 110 iterations to 
-complete; execution times for this data set are show in Table~\ref{t:ssspB}.
+complete; execution times for this data set are shown in Table~\ref{t:ssspB}.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_ssspA.pdf}
@@ -318,6 +309,17 @@ Components scalability experiments.}
 In Figure~\ref{f:prbig}, we show the performance 
 of the various PageRank
 implementations on distributed memory and multi-threaded architectures.
+The MR-MPI and Trilinos implementations are described in 
+Sections~\ref{subsec:graph_pagerank} and~\ref{subsec:results_pagerank},
+respectively.
+In the multi-threaded MTGL implementation,
+rank propagates via adjacency list traversal
+in a compressed sparse-row data structure.
+To maintain its scalability, code must
+be written so that a single thread spawns the loop that processes all
+in-neighbors of a given vertex; this detail enables the compiler to generate
+hotspot-free code.
+
 The MR-MPI implementation demonstrated good scalability up to 1024 processors; 
 however, it required an order-of-magnitude
 more execution time than the matrix-based implementations on Redstorm.  
@@ -327,8 +329,9 @@ in MTGL on the Cray XMT.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_pagerank_big.pdf}
-\caption{Scalability comparison of PageRank implementations using MapReduce,
-Trilinos, and MTGL on R-MAT data sets.}
+\caption{Scalability comparison of PageRank using MapReduce (MR-MPI),
+matrix-based (Trilinos), and multi-threaded (MTGL) implementation
+on the R-MAT data sets in Table~\ref{t:rmat}.}
 \label{f:prbig}
 \end{figure}
 
@@ -340,8 +343,10 @@ Trilinos.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_cc_big.pdf}
-\caption{Scalability comparison of Connected Components implementations using MapReduce,
-Trilinos, and MTGL on R-MAT data sets.}
+\caption{Scalability comparison of Connected Components algorithms using 
+MapReduce (MR-MPI),
+matrix-based/MapReduce hybrid (Trilinos/MR-MPI), and MTGL implementations
+on the R-MAT data sets in Table~\ref{t:rmat}.}
 \label{f:ccbig}
 \end{figure}
 

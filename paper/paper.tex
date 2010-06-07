@@ -44,7 +44,7 @@ We describe a parallel library written with message-passing (MPI)
 calls that allows algorithms to be expressed in the MapReduce
 paradigm.  This means the calling program does not need to include
 explicit parallel code, but instead provides ``map'' and ``reduce''
-functions which operate independently on elements of a data set
+functions that operate independently on elements of a data set
 distributed across processors.  The library performs needed data
 movement between processors.  We describe how typical MapReduce
 funtionality can be implemented in an MPI context, and also in an
