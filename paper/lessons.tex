@@ -6,60 +6,64 @@ operations on distributed-memory parallel machines via MPI.
 
 MapReduce achieves parallelism through randomizing the distribution of
 data across processors, which often intentionally ignores data
-locality.  This translates into maximal data movement (during a
-shuffle) with communication between all pairs of processors.  But the
-benefit is often good load-balance, even for hard-to-balance irregular
-data sets.  By contrast, more traditional distributed-memory parallel
-algorithms, e.g. for matrix operations, or grid-based or
-particle-based simulation codes, tend to work hard to localize data
-and minimize communication.  To do this they typically require a lot
-of application-specific logic and parallel communication coding to
-create and maintain a data decomposition, generate ghost versions of
-nearby spatially-decomposed data, etc.
+locality.  This translates into maximal data movement (during a data
+shuffle or {\it collate()} operation) with communication between all
+pairs of processors.  But the benefit is often good load-balance, even
+for hard-to-balance irregular data sets.  By contrast, more
+traditional distributed-memory parallel algorithms, e.g. for matrix
+operations, or grid-based or particle-based simulation codes,
+typically work hard to localize data and minimize communication.  To
+do this they often require a lot of application-specific logic and
+parallel communication coding to create and maintain a data
+decomposition, generate ghost versions of nearby spatially-decomposed
+data, etc.
 
 MapReduce algorithms can be hard to design, but are often relatively
 easy to write and debug.  Thinking about a computational task from a
 MapReduce perspective is different from traditional distributed-memory
 parallel algorithm design.  For example, with an MPI mindset, it often
 seems heretical to intentionally ignore data locality.  However,
-writing small {\it map()} and {\it reduce()} functions is typically easy.  And
-writing an algorithm that involves complex parallel operations
-without actually needing to write application-specific parallel code
-to move data via MPI calls is often a pleasant surprise.  Moreover,
-if the MapReduce algorithm is initially coded so that it runs
-correctly on one processor, it often works out-of-the-box on hundreds
-or thousands of processors, without the need for additional debugging.
+writing small {\it map()} and {\it reduce()} functions is typically
+easy.  And writing an algorithm that involves complex parallel
+operations without needing to write application-specific code to
+communicate data via MPI calls or to move data between out-of-core
+disk files and processor memory is often a pleasant surprise.
+Moreover, if the MapReduce algorithm is initially coded so that it
+runs correctly on one processor, it often works out-of-the-box on
+hundreds or thousands of processors, without the need for additional
+debugging.
 
 Performing MapReduce operations on a fixed allocation of processors on
 a traditional MPI-based parallel machine is a somewhat different
-conceptual model than that of cloud-computing MapReduces using (for
-example) Hadoop.  In the former case, one can potentially control
-which processor owns which data at various stages of an algorithm.
-This is somewhat hidden from the user in a typical cloud-computing
-model, where data simply exists somewhere in the cloud and Hadoop
-ensures data moves where it is needed and is operated on by some
-processor.  The cloud model is a nice data-centric abstraction which
-allows for fault tolerance both to data loss (via redundant storage)
-and to processor failure (via reassignment of work), neither of which
-is typically possible on current MPI-based parallel machines.
+conceptual model than that of performing MapReduce operations on a
+cloud computer using (for example) Hadoop.  In the former case, one
+can potentially control which processor owns which data at various
+stages of an algorithm.  This is somewhat hidden from the user in a
+typical cloud-computing model, where data simply exists somewhere in
+the cloud and Hadoop ensures data moves where it is needed and is
+operated on by some processor.  The cloud model is a nice data-centric
+abstraction which allows for fault tolerance both to data loss (via
+redundant storage) and to processor failure (via reassignment of
+work), neither of which is typically possible on current MPI-based
+parallel machines.
 
-However, since the MPI implementation of MapReduce as
-described in this paper is processor-centric, one can sometimes
-fruitfully exploit the possibility for processors to maintain
-``state'' over the course of multiple map and reduce operations.  By
-controlling where data resides for maps and reduces (e.g. via a
-user-specified hash function), and by assuming that processor will
-always be available, more efficient operations with less data movement
-are sometimes possible.  The discussion of enhanced graph algorithms
-in Section \ref{sec:graph} illustrated this.  To fully exploit this
-idea for large data sets, mechanisms are needed for processors to
-store, retrieve, and efficiently find needed datums on local disk
-(e.g. static edges of a graph), so that archived state can be used
-efficiently during subsequent map and reduce operations.
+However, since the MPI implementation of MapReduce as described in
+this paper is processor-centric, one can sometimes fruitfully exploit
+the possibility for processors to maintain ``state'' over the course
+of multiple map and reduce operations.  By controlling where data
+resides for maps and reduces (e.g. via a user-specified hash
+function), and by assuming that processor will always be available,
+more efficient operations with less data movement are sometimes
+possible.  The discussion of enhanced graph algorithms in Section
+\ref{sec:graph} illustrated this.  To fully exploit this idea for
+large data sets, mechanisms and data structures are needed for
+processors to store, retrieve, and efficiently find needed datums on
+local disk (e.g. static edges of a graph), so that archived state can
+be used efficiently during subsequent map and reduce operations.
 
 Finally, though this paper focuses on graph algorithms expressed as
 MapReduce operations, there is nothing about the MR-MPI library itself
-that is graph centric.  We hope the library can be generally useful on
-large-scale monolithic or cloud-style parallel machines that support
-MPI, for a variety of data-intense or compute-intense problems that
-are amenable to solution using a MapReduce paradigm.
+that is graph specific.  We hope the library can be generally useful
+on large-scale monolithic or cloud-style parallel machines that
+support MPI, for a variety of data-intensive or compute-intensive
+problems that are amenable to solution using a MapReduce paradigm.
