@@ -4,5 +4,17 @@ decide on who are co-authors: Berry, Cohen, etc?
 what is author ordering: alphabetic, other?
 what is deadline for submittal to customer?
 
-circulate to CA folks, including D Gleich, also D Bader, Karl
+circulate to CA folks, including D Gleich, also D Bader, Karl,
+also B Barrett
+
+list # of lines per driver program in a table for all algs
+
+get more comparisons, e.g. with Hadoop or PBGL
+
+order-of-mage differerence for PR in Trilinos vs MR-MPI
+  is it volume of communication (edges vs vertices)
+  could MR-MPI do pre-sum to communicate less?
+  is it cost of data reorg (hash, collate, etc) in MR
+    versus pre-computation of data layout in Trilinos
+
 
