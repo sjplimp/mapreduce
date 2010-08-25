@@ -1,0 +1,25 @@
+22Apr10 version files changed by 25Aug10 upgrade:
+
+doc/Manual.html
+doc/Manual.txt
+doc/add.html
+doc/add.txt
+doc/gather.html
+doc/gather.txt
+doc/interface_c++.html
+doc/interface_c++.txt
+doc/interface_c.html
+doc/interface_c.txt
+doc/interface_python.html
+doc/interface_python.txt
+mpistubs/mpi.h
+python/mrmpi.py
+src/Makefile.mac
+src/Makefile.mac64
+src/Makefile.odin
+src/cmapreduce.cpp
+src/cmapreduce.h
+src/keyvalue.cpp
+src/keyvalue.h
+src/mapreduce.cpp
+src/mapreduce.h

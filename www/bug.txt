@@ -17,6 +17,18 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[25 Aug 2010]
+
+Added a "broadcast()"_doc/broadcast.html method for spreading
+key/value pairs across processors.  Can by useful for taking a final
+"gathered"_doc/gather.html answer and distributing it for further
+processing outside the MapReduce framework.
+
+This is the "list of changed files"_patches/files.25Aug10 from the 22
+Apr 2010 version.
+
+:line
+
 [22 Apr 2010]
 
 Added a compiler flag option for the "memsize and fpath" settings,
