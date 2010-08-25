@@ -17,6 +17,16 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[26 Aug 2010]
+
+Forgot to add the relevant doc page for the new
+"broadcast()"_doc/broadcast.html method to the distribution.
+
+This is the "list of changed files"_patches/files.26Aug10 from the 25
+Aug 2010 version.
+
+:line
+
 [25 Aug 2010]
 
 Added a "broadcast()"_doc/broadcast.html method for spreading
