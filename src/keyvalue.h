@@ -45,6 +45,7 @@ class KeyValue {
   void copy(KeyValue *);
   void append();
   void complete();
+  void complete_dummy();
   int request_info(char **);
   int request_page(int, uint64_t &, uint64_t &, uint64_t &);
 

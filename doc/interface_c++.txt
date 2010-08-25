@@ -38,13 +38,14 @@ how the various operations can be chained together in your program.
 
 "add()"_add.html, KV -> KV, add pairs from one KV to another, serial, 1 page
 "aggregate()"_aggregate.html, KV -> KV, pairs are aggregated onto procs, parallel, 7 pages
+"broadcast()"_broadcast.html, KV -> KV, send pairs from one proc to all procs, parallel, 2 pages 
 "clone()"_clone.html, KV -> KMV, each KV pair becomes a KMV pair, serial, 2 pages 
 "close()"_close.html, KV, allows one MapReduce object to add KV pairs to another, serial, 0 pages
 "collapse()"_collapse.html, KV -> KMV, all KV pairs become one KMV pair, serial, 2 pages
 "collate()"_collate.html, KV -> KMV, aggregate + convert, parallel, 4+ pages
 "compress()"_compress.html, KV -> KV, calls back to user program to compress duplicate keys, serial, 4+ pages
 "convert()"_convert.html, KV -> KMV, duplicate KV keys become one KMV key, serial, 4+ pages
-"gather()"_gather.html, KV -> KV, collect pairs on many procs to few procs, parallel, 3 pages
+"gather()"_gather.html, KV -> KV, collect pairs on many procs to few procs, parallel, 2 pages
 "map()"_map.html, create or add to a KV, calls back to user program to generate pairs, serial, 1 page
 "reduce()"_reduce.html, KMV -> KV, calls back to user program to process KMV pairs, serial, 3 pages
 "open()"_open.html, create or add to a KV, allows one MapReduce object to add KV pairs to another, serial, 0 pages

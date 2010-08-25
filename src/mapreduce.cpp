@@ -525,6 +525,7 @@ uint64_t MapReduce::broadcast(int root)
     kv->set_page();
     buf = mymalloc(1,dummy,memtag);
   } else npage_kv = kv->request_info(&buf);
+
   MPI_Bcast(&npage_kv,1,MPI_INT,root,comm);
 
   // broadcast KV data, one page at a time, non-root procs add to their KV
@@ -545,6 +546,7 @@ uint64_t MapReduce::broadcast(int root)
 
   commtime += MPI_Wtime() - timestart;
   if (me != root) kv->complete();
+  else kv->complete_dummy();
 
   stats("Broadcast",0);
 

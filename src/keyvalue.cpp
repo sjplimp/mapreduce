@@ -225,6 +225,18 @@ void KeyValue::complete()
 }
 
 /* ----------------------------------------------------------------------
+   dummy complete for a KV that is already complete
+   called by a proc while other procs call complete()
+   simple invokes an Allreduce() to match Allreudce() in complete()
+------------------------------------------------------------------------- */
+
+void KeyValue::complete_dummy()
+{
+  int tmp = msize;
+  MPI_Allreduce(&tmp,&msize,1,MPI_INT,MPI_MAX,comm);
+}
+
+/* ----------------------------------------------------------------------
    return # of pages and ptr to in-memory page
 ------------------------------------------------------------------------- */
 

@@ -71,6 +71,7 @@ email: sjplimp at sandia.gov, kddevin at sandia.gov.
   "Destroy a MapReduce object"_destroy.html :l
   "MapReduce::add()"_add.html :l
   "MapReduce::aggregate()"_aggregate.html :l
+  "MapReduce::broadcast()"_broadcast.html :l
   "MapReduce::clone()"_clone.html :l
   "MapReduce::close()"_open.html :l
   "MapReduce::collapse()"_collapse.html :l
