@@ -32,4 +32,5 @@ processors send their key/value pairs to other processors.
 
 :line
 
-[Related methods]: "scrunch()"_scrunch.html
+[Related methods]: "scrunch()"_scrunch.html,
+"broadcast()"_broadcast.html
