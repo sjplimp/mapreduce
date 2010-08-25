@@ -493,6 +493,67 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
 }
 
 /* ----------------------------------------------------------------------
+   broadcast the KV on proc root to all other procs
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::broadcast(int root)
+{
+  int npage_kv,memtag;
+  char *buf;
+  uint64_t dummy,sizes[4];
+
+  if (kv == NULL) error->all("Cannot broadcast without KeyValue");
+  if (root < 0 || root >= nprocs) error->all("Invalid root for broadcast");
+  if (timer) start_timer();
+  if (verbosity) file_stats(0);
+
+  if (nprocs == 1) {
+    stats("Broadcast",0);
+    uint64_t nkeyall;
+    MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+    return nkeyall;
+  }
+
+  // on non-root procs, delete existing KV and create empty KV
+  
+  double timestart = MPI_Wtime();
+
+  if (me != root) {
+    myfree(kv->memtag);
+    delete kv;
+    kv = new KeyValue(this,kalign,valign,memory,error,comm);
+    kv->set_page();
+    buf = mymalloc(1,dummy,memtag);
+  } else npage_kv = kv->request_info(&buf);
+  MPI_Bcast(&npage_kv,1,MPI_INT,root,comm);
+
+  // broadcast KV data, one page at a time, non-root procs add to their KV
+
+  for (int ipage = 0; ipage < npage_kv; ipage++) {
+    if (me == root)
+      sizes[0] = kv->request_page(ipage,sizes[1],sizes[2],sizes[3]);
+    MPI_Bcast(sizes,4,MPI_UNSIGNED_LONG,root,comm);
+    MPI_Bcast(buf,sizes[3],MPI_BYTE,root,comm);
+    if (me == root) cssize += sizes[3];
+    else {
+      crsize += sizes[3];
+      kv->add(sizes[0],buf,sizes[1],sizes[2],sizes[3]);
+    }
+  }
+
+  if (me != root) myfree(memtag);
+
+  commtime += MPI_Wtime() - timestart;
+  if (me != root) kv->complete();
+
+  stats("Broadcast",0);
+
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
    clone KV to KMV so that KMV pairs are one-to-one copies of KV pairs
    each proc clones only its data
    assume each KV key is unique, but is not required

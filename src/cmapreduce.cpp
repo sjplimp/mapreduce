@@ -64,6 +64,12 @@ uint64_t MR_aggregate(void *MRptr, int (*myhash)(char *, int))
   return mr->aggregate(myhash);
 }
 
+uint64_t MR_broadcast(void *MRptr, int root)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->broadcast(root);
+}
+
 uint64_t MR_clone(void *MRptr)
 {
   MapReduce *mr = (MapReduce *) MRptr;

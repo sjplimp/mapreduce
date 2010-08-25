@@ -62,6 +62,7 @@ class MapReduce {
 
   uint64_t add(MapReduce *);
   uint64_t aggregate(int (*)(char *, int));
+  uint64_t broadcast(int);
   uint64_t clone();
   uint64_t close();
   uint64_t collapse(char *, int);

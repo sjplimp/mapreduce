@@ -30,6 +30,7 @@ void *MR_copy(void *MRptr);
 
 uint64_t MR_add(void *MRptr, void *MRptr2);
 uint64_t MR_aggregate(void *MRptr, int (*myhash)(char *, int));
+uint64_t MR_broadcast(void *MRptr, int);
 uint64_t MR_clone(void *MRptr);
 uint64_t MR_close(void *MRptr);
 uint64_t MR_collapse(void *MRptr, char *key, int keybytes);

@@ -103,6 +103,10 @@ class mrmpi:
       n = self.lib.MR_aggregate(self.mr,None)
     return n
 
+  def broadcast(self,root):
+    n = self.lib.MR_broadcast(self.mr,root)
+    return n
+
   def clone(self):
     n = self.lib.MR_clone(self.mr)
     return n
