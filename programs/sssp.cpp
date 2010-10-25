@@ -24,7 +24,7 @@
 using namespace std;
 using namespace MAPREDUCE_NS;
 
-#define MAX_NUM_EXPERIMENTS 60
+#define MAX_NUM_EXPERIMENTS 1
 
 #define FBFILE 0
 #define MMFILE 1

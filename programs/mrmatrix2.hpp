@@ -169,7 +169,11 @@ MRMatrix<IDTYPE>::MRMatrix(
   transposeFlag = transpose;
   scaleFactor = alpha;
   // Create matrix MapReduce object mr.  
-  mr = mredge->copy();
+  // KDDKDD Probably should do as a copy to prevent side effects on mredge, 
+  // KDDKDD but to save execution time, we'll copy its pointer and modify
+  // KDDKDD mredge.
+  // mr = mredge->copy();
+  mr = mredge;
   mr->memsize = pagesize;
   mr->set_fpath(fpath);
 

@@ -19,6 +19,8 @@
 #include "cc_stats.h"
 #include "mapreduce.h"
 
+#include "localdisks.hpp"
+
 using MAPREDUCE_NS::MapReduce;
 
 struct Params {
@@ -41,6 +43,12 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
+  greetings();
+  if (nprocs < 10)  {
+    greetings();  // Odin skips some early program output; we'll output extra
+    greetings();  // Odin skips some early program output; we'll output extra
+    greetings();  // Odin skips some early program output; we'll output extra
+  }
   // parse command-line args
   
   Params in;
@@ -49,8 +57,8 @@ int main(int narg, char **args)
   // MRE for matrix edges
 
   MapReduce *mre = new MapReduce(MPI_COMM_WORLD);
-  mre->verbosity = 1;
-  mre->timer = 1;
+  mre->verbosity = 0;
+  mre->timer = 0;
 
   // generate RMAT matrix
 
@@ -61,11 +69,11 @@ int main(int narg, char **args)
   // MRV and MRZ for CC algorithm
 
   MapReduce *mrv = new MapReduce(MPI_COMM_WORLD);
-  mrv->verbosity = 1;
-  mrv->timer = 1;
+  mrv->verbosity = 0;
+  mrv->timer = 0;
   MapReduce *mrz = new MapReduce(MPI_COMM_WORLD);
-  mrz->verbosity = 1;
-  mrz->timer = 1;
+  mrz->verbosity = 0;
+  mrz->timer = 0;
 
   // find CCs
 

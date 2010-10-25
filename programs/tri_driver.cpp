@@ -16,6 +16,8 @@
 #include "tri_find.h"
 #include "mapreduce.h"
 
+#include "localdisks.hpp"
+
 using MAPREDUCE_NS::MapReduce;
 
 struct Params {
@@ -37,6 +39,12 @@ int main(int narg, char **args)
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
+  greetings();
+  if (nprocs < 10)  {
+    greetings();  // Odin skips some early program output; we'll output extra
+    greetings();  // Odin skips some early program output; we'll output extra
+    greetings();  // Odin skips some early program output; we'll output extra
+  }
   // parse command-line args
   
   Params in;
@@ -45,8 +53,8 @@ int main(int narg, char **args)
   // MRE for matrix edges
 
   MapReduce *mre = new MapReduce(MPI_COMM_WORLD);
-  mre->verbosity = 1;
-  mre->timer = 1;
+  mre->verbosity = 0;
+  mre->timer = 0;
 
   // generate RMAT matrix, make it upper triangular with no diagonal elements
 
@@ -62,8 +70,8 @@ int main(int narg, char **args)
   // enumerate triangles
 
   MapReduce *mrt = new MapReduce(MPI_COMM_WORLD);
-  mrt->verbosity = 1;
-  mrt->timer = 1;
+  mrt->verbosity = 0;
+  mrt->timer = 0;
 
   uint64_t ntri;
   TriFind tri;

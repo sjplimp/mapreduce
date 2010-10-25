@@ -218,7 +218,6 @@ KDDallzero += (MPI_Wtime() - KDDtmp);
 MPI_Barrier(MPI_COMM_WORLD);
 KDDtmp = MPI_Wtime();
 #endif //KDDTIME
-
     // Compute global adjustment.
     A->MatVec(mr, x, y, 1, storage_aware);
 
@@ -460,8 +459,8 @@ int main(int narg, char **args)
   }
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->verbosity = 0;
-  mr->timer = 0;
+  mr->verbosity = 2;
+  mr->timer = 2;
   mr->mapstyle = 1;  // mapstyle == 0 does not work for this code.
   mr->memsize = pagesize;
 

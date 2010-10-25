@@ -192,10 +192,12 @@ void GenerateRMAT::run(
   // Loop until desired number of unique nonzero entries
 
   if (me == 0) cout << "Generating edges..." << endl;
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tstarte = MPI_Wtime();
 
   MapReduce *mrnew = new MapReduce(MPI_COMM_WORLD);
-  mrnew->timer = 1;
-  mrnew->verbosity = 1;
+//  mrnew->timer = 1;
+//  mrnew->verbosity = 1;
   MapReduce *mredge = NULL;
 
   int niterate = 0;
@@ -214,13 +216,12 @@ void GenerateRMAT::run(
     if (me == 0) {cout << "  add..." << endl; flush(cout);}
     if (niterate > 1) {
       mredge->add(mrnew);
-      mrnew->map(1, rmat_do_nothing, NULL);  // Empty mrnew.
     }
     else {  // First iteration -- no need to add; just set the pointer.
       mredge = mrnew;
       mrnew = new MapReduce(MPI_COMM_WORLD);
-      mrnew->timer = 1;
-      mrnew->verbosity = 1;
+//      mrnew->timer = 1;
+//      mrnew->verbosity = 1;
     }
     if (me == 0) {cout << "  convert..." << endl; flush(cout);}
     uint64_t nunique = mredge->convert();
@@ -234,10 +235,12 @@ void GenerateRMAT::run(
                   flush(cout);}
   }
   delete mrnew;
-  mredge->timer = 0;
-  mredge->verbosity = 0;
+//  mredge->timer = 0;
+//  mredge->verbosity = 0;
 
   // output matrix if requested
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tstope = MPI_Wtime();
 
   if (outfile) {
     if (me == 0) {cout << "Writing output file..." << endl; flush(cout);}
@@ -260,6 +263,9 @@ void GenerateRMAT::run(
   if (me == 0) {
     std::cout << order << " rows in matrix" << std::endl; flush(std::cout);
     std::cout << ntotal << " nonzeros in matrix" << std::endl; flush(std::cout);
+    std::cout << tstope-tstarte << " secs to generate edges on " << nprocs
+              << " procs in " << niterate << " iterations" << std::endl;
+    flush(std::cout);
   }
  
   if (printstats > 0) {
@@ -337,7 +343,7 @@ void GenerateRMAT::run(
   double tstop = MPI_Wtime();
 
   if (me == 0) {
-    std::cout << tstop-tstart << " secs to generate matrix on " << nprocs
+    std::cout << tstop-tstart << " secs total rmat time on " << nprocs
               << " procs in " << niterate << " iterations" << std::endl;
     flush(std::cout);
   }

@@ -170,13 +170,19 @@ MRVector<IDXTYPE> *pagerank(
 )
 {
   int me = A->mr->my_proc();
-  if (me == 0) {cout << "Initializing vectors..." << endl; flush(cout);}
+if (me == 0) {cout << "Initializing vectors..." << endl; flush(cout);}
   MRVector<IDXTYPE> *x = new MRVector<IDXTYPE>(A->NumRows(),
                                              A->mr->memsize, A->mr->fpath);
   MRVector<IDXTYPE> *y = new MRVector<IDXTYPE>(x->GlobalLen(), 
                                              A->mr->memsize, A->mr->fpath);
   MRVector<IDXTYPE> *zerovec = new MRVector<IDXTYPE>(x->GlobalLen(), 
                                              A->mr->memsize, A->mr->fpath);
+  A->mr->timer = 0;
+  y->mr->timer = 0;
+  x->mr->timer = 0;
+  A->mr->verbosity = 0;
+  y->mr->verbosity = 0;
+  x->mr->verbosity = 0;
 
   double randomlink = (1.-alpha)/(double)(x->GlobalLen());
   int iter; 
@@ -184,6 +190,7 @@ MRVector<IDXTYPE> *pagerank(
 
   // If pre-scaled A by alpha in the constructor, don't need to do it here.
   // Would like to avoid the additional pass over A here and at end.
+if (me == 0) cout << "KDDKDD initializing..." << endl;
   if (alpha != A->scaleFactor) {
     if (me == 0)
       cout << "Scaling A by " << alpha << " " << A->scaleFactor << endl;
@@ -194,9 +201,20 @@ MRVector<IDXTYPE> *pagerank(
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
+#define KDDTIME
+#ifdef KDDTIME
+double step_tmp;
+double KDD_step[6] = {0., 0., 0., 0., 0., 0.};
+#endif
+
   if (me == 0) {cout << "Beginning iterations..." << endl; flush(cout);}
   // PageRank iteration
   for (iter = 0; iter < maxniter; iter++) {
+
+#ifdef KDDTIME
+if (me == 0) cout << "KDDKDD compute adjustment..." << endl;
+step_tmp = MPI_Wtime();
+#endif
 
     // Compute local adjustment for irreducibility (1-alpha)/n 
     // plus local adjustment for all-zero rows.
@@ -207,8 +225,20 @@ MRVector<IDXTYPE> *pagerank(
     // Cheating here!  Should be done through MapReduce.
     MPI_Allreduce(&ladj, &gadj, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+#ifdef KDDTIME
+KDD_step[0] += MPI_Wtime() - step_tmp;
+if (me == 0) cout << "KDDKDD matvec..." << endl;
+step_tmp = MPI_Wtime();
+#endif
+
     // Compute global adjustment.
     A->MatVec(x, y, zerovec);
+
+#ifdef KDDTIME
+KDD_step[1] += MPI_Wtime() - step_tmp;
+if (me == 0) cout << "KDDKDD compute norm..." << endl;
+step_tmp = MPI_Wtime();
+#endif
 
     // Add adjustment to y and compute the resulting max norm.
     // Can do these with one pass over y vector.
@@ -216,8 +246,20 @@ MRVector<IDXTYPE> *pagerank(
     // double gmax = y->GlobalMax();
     double gmax = add_scalar_and_compute_gmax_norm(y, gadj);
 
+#ifdef KDDTIME
+KDD_step[2] += MPI_Wtime() - step_tmp;
+if (me == 0) cout << "KDDKDD scale y..." << endl;
+step_tmp = MPI_Wtime();
+#endif
+
     // Scale vector in mr by 1/maxnorm.
     y->Scale(1./gmax);
+
+#ifdef KDDTIME
+KDD_step[3] += MPI_Wtime() - step_tmp;
+if (me == 0) cout << "KDDKDD compute residual..." << endl;
+step_tmp = MPI_Wtime();
+#endif
 
     // Compute local residual; this also empties x->mr.
     double lresid = 0.;
@@ -228,10 +270,20 @@ MRVector<IDXTYPE> *pagerank(
     double gresid;
     MPI_Allreduce(&lresid, &gresid, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
+#ifdef KDDTIME
+KDD_step[4] += MPI_Wtime() - step_tmp;
+step_tmp = MPI_Wtime();
+#endif
+
+
     //  Move result y to x for next iteration.
     MRVector<IDXTYPE> *tmp = x;
     x = y;
     y = tmp;
+
+#ifdef KDDTIME
+KDD_step[5] += MPI_Wtime() - step_tmp;
+#endif
 
     if (me == 0) {
       cout << "iteration " << iter+1 << " resid " << gresid << endl; 
@@ -244,6 +296,7 @@ MRVector<IDXTYPE> *pagerank(
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
 
+
   static double time_sum = 0.;
   time_sum += (tstop - tstart);
   static int time_cnt = 0;
@@ -255,6 +308,20 @@ MRVector<IDXTYPE> *pagerank(
     cout << " Average time for " << time_cnt << " pagerank computations "
          << time_sum / time_cnt << endl;
   }
+#ifdef KDDTIME
+  double step_max[6], step_min[6], step_sum[6];
+  MPI_Allreduce(KDD_step, step_max, 6, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(KDD_step, step_min, 6, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(KDD_step, step_sum, 6, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  if (me == 0) {
+    int np;
+    MPI_Comm_size(MPI_COMM_WORLD, &np);
+    for (int i = 0; i < 6; i++)
+      cout << "Step " << i+1 << ":  Min " << step_min[i] 
+                             << " Max " << step_max[i]
+                             << " Avg " << step_sum[i] / np << endl;
+  }
+#endif
   delete y;
   delete zerovec;
   double gsum = x->GlobalSum();
@@ -433,10 +500,10 @@ int main(int narg, char **args)
   MRMatrix<IDXTYPE> A(nverts, nverts, mrvert, mredge, alpha, true, 
                       pagesize, MYLOCALDISK);
 
-  delete mredge;
+  // KDDKDD Copied the mredge pointer instead of copying the MapReduce object.
+  // KDDKDD Trying to save some runtime.  
+  //  delete mredge;
   delete mrvert;  // Will need mrvert for MRVector constructor for FBFILE.
-
-  A.Print("KDD");
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
