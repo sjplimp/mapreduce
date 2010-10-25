@@ -245,7 +245,7 @@ $*$\> \> Convert $MT$:  Vertex is Key \\
 \> \> Add $A$ to $y$ \\
 $*$\> \> Convert $y$:  Key is row index of $A$ \\
 \> \> Reduce $y$: \\
-\> \> \>  Input: Key = $i$; Multivalue = $i, [j, A_{ij}]$ for nonzeros $A_{ij}$ in $A$ \\
+\> \> \>  Input: Key = $i$; Multivalue = $y_i, [j, A_{ij}]$ for nonzeros $A_{ij}$ in $A$ \\
 \> \> \>  Output:  Key = $j$; Value = $A_{ij} y_i$ \\
 \> \> Collate $y$:  Key is column index of $A$ \\
 \> \> Reduce $y$:  \\
