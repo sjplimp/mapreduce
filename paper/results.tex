@@ -135,82 +135,111 @@ Trilinos' matrix/vector classes on R-MAT data sets.}
 \end{figure}
 
 
-A more detailed analysis of the performance of the MR-MPI PageRank is shown
+A more detailed analysis of the performance of the MR-MPI PageRank 
+algorithm is shown
 below.  We perform the analysis using RMAT-20, which is small enough to
 fit in memory and thus does not need out-of-core operations, and RMAT-28,
 which requires out-of-core operation in MR-MPI.  Table~\ref{table:prdetail}
 shows the amount of time spent in each step of Figure~\ref{fig:pr2} for 
-the MR-MPI implementation and the Trilinos implementation.
+the MR-MPI implementation and the Trilinos implementation.  We see that for
+both implementation, the matrix-vector multiplication (Step 2) is the most
+costly step.  However, the MR-MPI algorithm is consistently slower than
+the Trilinos implementation in each step.  This effect is more pronounced
+for RMAT-28, where MR-MPI performs out-of-core operations.
 
 \begin{table}[htb]
 \begin{center}
 \begin{tabular}{|l|r|r|r|r|}
 \hline 
- & \multicolumn{2}{|c|}{RMAT-20} & \multicolumn{2}{|c|}{RMAT-28} \\
- & MR-MPI & Trilinos & MR-MPI & Trilinos  \\
+& \multicolumn{2}{|c|}{RMAT-20} & \multicolumn{2}{|c|}{RMAT-28} \\
+& MR-MPI & Trilinos & MR-MPI & Trilinos  \\
 \hline
-Step 1 (Compute adjustment) & & & &  \\
-Step 2 (Multiply $A^T x$) & & & &  \\
-Step 3 (Apply adjustment) & & & &  \\
-Step 4 (Scale $y$)  & & & & \\
-Step 5 (Compute residual)  & & & & \\
+Step 1 (Compute adjustment) & 0.0203 & 0.00030 &
+&  \\
+Step 2 (Multiply $A^T x$) & 0.1377 & 0.00455 &
+&  \\
+Step 3 (Apply adjustment) & 0.0015 & 0.00015 &
+&  \\
+Step 4 (Scale $y$)  & 0.0013 & 0.00014 &
+& \\
+Step 5 (Compute residual)  & 0.0207 & 0.00014 &
+& \\
 \hline
 \end{tabular}
-\caption{Detailed execution times in each stage of the PageRank algorithm
-described in Figure~\ref{fig:pr2} using MR-MPI and Trilinos.}
+\caption{Detailed execution times (in seconds) per PageRank iteration
+for each stage of the algorithm
+in Figure~\ref{fig:pr2} using MR-MPI and Trilinos.}
 \label{table:prdetail}
 \end{center}
 \end{table}
 
 
-In Tables~\ref{table:prdetail2},
+To understand where MR-MPI spends its effort during the PageRank computation,
 we break down the operation times further for the most expensive 
-step of the PageRank computation, Step 2.
+step of the PageRank computation, Step 2; the results are in 
+Table~\ref{table:prdetail2}.
 In the table, we divide the collate operation into its
 two parts:  an aggregate that involves parallel communication and a convert
 that gathers local key-value pairs with matching keys into a key-multivalue
-pair.
+pair.  All interprocessor communication occurs in the aggregate operation.
+While the time spent in aggregate is significant, it is small compared to
+the time spent in the two convert operations.  Further experimentation
+is needed to determine whether reorganizing the MapReduce data 
+(as described in Section~\ref{subsec:graph_pagerank}) would reduce the
+execution time of Step 2.  Organizing the data such that both the matrix
+$A$ and vectors $x$ and $y$ are in the same MapReduce object would eliminate
+the copy and add functions, as well as the first convert.  However, to update
+the $y$ values at the completion of Step 2, either an additional convert
+or an aggregate with greater amounts of data would be needed.
+
+STILL NEED RMAT-28 RESULTS AND DISCUSSION OF I/O EFFECT.
 
 \begin{table}[htb]
 \begin{center}
 \begin{tabular}{|l|r|r|}
 \hline 
- & RMAT-20 & RMAT-28 \\
+PageRank Step 2 & RMAT-20 & RMAT-28 \\
 \hline
-Copy $x$ to $y$ & &  \\
-Add $A$ to $y$ & &  \\
-Convert $y$ & &  \\
-Reduce $y$ & & \\
-Aggregate $y$ (first part of collate) & & \\
-Convert $y$ (second part of collate) & & \\
-Reduce $y$ & & \\
+Copy $x$ to $y$ & 1.1\% &  \\
+Add $A$ to $y$ & 3.0\% &  \\
+Convert $y$ & 23.5\% &  \\
+Reduce $y$ & 7.7\% & \\
+Aggregate $y$ (first part of collate) & 24.9\% & \\
+Convert $y$ (second part of collate) & 38.2\% & \\
+Reduce $y$ & 1.6\% & \\
 \hline
 \end{tabular}
-\caption{Detailed execution times of MR-MPI in Step 2 of 
-Figure~\ref{fig:pr2}.}
-\label{table:prdetial2}
+\caption{Percentage of execution time in each operation of Step 2 of the MR-MPI 
+PageRank algorithm in Figure~\ref{fig:pr2}.}
+\label{table:prdetail2}
 \end{center}
 \end{table}
 
 Similarly, in Table~\ref{table:prdetail5}, we show the execution times 
 required for each operation in Step 5 of Figure~\ref{fig:pr2}, the 
-residual computation.  
+residual computation.  Clearly the time to convert key-value pairs to 
+key-multivalues dominates this computation.  Reorganization of the vectors
+$x$ and $y$ into a single MapReduce object (as described in 
+Section~\ref{subsec:graph_pagerank}) would benefit this step of the computation,
+as the add, convert, and reduce operations could be replaced by a single 
+map operation, with execution time comparable to the vector-scaling operation
+in Step 4.
 
 \begin{table}[htb]
 \begin{center}
 \begin{tabular}{|l|r|r|}
 \hline 
- & RMAT-20 & RMAT-28 \\
+PageRank Step 5 & RMAT-20 & RMAT-28 \\
 \hline
-Add $y$ to $x$ & &  \\
-Convert $x$ & &  \\
-Reduce $x$ & & \\
-MPI\_Allreduce & & \\
+Add $y$ to $x$ & 2.2\% &  \\
+Convert $x$ & 95.1\% &  \\
+Reduce $x$ & 2.5\% & \\
+MPI\_Allreduce & 0.2\% & \\
 \hline
 \end{tabular}
-\caption{Detailed execution times of MR-MPI in Step 5 of 
-Figure~\ref{fig:pr2}.}
-\label{table:prdetial2}
+\caption{Percentage of execution time in each operation of Step 5 of the MR-MPI 
+PageRank algorithm in  Figure~\ref{fig:pr2}.}
+\label{table:prdetail5}
 \end{center}
 \end{table}
 %This result is
