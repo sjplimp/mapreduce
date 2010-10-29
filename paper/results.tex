@@ -118,14 +118,8 @@ experiments; the average time over the matrices is reported here.  The
 Trilinos implementations show near-perfect strong scaling for RMAT-20
 and RMAT-24.  The MR-MPI implementations also demonstrate good strong
 scaling.  However, MR-MPI's execution time is at least an order of
-magnitude greater than the Trilinos implementation.  This result is
-due to two factors: ({\it i}) a higher volume of communication in the
-MapReduce implementation (which comunicates one datum per graph edge
-in each iteration), compared to the Trilinos implementation which only
-communicates a volume of data proportional to the number of vertices,
-and ({\it ii}) out-of-core operations in MR-MPI were performed because
-of the page-size restriction, while all Trilinos operations were
-performed in-core.  The benefit of MR-MPI's out-of-core implementation
+magnitude greater than the Trilinos implementation.  
+The benefit of MR-MPI's out-of-core implementation
 is seen, however, with the RMAT-28 data set, which could be solved on
 smaller processor sets than the Trilinos implementation.  For these
 experiments, the Trilinos implementation required 64 processors for
@@ -139,6 +133,95 @@ MR-MPI (Figure~\ref{fig:pr2}) and
 Trilinos' matrix/vector classes on R-MAT data sets.}
 \label{f:pr}
 \end{figure}
+
+
+A more detailed analysis of the performance of the MR-MPI PageRank is shown
+below.  We perform the analysis using RMAT-20, which is small enough to
+fit in memory and thus does not need out-of-core operations, and RMAT-28,
+which requires out-of-core operation in MR-MPI.  Table~\ref{table:prdetail}
+shows the amount of time spent in each step of Figure~\ref{fig:pr2} for 
+the MR-MPI implementation and the Trilinos implementation.
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabular}{|l|r|r|r|r|}
+\hline 
+ & \multicolumn{2}{|c|}{RMAT-20} & \multicolumn{2}{|c|}{RMAT-28} \\
+ & MR-MPI & Trilinos & MR-MPI & Trilinos  \\
+\hline
+Step 1 (Compute adjustment) & & & &  \\
+Step 2 (Multiply $A^T x$) & & & &  \\
+Step 3 (Apply adjustment) & & & &  \\
+Step 4 (Scale $y$)  & & & & \\
+Step 5 (Compute residual)  & & & & \\
+\hline
+\end{tabular}
+\caption{Detailed execution times in each stage of the PageRank algorithm
+described in Figure~\ref{fig:pr2} using MR-MPI and Trilinos.}
+\label{table:prdetail}
+\end{center}
+\end{table}
+
+
+In Tables~\ref{table:prdetail2},
+we break down the operation times further for the most expensive 
+step of the PageRank computation, Step 2.
+In the table, we divide the collate operation into its
+two parts:  an aggregate that involves parallel communication and a convert
+that gathers local key-value pairs with matching keys into a key-multivalue
+pair.
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabular}{|l|r|r|}
+\hline 
+ & RMAT-20 & RMAT-28 \\
+\hline
+Copy $x$ to $y$ & &  \\
+Add $A$ to $y$ & &  \\
+Convert $y$ & &  \\
+Reduce $y$ & & \\
+Aggregate $y$ (first part of collate) & & \\
+Convert $y$ (second part of collate) & & \\
+Reduce $y$ & & \\
+\hline
+\end{tabular}
+\caption{Detailed execution times of MR-MPI in Step 2 of 
+Figure~\ref{fig:pr2}.}
+\label{table:prdetial2}
+\end{center}
+\end{table}
+
+Similarly, in Table~\ref{table:prdetail5}, we show the execution times 
+required for each operation in Step 5 of Figure~\ref{fig:pr2}, the 
+residual computation.  
+
+\begin{table}[htb]
+\begin{center}
+\begin{tabular}{|l|r|r|}
+\hline 
+ & RMAT-20 & RMAT-28 \\
+\hline
+Add $y$ to $x$ & &  \\
+Convert $x$ & &  \\
+Reduce $x$ & & \\
+MPI\_Allreduce & & \\
+\hline
+\end{tabular}
+\caption{Detailed execution times of MR-MPI in Step 5 of 
+Figure~\ref{fig:pr2}.}
+\label{table:prdetial2}
+\end{center}
+\end{table}
+%This result is
+%due to two factors: ({\it i}) a higher volume of communication in the
+%MapReduce implementation (which comunicates one datum per graph edge
+%in each iteration), compared to the Trilinos implementation which only
+%communicates a volume of data proportional to the number of vertices,
+%and ({\it ii}) out-of-core operations in MR-MPI were performed because
+%of the page-size restriction, while all Trilinos operations were
+%performed in-core.  
+%
 
 \subsection{Triangle finding results}
 
