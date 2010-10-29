@@ -132,7 +132,8 @@ of matrix-vector multiplications $A^T x=y$, where $x$ is the PageRank
 vector from the previous iteration.  A few additional dot product and
 norm computations per iteration are also required.
 
-The algorithm in Figure~\ref{fig:pr2} performs these iterations.  The
+The algorithm in Figure~\ref{fig:pr2} performs these iterations, using
+linear-algebra concepts implemented in a MapReduce framework.  The
 nonzeros of matrix $A$ are initialized as described above; the
 PageRank vector $x$ is initialized uniformly.  A MapReduce object $MT$
 contains the indices of all-zero rows of $A$, corresponding to
@@ -168,6 +169,38 @@ whether the PageRank vector has converged; work is again proportional
 to $|V|$.  In Step 6, the PageRank vector is overwritten prior to the
 next iteration.  Throughout the algorithm, we exploit the ability to
 call MPI\_Allreduce to compute global norms and residuals.
+
+This linear-algebra approach is attractive because it allows construction
+of the MapReduce PageRank algorithm from simple operations (matrix-vector
+multiplication, dot products) on commonly used data types (matrices, vectors).
+One can build a variety of algorithms based on these primitives;
+indeed, linear-algebra toolkits such as Trilinos~\cite{Trilinos-Overview} and 
+PETSc~\cite{petsc-efficient} use this exact design.  In parallel, these toolkits
+share pre-computed data layouts and communication maps among distributed
+objects to enable efficient operations between the objects.
+For MapReduce, however, 
+separating the data into vectors and matrices results in additional overhead 
+to gather key-value pairs with the same key into a key-multivalue pair.  
+This overhead can be reduced in PageRank, for example, by storing the
+$x$ and $y$ vectors in a single MapReduce object, with key $i$ and value 
+$(x_i, y_i)$.  Doing so eliminates the copy operation in Step 2 of 
+Figure~\ref{fig:pr2}, as well as the add and convert operations in Step 5.
+A further performance improvement would store an entire row of $A$ along with
+$x$ and $y$ in a single MapReduce object, with key $i$ and value 
+$(x_i, y_i, d_{out}, [j_1, A_{ij_1}], [j_2, A_{ij_2}], \dots, [j_{d_{out}}, 
+A_ij_{d_{out}}])$ (that is, storing together, for each vertex, its old and
+new PageRank value along with all out-going edges incident to the vertex).  
+This data layout may further reduce time spent in converting from key-value 
+pairs to key-multivalue pairs, but at the cost of code reuse and scalability.  
+While this data layout may be efficient for PageRank, it is more complex
+and less likely to be useful for additional algorithms.  In addition, since
+each key-value pair must fit within a single page in MR-MPI, storing entire
+matrix rows in a single key-value pair limits the size of the the matrices
+on which the algorithm can be applied.  The more general approach of storing
+non-zeros separately enables arbitrarily large problems to be solved.
+The detailed timing break-downs in section~\ref{subsec:results_pagerank} 
+allow one to estimate the benefit of these implementations relative to the
+code complexity and scalability.
 
 %\begin{figure}[htb]
 % \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
