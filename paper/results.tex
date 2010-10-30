@@ -154,16 +154,11 @@ for RMAT-28, where MR-MPI performs out-of-core operations.
 & \multicolumn{2}{|c|}{RMAT-20} & \multicolumn{2}{|c|}{RMAT-28} \\
 & MR-MPI & Trilinos & MR-MPI & Trilinos  \\
 \hline
-Step 1 (Compute adjustment) & 0.0203 & 0.00030 &
-&  \\
-Step 2 (Multiply $A^T x$) & 0.1377 & 0.00455 &
-&  \\
-Step 3 (Apply adjustment) & 0.0015 & 0.00015 &
-&  \\
-Step 4 (Scale $y$)  & 0.0013 & 0.00014 &
-& \\
-Step 5 (Compute residual)  & 0.0207 & 0.00014 &
-& \\
+Step 1 (Compute adjustment) & 0.0203 & 0.00030 & 17.53 & 0.0838 \\
+Step 2 (Multiply $A^T x$) & 0.1377 & 0.00455 & 341.26 & 2.9239 \\
+Step 3 (Apply adjustment) & 0.0015 & 0.00015 & 2.14 & 0.0494 \\
+Step 4 (Scale $y$)  & 0.0013 & 0.00014 & 1.74 & 0.0359 \\
+Step 5 (Compute residual)  & 0.0207 & 0.00014 & 21.20 & 0.0457 \\
 \hline
 \end{tabular}
 \caption{Detailed execution times (in seconds) per PageRank iteration
@@ -183,7 +178,12 @@ two parts:  an aggregate that involves parallel communication and a convert
 that gathers local key-value pairs with matching keys into a key-multivalue
 pair.  All interprocessor communication occurs in the aggregate operation.
 While the time spent in aggregate is significant, it is small compared to
-the time spent in the two convert operations.  Further experimentation
+the time spent in the two convert operations.  When out-of-core operations
+are used for RMAT-28, the communication cost in the aggregate operation is
+a smaller percentage of total time for Step 2, 
+as other data manipulation operations such as convert and add 
+take a relatively larger percentage of the total time.
+Further experimentation
 is needed to determine whether reorganizing the MapReduce data 
 (as described in Section~\ref{subsec:graph_pagerank}) would reduce the
 execution time of Step 2.  Organizing the data such that both the matrix
@@ -192,21 +192,19 @@ the copy and add functions, as well as the first convert.  However, to update
 the $y$ values at the completion of Step 2, either an additional convert
 or an aggregate with greater amounts of data would be needed.
 
-STILL NEED RMAT-28 RESULTS AND DISCUSSION OF I/O EFFECT.
-
 \begin{table}[htb]
 \begin{center}
 \begin{tabular}{|l|r|r|}
 \hline 
 PageRank Step 2 & RMAT-20 & RMAT-28 \\
 \hline
-Copy $x$ to $y$ & 1.1\% &  \\
-Add $A$ to $y$ & 3.0\% &  \\
-Convert $y$ & 23.5\% &  \\
-Reduce $y$ & 7.7\% & \\
-Aggregate $y$ (first part of collate) & 24.9\% & \\
-Convert $y$ (second part of collate) & 38.2\% & \\
-Reduce $y$ & 1.6\% & \\
+Copy $x$ to $y$                       &  1.1\% &  0.4\%\\
+Add $A$ to $y$                        &  3.0\% & 14.3\% \\
+Convert $y$                           & 23.5\% & 43.6\% \\
+Reduce $y$                            &  7.7\% &  5.8\% \\
+Aggregate $y$ (first part of collate) & 24.9\% &  6.8\% \\
+Convert $y$ (second part of collate)  & 38.2\% & 27.4\% \\
+Reduce $y$                            &  1.6\% &  1.7\% \\
 \hline
 \end{tabular}
 \caption{Percentage of execution time in each operation of Step 2 of the MR-MPI 
@@ -231,10 +229,10 @@ in Step 4.
 \hline 
 PageRank Step 5 & RMAT-20 & RMAT-28 \\
 \hline
-Add $y$ to $x$ & 2.2\% &  \\
-Convert $x$ & 95.1\% &  \\
-Reduce $x$ & 2.5\% & \\
-MPI\_Allreduce & 0.2\% & \\
+Add $y$ to $x$ &  2.2\% &  9.8\% \\
+Convert $x$    & 95.1\% & 84.9\% \\
+Reduce $x$     &  2.5\% &  5.3\% \\
+MPI\_Allreduce &  0.2\% &  0.0\% \\
 \hline
 \end{tabular}
 \caption{Percentage of execution time in each operation of Step 5 of the MR-MPI 
