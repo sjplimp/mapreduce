@@ -66,6 +66,8 @@ class mrmpi:
                            c_void_p,c_void_p)
     self.reduce_def = REDUCEFUNC(self.reduce_callback)
 
+    # create an instance of MR-MPI library
+    
     if comm == None: self.mr = self.lib.MR_create_mpi()
     elif type(comm) == types.IntType: self.mr = self.lib.MR_create(comm)
     elif type(comm) == types.FloatType:
@@ -251,8 +253,8 @@ class mrmpi:
     if not addflag: self.lib.MR_open(self.mr)
     else: self.lib.MR_open_add(self.mr,addflag)
 
-  def print(self,proc,nstride,kflag,vflag):
-    self.lib.print(self.mr,proc,nstride,kflag,vflag)
+  def print_mr(self,proc,nstride,kflag,vflag):
+    self.lib.MR_print(self.mr,proc,nstride,kflag,vflag)
 
   def reduce(self,reduce,ptr=None):
     self.reduce_caller = reduce
