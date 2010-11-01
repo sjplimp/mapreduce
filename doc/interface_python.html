@@ -279,7 +279,8 @@ in parallel
 <PRE>import pypar
 from mrmpi import mrmpi
 mr = mrmpi()
-print "Proc %d out of %d procs has" % (pypar.rank(),pypar.size()), mr 
+print "Proc %d out of %d procs has" % (pypar.rank(),pypar.size()), mr
+pypar.finalize() 
 </PRE>
 <P>Again, if you get no errors, you're good to go.
 </P>

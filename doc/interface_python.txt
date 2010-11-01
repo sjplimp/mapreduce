@@ -276,7 +276,8 @@ where test.script contains the lines
 import pypar
 from mrmpi import mrmpi
 mr = mrmpi()
-print "Proc %d out of %d procs has" % (pypar.rank(),pypar.size()), mr :pre
+print "Proc %d out of %d procs has" % (pypar.rank(),pypar.size()), mr
+pypar.finalize() :pre
 
 Again, if you get no errors, you're good to go.
 
