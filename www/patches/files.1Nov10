@@ -1,0 +1,5 @@
+26Aug10 version files changed by 1Nov10 upgrade:
+
+doc/interface_python.html
+doc/interface_python.txt
+python/mrmpi.py

@@ -17,6 +17,17 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[1 Nov 2010]
+
+The print() function in the Python interface was causing some problems
+with Python builds, likely because it is a keyword in Python.  This
+patch renames the function.
+
+This is the "list of changed files"_patches/files.1Nov10 from the 26
+Aug 2010 version.
+
+:line
+
 [26 Aug 2010]
 
 Forgot to add the relevant doc page for the new
