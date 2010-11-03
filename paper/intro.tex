@@ -36,20 +36,21 @@ scripts or in other languages.
 More recently, MapReduce formulations of traditional number-crunching
 kinds of scientific computational tasks have been described, such as
 post-processing analysis of simulation data~\cite{Tu08}, graph
-algorithmics~\cite{Cohen09}, and linear algebra operations~\cite{Ekanayake09}.
-The paper by Tu et al.~\cite{Tu08} was particularly insightful to us,
-because it described how MapReduce could be implemented on top of the
-ubiquitous distributed-memory message-passing interface (MPI), and how
-the intermediate data-shuffle operation is conceptually identical to
-the familiar MPI\_Alltoall operation.  Their implementation of
-MapReduce was within a Python wrapper to simplify the writing of user
-programs.  The paper motivated us to develop our own C++ library built
-on top of MPI for use in graph analytics, which we initially released
-as open-source software in mid-2009~\cite{MRMPI}.  We have since
-worked to optimize several of the library's underlying algorithms and
-to enable its operation in out-of-core mode on larger data sets.
-These algorithmic improvements are described in this paper and are
-part of the current downloadable version~\cite{MRMPI}.
+algorithmics~\cite{Cohen09}, and linear algebra
+operations~\cite{Ekanayake09}.  The paper by Tu et al.~\cite{Tu08} was
+particularly insightful to us, because it described how MapReduce
+could be implemented on top of the ubiquitous distributed-memory
+message-passing interface (MPI), and how the intermediate data-shuffle
+operation is conceptually identical to the familiar MPI\_Alltoall
+operation.  Their implementation of MapReduce was within a Python
+wrapper to simplify the writing of user programs.  The paper motivated
+us to develop our own C++ library built on top of MPI for use in graph
+analytics, which we initially released as open-source software in
+mid-2009.  We have since worked to optimize several of the library's
+underlying algorithms and to enable its operation in out-of-core mode
+for larger data sets.  These algorithmic improvements are described in
+this paper and are part of the current downloadable version; see
+Section ~\ref{sec:thanks} for details.
 
 The MapReduce-MPI (MR-MPI) library described in this paper is a
 simple, lightweight implementation of basic MapReduce functionality,
@@ -84,15 +85,15 @@ operations.
 
 \item {\it In-core or out-of-core operation:} Each MapReduce object
 that a processor creates allocates ``pages'' of memory, where the page
-size is determined by the user.  Typical MapReduce operations can be
-performed using a few such pages (per processor).  If the data set
-fits in a single page (per processor), the library performs its
-operations in-core.  If the data set exceeds the page size, processors
-each write to temporary disk files (on local disks or a parallel file
-system) as needed and subsequently read from them.  This out-of-core
-mode of operation allows processing of data sets larger than the
-aggregate memory of all the processors, i.e. up to the aggregate
-available disk space.
+size is determined by the user.  MapReduce operations can be performed
+using a few such pages (per processor).  If the data set fits in a
+single page (per processor), the library performs its operations
+in-core.  If the data set exceeds the page size, processors each write
+to temporary disk files (on local disks or a parallel file system) as
+needed and subsequently read from them.  This out-of-core mode of
+operation allows processing of data sets larger than the aggregate
+memory of all the processors, i.e. up to the aggregate available disk
+space.
 
 \item {\it Flexible programmability:} An advantage of writing a
 MapReduce program on top of MPI, is that the user program can also
@@ -121,7 +122,7 @@ run in this mode.
 implementations do not enable easy detection of a dead processor or
 retrieval of the data it was working on.  So like most MPI programs, a
 parallel program calling the MR-MPI library will hang or crash if a
-processor goes away.  Unlike Hadoop, and its HDFS file system which
+processor goes away.  Unlike Hadoop, and its file system (HDFS) which
 provides data redundancy, the MR-MPI library reads and writes simple,
 flat files.  It can use local per-processor disks, or a parallel file
 system, if available, but these typically provide no data redundancy.

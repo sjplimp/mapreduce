@@ -68,11 +68,11 @@ sort the values; counting the values associated with the same key
 requires iterating over the values.
 
 Note that the first portion of the {\it collate()} operation involves
-all-to-all communication (each processor sends and receives data from
-every other processor) using a distributed hash table.  The
-communication can either be done via a MPI\_Alltoall() library call,
-or by a custom routine that aggregates messages and invokes
-point-to-point MPI\_Send() and MPI\_IRecv() calls.
+all-to-all communication since each processor exchanges KV pairs with
+every other processor.  The communication can either be done via a
+MPI\_Alltoall() library call, or by a custom routine that aggregates
+datums into large messages and invokes point-to-point MPI\_Send() and
+MPI\_IRecv() calls.
 
 The {\it reduce()} operation processes KMV pairs and can produce new
 KV pairs for continued computation.  Each processor operates only on
@@ -84,14 +84,14 @@ each KMV pair.
 Several related MapReduce operations are provided by the library.  For
 example, the {\it collate()} function described above calls two other
 functions: {\it aggregate()}, which performs the all-to-all
-communication, and {\it convert()}, which turns a list of KV pairs
-into KMV pairs.  Both functions can be called directly.  The {\it
-compress()} function allows on-processor operations to be performed;
-it is equivalent to a {\it convert()} with on-processor KVs as input,
-followed by a {\it reduce()}.  The {\it clone()} function turns a list
-of KV pairs into KMV pairs, with one value per key.  The {\it
-collapse()} function turns $N$ KV pairs into one KMV pair, with the
-keys and values of the KV pairs becoming $2N$ values of a single
+communication, and {\it convert()}, which reorganizes a set of KV
+pairs into KMV pairs.  Both functions can be called directly.  The
+{\it compress()} function allows on-processor operations to be
+performed; it is equivalent to a {\it convert()} with on-processor KVs
+as input, followed by a {\it reduce()}.  The {\it clone()} function
+turns a list of KV pairs into KMV pairs, with one value per key.  The
+{\it collapse()} function turns $N$ KV pairs into one KMV pair, with
+the keys and values of the KV pairs becoming $2N$ values of a single
 multivalue assigned to a new key.  The {\it gather()} function
 collects KV pairs from all processors to a subset of processors; it is
 useful for doing output from one or a few processors.  Library calls
@@ -104,22 +104,25 @@ then copied into a new data structure in sorted order.
 
 The interface to various low-level operations is provided so that a
 user's program can string them together in various ways to construct
-interesting MapReduce algorithms.  For example, output from a {\it
+usefule MapReduce algorithms.  For example, output from a {\it
 reduce()} can serve as input to a subsequent {\it map()} or {\it
 collate()}.  Likewise, data can be partitioned across multiple
-MapReduce (MR) objects, each with their own set of KV pairs.  KV pairs
-from multiple MR objects can be combined to perform new sequences of
-{\it map()}, {\it collate()}, and {\it reduce()} operations.
+MapReduce (MR) objects, each with their own set of KV pairs.  For
+example, as will be illustrated in Section ~\ref{sec:graph}, one MR
+object can store the edges of a graph, and another its vertices.  KV
+pairs from multiple MR objects can be combined to perform new
+sequences of {\it map()}, {\it collate()}, and {\it reduce()}
+operations.
 
 The above discussion assumed that the KV or KMV pairs stored by a
-processor fit in its physical memory.  In this case, MR-MPI performs
-only ``in-core'' processing and no disk files are written or read by
-any of the processors, aside from initial input data if it exists or
-final output data if it is generated.  Note that the aggregate
-physical memory of large parallel machines can be multiple terabytes,
-which allows for large data sets to be processed in-core, assuming the
-KV and KMV pairs remain evenly distributed across processors
-throughout the sequence of MapReduce operations.  The use of hashing
-to assign keys to processors typically provides for such
-load-balancing.  In the next section, we discuss what happens when
-data sets do not fit in available memory.
+processor fit in its physical memory.  In this case, the MR-MPI
+library performs only ``in-core'' processing and no disk files are
+written or read by any of the processors, aside from initial input
+data (if it exists) or final output data (if it is generated).  Note
+that the aggregate physical memory of large parallel machines can be
+multiple terabytes, which allows for large data sets to be processed
+in-core, assuming the KV and KMV pairs remain evenly distributed
+across processors throughout the sequence of MapReduce operations.
+The use of hashing to assign keys to processors typically provides for
+such load-balancing.  In the next section, we discuss what happens
+when data sets do not fit in available memory.

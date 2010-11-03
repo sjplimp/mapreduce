@@ -25,18 +25,18 @@ reasonable {\it pagesize} ensures good I/O performance.
 We now explain how the MapReduce operations described in the previous
 section work in out-of-core mode.  The {\it map()} and {\it reduce()}
 operations are relatively simple.  As a {\it map()} generates KV pairs
-via the user function, a page of memory fills up, one KV pair at a
-time.  When the page is full, it is written to disk.  If the source of
-data for the {\it map()} operation is an existing set of KV pairs,
-those datums are read, one page at a time, and a pointer to each KV
-pair is given to the user function.  Similarly, a {\it reduce()} reads
-one page of KMV pairs from disk, and passes a pointer to each pair,
-one at a time, to the user function that typically generates new KV
-pairs.  The generated pairs fill up a new page, which is written to
-disk when full, just as with the {\it map()} operation.  Thus for both
-a {\it map()} and {\it reduce()}, out-of-core disk files are read and
-written sequentially, one page at a time, which requires at most two
-pages of memory.
+via the user callback function, a page of memory fills up, one KV pair
+at a time.  When the page is full, it is written to disk.  If the
+source of data for the {\it map()} operation is an existing set of KV
+pairs, those datums are read, one page at a time, and a pointer to
+each KV pair is given to the user function.  Similarly, a {\it
+reduce()} reads one page of KMV pairs from disk, and passes a pointer
+to each pair, one at a time, to the user callback function that
+typically generates new KV pairs.  The generated pairs fill up a new
+page, which is written to disk when full, just as with the {\it map()}
+operation.  Thus for both a {\it map()} and {\it reduce()},
+out-of-core disk files are read and written sequentially, one page at
+a time, which requires at most two pages of memory.
 
 A special case is when a single KMV pair is larger than a single page.
 This can happen, for example, in a connected component finding
@@ -51,24 +51,25 @@ values from the MR-MPI library, which reads in a new page from disk.
 
 Performing an our-of-core {\it collate()} operation is more complex.
 Recall that the operation occurs in two stages.  First, keys are
-hashed to ``owning'' processors and the KV datums are communicated to
+hashed to ``owning'' processors and the KV pairs are communicated to
 new processors in an all-to-all fashion.  In out-of-core mode, this
-operation is performed on one page of KV data at a time.  Each
-processor reads in a page of KV pairs, the communication pattern
-(which processors receive which datums in that page) is determined,
-and all-to-all communication is performed.  Each processor allocates a
-two-page chunk of memory to receive incoming KV pairs.  On average
-each processor should receive one page of KV pairs; the two-page
-allocation allows for some load imbalance.  If the KV pairs are
-distributed unevenly so that this limit is exceeded, the all-to-all
-communication is performed in smaller, multiple passes until the full
-page contributed by every processor has been communicated.  Performing
-an MPI\_Alltoall(), or using the custom all-to-all routines provided
-by the MR-MPI library, requires allocation of auxiliary arrays that
-store processor indices, datum pointers, and datum lengths.  For the
-case of many tiny KV datums, the total number of memory pages required
-to perform the all-to-all communication, including the source and
-target KV pages is at most seven.
+operation is performed on one page of KV data (per processor) at a
+time.  Each processor reads in a page of KV pairs, the communication
+pattern is determined (which processors receive which datums in that
+page), and all-to-all communication is performed.  Each processor
+allocates a two-page chunk of memory to receive incoming KV pairs.  On
+average each processor should receive one page of KV pairs; the
+two-page allocation allows for some load imbalance.  If the KV pairs
+are distributed unevenly so that this limit is exceeded, the
+all-to-all communication is performed in smaller, multiple passes
+until the full page contributed by every processor has been
+communicated.  Performing an MPI\_Alltoall(), or using the custom
+all-to-all routines provided by the MR-MPI library, requires
+allocation of auxiliary arrays that store processor indices, datum
+pointers, and datum lengths.  For the case of many tiny KV pairs, the
+total number of memory pages required to perform the all-to-all
+communication, including the source and target KV pages is at most
+seven.
 
 When the communication stage of the {\it collate()} operation is
 complete, each processor has a set of KV pages, stored in an
@@ -180,15 +181,16 @@ in out-of-core mode, typically with one pass through the KV or KMV
 data and the use of one or two memory pages.  Sorting KV pairs, by key
 or value, is an exception.  An out-of-core merge sort is performed as
 follows.  Two pages of KV datums are read from disk.  Each is sorted
-using the C-library quicksort() function, as discussed in the previous
-section.  The two pages are then scanned and merged into a new file
-which is written to disk as its associated memory page fills up.  This
-process requires five memory pages, which includes vectors of KV datum
-pointers and lengths needed by the in-memory quicksort() operation.
-Once all pairs of pages have been merged, the sort continues in a
-recursive fashion, merging pairs of files into a new third file,
-without the need to perform additional in-memory sorts.  Thus the
-overall memory requirement is five pages.  The number of read/write
-passes through the KV data set for the merge sort is $O(\log_2{M})$,
-where $M$ is the number of pages of KV pairs.  The number of passes
-could be reduced at the cost of allocating more in-memory pages.
+in local memory using the C-library quicksort() function, as discussed
+in the previous section.  The two pages are then scanned and merged
+into a new file which is written to disk as its associated memory page
+fills up.  This process requires five memory pages, which includes
+vectors of KV datum pointers and lengths needed by the in-memory
+quicksort() operation.  Once all pairs of pages have been merged, the
+sort continues in a recursive fashion, merging pairs of files into a
+new third file, without the need to perform additional in-memory
+sorts.  Thus the overall memory requirement is five pages.  The number
+of read/write passes through the KV data set for the merge sort is
+$O(\log_2{M})$, where $M$ is the number of pages of KV pairs.  The
+number of passes could be reduced at the cost of allocating more
+in-memory pages.
