@@ -1,16 +1,14 @@
 things to do:
 
 circulated to CA folks, including D Gleich, also D Bader, Karl,
-also B Barrett
+also B Barrett, T Plantenga
 
+add Input/Ouptput lines to each alg description
 list # of lines per driver program in a table for all algs
+ask Karen to make graphs and legends more read-able
 
-get more comparisons, e.g. with Hadoop or PBGL
+get more comparisons, e.g. with Hadoop or PBGL or Trilinos
 
-order-of-mag differerence for PR in Trilinos vs MR-MPI
-  is it volume of communication (edges vs vertices)
-  could MR-MPI do pre-sum to communicate less?
-  is it cost of data reorg (hash, collate, etc) in MR
-    versus pre-computation of data layout in Trilinos
-
+implement and benchmark enhanced versions of algs
+  that Karen is proposing
 
