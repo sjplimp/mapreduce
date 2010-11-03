@@ -723,9 +723,9 @@ object $V$ contains a complete MIS of vertices.
 
 \subsection{Single source shortest path calculation}
 
-The single-source shortest path (SSSP) algorithm computes, for a
-directed graph with weighted edges, the shortest weighted distance
-from a chosen source vertex to all other vertices in the graph.  This
+For a directed graph with weighted edges, the single-source shortest
+path (SSSP) algorithm computes the shortest weighted distance from a
+chosen source vertex to all other vertices in the graph.  This
 calculation is straightforward when global graph information is
 available.  The source vertex is labeled with distance zero.  Then in
 each iteration, edge adjacencies of labeled vertices are followed, and
@@ -736,15 +736,26 @@ edges adjacent to modified vertices need be visited in each iteration.
 For a distributed graph, global information about edge adjacencies and
 labeled vertices is not available.  Instead, following the
 Bellman-Ford-style algorithm of~\cite{SSSPMapReduce, Bellman58,
-Ford62}, every edge of the graph is visited in each iteration,
-although labels for an edge's vertices are updated only if the
-breadth-first traversal from the source vertex has reached those
-vertices.  A MapReduce formulation of this algorithm, described in
-Figure~\ref{fig:sssp}, begins with a {\it map()} function loading
-edges $(V_i, V_j)$ and source vertex $V_s$ with distance 0.  In each
-iteration, the edges $(V_i, V_j)$ are collated with respect to $V_i$,
-and a {\it reduce()} operation updates each $V_j$'s distance if
-$V_i$'s distance is non-zero.
+Ford62}, every edge of the graph is visited in each iteration and
+vertex distancs are updated.  A MapReduce formulation of this
+algorithm, described in Figure~\ref{fig:sssp}, stores directed edges
+in $E$ and begins by labeling the distance to all vertices as
+inifinte, except a distance of 0.0 to the source vertex $V_s$.  At
+each iteration, a {\it map()} operation is performed using $E$ as
+input to add edges and their weights to each vertex in $V$.  After a
+{\it collate()} operation, each vertex $V_i$ knows its outgoing edges
+and their weights, as well as its own current distance.  It may also
+have one or more distances assigned to it from a previous iteration
+(i.e. from an inbound edge).  In the {\it reduce()} operation, each
+vertex resets its distance to the minimum of these new distances and
+its current distance.  If its distance changed, it emits new distance
+values $d_j$ for the vertices associated with its outgoing edges,
+where $d_j = d_i + w_{ij}$.  It also unsets a ``done'' flag, stored by
+each processor.  When the reduce is complete, an MPI\_Allreduce
+operation is performed to check the ``done'' flag status on all
+processors.  If any distance was changed, the iterations continue, and
+the distance updates propagate through the graph.  If no distances
+changed, the algorithm is done.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
@@ -762,7 +773,7 @@ while not $done$: \\
 \> \> output Key = $V_i$, Value = $[V_j, w_{ij}]$ \\
 \> Collate $V$: Vertex is key \\
 \> Reduce $V$:  Loop over edges of vertex to update distance to $V_s$ \\
-\> \> Input: Key = $V_i$; Multivalue = edges $[V_j, w_{ij}]$ and candidate distances $d_i$ \\
+\> \> Input: Key = $V_i$; Multivalue = edges $[V_j, w_{ij}]$ and candidate distances for $d_i$ \\
 \> \> Find smallest new distance $d_{min}$ for $V_i$ \\
 \> \> If $d_{min} \ne d_i$: \\
 \> \> \>  $done$ = 0 \\
@@ -781,59 +792,61 @@ while not $done$: \\
 
 As with PageRank and R-MAT generation, significant savings in
 communication and execution time can be achieved by pre-aggregating
-certain MapReduce objects and storing data in more than one MapReduce
-object.  The enhanced algorithm is shown in Figure~\ref{fig:sssp2}.
-The MapReduce objects $V$ and $E$ storing vertices and edges are
-aggregated across processors only once at the beginning of the
-computation.  In each iteration of SSSP, only a small number of new
-candidate distances are generated.  The enhanced algorithm uses
-MapReduce object $U$ to store these updates.  Only the updates in $U$
-are communicated; each update is aggregated to the same processor that
-stores the corresponding vertex and its edges.  Thus, the total amount
-of communication needed is smaller than in the original algorithm,
-which aggregated all graph edges in each iteration.  Updated vertex
+the data stored in MapReduce objects and by splitting the data
+appropriately across more than one MapReduce object.  An enhanced SSSP
+algorithm is shown in Figure~\ref{fig:sssp2}.  The MapReduce objects
+$V$ and $E$ which store vertices and edges are aggregated across
+processors only once at the beginning of the computation, which means
+the communication portion of the {\it collate()} operation is
+performed to assign each key to a processor.  The {\it collate()}
+operation of Figure~\ref{fig:sssp} can then be replaced with a {\it
+compress()} operation which requires no communication.
+
+In each iteration of SSSP, typically only a small number of new
+distances are generated.  The enhanced algorithm uses MapReduce object
+$U$ to store these updates.  Only the updates in $U$ are communicated;
+which aggregates them to the same processor that permanently stores
+the corresponding vertex and its edges.  Thus, the total amount of
+required communication is smaller than in the original algorithm,
+which communicated all graph edges at each iteration.  Updated vertex
 distances are stored in MapReduce object $V$, as before.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+  xxxx\=xxxx\=xxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-Pre-aggregated MapReduce object $V$ = graph vertices $V_i$ with distances $d_i$ from $V_s$:  \\
-\> Key = $V_i$; Value = $\infty$.\\
-Pre-aggregated MapReduce object $E$ containing graph edges ($V_i, V_j$) with weights $w_{ij}$: \\
-\>  Key = $V_i$; Value = $[V_j, w_{ij}]$ \\
-MapReduce object $U$ to store updates to distances = empty \\
-Map $U$:  Add $V_s$ with distance $d_s = 0$ to $U$. \\
-\> Input:  $V_s$ \\
-\> Output:  Key = $V_s$; Value = 0. \\
+Pre-aggregated MapReduce object $V$ = graph vertices $V_i$ with distances from sourece vertex $V_s$:  \\
+\> Key = $V_i$; Value = $\infty$, except Value for $V_s$ = 0 \\
+Pre-aggregated MapReduce object $E$ = graph edges with weights: Key = ($V_i, V_j$), Value = $w_{ij}$ \\
+MapReduce object $U$ to store updates to distances, initially empty \\
 done = 0 \\
+
 while not $done$: \\
 \> $done$ = 1 \\
 \> Aggregate $U$ \\
 \> Add $U$ to $V$, empty $U$ \\
-\> Compress $V$:  Pick best candidate distance for each vertex \\
-\> \> Input:  Key = $V_i$; Multivalue = candidate distances $d_i$ \\
-\> \> Find smallest candidate distance $d_{min}$ for $V_i$ \\
-\> \> \> If $d_{min} \ne d_i$, $done$ = 0 \\
-\> \> Output to $V$:  Key = $V_i$; Value = $d_{min}$ \\
-\> \> Output to $U$: if $d_{min} \ne d_i$, Key = $V_i$; Value = $d_{min}$ \\
+\> Compress $V$:  Compute best distance for each vertex \\
+\> \> Input:  Key = $V_i$; Multivalue = candidate distances for $d_i$ \\
+\> \> Find smallest new distance $d_{min}$ for $V_i$ \\
+\> \> If $d_{min} \ne d_i$: \\
+\> \> \> $done$ = 0 \\
+\> \> \> Output to $U$: Key = $V_i$; Value = $d_{min}$ \\
+\> \> Output to $V$: Key = $V_i$; Value = $d_{min}$ \\
 \> $done$ = MPI\_Allreduce($done$,MPI\_MIN) \\
 \> if not $done$: \\
-\> \> Add $U$ to $E$.  Empty $U$. \\
-\> \> Compress $E$:  Generate candidate distances for neighbors of changed vertices. \\
-\> \> \> Input:  Key = $V_i$; Multivalue = $[V_j, w_{ij}]$ for edges ($V_i, V_j$) \\
-\> \> \> \> and distance $d_i$ if updated in previous step. \\
-\> \> \> Output to $U$:  If updated distance $d_i$ exists, \\
-\> \> \> \> Key = $V_j$, Value = $d_i+w_{ij}$ for each edge ($V_i, V_j$) \\
+\> \> Add $U$ to $E$, empty $U$ \\
+\> \> Compress $E$: Generate candidate distances for neighbors of changed vertices. \\
+\> \> \> Input:  Key = $V_i$; Multivalue = $[V_j, w_{ij}]$ and candidate distance $d_i$ if updated in previous step \\
+\> \> \> If updated distance $d_i$ exists: \\
+\> \> \> \> Output to $U$: Key = $V_j$, Value = $d_i+w_{ij}$ for each edge vertex $V_j$) \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
 
  \caption{\it Enhanced MapReduce algorithm for single-source shortest
  path (SSSP) calculation, with an additional MapReduce object $U$.
- Pre-aggregating the vertices $V$ and edges $E$, and later aggregating
- only updates $U$ to vertex distances, reduces communication and
- execution time.}
+ Pre-aggregating the vertices $V$ and edges $E$, and storing only
+ changed distances in $U$, reduces communication and execution time.}
 
  \label{fig:sssp2}
 \end{figure}
