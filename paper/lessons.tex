@@ -27,11 +27,14 @@ writing small {\it map()} and {\it reduce()} functions is typically
 easy.  And writing an algorithm that involves complex parallel
 operations without needing to write application-specific code to
 communicate data via MPI calls or to move data between out-of-core
-disk files and processor memory is often a pleasant surprise.
-Moreover, if the MapReduce algorithm is initially coded so that it
-runs correctly on one processor, it often works out-of-the-box on
-hundreds or thousands of processors, without the need for additional
-debugging.
+disk files and processor memory is often a pleasant surprise.  This is
+in contrast to linear algebra libraries like Trilinos where performing
+out-of-core operations (on huge matrices) is not currently supported,
+and would require substantial reworking of the libray as well as the
+user program.  Moreover, if the MapReduce algorithm is initially coded
+so that it runs correctly on one processor, it often works
+out-of-the-box on hundreds or thousands of processors, without the
+need for additional debugging.
 
 Performing MapReduce operations on a fixed allocation of processors on
 a traditional MPI-based parallel machine is a somewhat different

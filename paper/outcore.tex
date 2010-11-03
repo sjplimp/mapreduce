@@ -9,8 +9,8 @@ When this occurs, a processor writes one or more temporary files to
 disk, containing KV or KMV pairs, and reads them back in when
 required.  Depending on the parallel machine's hardware configuration,
 these files can reside on disks local to each processor, on the front
-end (typically a NSF-mounted file system for a parallel machine), or
-on a parallel file system/disk array.
+end (typically a NFS-mounted file system for a parallel machine), or
+on a parallel file system and its associated disk array.
 
 When a user program creates a MapReduce object, a ``pagesize'' can be
 specified, which defaults to 64 Mbytes.  As described below, each
@@ -28,15 +28,15 @@ operations are relatively simple.  As a {\it map()} generates KV pairs
 via the user function, a page of memory fills up, one KV pair at a
 time.  When the page is full, it is written to disk.  If the source of
 data for the {\it map()} operation is an existing set of KV pairs,
-those datums are read, one page at a time, and a pointer to
-each KV pair is given to the user function.  Similarly, a {\it
-reduce()} reads one page of KMV pairs from disk, passes a pointer
-to each pair, one at a time, to the user function that typically generates
-new KV pairs.  The generated pairs fill up a new page, which is
-written to disk when full, just as with the {\it map()} operation.
-Thus for both a {\it map()} and {\it reduce()}, out-of-core disk files
-are read and written sequentially, one page at a time, which requires
-at most two pages of memory.
+those datums are read, one page at a time, and a pointer to each KV
+pair is given to the user function.  Similarly, a {\it reduce()} reads
+one page of KMV pairs from disk, and passes a pointer to each pair,
+one at a time, to the user function that typically generates new KV
+pairs.  The generated pairs fill up a new page, which is written to
+disk when full, just as with the {\it map()} operation.  Thus for both
+a {\it map()} and {\it reduce()}, out-of-core disk files are read and
+written sequentially, one page at a time, which requires at most two
+pages of memory.
 
 A special case is when a single KMV pair is larger than a single page.
 This can happen, for example, in a connected component finding

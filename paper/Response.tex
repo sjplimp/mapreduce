@@ -20,17 +20,16 @@
 
 \begin{document}
 
-{\it
 October 29, 2010\\
+
 Response to reviewers:  \\
-We thank the reviewers for their careful reading of our paper.
-Their suggestions definitely strengthen the paper and sparked new ideas
-for improving our algorithms.
-Below we list the Reviewers' comments verbatim.
-Our responses are shown in italics. \\
-Steve Plimpton and 
-Karen Devine
-}
+
+We thank the reviewers for their careful reading of our paper.  Their
+suggestions definitely strengthen the paper and sparked new ideas for
+improving our algorithms.  Below we list the Reviewers' comments
+verbatim.  Our responses are shown in italics. \\
+
+Steve Plimpton and Karen Devine
 
 \vspace{0.5 in}
 
@@ -53,6 +52,10 @@ and a summary of the out-of-core mechanisms available.  The figure
 flows could be enhanced- for example, it should indicate node-local
 and communication intensive operations.
 
+{\it Figure 1 is actually describing an on-processor rearrangement of
+data that each processor performs on its local data it owns.  Thus
+there is no inter-processor communication involved.}
+
 All performance results are shown as scaling studies for a range of
 problem sizes for the six graph algorithms.  The results show that the
 MapReduce applications do not compete well with the reference
@@ -74,6 +77,13 @@ isolated more concisely?
 The paper does not have a concise "Conclusion", only a "Lessons Learned"
 section.
 
+{\it We have made some of these comparison points more
+clearly in the final ``Lessons Learned'' section.}
+
+%comment on MR vs Trilinos, even if libraries already exist
+%  cannot use linear algebra lib for all graph algorithms described
+%  here - PR is an exception since can be cast as matvec
+%added line counts of algorithms
 
 \vspace{0.5 in}
 
@@ -87,14 +97,15 @@ investigate where the performance descrepency comes from and if it's
 possible to optimize the algorithm and implementation to bridge the
 performance gap.
 
-{\it We instrumented our MR-MPI and Trilinos implementations of PageRank 
-to show where time is spent during the PageRank iterations.  These results
-are in Table 2.  We further instrumented the two most expensive steps of
-the PageRank iterations, as shown in Tables 3 and 4.  These experiments
-showed that much time is spent in reorganizing data from key-value pairs
-to key-multivalue pairs.  In sections 4.1 and 5.2, we describe alternative
-data layouts that can reduce the number of times the data must be 
-reorganized to improve performance.}
+{\it We instrumented our MR-MPI and Trilinos implementations of
+PageRank to show where time is spent during the PageRank iterations.
+These results were added in Table 2.  We further instrumented the two
+most expensive steps of the PageRank iterations, as shown in Tables 3
+and 4.  These experiments showed that considerable time is spent in
+reorganizing data from key-value pairs to key-multivalue pairs.  In
+sections 4.1 and 5.2, we describe alternative data layouts that could
+reduce the number of times the data must be reorganized to improve
+performance.}
 
 \vspace{0.5 in}
 
@@ -102,19 +113,28 @@ Reviewer \#3: I appreciated the clear exposition of your map/reduce
 framework, its decomposition into a number of independent and composable
 stages, and the explanation of how out-of-core computations are handled.
 
-I also liked that you presented the map/reduce implementation of a number
-of different graph algorithms. However, I thought the presentation of these
-algorithms could be improved in two ways:
-- The text tends to just explaining what the code does, not why, nor why
-  this solves the specific problem (4.2 was the worst culprit here - f I
-understood correctly, the vertices get labeled by edge counts that are used
-to give the edges a direction that helps identify triangles: if this is
-correct a little diagram showing this would help...)
-- The detailed algorithms (Figures 4-9) are a little too imprecise to
-  follow at times. In particular, when multiple map/reduces are involved
-the lack of names for the map/reduce operations and their inputs makes
-things confusing. Please  be very explicit (after all the code itself is),
-and Figure 4 at least actually had names for the map-reduce objects.
+I also liked that you presented the map/reduce implementation of a
+number of different graph algorithms. However, I thought the
+presentation of these algorithms could be improved in two ways: - The
+text tends to just explaining what the code does, not why, nor why
+this solves the specific problem (4.2 was the worst culprit here - f I
+understood correctly, the vertices get labeled by edge counts that are
+used to give the edges a direction that helps identify triangles: if
+this is correct a little diagram showing this would help...)  - The
+detailed algorithms (Figures 4-9) are a little too imprecise to follow
+at times. In particular, when multiple map/reduces are involved the
+lack of names for the map/reduce operations and their inputs makes
+things confusing. Please be very explicit (after all the code itself
+is), and Figure 4 at least actually had names for the map-reduce
+objects.
+
+{\it We significantly re-worked and standardized the notation used
+in Section 4 to describe all the graph algorithms.  In particular
+we noted which operations are performed with which MapReduce
+objects and their associated key/value data, so that the flow
+of data through each algorithm should be more clear.  A discussion
+of the MR-MPI library's ability to allow creation of multiple
+MapReduce objects was added to Section 2.}
 
 Your performance is quite low when compared to non map/reduce
 implementations of the same algorithm. It would be interesting to know the
@@ -128,5 +148,6 @@ overall measurements would be interesting).
 Minor:
 - 5.4: In Figure *13* (not 6)...
 
-{\it Fixed; good catch.}
+{\it Fixed this; good catch.}
+
 \end{document}

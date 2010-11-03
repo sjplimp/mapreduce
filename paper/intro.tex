@@ -76,26 +76,27 @@ approach, using one-way communication of small messages.
 \item {\it Small, portable:} The entire MR-MPI library is a few
 thousand lines of standard C++ code.  For parallel operation, the
 program is linked with MPI, a standard message passing library
-available on all distributed memory machines.  For serial operation, a
-dummy MPI library (provided) can be substituted.  As a library, it can
-be embedded in other codes~\cite{Titan} to enable them to perform
-MapReduce operations.
+available on all distributed-memory machines and many shared-memory
+parallel machines.  For serial operation, a dummy MPI library
+(provided) can be substituted.  As a library, MR-MPI can be embedded
+in other codes~\cite{Titan} to enable them to perform MapReduce
+operations.
 
 \item {\it In-core or out-of-core operation:} Each MapReduce object
-that a processor defines allocates ``pages'' of memory, where the page
+that a processor creates allocates ``pages'' of memory, where the page
 size is determined by the user.  Typical MapReduce operations can be
 performed using a few such pages (per processor).  If the data set
 fits in a single page (per processor), the library performs its
 operations in-core.  If the data set exceeds the page size, processors
 each write to temporary disk files (on local disks or a parallel file
 system) as needed and subsequently read from them.  This out-of-core
-operation allows processing of data sets larger than the aggregate
-memory of all the processors, i.e. up to the available aggregate disk
-space.
+mode of operation allows processing of data sets larger than the
+aggregate memory of all the processors, i.e. up to the aggregate
+available disk space.
 
 \item {\it Flexible programmability:} An advantage of writing a
-MapReduce program on top of MPI, is that the user program can invoke
-MPI calls directly, if desired.  For example, one-line calls to
+MapReduce program on top of MPI, is that the user program can also
+invoke MPI calls directly, if desired.  For example, one-line calls to
 MPI\_Allreduce are often useful in determining the status of an
 iterative graph algorithm, as described in Section~\ref{sec:graph}.
 The library interface also provides a user data pointer as an argument
@@ -108,21 +109,22 @@ structures that accumulate results.
 \item {\it C++, C, and Python interfaces:} The C++ interface to the
 MR-MPI library allows user programs to instantiate and then invoke
 methods in one or more MapReduce objects.  The C interface allows the
-library to be called from C or other high-level languages such as
-Fortran.  The C interface also allows the library to be wrapped easily
-by Python via the Python ``ctypes'' module.  The library can then be
-called from a Python script, allowing the user to write {\it map()} and
-{\it reduce()} callback functions in Python.  If a machine supports running
-Python in parallel, a parallel MapReduce can also be run in this mode.
+same operations to be called from C or other high-level languages such
+as Fortran.  The C interface also allows the library to be easily
+wrapped by Python via the Python ``ctypes'' module.  The library can
+then be called from a Python script, allowing the user to write {\it
+map()} and {\it reduce()} callback functions in Python.  If a machine
+supports running Python in parallel, a parallel MapReduce can also be
+run in this mode.
 
-\item {\it No fault tolerance:} Current MPI implementations do not enable
-easy detection of a dead processor or retrieval of the data it was
-working on.  So like most MPI programs, a parallel program calling the
-MR-MPI library will hang or crash if a processor goes away.  Unlike
-Hadoop, and its HDFS file system which provides data redundancy,
-the MR-MPI library reads and writes simple, flat files.  It can
-use local per-processor disks, or a parallel file system, if
-available, but these typically provide no data redundancy.
+\item {\it No fault tolerance or data redundancy:} Current MPI
+implementations do not enable easy detection of a dead processor or
+retrieval of the data it was working on.  So like most MPI programs, a
+parallel program calling the MR-MPI library will hang or crash if a
+processor goes away.  Unlike Hadoop, and its HDFS file system which
+provides data redundancy, the MR-MPI library reads and writes simple,
+flat files.  It can use local per-processor disks, or a parallel file
+system, if available, but these typically provide no data redundancy.
 
 \end{itemize}
 
