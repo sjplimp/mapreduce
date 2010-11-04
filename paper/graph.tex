@@ -63,17 +63,17 @@ typically takes only a few iterations.
 Note that the degree distribution of vertices in the graph depends on
 the choice of parameters $a$, $b$, $c$, $d$.  If one of the four
 values is larger than the other three, a skewed distribution results.
-Variants of the above algorithm can be used when $N$ is not a
-power-of-two, to generate graphs with weighted edges (assign a numeric
-value to the $G_{ij}$ edge), graphs without self edges (require $i \ne
-j$), or graphs with undirected edges (require $i < j$).  Or the
-general R-MAT matrix can be further processed by MapReduce operations
-to meet these requirements.  For some algorithms below (e.g., triangle
-finding and maximal independent set generation), we post-process R-MAT
-matrices to create upper-triangular R-MAT matrices representing
-undirected graphs.  For each edge $(V_i,V_j)$ with $i > j$, we add
-edge $(V_j,V_i)$, essentially symmetrizing the matrix; we then remove
-duplicate edges and self edges, leaving only edges with $i < j$.
+Variants of the algorithm can be used when $N$ is not a power-of-two,
+to generate graphs with weighted edges (assign a numeric value to the
+edge), graphs without self edges (require $i \ne j$), or graphs with
+undirected edges (require $i < j$).  Or the general R-MAT matrix can
+be further processed by MapReduce operations to meet these
+requirements.  For some algorithms below (e.g., triangle finding and
+maximal independent set generation), we post-process R-MAT matrices to
+create upper-triangular R-MAT matrices representing undirected graphs.
+For each edge $(V_i,V_j)$ with $i > j$, we add edge $(V_j,V_i)$,
+essentially symmetrizing the matrix; we then remove duplicate edges
+and self edges, leaving only edges with $i < j$.
 
 By using an additional MapReduce object, we can improve the
 performance of the R-MAT generation algorithm, particularly when
@@ -83,12 +83,12 @@ object $G_{new}$ and {\it aggregate()} the edges to processors.  We
 then add those edges to the MapReduce object $G$, containing all
 previously generated unique edges; the edges of $G$ are already
 aggregated to processors using the same mapping as $G_{new}$.  We can
-then use the {\it compress()} operation to reduce duplicates locally
-on each processor.  The cost of the enhanced algorithm is less due to
-the smaller number of KV pairs communicated in the {\it aggregate()},
-compared to the {\it collate()} operation of the original algorithm,
-particularly in later iterations of the algorithm where few new edges
-are generated.
+use the {\it compress()} operation to reduce duplicates locally on
+each processor.  The enhanced algorithm runs faster due to the smaller
+number of KV pairs communicated in the {\it aggregate()}, compared to
+the {\it collate()} operation of the original algorithm, particularly
+in later iterations of the algorithm where few new edges are
+generated.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
