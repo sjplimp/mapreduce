@@ -10,47 +10,54 @@ specifices six parameters that define the graph: the number of
 vertices $N$ and edges $M$, and four parameters $a$, $b$, $c$, $d$
 that sum to 1.0 and are discussed below.  The algorithm in
 Figure~\ref{fig:rmat} uses a single MapReduce object to generate $M$
-unique non-zero entries in a sparse $N \times N$ matrix $A$, where
-each entry $A_{ij}$ represents an edge between graph vertices
-$(V_i,V_j)$.
+unique non-zero entries in a sparse $N \times N$ matrix $G$, where
+each entry $G_{ij}$ represents an edge between graph vertices
+$(V_i,V_j)$, with $V_i$ an integer from $1$ to $N$.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
   xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
+Input: \\
+\> MapReduce object $G$ = edges of graph, initially empty \\
+\\
 $M_{\rm remain} = M$ \\
 while $M_{\rm remain} > 0$: \\
-\> Map: \> Generate $M_{\rm remain}/P$ random edges $(i,j)$ on each processor \\
-           \> \> output Key = $(i,j)$, Value = NULL \\
-\> Collate \\
-\> Reduce: \> Remove duplicate edges \\
-           \> \> input Key = $(i,j)$, MultiValue = one or more NULLs \\
-           \> \> output Key = $(i,j)$, Value = NULL \\
-\> $M_{\rm remain} = M - N_{kv}$
+\> Map $G$: \> Generate $M_{\rm remain}/P$ random edges $(V_i,V_j)$ on each processor \\
+\> \> Output: Key = $(V_i,V_j)$, Value = NULL \\
+\> Collate $G$ \\
+\> Reduce $G$: \> Remove duplicate edges \\
+\> \> Input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
+\> \> Output: Key = $(V_i,V_j)$, Value = NULL \\
+\> $M_{\rm remain} = M - N_{kv}$ \\
+\\
+Output: \\
+\> MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
 
+
  \caption{\it MapReduce algorithm for R-MAT graph generation on $P$
- processors, using a single MapReduce object.}
+ processors, using a single MapReduce object $G$.}
 
  \label{fig:rmat}
 \end{figure}
 
 In the {\it map()} operation, each of $P$ processors generates a $1/P$
-fraction of the desired edges.  A single random edge ($i,j$) is computed
-recursively as follows.  Pick a random quadrant of the $A$ matrix with
-relative probabilities $a$, $b$, $c$, and $d$.  Treat the chosen
-quadrant as a sub-matrix and select a random quadrant within it, in
-the same manner.  Repeat this process $n$ times where $N = 2^n$.  At
-the end of the recursion, the final ``quadrant'' is non-zero matrix
-element $A_{ij}$.
+fraction of the desired edges.  A single random edge $(V_i,V_j)$ is
+computed recursively as follows.  Pick a random quadrant of the $G$
+matrix with relative probabilities $a$, $b$, $c$, and $d$.  Treat the
+chosen quadrant as a sub-matrix and select a random quadrant within
+it, in the same manner.  Repeat this process $n$ times where $N =
+2^n$.  At the end of the recursion, the final ``quadrant'' is a single
+non-zero matrix element $G_{ij}$.
 
-Though A is very sparse, the {\it map()} typically generates some
+Though $G$ is very sparse, the {\it map()} typically generates some
 small number of duplicate edges.  The {\it collate()} and {\it
 reduce()} operations remove the duplicates.  The entire
 map-collate-reduce sequence is repeated until the number of resulting
-key/value pairs $N_{kv} = M$.  For reasonably sparse graphs this
+key/value (KV) pairs $N_{kv} = M$.  For reasonably sparse graphs this
 typically takes only a few iterations.
 
 Note that the degree distribution of vertices in the graph depends on
@@ -58,52 +65,58 @@ the choice of parameters $a$, $b$, $c$, $d$.  If one of the four
 values is larger than the other three, a skewed distribution results.
 Variants of the above algorithm can be used when $N$ is not a
 power-of-two, to generate graphs with weighted edges (assign a numeric
-value to the $A_{ij}$ edge), graphs without self edges (require $i \ne
+value to the $G_{ij}$ edge), graphs without self edges (require $i \ne
 j$), or graphs with undirected edges (require $i < j$).  Or the
 general R-MAT matrix can be further processed by MapReduce operations
 to meet these requirements.  For some algorithms below (e.g., triangle
 finding and maximal independent set generation), we post-process R-MAT
 matrices to create upper-triangular R-MAT matrices representing
-undirected graphs.  For each edge $(i,j)$ with $i>j$, we add edge
-$(j,i)$, essentially symmetrizing the matrix; we then remove duplicate
-edges and self edges, leaving only edges with $i<j$.
+undirected graphs.  For each edge $(V_i,V_j)$ with $i > j$, we add
+edge $(V_j,V_i)$, essentially symmetrizing the matrix; we then remove
+duplicate edges and self edges, leaving only edges with $i < j$.
 
-By using more than one MapReduce object, we can improve the
+By using an additional MapReduce object, we can improve the
 performance of the R-MAT generation algorithm, particularly when
 out-of-core operations are needed.  In the enhanced algorithm
 (Figure~\ref{fig:rmat2}), we emit newly created edges into MapReduce
-object $E_{new}$ and {\it aggregate()} the edges to processors.  We
-then add those edges to the MapReduce object $E_{old}$, containing all
-previously generated unique edges; the edges of $E_{old}$ are already
-aggregated to processors using the same mapping as $E_{new}$.  We can
-then use the {\it compress()} function to reduce duplicates locally on
-each processor.  The cost of the algorithm is reduced due to the
-smaller number of KV pairs communicated in the {\it aggregate()},
+object $G_{new}$ and {\it aggregate()} the edges to processors.  We
+then add those edges to the MapReduce object $G$, containing all
+previously generated unique edges; the edges of $G$ are already
+aggregated to processors using the same mapping as $G_{new}$.  We can
+then use the {\it compress()} operation to reduce duplicates locally
+on each processor.  The cost of the enhanced algorithm is less due to
+the smaller number of KV pairs communicated in the {\it aggregate()},
 compared to the {\it collate()} operation of the original algorithm,
-particularly in later iterations of the algorithm where few edges are
-created.
+particularly in later iterations of the algorithm where few new edges
+are generated.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
   xxxx\=xxxxxxxxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
+Input: \\
+\> MapReduce object $G$ = edges of graph, initially empty \\
+\> MapReduce object $G_{new}$ = new edges of graph, initially empty \\
+\\
 $M_{\rm remain} = M$ \\
 while $M_{\rm remain} > 0$: \\
-\> Map $E_{new}$: \> Generate $M_{\rm remain}/P$ random edges $(i,j)$ on each processor \\
-           \> \> output Key = $(i,j)$, Value = NULL \\
-\> Aggregate $E_{new}$ \\
-\> Add $E_{new}$ to $E_{old}$ \\
-\> Compress $E_{old}$: Remove duplicate edges \\
-            \> \> input Key = $(i,j)$, MultiValue = one or more NULLs \\
-            \> \> output Key = $(i,j)$, Value = NULL \\
-\> $M_{\rm remain} = M - N_{kv}$
+\> Map $G_{new}$: \> Generate $M_{\rm remain}/P$ random edges $(V_i,V_j)$ on each processor \\
+\> \> Output: Key = $(V_i,V_j)$, Value = NULL \\
+\> Aggregate $G_{new}$ \\
+\> Add $G_{new}$ to $G$, empty $G_{new}$ \\
+\> Compress $G$: Remove duplicate edges \\
+\> \> Input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
+\> \> Output: Key = $(V_i,V_j)$, Value = NULL \\
+\> $M_{\rm remain} = M - N_{kv}$ \\
+\\
+Output: \\
+\> MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
 
  \caption{\it Enhanced MapReduce algorithm for R-MAT graph generation
- on $P$ processors, using two MapReduce objects $E_{new}$ and
- $E_{old}$.}
+ on $P$ processors, using two MapReduce objects $G$ and $G_{new}$.}
 
  \label{fig:rmat2}
 \end{figure}
