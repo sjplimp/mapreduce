@@ -44,21 +44,21 @@ Output: \\
  \label{fig:rmat}
 \end{figure}
 
-In the {\it map()} operation, each of $P$ processors generates a $1/P$
-fraction of the desired edges.  A single random edge $(V_i,V_j)$ is
-computed recursively as follows.  Pick a random quadrant of the $G$
-matrix with relative probabilities $a$, $b$, $c$, and $d$.  Treat the
-chosen quadrant as a sub-matrix and select a random quadrant within
-it, in the same manner.  Repeat this process $n$ times where $N =
-2^n$.  At the end of the recursion, the final ``quadrant'' is a single
-non-zero matrix element $G_{ij}$.
+In the {\it map()}, each of $P$ processors generates a $1/P$ fraction
+of the desired edges.  A single random edge $(V_i,V_j)$ is computed
+recursively as follows.  Pick a random quadrant of the $G$ matrix with
+relative probabilities $a$, $b$, $c$, and $d$.  Treat the chosen
+quadrant as a sub-matrix and select a random quadrant within it, in
+the same manner.  Repeat this process $n$ times where $N = 2^n$.  At
+the end of the recursion, the final ``quadrant'' is a single non-zero
+matrix element $G_{ij}$.
 
 Though $G$ is very sparse, the {\it map()} typically generates some
 small number of duplicate edges.  The {\it collate()} and {\it
-reduce()} operations remove the duplicates.  The entire
-map-collate-reduce sequence is repeated until the number of resulting
-key/value (KV) pairs $N_{kv} = M$.  For reasonably sparse graphs this
-typically takes only a few iterations.
+reduce()} remove the duplicates.  The entire map-collate-reduce
+sequence is repeated until the number of resulting key/value (KV)
+pairs $N_{kv} = M$.  For reasonably sparse graphs this typically takes
+only a few iterations.
 
 Note that the degree distribution of vertices in the graph depends on
 the choice of parameters $a$, $b$, $c$, $d$.  If one of the four
@@ -83,12 +83,11 @@ object $G_{new}$ and {\it aggregate()} the edges to processors.  We
 then add those edges to the MapReduce object $G$, containing all
 previously generated unique edges; the edges of $G$ are already
 aggregated to processors using the same mapping as $G_{new}$.  We can
-use the {\it compress()} operation to reduce duplicates locally on
-each processor.  The enhanced algorithm runs faster due to the smaller
-number of KV pairs communicated in the {\it aggregate()}, compared to
-the {\it collate()} operation of the original algorithm, particularly
-in later iterations of the algorithm where few new edges are
-generated.
+use a {\it compress()} to reduce duplicates locally on each processor.
+The enhanced algorithm runs faster due to the smaller number of KV
+pairs communicated in the {\it aggregate()}, compared to the {\it
+collate()} of the original algorithm, particularly in later iterations
+of the algorithm where few new edges are generated.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
@@ -103,8 +102,8 @@ while $M_{\rm remain} > 0$: \\
 \> Map $G_{new}$: \> Generate $M_{\rm remain}/P$ random edges $(V_i,V_j)$ on each processor \\
 \> \> Output: Key = $(V_i,V_j)$, Value = NULL \\
 \> Aggregate $G_{new}$ \\
-\> Add $G_{new}$ to $G$, empty $G_{new}$ \\
-\> Compress $G$: Remove duplicate edges \\
+\> Add $G_{new}$ to $G$, $G_{new}$ = empty \\
+\> Compress $G$: \> Remove duplicate edges \\
 \> \> Input: Key = $(V_i,V_j)$, MultiValue = one or more NULLs \\
 \> \> Output: Key = $(V_i,V_j)$, Value = NULL \\
 \> $M_{\rm remain} = M - N_{kv}$ \\
@@ -134,46 +133,110 @@ user-defined parameter (usually 0.8-0.9), $d_{out}(V_i)$ is the
 outdegree of vertex $V_i$, and $|V|$ is the cardinality of $V$.  The
 first term represents the probability of following a given link on
 page $V_i$; the second represents the probability of moving to a
-random page.  For pages with no outlinks, the first term is
+random page.  For pages with no outlinks, the first term is changed to
 $\alpha/|V|$, indicating equal likelihood to move to any other page.
 Equivalently, the graph can be represented by a matrix
 $A$~\cite{LangvilleMeyer05a}, with matrix entries $A_{ij} =
-\alpha/d_{out}(V_i)$ if vertex $V_i$ links to $V_j$.  To maintain the
-sparsity of $A$, terms for random jumps and zero out-degree vertices
-are not explicitly stored as part of the matrix.  Rather, they are
-computed separately as adjustments to the PageRank vector.  The kernel
-of the PageRank algorithm is thus a power-method iteration consisting
-of matrix-vector multiplications $A^T x=y$, where $x$ is the PageRank
+\alpha/d_{out}(V_i)$ if vertex $V_i$ links to $V_j$.  To keep $A$
+sparse, terms for random jumps and zero out-degree vertices are not
+explicitly stored as part of the matrix.  Rather, they are computed
+separately as adjustments to the PageRank vector.  The kernel of the
+PageRank algorithm is thus a power-method iteration consisting of
+matrix-vector multiplications $A^T x=y$, where $x$ is the PageRank
 vector from the previous iteration.  A few additional dot product and
 norm computations per iteration are also required.
 
 The algorithm in Figure~\ref{fig:pr2} performs these iterations, using
-linear-algebra concepts implemented in a MapReduce framework with data
-stored in 4 MapReduce objects: $A$, $MT$, $x$, and $y$.  $A$ stores
-the matrix, $MT$ its ``empty'' rows, while $x$ and $y$ are vectors.
-The nonzeros of matrix $A$ are initialized as described above; the
-PageRank vector $x$ is initialized uniformly.  A MapReduce object $MT$
-contains the indices of all-zero rows of $A$, corresponding to
-vertices with no outlinks.  The PageRank algorithm is made more
-efficient by calling {\it aggregate()} once on the MapReduce objects
-representing the matrix $A$, the all-zero matrix rows $MT$, and the
-vector $x$ before the PageRank iterations begin.  Since these three
-MapReduce objects have the same key types, pre-aggregating the objects
-moves all KV pairs with a given key to a single processor.  Thus, many
-of the PageRank operations become local operations, replacing {\it
-collate()} operations (which are equivalent to an {\it aggregate()}
-followed by {\it convert()}) with simply {\it convert()} calls.  In
-Figure~\ref{fig:pr2}, steps where {\it convert()} operations were
-substituted for {\it collate()} operations are marked with an
-asterisk.  This strategy of pre-aggregating to improve data locality
-is useful in many MapReduce algorithms, but assumes that specific keys
-can always be mapped to the same processor.
+linear-algebra concepts implemented in a MapReduce framework, with
+data stored in 4 MapReduce objects: $A$, $MT$, $x$, and $y$.  $A$
+stores the matrix, $MT$ its ``empty'' rows, while $x$ and $y$ are
+vectors of length $|V|$.  The nonzeros of matrix $A$ are initialized
+as described above; the PageRank vector $x$ is initialized uniformly.
+A MapReduce object $MT$ contains the indices of all-zero rows of $A$,
+corresponding to vertices with no outlinks.  The PageRank algorithm is
+made more efficient by invoking the {\it aggregate()} operation once
+on the MapReduce objects representing the matrix $A$, the all-zero
+matrix rows $MT$, and the vector $x$, before the PageRank iterations
+begin.  Since these 3 MapReduce objects are all keyed by vertices,
+pre-aggregating them moves all KV pairs with a given key to the same
+processor.  Many of the subsequent PageRank operations then become
+local operations, replacing {\it collate()} (which is equivalent to an
+{\it aggregate()} followed by {\it convert()}) with simply a {\it
+convert()}.  In Figure~\ref{fig:pr2}, steps where {\it convert()} is
+substituted for {\it collate()} are marked with an asterisk.  This
+strategy of pre-aggregating to improve data locality is useful in many
+MapReduce algorithms, but assumes that identical keys in different
+MapReduce objects can be mapped to the same processor.
+
+\begin{figure}[htb]
+ \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
+  xxxx\=xxxxx\=xxxxx\=xxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+
+Input: \\
+\> Pre-aggregated MapReduce object $A$ = $|V| \times |V|$ matrix:  Key = $i$, Value = $[j, A_{ij}]$ \\
+\> Pre-aggregated MapReduce object $MT$ = indices of all-zero rows of $A$:  Key = $i$, Value = NULL \\
+\> Pre-aggregated MapReduce object $x$ = initial PageRank vector:  Key = $i$, Value = $1/|V|$ \\
+\> MapReduce object $y$ = vector, initially empty \\
+\\
+while $({residual} > {tolerance})$ \\
+\> 1 Compute contribution for random jumps and zero-outdegree vertices \\
+\> \> Add $x$ to $MT$ \\
+$*$\> \> Convert $MT$:  Key is vertex $i$ \\
+\> \> Reduce $MT$:   \\
+\> \> \> Input:  Key = $i$; MultiValue = $(x_i, NULL)$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$ \\
+\> \> \> $c_{local} = c_{local} + foo$ \\
+\> \> \> Output:  If ${nvalues} = 2$: Key = $i$, Value = NULL \\
+\> \> $c_{global}$ = MPI\_Allreduce($c_{local}$,MPI\_SUM) \\
+\> 2 Compute $y = A^T x$  \\
+\> \> Copy $x$ to $y$ \\
+\> \> Add $A$ to $y$ \\
+$*$\> \> Convert $y$:  Key is row index of $A$ \\
+\> \> Reduce $y$: \\
+\> \> \>  Input: Key = $i$, Multivalue = $y_i, [j, A_{ij}]$ for nonzeros $A_{ij}$ in $A$ \\
+\> \> \>  Output: Key = $j$, Value = $A_{ij} y_i$ \\
+\> \> Collate $y$:  Key is column index of $A$ \\
+\> \> Reduce $y$: \\
+\> \> \> Input: Key = $j$, Multivalue = $A_{ij} y_i$ for nonzeroes $A_{ij}$ in column $j$ of $A$ \\
+\> \> \> Output: Key = $j$, Value = $\sum_i A_{ij} y_i$ \\
+\> 3 Add $c_{global}$ to $y$; compute $n_{global}$ = max element in $y$ \\
+\> \> Map $y$:  \\
+\> \> \> Input: Key = $i$, Value = $y_i$ \\
+\> \> \> $y_i = y_i + c_{global}$; $n_{local} = {\rm max}(y_i,n_{local})$ \\
+\> \> \> Output:  Key = $i$, Value = $y_i$ \\
+\> \> $n_{global}$ = MPI\_Allreduce($n_{local}$,MPI\_SUM) \\
+\> 4 Scale $y$ by $n_{global}$ \\
+\> \> Map $y$: \\
+\> \> \> Input:  Key = $i$, Value = $y_i$ \\
+\> \> \> Output:  Key = $i$, Value = $y_i / {n_{global}}$ \\
+\> 5 Compute residual \\
+\> \> Add $y$ to $x$ \\
+$*$\> \> Convert $x$:  Key is vertex $i$ \\
+\> \> Reduce $x$:  \\
+\> \> \> Input: Key = $i$, Multivalue = $x_i, y_i$ \\
+\> \> \> $r_{local} = {\rm max}(|x_i - y_i|,r_{local})$ \\
+\> \> $residual$ = MPI\_Allreduce($r_{local}$,MPI\_MAX) \\
+\> 6 Copy $y$ to $x$ \\
+\\
+Output: \\
+\> MapReduce object $x$ = PageRank vector: Key = $i$, Value = $x_i$ = numeric rank \\
+
+  \end{tabbing}
+ \end{minipage}}\end{center}
+
+ \caption{\it MapReduce algorithm for PageRank vertex ranking, using 4
+ MapReduce objects $A$, $MT$, $x$, and $y$.  Pre-aggregating several
+ of the MapReduce objects allows several communication intensive {\it
+ collate()} operations to be replaced by local {\it convert()}
+ operations (marked with asterisks).}
+
+ \label{fig:pr2}
+\end{figure}
 
 In Step 1 of a PageRank interation, $MT$ is used in dot products to
 compute adjustments to the PageRank vector to represent the uniform
 probability of going from a leaf page to any other page.  Adjustments
 for random jumps from any page are also computed.  In Step 2, the
-matrix-vector product $A^T x$ is computed and the result storey in
+matrix-vector product $A^T x$ is computed and the result stored in
 $y$.  This is the most expensive part of the computation, requiring
 two passes over the nonzero structure of $A$.  In the first pass, a
 {\it convert()} gathers all local row entries $A_{ij}$ with their
@@ -189,153 +252,38 @@ we exploit the ability to call MPI\_Allreduce to compute global norms
 and residuals.
 
 This linear-algebra approach is attractive because it allows
-construction of the MapReduce PageRank algorithm from simple
-operations (matrix-vector multiplication, dot products) on commonly
-used data types (matrices, vectors).  One can build a variety of
-algorithms based on these primitives; indeed, linear-algebra toolkits
-such as Trilinos~\cite{Trilinos-Overview} and
-PETSc~\cite{petsc-efficient} exploit this idea.  In parallel, these
-toolkits share pre-computed data layouts and communication maps among
-distributed objects to enable efficient operations between the
-objects.  For MapReduce, however, separating the data into vectors and
-matrices results in additional overhead to gather KV pairs with the
-same key into a key-multivalue (KMV) pair.  This overhead can be
-reduced in PageRank, for example, by storing the $x$ and $y$ vectors
-in a single MapReduce object, with key $i$ and value $(x_i, y_i)$.
-Doing so eliminates the {\it copy()} operation in Step 2 of
+construction of the MapReduce PageRank algorithm from simple kernels
+(matrix-vector multiplication, dot products) on commonly used data
+types (matrices, vectors).  One can build a variety of algorithms
+based on these primitives; indeed, linear-algebra toolkits such as
+Trilinos~\cite{Trilinos-Overview} and PETSc~\cite{petsc-efficient}
+naturally exploit this idea.  In parallel, these toolkits share
+pre-computed data layouts and communication maps among distributed
+objects to enable efficient operations on the objects.  In a MapReduce
+context, however, separating the data into vectors and matrices
+results in additional overhead to gather KV pairs with the same key
+into a key-multivalue (KMV) pair.  This overhead could be reduced in
+the PageRank algorithm, for example, by storing the $x$ and $y$
+vectors in a single MapReduce object, with key $i$ and value $(x_i,
+y_i)$.  Doing this would eliminate the {\it copy()} in Step 2 of
 Figure~\ref{fig:pr2}, as well as the {\it add()} and {\it convert()}
-operations in Step 5.  A further performance improvement would store
-an entire row of $A$ along with $x$ and $y$ in a single MapReduce
-object, with key $i$ and value $(x_i, y_i, d_{out}, [j_1, A_{ij_1}],
-[j_2, A_{ij_2}], \dots, [j_{d_{out}}, A_ij_{d_{out}}])$ (that is,
-storing together, for each vertex, its old and new PageRank value
-along with all out-going edges incident to the vertex).  This data
-layout eliminates an additional {it convert()} operation, but at the
-cost of code reuse and scalability.  While this data layout may be
-efficient for PageRank, it is more complex and less likely to be
-useful for additional algorithms.  In addition, since each KV pair
-must fit within a single page in MR-MPI, storing entire matrix rows in
-a single KV pair limits the size of the the matrices on which the
-algorithm can be applied.  The more general approach of storing
-non-zeros separately enables arbitrarily large problems to be solved.
+in Step 5.  A further performance improvement would store an entire
+row of $A$ along with $x$ and $y$ in a single MapReduce object, with
+key $i$ and value $(x_i, y_i, d_{out}, [j_1, A_{ij_1}], [j_2,
+A_{ij_2}], \dots, [j_{d_{out}}, A_ij_{d_{out}}])$ (that is, storing
+together, for each vertex, its old and new PageRank value along with
+all out-going edges incident to the vertex).  This data layout would
+eliminate an additional {it convert()}, but at the cost of code
+reusability.  This data layout would be efficient for PageRank, but is
+more complex and less likely to be useful for additional algorithms.
+In addition, since each KV pair must fit within a single page of
+memory (in MR-MPI), storing entire matrix rows in a single KV pair
+limits the size of matrices to which the algorithm can be applied.
+The more general approach used in Figure~\ref{fig:pr2} of storing
+non-zeros separately, enables arbitrarily large problems to be solved.
 The detailed timing break-downs in
-section~\ref{subsec:results_pagerank} allow one to estimate the
-benefit of these implementations relative to code complexity and
-scalability issues.
-
-%\begin{figure}[htb]
-% \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-%  xxxx\=xxxxx\=xxxxx\=xxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
-
-%\> MapReduce object $A$ containing $|V| \times |V|$ matrix:  Key = $i$, Value = $[j, A_{ij}]$ \\
-%\> MapReduce object $MT$ containing indices of all-zero rows of $A$:  Key = $i$, Value = 0 \\
-%\> MapReduce object $x$ containing initial PageRank vector:  Key = $i$, Value = $1/|V|$ \\
-%While (${residual} > {tolerance}$) \\
-%\> 1. Compute contribution for random jumps and zero-outdegree vertices \\
-%\> \> Add: $x$ to $MT$ \\
-%\> \> Collate $MT$:  Vertex is Key \\
-%\> \> Reduce $MT$:   \\
-%\> \> \> Input:  Key = $i$; MultiValue = $x_i, 0$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$ \\
-%\> \> \> Compute:  Local contributions $c_{local}$ \\
-%\> \> \> Output:  If ${nvalues} = 2$, Key = $i$; Value = 0 \\
-%\> \> MPI\_Allreduce $c_{local}$ with MPI\_SUM to compute global contribution $c_{global}$ \\
-%\> 2. Compute $y = A^T x$ \\
-%\> \> Copy $x$ to $y$ \\
-%\> \> Add $A$ to $y$ \\
-%\> \> Collate $y$:  Key is row index of $A$ \\
-%\> \> Reduce $y$: \\
-%\> \> \>  Input: Key = $i$; Multivalue = $i, [j, A_{ij}]$ for nonzeros $A_{ij}$ in $A$ \\
-%\> \> \>  Output:  Key = $j$; Value = $A_{ij} y_i$ \\
-%\> \> Collate $y$:  Key is column index of $A$ \\
-%\> \> Reduce $y$:  \\
-%\> \> \> Input:  Key = $j$; Multivalue = $A_{ij} y_i$ for all non-zero entries $A_{ij}$ of column $j$ \\
-%\> \> \> Output:  Key = $j$; Value = $\sum_i A_{ij} y_i$ \\
-%\> 3. Add contribution $c_{global}$ to $y$; compute local max norm $n_{local}$ of $y$ \\
-%\> \> Map $y$:  \\
-%\> \> \> Input:  Key = $i$, Value = $y_i$ \\
-%\> \> \> Compute: $y_i = y_i + c_{global}$; if $y_i > n_{local}$, $n_{local} = y_i$ \\
-%\> \> \> Output:  Key = $i$, Value = $y_i$ \\
-%\> \> MPI\_Allreduce $n_{local}$ with MPI\_MAX to compute global max norm $n_{global}$ \\
-%\> 4. Scale $y$ by $n_{global}$ \\
-%\> \> Map $y$: \\
-%\> \> \> Input:  Key = $i$, Value = $y_i$ \\
-%\> \> \> Output:  Key = $i$, Value = $y_i / {n_{global}}$ \\
-%\> 5. Compute residual \\
-%\> \> Add $y$ to $x$ \\
-%\> \> Collate $x$:  Key is index $i$ \\
-%\> \> Reduce $x$: \\
-%\> \> \> Input:  Key = $i$; Multivalue = $x_i, y_i$ \\
-%\> \> \> Compute:  if $|x_i - y_i| > {resid}$, ${resid} = |x_i - y_i|$ \\
-%\> \> MPI\_Allreduce with MPI\_MAX to compute $residual$ \\
-%\> 6. $x = y$; \\
-%Output:  PageRank vector $x$
-  %\end{tabbing}
- %\end{minipage}}\end{center}
-%
- %\caption{\it MapReduce algorithm for PageRank vertex ranking, using
- %4 MapReduce objects $A$, $MT$, $x$, and $y$.}
-%
- %\label{fig:pr}
-%\end{figure}
-
-\begin{figure}[htb]
- \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxxx\=xxxxx\=xxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
-
-$*$ Pre-aggregated MapReduce object $A$ = $|V| \times |V|$ matrix:  Key = $i$, Value = $[j, A_{ij}]$ \\
-$*$ Pre-aggregated MapReduce object $MT$ = indices of all-zero rows of $A$:  Key = $i$, Value = 0 \\
-$*$ Pre-aggregated MapReduce object $x$ = initial PageRank vector:  Key = $i$, Value = $1/|V|$ \\
-
-While (${residual} > {tolerance}$) \\
-\> 1 Compute contribution for random jumps and zero-outdegree vertices \\
-\> \> Add: $x$ to $MT$ \\
-$*$\> \> Convert $MT$:  Vertex is Key \\
-\> \> Reduce $MT$:   \\
-\> \> \> Input:  Key = $i$; MultiValue = $x_i, 0$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$ \\
-\> \> \> Compute:  Local contributions $c_{local}$ \\
-\> \> \> Output:  If ${nvalues} = 2$, Key = $i$; Value = 0 \\
-\> \> MPI\_Allreduce $c_{local}$ with MPI\_SUM to compute global contribution $c_{global}$ \\
-\> 2 Compute $y = A^T x$  \\
-\> \> Copy $x$ to $y$ \\
-\> \> Add $A$ to $y$ \\
-$*$\> \> Convert $y$:  Key is row index of $A$ \\
-\> \> Reduce $y$: \\
-\> \> \>  Input: Key = $i$; Multivalue = $y_i, [j, A_{ij}]$ for nonzeros $A_{ij}$ in $A$ \\
-\> \> \>  Output:  Key = $j$; Value = $A_{ij} y_i$ \\
-\> \> Collate $y$:  Key is column index of $A$ \\
-\> \> Reduce $y$:  \\
-\> \> \> Input:  Key = $j$; Multivalue = $A_{ij} y_i$ for all non-zero entries $A_{ij}$ of column $j$ \\
-\> \> \> Output:  Key = $j$; Value = $\sum_i A_{ij} y_i$ \\
-\> 3 Add contribution $c_{global}$ to $y$; compute local max norm $n_{local}$ of $y$ \\
-\> \> Map $y$:  \\
-\> \> \> Input:  Key = $i$, Value = $y_i$ \\
-\> \> \> Compute: $y_i = y_i + c_{global}$; if $y_i > {n_{local}}$, $n_{local} = y_i$ \\
-\> \> \> Output:  Key = $i$, Value = $y_i$ \\
-\> \> MPI\_Allreduce $n_{local}$ with MPI\_MAX to compute global max norm $n_{global}$ \\
-\> 4 Scale $y$ by $n_{global}$ \\
-\> \> Map $y$: \\
-\> \> \> Input:  Key = $i$, Value = $y_i$ \\
-\> \> \> Output:  Key = $i$, Value = $y_i / {n_{global}}$ \\
-\> 5 Compute residual \\
-\> \> Add $y$ to $x$ \\
-$*$\> \> Convert $x$:  Key is index $i$ \\
-\> \> Reduce $x$:   \\
-\> \> \> Input:  Key = $i$; Multivalue = $x_i, y_i$ \\
-\> \> \> Compute:  if $|x_i - y_i| > {resid}$, ${resid} = |x_i - y_i|$ \\
-\> \> MPI\_Allreduce with MPI\_MAX to compute $residual$ \\
-\> 6 $x = y$; \\
-Output: PageRank vector $x$
-  \end{tabbing}
- \end{minipage}}\end{center}
-
- \caption{\it MapReduce algorithm for PageRank vertex ranking, using 4
- MapReduce objects $A$, $MT$, $x$, and $y$.  Pre-aggregating several
- of the MapReduce objects allows many communication intensive {\it
- collate()} operations to be replaced by local {\it convert()}
- operations (marked with asterisks).}
-
- \label{fig:pr2}
-\end{figure}
+section~\ref{subsec:results_pagerank} allow estimation of the benefit
+of these possible enhancements.
 
 \subsection{Triangle enumeration}
 
@@ -349,43 +297,48 @@ presented in~\cite{Cohen09}.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxxxxxxxxxx\=xxx\=xxx\=xxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+  xxxxx\=xxxxxx\=xxx\=xxx\=xxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$ with $V_i < V_j$, Value = NULL \\
-
-1 Copy: \> $G_0$ = copy of edge KV pairs from input graph \\
-1 Map $G$: \> Convert edges to vertices \\
-           \> \> input Key = $(V_i,V_j)$, Value = NULL \\
-           \> \> output Key = $V_i$, Value = $V_j$ \\
-           \> \> output Key = $V_j$, Value = $V_i$ \\
+Input: \\
+\> MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$ with $V_i < V_j$, Value = NULL \\
+\> MapReduce object $G_0$ = edges of graph, initially empty \\
+\\
+1 Copy $G$ to $G_0$ \\
+1 Map $G$: \> \> Convert edges to vertices \\
+           \> \> \> Input: Key = $(V_i,V_j)$, Value = NULL \\
+           \> \> \> Output: Key = $V_i$, Value = $V_j$ \\
+           \> \> \> Output: Key = $V_j$, Value = $V_i$ \\
 1 Collate $G$ \\
-1 Reduce $G$: \> Add first degree to one vertex in edge \\
-              \> \> input Key = $V_i$, MultiValue = $(V_j, V_k, ...)$ \\
-	      \> \> for each V in MultiValue: \\
-              \> \> \> if $V_i < V$: output Key = $(V_i,V)$, Value = $(D_i,0)$ \\
-              \> \> \> else: output Key = $(V,V_i)$, Value = $(0,D_i)$ \\
+1 Reduce $G$: \> \> Add first degree to one vertex in edge \\
+              \> \> \> Input: Key = $V_i$, MultiValue = $(V_j, V_k, ...)$ \\
+	      \> \> \> for each V in MultiValue: \\
+              \> \> \> \> if $V_i < V$: Output: Key = $(V_i,V)$, Value = $(D_i,0)$ \\
+              \> \> \> \> else: Output: Key = $(V,V_i)$, Value = $(0,D_i)$ \\
 2 Collate $G$ \\
-2 Reduce $G$: \> Add second degree to other vertex in edge \\
-              \> \> input Key = $(V_i,V_j)$, MultiValue = $((D_i,0),(0,D_j))$ \\
-              \> \> output Key = $(V_i,V_j)$, Value = $(D_i,D_j)$ with $V_i < V_j$ \\
-3 Map $G$: \> Low degree vertex emits edges \\
-           \> \> if $D_i < D_j$: output Key = $V_i$, Value = $V_j$ \\
-           \> \> else if $D_j < D_i$: output Key = $V_j$, Value = $V_i$ \\
-           \> \> else: output Key = $V_i$, Value = $V_j$ \\
+2 Reduce $G$: \> \> Add second degree to other vertex in edge \\
+              \> \> \> Input: Key = $(V_i,V_j)$, MultiValue = $((D_i,0),(0,D_j))$ \\
+              \> \> \> Output: Key = $(V_i,V_j)$, Value = $(D_i,D_j)$ with $V_i < V_j$ \\
+3 Map $G$: \> \> Low degree vertex emits edges \\
+           \> \> \> if $D_i < D_j$: Output: Key = $V_i$, Value = $V_j$ \\
+           \> \> \> else if $D_j < D_i$: Output: Key = $V_j$, Value = $V_i$ \\
+           \> \> \> else: Output: Key = $V_i$, Value = $V_j$ \\
 3 Collate $G$ \\
-3 Reduce $G$: \> Emit angles of each vertex \\
-              \> \> input Key = $V_i$, MultiValue = $(V_j, V_k, ...)$ \\
-	      \> \> for each $V_1$ in MultiValue: \\
-	      \> \> \> for each $V_2$ beyond $V_1$ in MultiValue: \\
-	      \> \> \> \> if $V_1 < V_2$: output Key = $(V_1,V_2)$, Value = $V_i$ \\
-	      \> \> \> \> else: output Key = $(V_2,V_1)$, Value = $V_i$ \\
-4 Add: \> Add $G_0$ edge KV pairs to angle KV pairs in $G$ \\
+3 Reduce $G$: \> \> Emit angles of each vertex \\
+              \> \> \> Input: Key = $V_i$, MultiValue = $(V_j, V_k, ...)$ \\
+	      \> \> \> for each $V_1$ in MultiValue: \\
+	      \> \> \> \> for each $V_2$ beyond $V_1$ in MultiValue: \\
+	      \> \> \> \> \> if $V_1 < V_2$: Output: Key = $(V_1,V_2)$, Value = $V_i$ \\
+	      \> \> \> \> \> else: Output: Key = $(V_2,V_1)$, Value = $V_i$ \\
+4 Add $G_0$ to $G$ \\
 4 Collate $G$ \\
-4 Reduce $G$: \> Emit triangles \\
-              \> \> input Key = $(V_i,V_j)$, MultiValue = $(V_k,V_l,NULL,V_m,...)$ \\
-              \> \> if NULL exists in MultiValue: \\
-	      \> \> \> for each non-NULL V in MultiValue: \\
-	      \> \> \> \> output Key = $(V_i,V_j,V)$, Value = NULL
+4 Reduce $G$: \> \> Emit triangles \\
+              \> \> \> Input: Key = $(V_i,V_j)$, MultiValue = $(V_k,V_l,NULL,V_m,...)$ \\
+              \> \> \> if NULL exists in MultiValue: \\
+	      \> \> \> \> for each non-NULL V in MultiValue: \\
+	      \> \> \> \> \> Output: Key = $(V_i,V_j,V)$, Value = NULL \\
+\\
+Output: \\
+\> MapReduce object $G$ = triangles in graph: Key = $(V_i,V_j,V_k)$, Value = NULL \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
@@ -395,28 +348,27 @@ MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$ with $V_i < V_j$, Value
  \label{fig:tri}
 \end{figure}
 
-The initial step is to store a copy of the graph edges as key/value
-(KV) pairs in an auxiliary MapReduce object $G_0$, for use later in
-the algorithm.  The first {\it map()} operation on $G$ converts edge
-keys to vertex keys with edge values.  After a {\it collate()}, each
-vertex has a list of vertices it is connected to; the first {\it
-reduce()} can thus flag one vertex $V_i$ in each edge with a degree
-count $D_i$.  The second {\it collate()} and {\it reduce()} assign a
-degree count $D_j$ to the other vertex in each edge.  In the third
-{\it map()}, only the lower-degree vertex in each edge emits its edges
-KV pairs.  The task of the third {\it reduce()} is to emit ``angles''
-for each of these low-degree vertices.  An ``angle'' is a root vertex
-$V_i$, with two edges to vertices $V_1$ and $V_2$, i.e. a triangle
-without the third edge $(V_1,V_2)$.  The {\it reduce()} emits a list
-of all angles of vertex $V_i$, by a double loop over the edges of
-$V_i$.  Note that the aggregate volume of KV pairs emitted at this
-stage is minimized by having only the low-degree vertex in each edge
-generate angles.
+The initial step is to store a copy of the graph edges as KV pairs in
+an auxiliary MapReduce object $G_0$, for use later in the algorithm.
+The first {\it map()} on $G$ converts edge keys to vertex keys with
+edge values.  After a {\it collate()}, each vertex has the list of
+vertices it is connected to; the first {\it reduce()} can thus flag
+one vertex $V_i$ in each edge with a degree count $D_i$.  The second
+{\it collate()} and {\it reduce()} assign a degree count $D_j$ to the
+other vertex in each edge.  In the third {\it map()}, only the
+lower-degree vertex in each edge emits its edges as KV pairs.  The
+task of the third {\it reduce()} is to emit ``angles'' for each of
+these low-degree vertices.  An ``angle'' is a root vertex $V_i$, with
+two edges to vertices $V_1$ and $V_2$, i.e. a triangle without the
+third edge $(V_1,V_2)$.  The {\it reduce()} emits a list of all angles
+of vertex $V_i$, by a double loop over the edges of $V_i$.  Note that
+the aggregate number of KV pairs emitted at this stage is minimized by
+having only the low-degree vertex in each edge generate angles.
 
 In stage 4, KV pairs from the original graph $G_0$ are added to the
 current working set of KV pairs in MapReduce object $G$.  The KV pairs
-in $G_0$ are edges that complete triangles for the angle KV pairs just
-generated.  After the fourth {\it collate()}, a pair of vertices
+in $G_0$ contain edges that complete triangles for the angle KV pairs
+just generated.  After the fourth {\it collate()}, a pair of vertices
 $(V_i,V_j)$ is the key, and the multivalue is the list of all root
 vertices in angles that contain $V_i$ and $V_j$.  If the multivalue
 also contains a NULL, contributed by $G_0$, then there is a
@@ -440,57 +392,59 @@ components exist in the graph.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxxxxxxxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+  xxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-MapReduce object $E$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL \\
-MapReduce object $V$ = zone assignment of each vertex: Key = $V_i$, Value = $Z_i$ \\
-MapReduce object $W$ = workspace
-
+Input: \\
+\> MapReduce object $E$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL \\
+\> MapReduce object $V$ = zone assignment of each vertex: Key = $V_i$, Value = $Z_i$ \\
+\> MapReduce object $W$ = workspace
+\\
 Iterate: \\
-
-\> 1 Map $W$ using $E$ as input: \> Convert edges to vertices \\
-    \> \> \> input Key = $E_{ij} = (V_i, V_j)$, Value = NULL \\
-    \> \> \> output Key = $V_i$, Value = $E_{ij}$ \\
-    \> \> \> output Key = $V_j$, Value = $E_{ij}$ \\
+\> 1 Map $W$ using $E$ as input: Convert edges to vertices \\
+    \> \> Input: Key = $E_{ij} = (V_i, V_j)$, Value = NULL \\
+    \> \> Output: Key = $V_i$, Value = $E_{ij}$ \\
+    \> \> Output: Key = $V_j$, Value = $E_{ij}$ \\
 \> 1 Add $V$ to $W$ \\
-\> 1 Collate $W$: \> Vertex as key \\
-\> 1 Reduce $W$: \> Emit edges of each vertex with zone of vertex \\
-       \> \> \> input Key = $V_i$, MultiValue = $E E E E ... Z$ \\
-       \> \> \> for each $E$ in MultiValue: \\
-      \> \> \> \> output Key = $E_{ij}$, Value = $Z_i$ \\
-
-\> 2 Collate $W$: \> Edge as key \\
-\> 2 Reduce $W$: \> Emit zone re-assignments \\
-       \> \> \> input Key = $E_{ij}$, MultiValue = $Z_i Z_j$ \\
-       \> \> \> $Z_{winner}$ = min($Z_i$,$Z_j$); $Z_{loser}$ = max($Z_i$,$Z_j$) \\
-       \> \> \> if $Z_i$ and $Z_j$ are different: \\
-      \> \> \> \> output Key = $Z_{loser}$, Value = $Z_{winner}$ \\
-\> 2 Exit: \> if $W$ is empty, i.e. no output by Reduce 2 \\
-\> 3 Map $V$: \> Invert vertex/zone pairs \\
-    \> \> \> input Key = $V_i$, Value = $Z_i$ \\
-    \> \> \> if $Z_i$ is not partitioned: \\
-   \> \> \> \> output Key = $Z_i$, Value = $V_i$ \\
-    \> \> \> else: \\
-   \> \> \> \> output Key = $Z_i^+$, Value = $V_i$ for a random processor \\
-\> 4 Map $V$ using $W$ as input: \> Add zone reassignments in $W$ to $V$ \\
-    \> \> \> if $Z_i$ is not partitioned: \\
-   \> \> \> \> output Key = $Z_i$, Value = $Z_{winner}$ \\
-    \> \> \> else: \\
-   \> \> \> \> output Key = $Z_i^+$, Value = $Z_{winner}$ for every processor \\
-   \> \> \> \> output Key = $Z_i$, Value = $Z_{winner}$ \\
-\> 4 Collate $V$: \> Zone ID as key \\
-\> 4 Reduce $V$: \> Emit new zone assignment of each vertex \\
-       \> \> \> input Key = $Z_i$ or $Z_i^+$, MultiValue = $V V V V ... Z Z Z ...$ \\
-       \> \> \> $Z_{new}$ = min($Z_i$ or $Z_i^+$,Z,Z,Z,...) \\
-       \> \> \> partition $Z_{new}$ if number of $V >$ threshhold \\
-       \> \> \> for each $V$ in MultiValue: \\
-      \> \> \> \> output Key = $V_i$, Value = $Z_{new}$
+\> 1 Collate $W$: Vertex as key \\
+\> 1 Reduce $W$: Emit edges of each vertex with zone of vertex \\
+    \> \> Input: Key = $V_i$, MultiValue = $E E E E ... Z$ \\
+    \> \> for each $E$ in MultiValue: \\
+    \> \> \> Output: Key = $E_{ij}$, Value = $Z_i$ \\
+\> 2 Collate $W$: Edge as key \\
+\> 2 Reduce $W$: Emit zone re-assignments \\
+       \> \> Input: Key = $E_{ij}$, MultiValue = $Z_i Z_j$ \\
+       \> \> $Z_{winner}$ = min($Z_i$,$Z_j$); $Z_{loser}$ = max($Z_i$,$Z_j$) \\
+       \> \> if $Z_i$ and $Z_j$ are different: \\
+       \> \> \> Output: Key = $Z_{loser}$, Value = $Z_{winner}$ \\
+\> 2 Exit: if $W$ is empty (no output by Reduce 2) \\
+\> 3 Map $V$: Invert vertex/zone pairs \\
+    \> \> Input: Key = $V_i$, Value = $Z_i$ \\
+    \> \> if $Z_i$ is not partitioned: \\
+    \> \> \> Output: Key = $Z_i$, Value = $V_i$ \\
+    \> \> else: \\
+    \> \> \> Output: Key = $Z_i^+$, Value = $V_i$ for a random processor \\
+\> 4 Map $V$ using $W$ as input: Add zone reassignments in $W$ to $V$ \\
+    \> \> if $Z_i$ is not partitioned: \\
+    \> \> \> Output: Key = $Z_i$, Value = $Z_{winner}$ \\
+    \> \> else: \\
+    \> \> \> Output: Key = $Z_i^+$, Value = $Z_{winner}$ for every processor \\
+    \> \> \> Output: Key = $Z_i$, Value = $Z_{winner}$ \\
+\> 4 Collate $V$: Zone ID as key \\
+\> 4 Reduce $V$: Emit new zone assignment of each vertex \\
+       \> \> Input: Key = $Z_i$ or $Z_i^+$, MultiValue = $V V V V ... Z Z Z ...$ \\
+       \> \> $Z_{new}$ = min($Z_i$ or $Z_i^+$,Z,Z,Z,...) \\
+       \> \> partition $Z_{new}$ if number of $V >$ threshhold \\
+       \> \> for each $V$ in MultiValue: \\
+       \> \> \> Output: Key = $V_i$, Value = $Z_{new}$ \\
+\\
+Output: \\
+\> MapReduce object $V$ = zone assignment of each vertex: Key = $V_i$, Value = $Z_i$ \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
 
  \caption{\it MapReduce algorithm for connected component labeling,
- using 3 MpaReduce objects $E$, $V$, and $W$.}
+ using 3 MapReduce objects $E$, $V$, and $W$.}
 
  \label{fig:cc}
 \end{figure}
@@ -502,79 +456,77 @@ the zones, one layer of neighbors at a time.  As zones collide due to
 shared edges, a winner is chosen (the smaller zone ID), and vertices
 in the losing zone are reassigned to the winning zone.  When the
 iterations complete, each zone has become a fully connected component
-and the MR object $V$ holds that zone assignment for every vertex.
-The algorithm thus finds all connected components in the graph
+and the MR object $V$ holds the zone assignment for every vertex.  The
+algorithm thus finds all connected components in the graph
 simultaneously.  The number of iterations required depends on the
 largest diameter of any component in the graph.
 
-The first {\it map()} operation uses MapReduce object $E$ as input to
-the empty MapReduce object $W$ to emit the vertices in each edge as
-keys, with the edge as a value.  The current zone assignment of each
-vertex in $V$ is added to the set of key/value (KV) pairs in $W$.  The
-first {\it collate()} operation collects all the edges of a vertex and
-its zone assignment together in one multi-value.  The first {\it
-reduce()} operation re-emits each edge, tagged by the zone assignment
-of one of its vertices.
+The first {\it map()} uses MapReduce object $E$ as input to the empty
+MapReduce object $W$ to emit the vertices in each edge as keys, with
+the edge as a value.  The current zone assignment of each vertex in
+$V$ is added to the set of KV pairs in $W$.  The first {\it collate()}
+collects all the edges of a vertex and its zone assignment together in
+one multivalue.  The first {\it reduce()} re-emits each edge, tagged
+by the zone assignment of one of its vertices.
 
-Since each edge was emitted twice, the second {\it collate()}
-operation on $W$ collects the zone assignments for its two vertices
-together.  If the two zone IDs are different, the second {\it
-reduce()} operation chooses a winner (the smaller of the two IDs), and
-emits the loser ID as a key, with the winning ID as a value.  If no
-zone ID changes are emitted, the algorithm is finished, and the
-iterations cease.
+Since each edge was emitted twice, the second {\it collate()} on $W$
+collects the zone assignments for its two vertices together.  If the
+two zone IDs are different, the second {\it reduce()} chooses a winner
+(the smaller of the two IDs), and emits the loser ID as a key, with
+the winning ID as a value.  If no zone ID changes are emitted, the
+algorithm is finished, and the iterations cease.
 
-The third {\it map()} operation inverts the vertex/zone KV pairs to
-become zone/vertex KV pairs.  The partitioning logic described in
+The third {\it map()} inverts the vertex/zone KV pairs to become
+zone/vertex KV pairs.  The partitioning logic described in
 Figure~\ref{fig:cc} for this step (and subsequent ones) is described
-below.  The fourth {\it map()} operation adds the changed zone
-assignments in $W$ to the set of KV pairs in $V$.  The fourth {\it
-collate()} can now collect all the vertices in each zone along with
-zero or more reassignments for that zone ID.  Since a zone could
-collide with multiple other zones on the same iteration due to shared
-edges, the new zone ID for a zone becomes the minimum ID of any of its
-neighboring zones.  If no zone reassignment values appear in the
-multi-value resulting from the fourth {\it collate()}, the zone ID is
-unchanged.  The final {\it reduce()} emits a KV pair for each vertex
-in the zone, with the vertex as a key and the new zone ID as a value.
-This is updated version of MapReduce object $V$, ready to be used as
-input for the next iteration.
+below.  The fourth {\it map()} adds the changed zone assignments in
+$W$ to the set of KV pairs in $V$.  The fourth {\it collate()} can now
+collect all the vertices in each zone along with any reassignments of
+that zone ID.  Since a zone could collide with multiple other zones on
+the same iteration due to shared edges, the new zone ID for a zone
+becomes the minimum ID of any of its neighboring zones.  If no zone
+reassignment values appear in the multivalue resulting from the fourth
+{\it collate()}, the zone ID is unchanged.  The final {\it reduce()}
+emits a KV pair for each vertex in the zone, with the vertex as a key
+and the new zone ID as a value.  This is an updated version of
+MapReduce object $V$, ready to be used as input for the next
+iteration.
 
 Note that if a graph has only a few components, the fourth {\it
-collate()} operation, which keys on the zone ID, may generate a few
-very large key/multi-value (KMV) pairs.  For example, if the entire
-graph is fully connected, in the last iteration, a single KMV pair
-assigned to one processor will result, containing all vertices in the
-graph.  This imbalance in memory and computational work can lead to
-poor parallel performance of the overall algorithm.  To counter this
-effect, the various operations in stages 3 and 4 include extra logic.
-The idea is to partition zones whose vertex count exceeds a
-user-defined threshhold into $P$ sub-zones, where $P$ is the number of
-processors.  The 64-bit integer that stores the zone ID also stores a
-bit flag indicating the zone has been partitioned and a set of bits
-that encode the processor ID.
+collate()}, which keys on the zone ID, may generate a few very large
+key/multivalue (KMV) pairs.  For example, if the entire graph is fully
+connected, in the last iteration, a single KMV pair assigned to one
+processor will result, containing all vertices in the graph.  This
+imbalance in memory and computational work can lead to poor parallel
+performance of the overall algorithm.  To counter this effect, various
+operations in stages 3 and 4 include extra logic.  The idea is to
+partition zones whose vertex count exceeds a user-defined threshhold
+into $P$ sub-zones, where $P$ is the number of processors.  The 64-bit
+integer that stores the zone ID also stores a bit flag indicating the
+zone has been partitioned and a set of bits that encode the processor
+ID.
 
-During the third {\it map()} operation, if the zone has been
-partitioned, the vertex is assigned to a random processor and the
-processor ID bits are added to the zone ID, as indicated by the
-$Z_i^+$ notation in Figure~\ref{fig:cc}.  Likewise, if $Z_i$ has been
-partitioned, the fourth {\it map()} operation emits the KV pair for
-the zone ID as ($Z_i^+$,$Z_{winner}$) instead of as
-($Z_i$,$Z_{winner}$).  In this case ($Z_i$,$Z_{winner}$), is emitted
-not once, but $P+1$ times, once for each processor, and once as if
-$Z_i$ had not been partitioned (for a reason discussed below).
+During the third {\it map()}, if the zone has been partitioned, the
+vertex is assigned to a random processor and the processor ID bits are
+added to the zone ID, as indicated by the $Z_i^+$ notation in
+Figure~\ref{fig:cc}.  Likewise, if $Z_i$ has been partitioned, the
+fourth {\it map()} emits the KV pair for the zone ID as
+($Z_i^+$,$Z_{winner}$) instead of as ($Z_i$,$Z_{winner}$).  In this
+case ($Z_i$,$Z_{winner}$), is emitted not once, but $P+1$ times, once
+for each processor, and once as if $Z_i$ had not been partitioned (for
+a reason discussed below).
 
 With this additional partitioning logic, the fourth {\it collate()}
-operation (which keys on zone IDs, some of which now include processor
-bits) collects only $1/P$ of the vertices in large zones onto each
+(which keys on zone IDs, some of which now include processor bits)
+collects only $1/P$ of the vertices in partitioned zones onto each
 processor.  Yet the multivalue on each processor still contains all
 the zone-reassignments relevant to the unpartitioned zone.  Thus, the
-fourth {\it reduce()} operation can change the zone ID (if necessary)
-in a consistent manner across all $P$ multi-values that contain the
-zone's vertices.  When the fourth {\it reduce()} operation emits new
-zone assignments for each vertex, the zone retains its partitioned
-status; the partition bit is also explicitly set if the vertex count
-exceeds the threshhold for the first time.
+fourth {\it reduce()} can change the zone ID (if necessary) in a
+consistent manner across all $P$ multivalues that contain the zone's
+vertices.  When the fourth {\it reduce()} emits new zone assignments
+for each vertex, the zone retains its partitioned status; the
+partition bit is also explicitly set if the vertex count exceeds the
+threshhold for the first time.
 
 Note that this logic does not guarantee that the partition bits of the
 zone IDs for all the vertices in a single zone are set consistently on
@@ -582,10 +534,10 @@ a given iteration.  For example, an unpartitioned zone with a small ID
 may consume a partitioned zone.  The vertices from the partitioned
 zone retain their partitioned status, but the original vertices in the
 small zone may not set the partition bit of their zone IDs.  On
-subsequent iterations, the fourth {\it map()} operation emits $P+1$
-copies of new zone reassignments for both partitioned and unpartioned
-zone IDs, to ensure all vertices in the zone know the correct
-reassignment information.
+subsequent iterations, the fourth {\it map()} emits $P+1$ copies of
+new zone reassignments for both partitioned and unpartioned zone IDs,
+to ensure all vertices in the zone will know the correct reassignment
+information.
 
 \subsection{Maximal independent set identification}
 
@@ -605,49 +557,53 @@ matrix.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
-  xxxx\=xxxxxxxxxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
+  xxxx\=xxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-MapReduce object $V$ = maximal independent set vertices, initially empty \\
-MapReduce object $E$ = edges of graph: Key = $(V_i,V_j)$ with $V_i < V_j$, Value = NULL \\
-Map $E$: assign random values to each vertex $V_i$ and $V_j$ in $E$ \\
-Clone $E$: convert KV pairs in $E$ directly to KMV pairs with multivalue = NULL \\
+Input: \\
+\> MapReduce object $V$ = maximal independent set vertices, initially empty \\
+\> MapReduce object $E$ = edges of graph: Key = $(V_i,V_j)$ with $V_i < V_j$, Value = NULL \\
+Map $E$: Assign random values consistently to each vertex $V_i$ and $V_j$ in $E$ \\
+Clone $E$: Convert KV pairs in $E$ directly to KMV pairs with multivalue = NULL \\
 \\
-while $N_{edges}$ in $E$ > 0: \\
-\> 1 Reduce $E$: \> Determine WINNER/LOSER vertex of each edge \\
-       \> \> \> input Key = $E_{ij}$, Multivalue = NULL or LOSER \\
-       \> \> \> if multivalue = LOSER, emit nothing \\
-       \> \> \> $V_w$ = WINNER vertex, $V_l$ = LOSER vertex \\
-       \> \> \> output Key = $V_w$, Value = $V_l$, WINNER \\
-       \> \> \> output Key = $V_l$, Value = $V_w$, LOSER \\
-\> 1 Collate $E$: \> Vertex as key \\
-\> 2 Reduce $E$: \> Find WINNER vertices \\
-       \> \> \> input Key = $V_i$, MultiValue = $V V V V ...$ \\
-       \> \> \> if all $V$ are flagged with WINNER, $V_i$ is a WINNER \\
-      \> \> \> \> for each $V_j$ in Multivalue: \\
-     \> \> \> \> \> output Key = $V_j$, Value = $V_i$, WINNER \\
-       \> \> \> else: \\
-      \> \> \> \> for each $V_j$ in Multivalue: \\
-     \> \> \> \> \> output Key = $V_j$, Value = $V_i$ \\
-\> 2 Collate $E$: \> Vertex as key \\
-\> 3 Reduce $E$: \> Find LOSER vertices \\
-       \> \> \> input Key = $V_i$, MultiValue = $V V V V ...$ \\
-       \> \> \> if any $V$ is flagged with WINNER, $V_i$ is a LOSER \\
-      \> \> \> \> for each $V_j$ in Multivalue: \\
-     \> \> \> \> \> output Key = $V_j$, Value = $V_i$, LOSER \\
-       \> \> \> else: \\
-      \> \> \> \> for each $V_j$ in Multivalue: \\
-     \> \> \> \> \> output Key = $V_j$, Value = $V_i$ \\
-\> 3 Collate $E$: \> Vertex as key \\
-\> 4 Reduce $E$: \> Emit WINNER vertices and LOSER edges \\
-       \> \> \> input Key = $V_i$, MultiValue = $V V V V ...$ \\
-       \> \> \> if all $V$ are flagged with LOSER, $V_i$ is a WINNER \\
-      \> \> \> \> output to $V$: Key = $V_i$, Value = NULL \\
+while $N_{edges}$ in $E > 0$: \\
+\> 1 Reduce $E$: Determine WINNER/LOSER vertex of each edge \\
+       \> \> Input: Key = $E_{ij}$, Multivalue = NULL or LOSER \\
+       \> \> if multivalue = LOSER, emit nothing \\
+       \> \> $V_w$ = WINNER vertex, $V_l$ = LOSER vertex \\
+       \> \> Output: Key = $V_w$, Value = ($V_l$, WINNER) \\
+       \> \> Output: Key = $V_l$, Value = ($V_w$, LOSER) \\
+\> 1 Collate $E$: Vertex as key \\
+\> 2 Reduce $E$: Find WINNER vertices \\
+       \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
+       \> \> if all $V$ are flagged with WINNER, $V_i$ is a WINNER \\
        \> \> \> for each $V_j$ in Multivalue: \\
-      \> \> \> \> if $V_j$ is flagged with LOSER: \\
-     \> \> \> \> \> output to $E$: Key = $E_{ij}$ with $V_i < V_j$, Value = LOSER \\
-      \> \> \> \> else: \\
-     \> \> \> \> \> output to $E$: Key = $E_{ij}$ with $V_i < V_j$, Value = NULL \\
-\> 4 Collate $E$: \> Edge as key \\
+       \> \> \> \> Output: Key = $V_j$, Value = ($V_i$, WINNER) \\
+       \> \> else: \\
+       \> \> \> for each $V_j$ in Multivalue: \\
+       \> \> \> \> Output: Key = $V_j$, Value = $V_i$ \\
+\> 2 Collate $E$: Vertex as key \\
+\> 3 Reduce $E$: Find LOSER vertices \\
+       \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
+       \> \> if any $V$ is flagged with WINNER, $V_i$ is a LOSER \\
+       \> \> \> for each $V_j$ in Multivalue: \\
+       \> \> \> \> Output: Key = $V_j$, Value = ($V_i$, LOSER) \\
+       \> \> else: \\
+       \> \> \> for each $V_j$ in Multivalue: \\
+       \> \> \> \> Output: Key = $V_j$, Value = $V_i$ \\
+\> 3 Collate $E$: Vertex as key \\
+\> 4 Reduce $E$: Emit WINNER vertices and LOSER edges \\
+       \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
+       \> \> if all $V$ are flagged with LOSER, $V_i$ is a WINNER \\
+       \> \> \> Output: to $V$: Key = $V_i$, Value = NULL \\
+       \> \> for each $V_j$ in Multivalue: \\
+       \> \> \> if $V_j$ is flagged with LOSER: \\
+       \> \> \> \> Output: to $E$: Key = $E_{ij}$ with $V_i < V_j$, Value = LOSER \\
+       \> \> \> else: \\
+       \> \> \> \> Output: to $E$: Key = $E_{ij}$ with $V_i < V_j$, Value = NULL \\
+\> 4 Collate $E$: Edge as key \\
+\\
+Output: \\
+\> MapReduce object $V$ = maximal independent set vertices: Key = $V_i$, Value = NULL \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
@@ -660,29 +616,28 @@ while $N_{edges}$ in $E$ > 0: \\
 \end{figure}
 
 Before the iterations begin, a random value is assigned to each vertex
-(stored consistently in multiple edges in $E$), which is used to
-compare pairs of vertices.  The vertex ID itself could be used as the
-random value, but since the vertices eventually selected for the MIS
-depend on the randomization, this may introduce an unwanted bias.
-Instead a random number generator can be used to assign a consistent
-random value $R_i$ to each vertex in each edge (via a {\it map()}
-operation), which is then carried along with the vertex ID through
-each stage of the algorithm.  In the notation of
-Figure~\ref{fig:luby}, each $V_i$ is then really two quantities, a
-vertex ID (1 to $N$) and $R_i$.  Alternatively, the $R_i$ can be used
-to relabel the vertices in a random manner, assigning each a new,
-unique vertex ID from 1 to $N$.  In this case, $V_i$ is simply the new
-vertex ID, and the vertices in the final MIS could be remapped to
-recover their original IDs.  These operations can be performed with a
-few extra MapReduce steps, outside the iteration loop.
+(stored consistently for all edges in $E$ containing $V_i$), which is
+used to compare pairs of vertices.  The vertex ID itself could be used
+as the random value, but since the vertices eventually selected for
+the MIS depend on the randomization, this may introduce an unwanted
+bias.  Instead, a random number generator can be used to assign a
+consistent random value $R_i$ to each vertex in each edge (via a {\it
+map()}), which is then carried along with the vertex ID through each
+stage of the algorithm.  In the notation of Figure~\ref{fig:luby},
+each $V_i$ is then really two quantities, a vertex ID (1 to $N$) and
+$R_i$.  Alternatively, the $R_i$ can be used to relabel the vertices
+in a random manner, assigning each a new, unique vertex ID from 1 to
+$N$.  In this case, $V_i$ is simply the new vertex ID, and the
+vertices in the final MIS could be remapped to recover their original
+IDs.  These operations can be performed with a few extra MapReduce
+steps, outside the iteration loop.
 
-The pre-iteration {\it clone()} operation converts the initial list of
-edge key/value (KV) pairs stored in MapReduce object $E$ to
-key/multivalue (KMV) pairs, with the edge as the key, and NULL as the
-value.  Thus, the iterations can begin with a {\it reduce()}
-operation, without need for a {\it collate()} operation.  A second
-empty MapReduce object $V$ is also created, which will accumulate MIS
-vertices as the iterations proceed.
+The pre-iteration {\it clone()} converts the initial list of edge
+key/value (KV) pairs stored in MapReduce object $E$ to key/multivalue
+(KMV) pairs, with the edge as the key, and NULL as the value.  Thus,
+the iterations can begin with a {\it reduce()}, without need for a
+{\it collate()}.  A second empty MapReduce object $V$ is also created,
+which will accumulate MIS vertices as the iterations proceed.
 
 At each iteration, the current set of edges in $E$ is examined to
 identify winning vertices.  Vertices adjacent to winners are flagged
@@ -692,47 +647,45 @@ edges marked as losers are also flagged as winners.  At each iteration
 marked edges are removed from the graph, and winning vertices are
 added to the MIS.  When the graph is empty, the MIS is complete.
 
-The first {\it reduce()} operation flags the two vertices in each edge
-as a potential winner or loser.  This is done by comparing the two
-random values for the vertices (or the randomized vertex IDs as
-explained above).  The first {\it collate()} operation thus produces a
-multivalue for each vertex $V_i$ which contains all the vertices it
-shares an edge with, and associated winner/loser flags.
+The first {\it reduce()} flags the two vertices in each edge as a
+potential winner or loser.  This is done by comparing the two random
+values for the vertices (or the randomized vertex IDs as explained
+above).  The first {\it collate()} thus produces a multivalue for each
+vertex $V_i$ which contains all the vertices it shares an edge with,
+and associated winner/loser flags.
 
-In the second {\it reduce()} operation, if $V_i$ won the comparison
-with all its neighbor vertices, then it becomes a ``winner'' vertex.
-All vertices connected to the winner are emitted with $V_i$ tagged
-with a winner flag.  If $V_i$ is not an overall winner, its neighbor
-vertices are emitted without the winner flag on $V_i$..  The second
-{\it collate()} operation collects this new information for each
-vertex.
+In the second {\it reduce()}, if $V_i$ won the comparison with all its
+neighbor vertices, then it becomes a ``winner'' vertex.  All vertices
+connected to the winner are emitted with $V_i$ tagged with a winner
+flag.  If $V_i$ is not an overall winner, its neighbor vertices are
+emitted without the winner flag on $V_i$..  The second {\it collate()}
+collects this new information for each vertex.
 
-In the third {\it reduce()} operation, if any neighbor of $V_i$ was a
-winner in the previoue {\it reduce()} operation (indicated by a winner
-flag), $V_i$ becomes a losing vertex and emits all its neighbor
-vertices with $V_i$ tagged with a loser flag.  Otherwise it emits all
-its neighbor vertices without the loser flag on $V_i$.
+In the third {\it reduce()}, if any neighbor of $V_i$ was a winner in
+the previoue {\it reduce()} (indicated by a winner flag), $V_i$
+becomes a ``loser'' vertex and emits all its neighbor vertices with
+$V_i$ tagged with a loser flag.  Otherwise it emits all its neighbor
+vertices without the loser flag on $V_i$.
 
-In the fourth {\it reduce()} operation, some vertices have all their
-neighbor vertices flagged as losers; these vertices become winners.
-They are either the vertices identified as winners in the second {\it
-reduce()} operation, or vertices who would become singletons (having
-no edges) when edges containing a loser vertex are removed (on the
-next iteration).  These winning vertices are emitted to the MapReduce
+In the fourth {\it reduce()}, some vertices have all their neighbor
+vertices flagged as losers; these vertices become winners.  They are
+either the vertices identified as winners in the second {\it
+reduce()}, or vertices who would become singletons (having no edges)
+when edges containing a loser vertex are removed (on the next
+iteration).  These winning vertices are emitted to the MapReduce
 object $V$ that stores the accumulating MIS.
 
 All edges of each vertex are also emitted, retaining the loser flag if
 they have it; they are emitted with $E_{ij} = (V_i, V_j)$ as their
 key, with $V_i < V_j$.  This is to ensure both copies of the edge come
-together via the fourth {\it collate()} operation.  The multivalue for
-each edge now has two values, each of which is either NULL or a loser
-flag.
+together via the fourth {\it collate()}.  The multivalue for each edge
+now has two values, each of which is either NULL or a loser flag.
 
 In the first {\it reduce()} of the next iteration, any edge with a
 loser flag in its multivalue does not compare its two vertices; it is
-effectively deleted from the graph.  The Luby iterations end when all
-edges have been removed from the graph.  At this point, the MapReduce
-object $V$ contains a complete MIS of vertices.
+effectively deleted from the graph.  The iterations end when all edges
+have been removed from the graph.  At this point, the MapReduce object
+$V$ contains a complete MIS of vertices.
 
 \subsection{Single source shortest path calculation}
 
@@ -752,20 +705,19 @@ Bellman-Ford-style algorithm of~\cite{SSSPMapReduce, Bellman58,
 Ford62}, every edge of the graph is visited in each iteration and
 vertex distancs are updated.  A MapReduce formulation of this
 algorithm, described in Figure~\ref{fig:sssp}, stores directed edges
-in $E$ and begins by labeling the distance to all vertices as
-inifinte, except a distance of 0.0 to the source vertex $V_s$.  At
-each iteration, a {\it map()} operation is performed using $E$ as
-input to add edges and their weights to each vertex in $V$.  After a
-{\it collate()} operation, each vertex $V_i$ knows its outgoing edges
-and their weights, as well as its own current distance.  It may also
-have one or more distances assigned to it from a previous iteration
-(i.e. from an inbound edge).  In the {\it reduce()} operation, each
-vertex resets its distance to the minimum of these new distances and
-its current distance.  If its distance changed, it emits new distance
-values $d_j$ for the vertices associated with its outgoing edges,
-where $d_j = d_i + w_{ij}$.  It also unsets a ``done'' flag, stored by
-each processor.  When the reduce is complete, an MPI\_Allreduce
-operation is performed to check the ``done'' flag status on all
+in $E$ and begins by labeling the distance to all vertices as infinte,
+except a distance of 0 to the source vertex $V_s$.  At each iteration,
+a {\it map()} is performed using $E$ as input to add edges and their
+weights to each vertex in $V$.  After a {\it collate()}, each vertex
+$V_i$ knows its outgoing edges and their weights, as well as its own
+current distance.  It may also have one or more distances assigned to
+it from a previous iteration (from an inbound edge).  In the {\it
+reduce()}, each vertex resets its distance to the minimum of these new
+distances and its current distance.  If its distance changed, it emits
+new distance values $d_j$ for the vertices associated with its
+outgoing edges, where $d_j = d_i + w_{ij}$.  It also unsets a ``done''
+flag, stored by each processor.  When the reduce is complete, an
+MPI\_Allreduce is performed to check the ``done'' flag status on all
 processors.  If any distance was changed, the iterations continue, and
 the distance updates propagate through the graph.  If no distances
 changed, the algorithm is done.
@@ -774,25 +726,29 @@ changed, the algorithm is done.
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
   xxxx\=xxxx\=xxxxxx\=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-MapReduce object $V$ = vertices with distances from source vertex $V_s$: \\
-\> Key = $V_i$, Value = $\infty$, except Value for $V_s$ = 0 \\
-MapReduce object $E$ = graph edges with weights: Key = ($V_i, V_j$), Value = $w_{ij}$ \\
-$done$ = 0 \\
-
+Input: \\
+\> MapReduce object $E$ = graph edges with weights: Key = ($V_i, V_j$), Value = $w_{ij}$ \\
+\> MapReduce object $V$ = vertices with distances from source vertex $V_s$: \\
+\> \> Key = $V_i$, Value = $\infty$, except Value for $V_s$ = 0 \\
+\\
 while not $done$: \\
 \> $done$ = 1 \\
-\> Map $V$ using $E$ as input: add edge weights in $E$ to $V$ \\
-\> \> input Key = $E_{ij}$, Value = $w_{ij}$ \\
-\> \> output Key = $V_i$, Value = $[V_j, w_{ij}]$ \\
+\> Map $V$ using $E$ as input: Add edge weights in $E$ to $V$ \\
+\> \> Input: Key = $E_{ij}$, Value = $w_{ij}$ \\
+\> \> Output: Key = $V_i$, Value = $(V_j, w_{ij})$ \\
 \> Collate $V$: Vertex is key \\
 \> Reduce $V$:  Loop over edges of vertex to update distance to $V_s$ \\
-\> \> Input: Key = $V_i$; Multivalue = edges $[V_j, w_{ij}]$ and candidate distances for $d_i$ \\
-\> \> Find smallest new distance $d_{min}$ for $V_i$ \\
+\> \> Input: Key = $V_i$, Multivalue = $d_i$, edges $(V_j, w_{ij})$, candidate distances $d_j$ \\
+\> \> $d_{min} = {\rm min}(d_i,d_j,d_j,\ldots)$ \\
 \> \> If $d_{min} \ne d_i$: \\
 \> \> \>  $done$ = 0 \\
 \> \> \>  Output: Key = $V_j$, Value = $d_{min} + w_{ij}$ for each edge vertex $V_j$ \\
 \> \>  Output:  Key = $V_i$, Value = $d_{min}$ \\
-\> $done$ = MPI\_Allreduce($done$,MPI\_MIN)
+\> $done$ = MPI\_Allreduce($done$,MPI\_MIN) \\
+\\
+Output: \\
+\> MapReduce object $V$ = vertices with distances from source vertex $V_s$: \\
+\> \> Key = $V_i$, Value = $d_i$ \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
@@ -810,10 +766,10 @@ appropriately across more than one MapReduce object.  An enhanced SSSP
 algorithm is shown in Figure~\ref{fig:sssp2}.  The MapReduce objects
 $V$ and $E$ which store vertices and edges are aggregated across
 processors only once at the beginning of the computation, which means
-the communication portion of the {\it collate()} operation is
-performed to assign each key to a processor.  The {\it collate()}
-operation of Figure~\ref{fig:sssp} can then be replaced with a {\it
-compress()} operation which requires no communication.
+the communication portion of the {\it collate()} is performed to
+assign each key to a processor.  The {\it collate()} of
+Figure~\ref{fig:sssp} can then be replaced with a {\it compress()}
+which requires no communication.
 
 In each iteration of SSSP, typically only a small number of new
 distances are generated.  The enhanced algorithm uses MapReduce object
@@ -828,30 +784,34 @@ distances are stored in MapReduce object $V$, as before.
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
   xxxx\=xxxx\=xxxx\=xxxx\=xxxx\=xxxx\=xxxxxxxxxxxxxxxxxxxxxx\= \kill
 
-Pre-aggregated MapReduce object $V$ = graph vertices $V_i$ with distances from sourece vertex $V_s$:  \\
-\> Key = $V_i$; Value = $\infty$, except Value for $V_s$ = 0 \\
-Pre-aggregated MapReduce object $E$ = graph edges with weights: Key = ($V_i, V_j$), Value = $w_{ij}$ \\
-MapReduce object $U$ to store updates to distances, initially empty \\
-done = 0 \\
-
+Input: \\
+\> Pre-aggregated MapReduce object $E$ = graph edges with weights: Key = ($V_i, V_j$), Value = $w_{ij}$ \\
+\> Pre-aggregated MapReduce object $V$ = vertices with distances from source vertex $V_s$: \\
+\> \> Key = $V_i$, Value = $\infty$, except Value for $V_s$ = 0 \\
+\> MapReduce object $U$ = updates to distances, initially empty \\
+\\
 while not $done$: \\
 \> $done$ = 1 \\
 \> Aggregate $U$ \\
-\> Add $U$ to $V$, empty $U$ \\
-\> Compress $V$:  Compute best distance for each vertex \\
-\> \> Input:  Key = $V_i$; Multivalue = candidate distances for $d_i$ \\
-\> \> Find smallest new distance $d_{min}$ for $V_i$ \\
+\> Add $U$ to $V$, $U$ = empty \\
+\> Compress $V$: Compute best distance for each vertex \\
+\> \> Input: Key = $V_i$, Multivalue = $d_i$, candidate distances $d_j$ \\
+\> \> $d_{min} = {\rm min}(d_i,d_j,d_j,\ldots)$ \\
 \> \> If $d_{min} \ne d_i$: \\
 \> \> \> $done$ = 0 \\
-\> \> \> Output to $U$: Key = $V_i$; Value = $d_{min}$ \\
-\> \> Output to $V$: Key = $V_i$; Value = $d_{min}$ \\
+\> \> \> Output to $U$: Key = $V_i$, Value = $d_{min}$ \\
+\> \> Output to $V$: Key = $V_i$, Value = $d_{min}$ \\
 \> $done$ = MPI\_Allreduce($done$,MPI\_MIN) \\
 \> if not $done$: \\
-\> \> Add $U$ to $E$, empty $U$ \\
+\> \> Add $U$ to $E$, $U$ = empty \\
 \> \> Compress $E$: Generate candidate distances for neighbors of changed vertices. \\
-\> \> \> Input:  Key = $V_i$; Multivalue = $[V_j, w_{ij}]$ and candidate distance $d_i$ if updated in previous step \\
-\> \> \> If updated distance $d_i$ exists: \\
-\> \> \> \> Output to $U$: Key = $V_j$, Value = $d_i+w_{ij}$ for each edge vertex $V_j$) \\
+\> \> \> Input: Key = $V_i$, Multivalue = edges $(V_j, w_{ij})$ and $d_i$ if updated in previous step \\
+\> \> \> If updated $d_i$ exists: \\
+\> \> \> \> Output to $U$: Key = $V_j$, Value = $d_i+w_{ij}$ for each edge vertex $V_j$ \\
+\\
+Output: \\
+\> MapReduce object $V$ = vertices with distances from source vertex $V_s$: \\
+\> \> Key = $V_i$, Value = $d_i$ \\
 
   \end{tabbing}
  \end{minipage}}\end{center}
