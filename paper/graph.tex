@@ -155,13 +155,12 @@ as described above; the PageRank vector $x$ is initialized uniformly.
 A MapReduce object $MT$ contains the indices of all-zero rows of $A$,
 corresponding to vertices with no outlinks.  The PageRank algorithm is
 made more efficient by invoking the {\it aggregate()} operation once
-on the MapReduce objects representing the matrix $A$, the all-zero
-matrix rows $MT$, and the vector $x$, before the PageRank iterations
-begin.  Since these 3 MapReduce objects are all keyed by vertices,
-pre-aggregating them moves all KV pairs with a given key to the same
-processor.  Many of the subsequent PageRank operations then become
-local operations, replacing {\it collate()} (which is equivalent to an
-{\it aggregate()} followed by {\it convert()}) with simply a {\it
+on each of these MapReduce objects before the PageRank iterations
+begin.  Since the 3 objects are all keyed by vertex, pre-aggregating
+them moves all KV pairs with a given key to the same processor.  Many
+of the subsequent PageRank operations then become local operations,
+replacing a {\it collate()} (which is equivalent to an {\it
+aggregate()} followed by {\it convert()}) with simply a {\it
 convert()}.  In Figure~\ref{fig:pr2}, steps where {\it convert()} is
 substituted for {\it collate()} are marked with an asterisk.  This
 strategy of pre-aggregating to improve data locality is useful in many
@@ -183,10 +182,10 @@ while $({residual} > {tolerance})$ \\
 \> \> Add $x$ to $MT$ \\
 $*$\> \> Convert $MT$:  Key is vertex $i$ \\
 \> \> Reduce $MT$:   \\
-\> \> \> Input:  Key = $i$; MultiValue = $(x_i, NULL)$ if $i \in {MT}$; MultiValue = $x_i$ if $i \notin {MT}$ \\
-\> \> \> $c_{local} = c_{local} + foo$ \\
-\> \> \> Output:  If ${nvalues} = 2$: Key = $i$, Value = NULL \\
-\> \> $c_{global}$ = MPI\_Allreduce($c_{local}$,MPI\_SUM) \\
+\> \> \> Input:  Key = $i$, MultiValue = $(x_i, NULL)$ if $i \in {MT}$ else MultiValue = $x_i$ \\
+\> \> \> If ${nvalues} = 2$: $c_{dot} = c_{dot} + x_i$ \\
+\> \> \> Output: Key = $i$, Value = NULL if ${nvalues} = 2$ \\
+\> \> $c_{dot}$ = MPI\_Allreduce($c_{dot}$,MPI\_SUM) \\
 \> 2 Compute $y = A^T x$  \\
 \> \> Copy $x$ to $y$ \\
 \> \> Add $A$ to $y$ \\
@@ -198,23 +197,23 @@ $*$\> \> Convert $y$:  Key is row index of $A$ \\
 \> \> Reduce $y$: \\
 \> \> \> Input: Key = $j$, Multivalue = $A_{ij} y_i$ for nonzeroes $A_{ij}$ in column $j$ of $A$ \\
 \> \> \> Output: Key = $j$, Value = $\sum_i A_{ij} y_i$ \\
-\> 3 Add $c_{global}$ to $y$; compute $n_{global}$ = max element in $y$ \\
+\> 3 Add $c_{dot}$ to $y$; compute $y_{max}$ = max element in $y$ \\
 \> \> Map $y$:  \\
 \> \> \> Input: Key = $i$, Value = $y_i$ \\
-\> \> \> $y_i = y_i + c_{global}$; $n_{local} = {\rm max}(y_i,n_{local})$ \\
+\> \> \> $y_i = y_i + c_{dot}$; $y_{max} = {\rm max}(y_i,y_{max})$ \\
 \> \> \> Output:  Key = $i$, Value = $y_i$ \\
-\> \> $n_{global}$ = MPI\_Allreduce($n_{local}$,MPI\_SUM) \\
-\> 4 Scale $y$ by $n_{global}$ \\
+\> \> $y_{max}$ = MPI\_Allreduce($y_{max}$,MPI\_MAX) \\
+\> 4 Scale $y$ by $y_{max}$ \\
 \> \> Map $y$: \\
 \> \> \> Input:  Key = $i$, Value = $y_i$ \\
-\> \> \> Output:  Key = $i$, Value = $y_i / {n_{global}}$ \\
+\> \> \> Output:  Key = $i$, Value = $y_i / y_{max}$ \\
 \> 5 Compute residual \\
 \> \> Add $y$ to $x$ \\
 $*$\> \> Convert $x$:  Key is vertex $i$ \\
 \> \> Reduce $x$:  \\
 \> \> \> Input: Key = $i$, Multivalue = $x_i, y_i$ \\
-\> \> \> $r_{local} = {\rm max}(|x_i - y_i|,r_{local})$ \\
-\> \> $residual$ = MPI\_Allreduce($r_{local}$,MPI\_MAX) \\
+\> \> \> $residual = {\rm max}(|x_i - y_i|,residual)$ \\
+\> \> $residual$ = MPI\_Allreduce($residual$,MPI\_MAX) \\
 \> 6 Copy $y$ to $x$ \\
 \\
 Output: \\
@@ -232,10 +231,11 @@ Output: \\
  \label{fig:pr2}
 \end{figure}
 
-In Step 1 of a PageRank interation, $MT$ is used in dot products to
-compute adjustments to the PageRank vector to represent the uniform
-probability of going from a leaf page to any other page.  Adjustments
-for random jumps from any page are also computed.  In Step 2, the
+In Step 1 of a PageRank interation, $MT$ is effectively dotted with
+$x$ to compute an adjustment $c_{dot}$ to the PageRank vector that
+represents the uniform probability of going from a leaf page to any
+other page.  $MT$ is unchanged by the operation.  Adjustments for
+random jumps from any page are also computed.  In Step 2, the
 matrix-vector product $A^T x$ is computed and the result stored in
 $y$.  This is the most expensive part of the computation, requiring
 two passes over the nonzero structure of $A$.  In the first pass, a
@@ -245,11 +245,14 @@ In the second pass, a {\it collate()} gathers, for each $j$, all
 contributions to the column sum $\sum_i A_{ij} x_i$, which is computed
 by a second {\it reduce()}.  Steps 3 and 4 adjust and scale the
 product vector; the work is proportional to $|V|$.  Step 5 computes
-the residual to determine whether the PageRank vector has converged;
-work is again proportional to $|V|$.  In Step 6, the PageRank vector
-is overwritten prior to the next iteration.  Throughout the algorithm,
-we exploit the ability to call MPI\_Allreduce to compute global norms
-and residuals.
+the residual as an infinity norm to determine whether the PageRank
+vector has converged; work is again proportional to $|V|$.  Note that
+$y$ and $x$ are both keyed by vertex at this point, so they can be
+joined via an {\it add()} and {\it convert()} without need for the
+communication required by a full {\it collate()}.  In Step 6, the
+PageRank vector is overwritten prior to the next iteration.
+Throughout the algorithm, we exploit the ability to call
+MPI\_Allreduce to compute global dot products and norms.
 
 This linear-algebra approach is attractive because it allows
 construction of the MapReduce PageRank algorithm from simple kernels
@@ -704,23 +707,30 @@ labeled vertices is not available.  Instead, following the
 Bellman-Ford-style algorithm of~\cite{SSSPMapReduce, Bellman58,
 Ford62}, every edge of the graph is visited in each iteration and
 vertex distancs are updated.  A MapReduce formulation of this
-algorithm, described in Figure~\ref{fig:sssp}, stores directed edges
-in $E$ and begins by labeling the distance to all vertices as infinte,
-except a distance of 0 to the source vertex $V_s$.  At each iteration,
-a {\it map()} is performed using $E$ as input to add edges and their
-weights to each vertex in $V$.  After a {\it collate()}, each vertex
-$V_i$ knows its outgoing edges and their weights, as well as its own
-current distance.  It may also have one or more distances assigned to
-it from a previous iteration (from an inbound edge).  In the {\it
-reduce()}, each vertex resets its distance to the minimum of these new
-distances and its current distance.  If its distance changed, it emits
-new distance values $d_j$ for the vertices associated with its
-outgoing edges, where $d_j = d_i + w_{ij}$.  It also unsets a ``done''
-flag, stored by each processor.  When the reduce is complete, an
+algorithm, described in Figure~\ref{fig:sssp}, begins with a graph $E$
+of directed edges $(V_i,V_j)$.  As generated by the R-MAT procedure
+disussed earlier, this may include self-edges $(V_i,V_i)$ and loop
+edges (both $(V_i,V_j)$ and $(V_j,V_i)$).  These are handled as
+special cases within the algorithm to avoid spurious contributions to
+the shortest path distances.  MapReduce object $V$ stores the distance
+of each vertex $V_i$ from the source vertex $V_s$.
+
+To begin, the distance to all vertices is set to infinity, except a
+distance of 0 for $V_s$ itself.  At each iteration, a {\it map()} is
+performed using $E$ as input to add edges and their weights to each
+vertex in $V$.  After a {\it collate()}, each vertex $V_i$ knows its
+outgoing edges and their weights, as well as its own current distance.
+It may also have one or more distances assigned to it from a previous
+iteration (from an inbound edge).  In the {\it reduce()}, each vertex
+resets its distance to the minimum of these new distances and its
+current distance.  If its distance changed, it emits new distance
+values $d_j$ for the vertices associated with its outgoing edges,
+where $d_j = d_i + w_{ij}$.  It also unsets a ``done'' flag, stored by
+each processor.  When the {\it reduce()} is complete, an
 MPI\_Allreduce is performed to check the ``done'' flag status on all
 processors.  If any distance was changed, the iterations continue, and
-the distance updates propagate through the graph.  If no distances
-changed, the algorithm is done.
+the distance updates propagate through the graph.  Otherwise the
+algorithm is done.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}

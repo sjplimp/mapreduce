@@ -1,36 +1,38 @@
 \section{Performance Results}
 \label{sec:results}
 
-In this section, we present performance results for the MapReduce
-graph algorithms of the preceeding section, implemented as small C++
+In this section, we present performance results for the graph
+algorithms of the preceeding section, implemented as small C++
 programs calling our MR-MPI library.  The benchmarks were run on a
 medium-sized Linux cluster of 2 GHz dual-core AMD Opteron processors
 connected via a Myrinet network.  Most importantly for MR-MPI, each
 node of the cluster has one local disk, which is used for out-of-core
-operations in MR-MPI.  To avoid contention for disk I/O, we ran all
-experiments with one MPI process per node.  For comparisons with other
+operations.  To avoid contention for disk I/O, we ran all experiments
+with one MPI process per node.  For comparisons with other
 implementations, we used either the same cluster or, where noted,
 Sandia's Cray XMT, a multi-threaded parallel computer with 500 {MHz}
 processors and a 3D-Torus network.
 
-We ran each of the algorithms on three R-MAT graphs of different
-sizes, each on a varying number of processors.  Details of the input
-data are shown in Table~\ref{t:rmats}.  The {\it small} problem
-(around 8M edges) can typically be run on a single processor without
-incurring out-of-core operations.  The {\it medium} problem (around
-134M edges) can be run on a single processor with out-of-core
-operations; larger processor configurations, however, do not
-necessarily require out-of-core operations.  The {\it large} problem
-(around 2B edges) requires out-of-core operations on our 64-node
-cluster.
+We ran the algorithms on three R-MAT graphs of different sizes, each
+for a varying number of processors.  Details of the input data are
+shown in Table~\ref{t:rmats}.  The {\it small} problem (around 8M
+edges) can typically be run on a single processor without incurring
+out-of-core operations.  The {\it medium} problem (around 134M edges)
+can be run on a single processor with out-of-core operations; larger
+processor configurations, however, do not necessarily require
+out-of-core operations.  The {\it large} problem (around 2B edges)
+requires out-of-core operations on our 64-node cluster.  These are
+edge counts before pre-processing steps used in some of the
+algorithms, e.g. to eliminate self-edges or convert the matrix to
+upper-triangular form.
 
 %The {\it x-large} problem 
 %(around 34B edges) requires most of the machine to run.
 
 All data sets used R-MAT parameters $(a, b, c, d) = (0.57, 0.19, 0.19,
-0.05)$ and generated 8 edges per vertex (on average).  These values
-create a highly skewed degree distribution, as indicated by the
-maximumn vertex degree in Table~\ref{t:rmats}.
+0.05)$ and generated 8 edges per vertex (on average).  These
+parameters create a highly skewed degree distribution, as indicated by
+the maximumn vertex degree in Table~\ref{t:rmats}.
 
 \begin{table}
 \begin{center}
@@ -56,26 +58,25 @@ MapReduce algorithms as graph size grows on a fixed number of
 processors, and of the parallel scalability for computing on a graph
 of fixed size on a growing number of processors.  Where available, we
 compare the MapReduce algorithm with other parallel implementations,
-including more traditional distributed-memory algorithms and
+including more traditional distributed-memory algorithms and also
 multi-threaded algorithms in the Multi-Threaded Graph Library
 (MTGL)~\cite{MTGL} on the Cray XMT.  We compute parallel efficiency on
 $P$ processors as $({time}_{M} \times M) / ({time}_P \times P)$ where
-$M$ is the smallest number of processors on which the experiment was
+$M$ is the smallest number of processors on which the same graph was
 run, and ${time}_I$ is the execution time required on $I$ processors.
 
 \subsection{R-MAT generation results}
 
 In Figure~\ref{f:rmat}, we show the scalability of the R-MAT
 generation algorithm (Figure~\ref{fig:rmat2}) for RMAT-20, RMAT-24 and
-RMAT-28.  For RMAT-20 and RMAT-24, superlinear speed-up is shown.
-This speed-up is due to the decreased amount of file I/O needed with
+RMAT-28.  For RMAT-20 and RMAT-24, the algorithm exhibits superlinear
+speed-up.  This is due to the decreased amount of file I/O needed with
 greater numbers of processors; with a larger total memory, a
-fixed-size problem requires less I/O with more processors.  For
+fixed-size problem requires less I/O as processors are added.  For
 RMAT-28, which requires significant out-of-core operations, parallel
-efficiency ranges from 52\% to 97\%.  Comparisons between the enhanced
-algorithm (Figure~\ref{fig:rmat2}) and the original algorithm
-(Figure~\ref{fig:rmat}) showed approximately 10\% reduction in
-execution time for the enhanced algorithm.
+efficiency ranges from 52\% to 97\%.  For these problems the enhanced
+algorithm of Figure~\ref{fig:rmat2} ran about 10\% faster than the
+algorithm of Figure~\ref{fig:rmat}.
 
 %Also in Figure~\ref{f:rmat}, we compare our MR-MPI implementation with an 
 %R-MAT generator in MTGL on the Cray XMT.  In the MTGL implementation, 
@@ -95,36 +96,35 @@ execution time for the enhanced algorithm.
 \subsection{PageRank results}
 \label{subsec:results_pagerank}
 
-In Figure~\ref{f:pr}, we show the performance of the MR-MPI PageRank
+In Figure~\ref{f:pr}, we show the performance of the PageRank
 algorithm (Figure~\ref{fig:pr2}) compared to a distributed-memory
 matrix-based implementation using the linear algebra toolkit
-Trilinos~\cite{Trilinos-Overview}.  The matrix-based
-distributed-memory implementation of PageRank uses Trilinos Epetra
-matrix/vector classes to represent the graph and PageRank vector.
-Rows of matrix $A$ and the associated entries of the PageRank vector
-$x$ are uniquely assigned to processors; a random permutation of the
-input matrix effectively load balances the non-zero matrix entries
-across processors.  Interprocessor communication gathers $x$ values
-for matrix-vector multiplication and sums partial products into the
-$y$ vector.  Most communication is point-to-point communication, but
-some global communication is needed for computing residuals and norms
-of $x$ and $y$.
+Trilinos~\cite{Trilinos-Overview}.  The Trilinos implementation of
+PageRank uses Epetra matrix/vector classes to represent the graph and
+PageRank vectors and requires the matrix and associated vectors fit in
+the aggregate memory of the processors used.  Rows of matrix $A$ and
+the associated entries of the PageRank vector $x$ are uniquely
+assigned to processors; a random permutation of the input matrix
+effectively load balances the non-zero matrix entries across
+processors.  Interprocessor communication gathers $x$ values for
+matrix-vector multiplication and sums partial products into the $y$
+vector.  Most communication is point-to-point communication, but some
+global communication is needed for computing residuals and norms of
+$x$ and $y$.
 
 Figure~\ref{f:pr} shows the execution time per PageRank iteration for
 R-MAT matrices RMAT-20, RMAT-24 and RMAT-28.  Converging the PageRank
 iterations to tolerance $0.002$ requires five or six iterations.
 Several R-MAT matrices of each size were generated for the
-experiments; the average time over the matrices is reported here.  The
-Trilinos implementations show near-perfect strong scaling for RMAT-20
-and RMAT-24.  The MR-MPI implementations also demonstrate good strong
-scaling.  However, MR-MPI's execution time is at least an order of
-magnitude greater than the Trilinos implementation.  
-The benefit of MR-MPI's out-of-core implementation
-is seen, however, with the RMAT-28 data set, which could be solved on
-smaller processor sets than the Trilinos implementation.  For these
-experiments, the Trilinos implementation required 64 processors for
-the RMAT-28 data set, since it will not operate on matrices that
-exceed the aggregate memory of the processors.
+experiments; the average time over the set of matrices is reported
+here.  The Trilinos implementations show near-perfect strong scaling
+for RMAT-20 and RMAT-24.  The MR-MPI implementations also demonstrate
+good strong scaling.  However, MR-MPI's execution time is more than an
+order of magnitude slower than the Trilinos implementation.  The
+benefit of MR-MPI's out-of-core implementation is seen, however, with
+the RMAT-28 data set, which could be run on smaller processor sets
+than the Trilinos implementation, which required 64 processors for
+RMAT-28.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_pagerank.pdf}
@@ -135,17 +135,17 @@ Trilinos' matrix/vector classes on R-MAT data sets.}
 \end{figure}
 
 
-A more detailed analysis of the performance of the MR-MPI PageRank 
-algorithm is shown
-below.  We perform the analysis using RMAT-20, which is small enough to
-fit in memory and thus does not need out-of-core operations, and RMAT-28,
-which requires out-of-core operation in MR-MPI.  Table~\ref{table:prdetail}
-shows the amount of time spent in each step of Figure~\ref{fig:pr2} for 
-the MR-MPI implementation and the Trilinos implementation.  We see that for
-both implementation, the matrix-vector multiplication (Step 2) is the most
-costly step.  However, the MR-MPI algorithm is consistently slower than
-the Trilinos implementation in each step.  This effect is more pronounced
-for RMAT-28, where MR-MPI performs out-of-core operations.
+A more detailed analysis of the performance of the MR-MPI PageRank
+algorithm is shown below.  We perform the analysis using RMAT-20,
+which is small enough to fit in memory and thus does not need
+out-of-core operations, and RMAT-28, which requires out-of-core
+operation in MR-MPI.  Table~\ref{table:prdetail} shows the amount of
+time spent in each step of Figure~\ref{fig:pr2} for the MR-MPI
+implementation and the equivalent Trilinos implementation.  For both
+implementations, the matrix-vector multiplication (Step 2) is the most
+costly step.  However, the MR-MPI algorithm is consistently slower
+than the Trilinos implementation in each step.  This effect is more
+pronounced for RMAT-28, where MR-MPI performs out-of-core operations.
 
 \begin{table}[htb]
 \begin{center}
@@ -169,28 +169,30 @@ in Figure~\ref{fig:pr2} using MR-MPI and Trilinos.}
 \end{table}
 
 
-To understand where MR-MPI spends its effort during the PageRank computation,
-we break down the operation times further for the most expensive 
-step of the PageRank computation, Step 2; the results are in 
-Table~\ref{table:prdetail2}.
-In the table, we divide the collate operation into its
-two parts:  an aggregate that involves parallel communication and a convert
-that gathers local key-value pairs with matching keys into a key-multivalue
-pair.  All interprocessor communication occurs in the aggregate operation.
-While the time spent in aggregate is significant, it is small compared to
-the time spent in the two convert operations.  When out-of-core operations
-are used for RMAT-28, the communication cost in the aggregate operation is
-a smaller percentage of total time for Step 2, 
-as other data manipulation operations such as convert and add 
-take a relatively larger percentage of the total time.
-Further experimentation
-is needed to determine whether reorganizing the MapReduce data 
-(as described in Section~\ref{subsec:graph_pagerank}) would reduce the
-execution time of Step 2.  Organizing the data such that both the matrix
-$A$ and vectors $x$ and $y$ are in the same MapReduce object would eliminate
-the copy and add functions, as well as the first convert.  However, to update
-the $y$ values at the completion of Step 2, either an additional convert
-or an aggregate with greater amounts of data would be needed.
+To understand where MR-MPI spends its effort during the PageRank
+computation, we break down the operation times further for the most
+expensive Step 2 of the PageRank computation; the results are in
+Table~\ref{table:prdetail2}.  In the table, we divide the {\it
+collate()} operation into its two parts: an {\it aggregate()} that
+involves parallel communication and a {\it convert()} that gathers
+local key/value (KV) pairs with matching keys into a key-multivalue
+(KMV) pair.  All interprocessor communication occurs in the {\it
+aggregate()}.  While the time spent in {\it aggregate()} is
+significant, it is small compared to the time spent in the two {\it
+convert()} operations.  When out-of-core operations are required for
+RMAT-28, the communication cost in the {\it aggregate()} is a smaller
+percentage of total time for Step 2, as other data manipulation
+operations such as {\it convert()} and {\it add()} require a
+relatively larger percentage of the total time.  Further
+experimentation is needed to determine whether reorganizing the
+MapReduce data, as described in Section~\ref{subsec:graph_pagerank}.
+would reduce the execution time of Step 2.  Organizing the data such
+that both the matrix $A$ and vectors $x$ and $y$ are in the same
+MapReduce object would eliminate the {\it copy()} and {\it add()}
+functions, as well as the first {\it convert()}.  However, to update
+the $y$ values at the completion of Step 2, either an additional {\it
+convert()} or {\it aggregate()} with greater amounts of data would be
+needed.
 
 \begin{table}[htb]
 \begin{center}
@@ -213,15 +215,15 @@ PageRank algorithm in Figure~\ref{fig:pr2}.}
 \end{center}
 \end{table}
 
-Similarly, in Table~\ref{table:prdetail5}, we show the execution times 
-required for each operation in Step 5 of Figure~\ref{fig:pr2}, the 
-residual computation.  Clearly the time to convert key-value pairs to 
-key-multivalues dominates this computation.  Reorganization of the vectors
-$x$ and $y$ into a single MapReduce object (as described in 
-Section~\ref{subsec:graph_pagerank}) would benefit this step of the computation,
-as the add, convert, and reduce operations could be replaced by a single 
-map operation, with execution time comparable to the vector-scaling operation
-in Step 4.
+Similarly, in Table~\ref{table:prdetail5}, we show the execution times
+required for each operation in Step 5 of Figure~\ref{fig:pr2}, for the
+residual computation.  Clearly the time to convert KV pairs to KMV
+pairs dominates this computation.  Reorganization of the vectors $x$
+and $y$ into a single MapReduce object (as described in
+Section~\ref{subsec:graph_pagerank}) would benefit this step of the
+computation, as the {\it add()}, {\it convert()}, and {\it reduce()}
+could be replaced by a single {\it map()}, with execution time
+comparable to the vector-scaling operation of Step 4.
 
 \begin{table}[htb]
 \begin{center}
@@ -235,11 +237,12 @@ Reduce $x$     &  2.5\% &  5.3\% \\
 MPI\_Allreduce &  0.2\% &  0.0\% \\
 \hline
 \end{tabular}
-\caption{Percentage of execution time in each operation of Step 5 of the MR-MPI 
-PageRank algorithm in  Figure~\ref{fig:pr2}.}
+\caption{Percentage of execution time in each operation of Step 5 of
+the MR-MPI PageRank algorithm in Figure~\ref{fig:pr2}.}
 \label{table:prdetail5}
 \end{center}
 \end{table}
+
 %This result is
 %due to two factors: ({\it i}) a higher volume of communication in the
 %MapReduce implementation (which comunicates one datum per graph edge
@@ -256,7 +259,9 @@ In Figure~\ref{f:tri}, we show the performance of the triangle finding
 algorithm (Figure~\ref{fig:tri}).  Execution times for this algorithm
 were too large to allow the problem to be easily run with RMAT-28 on
 our cluster.  Parallel efficiencies for RMAT-20 ranged from 80\% to
-140\%; for RMAT-24, they ranged from 50\% to 120\%.
+140\%; for RMAT-24, they ranged from 50\% to 120\%.  The RMAT-20
+matrix contained about 100 million triangles; the RMAT-24 contained
+2.1 billion.
 
 %Comparisons with an MTGL implementation on the 
 %Cray XMT give mixed results.  When MR-MPI uses the least file I/O for 
@@ -278,20 +283,23 @@ component identification algorithm (Figure~\ref{fig:cc}).  A
 comparison is made with a hybrid ``Giant Connected Component''
 implementation using both Trilinos and MR-MPI.  Power law graphs often
 have one or two very large components and many very small components.
-The hybrid algorithm exploits this feature of the data by using
-inexpensive breadth-first search (BFS) from the vertex with highest
-degree to identify the largest components, followed by a more
+The hybrid algorithm exploits this feature by using an inexpensive
+breadth-first search (BFS) from the vertex with highest degree to
+identify the largest components one at a time, followed by a more
 expensive algorithm to identify the small components in the remainder
 of the graph.  In our hybrid implementation, we intially perform
-matrix-vector multiplications in Trilinos to perform a BFS, finding
-components that include (in total) 70\% or more of the vertices.  We
-then apply our MR-MPI algorithm to the remaining graph to identify the
-small components.  This hybrid approach is quite effective, reducing
-the execution time to identify all components of RMAT-20 and RMAT-24
-by 80-99\%, as shown in Figure~\ref{f:cc}.  The benefit of MR-MPI is
-seen, however, for RMAT-28, where the graph is too large to fit into
-memory, and thus Trilinos cannot perform the initial BFS for our
-hybrid algorithm.
+matrix-vector multiplications in Trilinos to perform a BFS, finding a
+handful of components that include 70\% or more of the vertices (for
+these R-MAT matrices).  We then apply our MapReduce algorithm to the
+remaining graph to identify the small components.  This hybrid
+approach is quite effective, reducing the execution time to identify
+all components in RMAT-20 and RMAT-24 by 80-99\%, as shown in
+Figure~\ref{f:cc}.  For RMAT-28, where the graph is too large to fit
+into memory, Trilinos cannot perform the initial BFS, so only the
+MapReduce algorithm was used.  The total number of components
+identified were A, B, C for the 3 increasing R-MAT sizes; the number
+of iterations required by the algorithm to find them was X, Y, Z
+respectively.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_cc.pdf}
@@ -302,13 +310,16 @@ on Trilinos.}
 
 \subsection{Maximally independent set results}
 
-The execution times for the maximal independent set algorithm
+The execution times for the maximal independent set (MIS) algorithm
 (Figure~\ref{fig:luby}) are shown in Figure~\ref{f:luby}.  Like the
 R-MAT generation results, superlinear speed-up of the algorithm occurs
 for RMAT-20 and RMAT-24, as more of the graph fits into processor
 memory and less file I/O is needed.  For RMAT-28, the algorithm
 requires significant out-of-core operations. In this case, parallel
-efficiency is nearly perfect going from 8 to 64 processors.
+efficiency is nearly perfect going from 8 to 64 processors.  The
+number of vertices in the resulting MIS were A, B, C for the 3
+increasing R-MAT sizes; the number of iterations required by the
+algorithm to find them was X, Y, Z respectively.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_luby.pdf}
@@ -318,17 +329,19 @@ efficiency is nearly perfect going from 8 to 64 processors.
 
 \subsection{Single-source shortest path results}
 
-The execution times for the single-source shortest path algorithms
-(Figures~\ref{fig:sssp} and \ref{fig:sssp2}) are shown in
-Figure~\ref{f:sssp}.  The results show the benefit of using the
-enhanced algorithm, providing at least a 17\% (and often greater)
-reduction in execution time due to reduced communication; only the
-updated distances are communicated throughout most of the enhanced
-algorithm.  However, the execution times are still large compared to
-multi-threaded implementations; for example, Madduri et
-al.~\cite{Madduri07} report execution times of only 11 seconds on 40
-processors for a multithreaded implementation on a Cray MTA-2 (the
-predecessor of the XMT) on graphs with one billion edges.
+The execution times for the SSSP algorithms of Figures~\ref{fig:sssp}
+and \ref{fig:sssp2} are shown in Figure~\ref{f:sssp}.  The results
+show the benefit of using the enhanced algorithm, which gave at least
+a 17\% (and often greater) reduction in execution time due to reduced
+communication; only the updated distances are communicated throughout
+most of the enhanced algorithm.  However, the execution times are
+still large compared to multi-threaded implementations; for example,
+Madduri et al.~\cite{Madduri07} report execution times of only 11
+seconds on 40 processors for a multithreaded implementation on a Cray
+MTA-2 (the predecessor of the XMT) on graphs with one billion edges.
+The number of iterations required in the MapReduce algorithms to find
+the SSSP to all vertices for the 3 increasing R-MAT sizes was X, Y, Z
+respectively.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_sssp.pdf}
@@ -356,7 +369,7 @@ than the XMT and PBGL implementations.  In experiments with
 (Figure~\ref{fig:sssp2}) is clearly shown, with a 40\% reduction in
 execution time compared to the original SSSP algorithm
 (Figure~\ref{fig:sssp}).  But the Bellman-Ford-style iterations are
-especially harmful to the MR-MPI and Hadoop implementations for
+especially costly in the MR-MPI and Hadoop implementations for
 {WebGraphB}, which required 110 iterations to complete; execution
 times for this data set are shown in Table~\ref{t:ssspB}.
 
@@ -399,10 +412,12 @@ large Linux cluster with 3.6 {GHz} dual-core Intel EM64T processors
 connected by an Infiniband network.  Because these systems do not have
 local disks for each processor, we selected a data set and page sizes
 that fit in memory, so out-of-core operations were not needed.  For
-these experiments, we used an R-MAT data set with with $2^{25}$
+these experiments, we used two R-MAT data sets with with $2^{25}$
 vertices and $2^{28}$ edges, with parameters given in
-Table~\ref{t:rmat}.  We ran both the PageRank and Connected Components
-algorithms.
+Table~\ref{t:rmat}.  The ``nice'' parameters produce a less-skewed
+sparsity pattern in the matrix than the ``nasty'' parameters, as
+indicated by the maximum degree metric.  We ran both the PageRank and
+Connected Components algorithms on these matrices.
 
 \begin{table}
 \begin{center}
@@ -435,8 +450,9 @@ enables the compiler to generate hotspot-free code.
 The MR-MPI implementation demonstrated good scalability up to 1024
 processors; however, as before, it required an order-of-magnitude more
 execution time than the matrix-based implementations on Redstorm.  The
-distributed memory matrix-based implementations are competitive with
-the multi-threaded implementation in MTGL on the Cray XMT.
+Trilinos implementation is competitive with the multi-threaded
+implementation in MTGL on the Cray XMT, when both are run on the same
+number of processors.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_pagerank_big.pdf}

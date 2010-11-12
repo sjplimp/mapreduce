@@ -10,13 +10,13 @@ locality.  This translates into maximal data movement (during a data
 shuffle or {\it collate()} operation) with communication between all
 pairs of processors.  But the benefit is often good load-balance, even
 for hard-to-balance irregular data sets, such as those derived from
-sparse graphs with power-law degree distributions.  By contrast, more
-traditional distributed-memory parallel algorithms, e.g. for matrix
-operations, or grid-based or particle-based simulation codes,
-typically work hard to localize data and minimize communication.  To
-do this they often require application-specific logic and parallel
-communication coding to create and maintain a data decomposition,
-generate ghost copies of nearby spatially-decomposed data, etc.
+sparse graphs with power-law degree distributions.  By contrast,
+MPI-based parallel algorithms, e.g. for matrix operations, or
+grid-based or particle-based simulation codes, typically work hard to
+localize data and minimize communication.  To do this they often
+require application-specific logic and parallel communication coding
+to create and maintain a data decomposition, generate ghost copies of
+nearby spatially-decomposed data, etc.
 
 MapReduce algorithms can be hard to design, but are often relatively
 easy to write and debug.  Thinking about a computational task from a
@@ -68,4 +68,4 @@ MapReduce operations, there is nothing about the MR-MPI library itself
 that is graph specific.  We hope the library can be generally useful
 on large-scale monolithic or cloud-style parallel machines that
 support MPI, for a variety of data-intensive or compute-intensive
-problems that are amenable to solution using a MapReduce paradigm.
+problems that are amenable to solution using a MapReduce approach.
