@@ -401,6 +401,45 @@ XMT/C  & 32 &  37 secs.\\
 \end{center}
 \end{table}
 
+\subsection{Implementation effort}
+
+To give a rough sense of the effort involved to implement the various
+MapReduce algorithms described in this section, we list the line
+counts of the C++ codes used to perform the benchmarks.  Each code
+makes calls to the MR-MPI library and implements the algorithm in the
+indicated figure.  The line counts exclude comments and blank lines
+which typically add about 30\% to the total.  They also exclude the
+routines used to generate the R-MAT matrix input (except in the case
+of the two R-MAT algorithms themselves) or process it into
+upper-triangular form, since that is common to several of the
+benchmarks.
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|c|c|c|c|}
+\hline
+Algorithm & R-MAT & R-MAT & PageRank & Tri & CC & MIS & SSSP & SSSP \\
+\hline
+Line count & 208 & 216 & 694 & 367 & 453 & 393 & 505 & 569 \\
+Figure & \ref{fig:rmat} & \ref{fig:rmat2} & \ref{fig:pr2} & \ref{fig:tri} & \ref{fig:cc} & \ref{fig:luby} & \ref{fig:sssp} & \ref{fig:sssp2} \\
+\hline
+\end{tabular}
+\caption{Line counts of codes that implement each of the graph
+  algorithms in the associated figures.}
+\label{t:rmat}
+\end{center}
+\end{table}
+
+For comparison, we wrote a parallel distributed-memory R-MAT
+generation code with explicit MPI calls using a different
+(non-MapReduce) algorithm than that of Figures \ref{fig:rmat} and
+\ref{fig:rmat2}.  It required 1842 lines of code, mainly because it
+must implement the parallelism explicitly whereas the codes of this
+section relegate that task to the MR-MPI library.  Our collaborators
+(see Acknowledgements) have a Hadoop implementation of the SSSP
+algorithm of Figure \ref{fig:sssp}.  It required XXX lines of Java
+code.
+
 \subsection{Scalability to large numbers of processors}
 
 Finally, we demonstrate the scalability of our MR-MPI library to large
@@ -436,7 +475,7 @@ Components scalability experiments.}
 \end{center}
 \end{table}
 
-Figure~\ref{f:prbig}, shows the performance of the various PageRank
+Figure~\ref{f:prbig} shows the performance of the various PageRank
 implementations on distributed memory and multi-threaded
 architectures.  The MR-MPI and Trilinos implementations are described
 in Sections~\ref{subsec:graph_pagerank}
@@ -476,4 +515,3 @@ matrix-based/MapReduce hybrid (Trilinos/MR-MPI), and MTGL implementations
 on the R-MAT data sets in Table~\ref{t:rmat}.}
 \label{f:ccbig}
 \end{figure}
-
