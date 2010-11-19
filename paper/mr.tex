@@ -1,7 +1,7 @@
 \section{MapReduce in MPI}
 \label{sec:mr}
 
-The basic datums stored and operated on by any MapReduce framweork are
+The basic datums stored and operated on by any MapReduce framework are
 key/value (KV) pairs.  In the MR-MPI library, individual keys or
 values can be of any data type or length, or combinations of multiple
 types (one integer, a string of characters, two integers and a double,
@@ -16,7 +16,7 @@ A related data type in the MR-MPI library is the key/multivalue (KMV)
 pair, where all values associated with the same key are collected and
 stored contiguously as a multivalue, which is just a longer byte
 string with an associated vector of lengths, one integer length per
-value.  In this section, we assume the KV and KVM datums operated on
+value.  In this section, we assume the KV and KMV datums operated on
 by each processor fit in local memory.
 
 A typical MR-MPI program makes at least three calls to the MR-MPI
@@ -104,7 +104,7 @@ then copied into a new data structure in sorted order.
 
 The interface to various low-level operations is provided so that a
 user's program can string them together in various ways to construct
-usefule MapReduce algorithms.  For example, output from a {\it
+useful MapReduce algorithms.  For example, output from a {\it
 reduce()} can serve as input to a subsequent {\it map()} or {\it
 collate()}.  Likewise, data can be partitioned across multiple
 MapReduce (MR) objects, each with their own set of KV pairs.  For

@@ -6,7 +6,7 @@ randomized graphs, since they are the input for the algorithms
 discussed below.  R-MAT matrices ~\cite{RMAT} are recursively
 generated graphs with power-law degree distributions.  They are
 commonly used to represent web and social networks.  The user
-specifices six parameters that define the graph: the number of
+specifies six parameters that define the graph: the number of
 vertices $N$ and edges $M$, and four parameters $a$, $b$, $c$, $d$
 that sum to 1.0 and are discussed below.  The algorithm in
 Figure~\ref{fig:rmat} uses a single MapReduce object to generate $M$
@@ -193,11 +193,11 @@ $*$\> \> Convert $MT$:  Key is vertex $i$ \\
 \> \> Add $A$ to $y$ \\
 $*$\> \> Convert $y$:  Key is row index of $A$ \\
 \> \> Reduce $y$: \\
-\> \> \>  Input: Key = $i$, Multivalue = $y_i, [j, A_{ij}]$ for nonzeros $A_{ij}$ in $A$ \\
+\> \> \>  Input: Key = $i$, MultiValue = $y_i, [j, A_{ij}]$ for nonzeros $A_{ij}$ in $A$ \\
 \> \> \>  Output: Key = $j$, Value = $A_{ij} y_i$ \\
 \> \> Collate $y$:  Key is column index of $A$ \\
 \> \> Reduce $y$: \\
-\> \> \> Input: Key = $j$, Multivalue = $A_{ij} y_i$ for nonzeroes $A_{ij}$ in column $j$ of $A$ \\
+\> \> \> Input: Key = $j$, MultiValue = $A_{ij} y_i$ for nonzeroes $A_{ij}$ in column $j$ of $A$ \\
 \> \> \> Output: Key = $j$, Value = $\sum_i A_{ij} y_i$ \\
 \> 3 Add $c_{dot}$ to $y$; compute $y_{max}$ = max element in $y$ \\
 \> \> Map $y$:  \\
@@ -213,7 +213,7 @@ $*$\> \> Convert $y$:  Key is row index of $A$ \\
 \> \> Add $y$ to $x$ \\
 $*$\> \> Convert $x$:  Key is vertex $i$ \\
 \> \> Reduce $x$:  \\
-\> \> \> Input: Key = $i$, Multivalue = $x_i, y_i$ \\
+\> \> \> Input: Key = $i$, MultiValue = $x_i, y_i$ \\
 \> \> \> $residual = {\rm max}(|x_i - y_i|,residual)$ \\
 \> \> $residual$ = MPI\_Allreduce($residual$, MPI\_MAX) \\
 \> 6 Copy $y$ to $x$ \\
@@ -233,7 +233,7 @@ Output: \\
  \label{fig:pr2}
 \end{figure}
 
-Step 1 of a PageRank interation is, effectively, a dot-product of $MT$ and
+Step 1 of a PageRank iteration is, effectively, a dot-product of $MT$ and
 $x$ to compute an adjustment $c_{dot}$ to the PageRank vector that
 represents random jumps and the uniform probability of going from a 
 leaf page to any
@@ -388,7 +388,7 @@ A connected component of a graph is a set of vertices where all pairs
 of vertices in the set are connected by a path of edges.  A sparse
 graph may contain many such components.  Figure~\ref{fig:cc} outlines
 a MapReduce algorithm that labels each vertex in a graph with a
-component ID.  All vertices in the same component are labelled with
+component ID.  All vertices in the same component are labeled with
 the same ID, which is the ID of some vertex in the component.  We
 assume an input graph $E$ of undirected edges $(V_i,V_j)$.  This
 exposition also follows the connected-component algorithm presented
@@ -439,7 +439,7 @@ Iterate: \\
 \> 4 Reduce $V$: Emit new zone assignment of each vertex \\
        \> \> Input: Key = $Z_i$ or $Z_i^+$, MultiValue = $V V V V ... Z Z Z ...$ \\
        \> \> $Z_{new}$ = min($Z_i$ or $Z_i^+$,Z,Z,Z,...) \\
-       \> \> partition $Z_{new}$ if number of $V >$ threshhold \\
+       \> \> partition $Z_{new}$ if number of $V >$ threshold \\
        \> \> for each $V$ in MultiValue: \\
        \> \> \> Output: Key = $V_i$, Value = $Z_{new}$ \\
 \\
@@ -506,7 +506,7 @@ processor will result, containing all vertices in the graph.  This
 imbalance in memory and computational work can lead to poor parallel
 performance of the overall algorithm.  To counter this effect, various
 operations in stages 3 and 4 include extra logic.  The idea is to
-partition zones whose vertex count exceeds a user-defined threshhold
+partition zones whose vertex count exceeds a user-defined threshold
 into $P$ sub-zones, where $P$ is the number of processors.  The 64-bit
 integer that stores the zone ID also stores a bit flag indicating the
 zone has been partitioned and a set of bits that encode the processor
@@ -532,7 +532,7 @@ consistent manner across all $P$ multivalues that contain the zone's
 vertices.  When the fourth {\it reduce()} emits new zone assignments
 for each vertex, the zone retains its partitioned status; the
 partition bit is also explicitly set if the vertex count exceeds the
-threshhold for the first time.
+threshold for the first time.
 
 Note that this logic does not guarantee that the partition bits of the
 zone IDs for all the vertices in a single zone are set consistently on
@@ -541,9 +541,9 @@ may consume a partitioned zone.  The vertices from the partitioned
 zone retain their partitioned status, but the original vertices in the
 small zone may not set the partition bit of their zone IDs.  On
 subsequent iterations, the fourth {\it map()} emits $P+1$ copies of
-new zone reassignments for both partitioned and unpartioned zone IDs,
-to ensure all vertices in the zone will know the correct reassignment
-information.
+new zone reassignments for both partitioned and unpartitioned zone
+IDs, to ensure all vertices in the zone will know the correct
+reassignment information.
 
 \subsection{Maximal independent set identification}
 
@@ -573,7 +573,7 @@ Clone $E$: Convert KV pairs in $E$ directly to KMV pairs with multivalue = NULL 
 \\
 while $N_{edges}$ in $E > 0$: \\
 \> 1 Reduce $E$: Determine WINNER/LOSER vertex of each edge \\
-       \> \> Input: Key = $E_{ij}$, Multivalue = NULL or LOSER \\
+       \> \> Input: Key = $E_{ij}$, MultiValue = NULL or LOSER \\
        \> \> if multivalue = LOSER, emit nothing \\
        \> \> $V_w$ = WINNER vertex, $V_l$ = LOSER vertex \\
        \> \> Output: Key = $V_w$, Value = ($V_l$, WINNER) \\
@@ -582,26 +582,26 @@ while $N_{edges}$ in $E > 0$: \\
 \> 2 Reduce $E$: Find WINNER vertices \\
        \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
        \> \> if all $V$ are flagged with WINNER, $V_i$ is a WINNER \\
-       \> \> \> for each $V_j$ in Multivalue: \\
+       \> \> \> for each $V_j$ in MultiValue: \\
        \> \> \> \> Output: Key = $V_j$, Value = ($V_i$, WINNER) \\
        \> \> else: \\
-       \> \> \> for each $V_j$ in Multivalue: \\
+       \> \> \> for each $V_j$ in MultiValue: \\
        \> \> \> \> Output: Key = $V_j$, Value = $V_i$ \\
 \> 2 Collate $E$: Vertex as key \\
 \> 3 Reduce $E$: Find LOSER vertices \\
        \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
        \> \> if any $V$ is flagged with WINNER, $V_i$ is a LOSER \\
-       \> \> \> for each $V_j$ in Multivalue: \\
+       \> \> \> for each $V_j$ in MultiValue: \\
        \> \> \> \> Output: Key = $V_j$, Value = ($V_i$, LOSER) \\
        \> \> else: \\
-       \> \> \> for each $V_j$ in Multivalue: \\
+       \> \> \> for each $V_j$ in MultiValue: \\
        \> \> \> \> Output: Key = $V_j$, Value = $V_i$ \\
 \> 3 Collate $E$: Vertex as key \\
 \> 4 Reduce $E$: Emit WINNER vertices and LOSER edges \\
        \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
        \> \> if all $V$ are flagged with LOSER, $V_i$ is a WINNER \\
        \> \> \> Output: to $V$: Key = $V_i$, Value = NULL \\
-       \> \> for each $V_j$ in Multivalue: \\
+       \> \> for each $V_j$ in MultiValue: \\
        \> \> \> if $V_j$ is flagged with LOSER: \\
        \> \> \> \> Output: to $E$: Key = $E_{ij}$ with $V_i < V_j$, Value = LOSER \\
        \> \> \> else: \\
@@ -668,7 +668,7 @@ emitted without the winner flag on $V_i$..  The second {\it collate()}
 collects this new information for each vertex.
 
 In the third {\it reduce()}, if any neighbor of $V_i$ was a winner in
-the previoue {\it reduce()} (indicated by a winner flag), $V_i$
+the previous {\it reduce()} (indicated by a winner flag), $V_i$
 becomes a ``loser'' vertex and emits all its neighbor vertices with
 $V_i$ tagged with a loser flag.  Otherwise it emits all its neighbor
 vertices without the loser flag on $V_i$.
@@ -709,10 +709,10 @@ For a distributed graph, global information about edge adjacencies and
 labeled vertices is not available.  Instead, following the
 Bellman-Ford-style algorithm of~\cite{SSSPMapReduce, Bellman58,
 Ford62}, every edge of the graph is visited in each iteration and
-vertex distancs are updated.  A MapReduce formulation of this
+vertex distance are updated.  A MapReduce formulation of this
 algorithm, described in Figure~\ref{fig:sssp}, begins with a graph $E$
 of directed edges $(V_i,V_j)$.  As generated by the R-MAT procedure
-disussed earlier, this may include self-edges $(V_i,V_i)$ and loop
+discussed earlier, this may include self-edges $(V_i,V_i)$ and loop
 edges (both $(V_i,V_j)$ and $(V_j,V_i)$).  These are handled as
 special cases within the algorithm to avoid spurious contributions to
 the shortest path distances.  MapReduce object $V$ stores the distance
@@ -751,7 +751,7 @@ while not $done$: \\
 \> \> Output: Key = $V_i$, Value = $(V_j, w_{ij})$ \\
 \> Collate $V$: Vertex is key \\
 \> Reduce $V$:  Loop over edges of vertex to update distance to $V_s$ \\
-\> \> Input: Key = $V_i$, Multivalue = $d_i$, edges $(V_j, w_{ij})$, candidate distances $d_j$ \\
+\> \> Input: Key = $V_i$, MultiValue = $d_i$, edges $(V_j, w_{ij})$, candidate distances $d_j$ \\
 \> \> $d_{min} = {\rm min}(d_i,d_j,d_j,\ldots)$ \\
 \> \> If $d_{min} \ne d_i$: \\
 \> \> \>  $done$ = 0 \\
@@ -808,7 +808,7 @@ while not $done$: \\
 \> Aggregate $U$ \\
 \> Add $U$ to $V$, $U$ = empty \\
 \> Compress $V$: Compute best distance for each vertex \\
-\> \> Input: Key = $V_i$, Multivalue = $d_i$, candidate distances $d_j$ \\
+\> \> Input: Key = $V_i$, MultiValue = $d_i$, candidate distances $d_j$ \\
 \> \> $d_{min} = {\rm min}(d_i,d_j,d_j,\ldots)$ \\
 \> \> If $d_{min} \ne d_i$: \\
 \> \> \> $done$ = 0 \\
@@ -818,7 +818,7 @@ while not $done$: \\
 \> if not $done$: \\
 \> \> Add $U$ to $E$, $U$ = empty \\
 \> \> Compress $E$: Generate candidate distances for neighbors of changed vertices. \\
-\> \> \> Input: Key = $V_i$, Multivalue = edges $(V_j, w_{ij})$ and $d_i$ if updated in previous step \\
+\> \> \> Input: Key = $V_i$, MultiValue = edges $(V_j, w_{ij})$ and $d_i$ if updated in previous step \\
 \> \> \> If updated $d_i$ exists: \\
 \> \> \> \> Output to $U$: Key = $V_j$, Value = $d_i+w_{ij}$ for each edge vertex $V_j$ \\
 \\

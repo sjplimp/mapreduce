@@ -2,7 +2,7 @@
 \label{sec:results}
 
 In this section, we present performance results for the graph
-algorithms of the preceeding section, implemented as small C++
+algorithms of the preceding section, implemented as small C++
 programs calling our MR-MPI library.  The benchmarks were run on a
 medium-sized Linux cluster of 2 GHz dual-core AMD Opteron processors
 connected via a Myrinet network.  Most importantly for MR-MPI, each
@@ -32,7 +32,7 @@ upper-triangular form.
 All data sets used R-MAT parameters $(a, b, c, d) = (0.57, 0.19, 0.19,
 0.05)$ and generated 8 edges per vertex (on average).  These
 parameters create a highly skewed degree distribution, as indicated by
-the maximumn vertex degree in Table~\ref{t:rmats}.
+the maximum vertex degree in Table~\ref{t:rmats}.
 
 \begin{table}
 \begin{center}
@@ -287,7 +287,7 @@ The hybrid algorithm exploits this feature by using an inexpensive
 breadth-first search (BFS) from the vertex with highest degree to
 identify the largest components one at a time, followed by a more
 expensive algorithm to identify the small components in the remainder
-of the graph.  In our hybrid implementation, we intially perform
+of the graph.  In our hybrid implementation, we initially perform
 matrix-vector multiplications in Trilinos to perform a BFS, finding a
 handful of components that include 70\% or more of the vertices (for
 these R-MAT matrices).  We then apply our MapReduce algorithm to the
@@ -297,9 +297,8 @@ all components in RMAT-20 and RMAT-24 by 80-99\%, as shown in
 Figure~\ref{f:cc}.  For RMAT-28, where the graph is too large to fit
 into memory, Trilinos cannot perform the initial BFS, so only the
 MapReduce algorithm was used.  The total number of components
-identified were roughly 498K, 9.37M, and 169M for the three increasing 
-R-MAT sizes; five or six iterations were 
-required by the algorithm.
+identified were roughly 498K, 9.37M, and 169M for the three increasing
+R-MAT sizes; five or six iterations were required by the algorithm.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_cc.pdf}
@@ -375,9 +374,8 @@ times for this data set are shown in Table~\ref{t:ssspB}.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_ssspA.pdf}
-\caption{SSSP using MR-MPI for WebGraphA with
-13.2M vertices and 31.9M edges.  Runtimes using Hadoop and PBGL
-are also shown.}
+\caption{SSSP using MR-MPI for WebGraphA with 13.2M vertices and 31.9M
+  edges.  Run times using Hadoop and PBGL are also shown.}
 \label{f:ssspA}
 \end{figure}
 
@@ -441,7 +439,7 @@ contrast an implementation of PageRank using the Trilinos parallel
 linear algebra library (discussed in Section
 \ref{subsec:results_pagerank}) required only 153 lines of code, since
 an entire matrix-vector multiply can be invoked by a single call to
-Trilinos.  Our collaborators (see Acknowledgements) have a Hadoop
+Trilinos.  Our collaborators (see Acknowledgments) have a Hadoop
 implementation of the SSSP algorithm of Figure \ref{fig:sssp}.  It
 required XXX lines of Java code.
 
