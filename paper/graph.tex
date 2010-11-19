@@ -148,15 +148,16 @@ norm computations per iteration are also required.
 
 The algorithm in Figure~\ref{fig:pr2} performs these iterations, using
 linear-algebra concepts implemented in a MapReduce framework, with
-data stored in 4 MapReduce objects: $A$, $MT$, $x$, and $y$.  $A$
-stores the matrix, $MT$ its ``empty'' rows, while $x$ and $y$ are
+data stored in four MapReduce objects: $A$, $MT$, $x$, and $y$.  $A$
+stores the matrix; $MT$ stores the row index of ``empty'' rows of $A$; 
+and $x$ and $y$ are
 vectors of length $|V|$.  The nonzeros of matrix $A$ are initialized
 as described above; the PageRank vector $x$ is initialized uniformly.
 A MapReduce object $MT$ contains the indices of all-zero rows of $A$,
 corresponding to vertices with no outlinks.  The PageRank algorithm is
 made more efficient by invoking the {\it aggregate()} operation once
 on each of these MapReduce objects before the PageRank iterations
-begin.  Since the 3 objects are all keyed by vertex, pre-aggregating
+begin.  Since the objects are all keyed by vertex, pre-aggregating
 them moves all KV pairs with a given key to the same processor.  Many
 of the subsequent PageRank operations then become local operations,
 replacing a {\it collate()} (which is equivalent to an {\it
@@ -176,16 +177,17 @@ Input: \\
 \> Pre-aggregated MapReduce object $MT$ = indices of all-zero rows of $A$:  Key = $i$, Value = NULL \\
 \> Pre-aggregated MapReduce object $x$ = initial PageRank vector:  Key = $i$, Value = $1/|V|$ \\
 \> MapReduce object $y$ = vector, initially empty \\
+\> User-defined parameter $\alpha$ \\
 \\
 while $({residual} > {tolerance})$ \\
-\> 1 Compute contribution for random jumps and zero-outdegree vertices \\
+\> 1 Compute adjustment for random jumps and zero-outdegree vertices \\
 \> \> Add $x$ to $MT$ \\
 $*$\> \> Convert $MT$:  Key is vertex $i$ \\
 \> \> Reduce $MT$:   \\
-\> \> \> Input:  Key = $i$, MultiValue = $(x_i, NULL)$ if $i \in {MT}$ else MultiValue = $x_i$ \\
-\> \> \> If ${nvalues} = 2$: $c_{dot} = c_{dot} + x_i$ \\
+\> \> \> Input:  Key = $i$, MultiValue = $(x_i, NULL)$ if $i \in {MT}$; else MultiValue = $x_i$ \\
+\> \> \> If (${nvalues} = 2$) $c_{dot} = c_{dot} + x_i$; else $c_{dot} = c_{dot} + \alpha$ \\
 \> \> \> Output: Key = $i$, Value = NULL if ${nvalues} = 2$ \\
-\> \> $c_{dot}$ = MPI\_Allreduce($c_{dot}$,MPI\_SUM) \\
+\> \> $c_{dot}$ = MPI\_Allreduce($c_{dot}$, MPI\_SUM) / $|V|$ \\
 \> 2 Compute $y = A^T x$  \\
 \> \> Copy $x$ to $y$ \\
 \> \> Add $A$ to $y$ \\
@@ -202,7 +204,7 @@ $*$\> \> Convert $y$:  Key is row index of $A$ \\
 \> \> \> Input: Key = $i$, Value = $y_i$ \\
 \> \> \> $y_i = y_i + c_{dot}$; $y_{max} = {\rm max}(y_i,y_{max})$ \\
 \> \> \> Output:  Key = $i$, Value = $y_i$ \\
-\> \> $y_{max}$ = MPI\_Allreduce($y_{max}$,MPI\_MAX) \\
+\> \> $y_{max}$ = MPI\_Allreduce($y_{max}$, MPI\_MAX) \\
 \> 4 Scale $y$ by $y_{max}$ \\
 \> \> Map $y$: \\
 \> \> \> Input:  Key = $i$, Value = $y_i$ \\
@@ -213,11 +215,11 @@ $*$\> \> Convert $x$:  Key is vertex $i$ \\
 \> \> Reduce $x$:  \\
 \> \> \> Input: Key = $i$, Multivalue = $x_i, y_i$ \\
 \> \> \> $residual = {\rm max}(|x_i - y_i|,residual)$ \\
-\> \> $residual$ = MPI\_Allreduce($residual$,MPI\_MAX) \\
+\> \> $residual$ = MPI\_Allreduce($residual$, MPI\_MAX) \\
 \> 6 Copy $y$ to $x$ \\
 \\
 Output: \\
-\> MapReduce object $x$ = PageRank vector: Key = $i$, Value = $x_i$ = numeric rank \\
+\> MapReduce object $x$ = PageRank vector: Key = $i$, Value = $x_i$ = numeric rank 
 
   \end{tabbing}
  \end{minipage}}\end{center}
@@ -231,11 +233,12 @@ Output: \\
  \label{fig:pr2}
 \end{figure}
 
-In Step 1 of a PageRank interation, $MT$ is effectively dotted with
+Step 1 of a PageRank interation is, effectively, a dot-product of $MT$ and
 $x$ to compute an adjustment $c_{dot}$ to the PageRank vector that
-represents the uniform probability of going from a leaf page to any
-other page.  $MT$ is unchanged by the operation.  Adjustments for
-random jumps from any page are also computed.  In Step 2, the
+represents random jumps and the uniform probability of going from a 
+leaf page to any
+other page.  $MT$ is unchanged by the operation.  
+In Step 2, the
 matrix-vector product $A^T x$ is computed and the result stored in
 $y$.  This is the most expensive part of the computation, requiring
 two passes over the nonzero structure of $A$.  In the first pass, a
@@ -260,8 +263,8 @@ construction of the MapReduce PageRank algorithm from simple kernels
 types (matrices, vectors).  One can build a variety of algorithms
 based on these primitives; indeed, linear-algebra toolkits such as
 Trilinos~\cite{Trilinos-Overview} and PETSc~\cite{petsc-efficient}
-naturally exploit this idea.  In parallel, these toolkits share
-pre-computed data layouts and communication maps among distributed
+naturally exploit this idea.  In parallel, each of these toolkits shares
+pre-computed data layouts and communication maps among its distributed
 objects to enable efficient operations on the objects.  In a MapReduce
 context, however, separating the data into vectors and matrices
 results in additional overhead to gather KV pairs with the same key
