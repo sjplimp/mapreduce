@@ -297,9 +297,9 @@ all components in RMAT-20 and RMAT-24 by 80-99\%, as shown in
 Figure~\ref{f:cc}.  For RMAT-28, where the graph is too large to fit
 into memory, Trilinos cannot perform the initial BFS, so only the
 MapReduce algorithm was used.  The total number of components
-identified were A, B, C for the 3 increasing R-MAT sizes; the number
-of iterations required by the algorithm to find them was X, Y, Z
-respectively.
+identified were roughly 498K, 9.37M, and 169M for the three increasing 
+R-MAT sizes; five or six iterations were 
+required by the algorithm.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_cc.pdf}
@@ -317,9 +317,10 @@ for RMAT-20 and RMAT-24, as more of the graph fits into processor
 memory and less file I/O is needed.  For RMAT-28, the algorithm
 requires significant out-of-core operations. In this case, parallel
 efficiency is nearly perfect going from 8 to 64 processors.  The
-number of vertices in the resulting MIS were A, B, C for the 3
+number of vertices in the resulting MIS were 368K, 5.18M, and 72.4M
+for the three
 increasing R-MAT sizes; the number of iterations required by the
-algorithm to find them was X, Y, Z respectively.
+algorithm ranged from five for RMAT-20 to nine for RMAT-28.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_luby.pdf}
@@ -339,9 +340,8 @@ still large compared to multi-threaded implementations; for example,
 Madduri et al.~\cite{Madduri07} report execution times of only 11
 seconds on 40 processors for a multithreaded implementation on a Cray
 MTA-2 (the predecessor of the XMT) on graphs with one billion edges.
-The number of iterations required in the MapReduce algorithms to find
-the SSSP to all vertices for the 3 increasing R-MAT sizes was X, Y, Z
-respectively.
+Seven to ten iterations were required in the MapReduce algorithms to find
+the SSSP to all vertices.
 
 \begin{figure}[htb]
 \includegraphics[width=\textwidth]{fig_sssp.pdf}
