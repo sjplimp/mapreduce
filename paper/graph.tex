@@ -174,8 +174,7 @@ Input: \\
 \> Pre-aggregated MapReduce object $A$ = $|V| \times |V|$ matrix:  Key = $i$, Value = $[j, A_{ij}]$ \\
 \> Pre-aggregated MapReduce object $MT$ = indices of all-zero rows of $A$:  Key = $i$, Value = NULL \\
 \> Pre-aggregated MapReduce object $x$ = initial PageRank vector:  Key = $i$, Value = $1/|V|$ \\
-\> MapReduce object $y$ = vector, initially empty \\
-\> User-defined parameter $\alpha$ \\
+\> MapReduce object $y$ = vector, initially empty; user-defined parameter $\alpha$ \\
 \\
 while $({residual} > {tolerance})$ \\
 \> 1 Compute adjustment for random jumps and zero-outdegree vertices \\
@@ -398,7 +397,7 @@ components exist in the graph.
 
 Input: \\
 \> MapReduce object $E$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL \\
-\> MapReduce object $V$ = zone assignment of each vertex: Key = $V_i$, Value = $Z_i$ \\
+\> MapReduce object $V$ = zone assignments of vertices: Key = $V_i$, Value = $Z_i=V_i$ \\
 \> MapReduce object $W$ = workspace
 \\
 Iterate: \\
@@ -425,7 +424,7 @@ Iterate: \\
     \> \> \> Output: Key = $Z_i$, Value = $V_i$ \\
     \> \> else: \\
     \> \> \> Output: Key = $Z_i^+$, Value = $V_i$ for a random processor \\
-\> 4 Map $V$ using $W$ as input: Add zone reassignments in $W$ to $V$ \\
+\> 4 Map $V$ using $W$ as input: Add zone reassignments in $W$ to data in $V$ \\
     \> \> if $Z_i$ is not partitioned: \\
     \> \> \> Output: Key = $Z_i$, Value = $Z_{winner}$ \\
     \> \> else: \\
@@ -436,7 +435,7 @@ Iterate: \\
        \> \> Input: Key = $Z_i$ or $Z_i^+$, MultiValue = $V V V V ... Z Z Z ...$ \\
        \> \> $Z_{new}$ = min($Z_i$ or $Z_i^+$,Z,Z,Z,...) \\
        \> \> partition $Z_{new}$ if number of $V >$ threshold \\
-       \> \> for each $V$ in MultiValue: \\
+       \> \> for each $V_i$ in MultiValue: \\
        \> \> \> Output: Key = $V_i$, Value = $Z_{new}$ \\
 \\
 Output: \\
@@ -564,19 +563,19 @@ Input: \\
 \> MapReduce object $V$ = maximal independent set vertices, initially empty \\
 \> MapReduce object $E$ = edges of graph: Key = $(V_i,V_j)$ with $V_i < V_j$, Value = NULL \\
 Map $E$: Assign random values consistently to each vertex $V_i$ and $V_j$ in $E$ \\
-Clone $E$: Convert KV pairs in $E$ directly to KMV pairs with multivalue = NULL \\
+Clone $E$: Convert KV pairs in $E$ directly to KMV pairs with MultiValue = NULL \\
 \\
 while $N_{edges}$ in $E > 0$: \\
 \> 1 Reduce $E$: Determine WINNER/LOSER vertex of each edge \\
        \> \> Input: Key = $E_{ij}$, MultiValue = NULL or LOSER \\
-       \> \> if multivalue = LOSER, emit nothing \\
+       \> \> if MultiValue = LOSER, emit nothing \\
        \> \> $V_w$ = WINNER vertex, $V_l$ = LOSER vertex \\
        \> \> Output: Key = $V_w$, Value = ($V_l$, WINNER) \\
        \> \> Output: Key = $V_l$, Value = ($V_w$, LOSER) \\
 \> 1 Collate $E$: Vertex as key \\
 \> 2 Reduce $E$: Find WINNER vertices \\
        \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
-       \> \> if all $V$ are flagged with WINNER, $V_i$ is a WINNER \\
+       \> \> if all $V_j$ in MultiValue are flagged with WINNER, $V_i$ is a WINNER \\
        \> \> \> for each $V_j$ in MultiValue: \\
        \> \> \> \> Output: Key = $V_j$, Value = ($V_i$, WINNER) \\
        \> \> else: \\
@@ -585,7 +584,7 @@ while $N_{edges}$ in $E > 0$: \\
 \> 2 Collate $E$: Vertex as key \\
 \> 3 Reduce $E$: Find LOSER vertices \\
        \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
-       \> \> if any $V$ is flagged with WINNER, $V_i$ is a LOSER \\
+       \> \> if any $V_j$ in MultiValue is flagged with WINNER, $V_i$ is a LOSER \\
        \> \> \> for each $V_j$ in MultiValue: \\
        \> \> \> \> Output: Key = $V_j$, Value = ($V_i$, LOSER) \\
        \> \> else: \\
@@ -594,7 +593,7 @@ while $N_{edges}$ in $E > 0$: \\
 \> 3 Collate $E$: Vertex as key \\
 \> 4 Reduce $E$: Emit WINNER vertices and LOSER edges \\
        \> \> Input: Key = $V_i$, MultiValue = $V V V V ...$ \\
-       \> \> if all $V$ are flagged with LOSER, $V_i$ is a WINNER \\
+       \> \> if all $V_j$ in MultiValue are flagged with LOSER, $V_i$ is a WINNER \\
        \> \> \> Output: to $V$: Key = $V_i$, Value = NULL \\
        \> \> for each $V_j$ in MultiValue: \\
        \> \> \> if $V_j$ is flagged with LOSER: \\
@@ -740,11 +739,11 @@ Input: \\
 \\
 while not $done$: \\
 \> $done$ = 1 \\
-\> Map $V$ using $E$ as input: Add edge weights in $E$ to $V$ \\
+\> Map $V$ using $E$ as input: Add edge weights in $E$ to data in $V$ \\
 \> \> Input: Key = $E_{ij}$, Value = $w_{ij}$ \\
 \> \> Output: Key = $V_i$, Value = $(V_j, w_{ij})$ \\
 \> Collate $V$: Vertex is key \\
-\> Reduce $V$:  Loop over edges of vertex to update distance to $V_s$ \\
+\> Reduce $V$:  Loop over edges of vertex to update distance from $V_s$ \\
 \> \> Input: Key = $V_i$, MultiValue = $d_i$, edges $(V_j, w_{ij})$, candidate distances $d_j$ \\
 \> \> $d_{min} = {\rm min}(d_i,d_j,d_j,\ldots)$ \\
 \> \> If $d_{min} \ne d_i$: \\
