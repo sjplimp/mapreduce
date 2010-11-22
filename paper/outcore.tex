@@ -49,7 +49,7 @@ KMV pair is passed a flag indicating it received only a portion of the
 values.  Once it has processed them, it can request a new set of
 values from the MR-MPI library, which reads in a new page from disk.
 
-Performing an our-of-core {\it collate()} operation is more complex.
+Performing an out-of-core {\it collate()} operation is more complex.
 Recall that the operation occurs in two stages.  First, keys are
 hashed to ``owning'' processors and the KV pairs are communicated to
 new processors in an all-to-all fashion.  In out-of-core mode, this
@@ -61,7 +61,7 @@ allocates a two-page chunk of memory to receive incoming KV pairs.  On
 average each processor should receive one page of KV pairs; the
 two-page allocation allows for some load imbalance.  If the KV pairs
 are distributed unevenly so that this limit is exceeded, the
-all-to-all communication is performed in smaller, multiple passes
+all-to-all communication is performed in multiple smaller passes
 until the full page contributed by every processor has been
 communicated.  Performing an MPI\_Alltoall(), or using the custom
 all-to-all routines provided by the MR-MPI library, requires
@@ -93,7 +93,8 @@ information needed to construct the output pages of KMV pairs.
 
 \begin{figure}
 \includegraphics[width=\textwidth,angle=-90]{fig_collate2.pdf}
-\caption{\it Multi-pass algorithm for converting KV data to KMV data.
+\caption{\it Multi-pass algorithm for converting KV data to KMV data within
+a processor.
 The vertical lines represent out-of-core data sets.  KV is key/value
 pairs; HT is an in-memory hash table; KMV is key/multivalue pairs.}
 \label{fig:collate}

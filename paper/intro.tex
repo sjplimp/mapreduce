@@ -50,7 +50,7 @@ mid-2009.  We have since worked to optimize several of the library's
 underlying algorithms and to enable its operation in out-of-core mode
 for larger data sets.  These algorithmic improvements are described in
 this paper and are part of the current downloadable version; see
-Section ~\ref{sec:thanks} for details.
+Section~\ref{sec:thanks} for details.
 
 The MapReduce-MPI (MR-MPI) library described in this paper is a
 simple, lightweight implementation of basic MapReduce functionality,
@@ -125,7 +125,7 @@ parallel program calling the MR-MPI library will hang or crash if a
 processor goes away.  Unlike Hadoop, and its file system (HDFS) which
 provides data redundancy, the MR-MPI library reads and writes simple,
 flat files.  It can use local per-processor disks, or a parallel file
-system, if available, but these typically provide no data redundancy.
+system, if available, but these typically do not provide data redundancy.
 
 \end{itemize}
 
@@ -136,7 +136,7 @@ operations in the MR-MPI library.  Section~\ref{sec:graph} briefly
 describes the formulation of several common graph algorithms as
 MapReduce operations.  Section~\ref{sec:results} gives performance
 results for these algorithms running on a parallel cluster for graphs
-ranging in size from 8 million to 2 billion edges; we highlight the
+ranging in size from 8 million to 2 billion edges. We highlight the
 performance and complexity trade-offs of a MapReduce approach versus
 other more special-purpose algorithms.  The latter generally perform
 better but are harder to implement efficiently on distributed memory

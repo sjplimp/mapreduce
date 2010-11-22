@@ -45,7 +45,7 @@ by any processor.  Each processor hashes each of its keys to determine
 which processor will ``own'' it.  The $k$-byte length key is hashed
 into a 32-bit value whose remainder modulo $P$ processors is the
 owning processor rank.  Alternatively, the user can provide a hash
-function which converts the key into a processor rank.  Each processor
+function that converts the key into a processor rank.  Each processor
 then sends each of its KV pairs to the owning processor.
 
 After receiving new KV pairs, the second stage is an on-processor
@@ -107,8 +107,8 @@ user's program can string them together in various ways to construct
 useful MapReduce algorithms.  For example, output from a {\it
 reduce()} can serve as input to a subsequent {\it map()} or {\it
 collate()}.  Likewise, data can be partitioned across multiple
-MapReduce (MR) objects, each with their own set of KV pairs.  For
-example, as will be illustrated in Section ~\ref{sec:graph}, one MR
+MapReduce (MR) objects, each with its own set of KV pairs.  For
+example, as will be illustrated in Section~\ref{sec:graph}, one MR
 object can store the edges of a graph, and another its vertices.  KV
 pairs from multiple MR objects can be combined to perform new
 sequences of {\it map()}, {\it collate()}, and {\it reduce()}

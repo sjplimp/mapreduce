@@ -3,7 +3,7 @@
 
 We begin with a MapReduce procedure for creating large, sparse,
 randomized graphs, since they are the input for the algorithms
-discussed below.  R-MAT matrices ~\cite{RMAT} are recursively
+discussed below.  R-MAT matrices~\cite{RMAT} are recursively
 generated graphs with power-law degree distributions.  They are
 commonly used to represent web and social networks.  The user
 specifies six parameters that define the graph: the number of
@@ -32,8 +32,7 @@ while $M_{\rm remain} > 0$: \\
 \> $M_{\rm remain} = M - N_{kv}$ \\
 \\
 Output: \\
-\> MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL \\
-
+\> MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL 
   \end{tabbing}
  \end{minipage}}\end{center}
 
@@ -49,7 +48,7 @@ of the desired edges.  A single random edge $(V_i,V_j)$ is computed
 recursively as follows.  Pick a random quadrant of the $G$ matrix with
 relative probabilities $a$, $b$, $c$, and $d$.  Treat the chosen
 quadrant as a sub-matrix and select a random quadrant within it, in
-the same manner.  Repeat this process $n$ times where $N = 2^n$.  At
+the same manner.  Perform this process a total of $n$ times where $N = 2^n$.  At
 the end of the recursion, the final ``quadrant'' is a single non-zero
 matrix element $G_{ij}$.
 
@@ -57,8 +56,8 @@ Though $G$ is very sparse, the {\it map()} typically generates some
 small number of duplicate edges.  The {\it collate()} and {\it
 reduce()} remove the duplicates.  The entire map-collate-reduce
 sequence is repeated until the number of resulting key/value (KV)
-pairs $N_{kv} = M$.  For reasonably sparse graphs this typically takes
-only a few iterations.
+pairs $N_{kv} = M$.  For reasonably sparse graphs,
+only a few iterations are typically needed.
 
 Note that the degree distribution of vertices in the graph depends on
 the choice of parameters $a$, $b$, $c$, $d$.  If one of the four
@@ -109,8 +108,7 @@ while $M_{\rm remain} > 0$: \\
 \> $M_{\rm remain} = M - N_{kv}$ \\
 \\
 Output: \\
-\> MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL \\
-
+\> MapReduce object $G$ = edges of graph: Key = $(V_i,V_j)$, Value = NULL 
   \end{tabbing}
  \end{minipage}}\end{center}
 
@@ -220,11 +218,10 @@ $*$\> \> Convert $x$:  Key is vertex $i$ \\
 \\
 Output: \\
 \> MapReduce object $x$ = PageRank vector: Key = $i$, Value = $x_i$ = numeric rank 
-
   \end{tabbing}
  \end{minipage}}\end{center}
 
- \caption{\it MapReduce algorithm for PageRank vertex ranking, using 4
+ \caption{\it MapReduce algorithm for PageRank vertex ranking, using four
  MapReduce objects $A$, $MT$, $x$, and $y$.  Pre-aggregating several
  of the MapReduce objects allows several communication intensive {\it
  collate()} operations to be replaced by local {\it convert()}
@@ -297,7 +294,7 @@ A triangle in a graph is any triplet of vertices $(V_i,V_j,V_k)$ where
 the edges $(V_i,V_j), (V_j,V_k), (V_i,V_k)$ exist.  Figure
 \ref{fig:tri} outlines a MapReduce algorithm that enumerates all
 triangles, assuming an input graph $G$ of undirected edges $(V_i,V_j)$
-where $V_i < V_j$ for every edge, i.e. an upper-triangular R-MAT
+where $V_i < V_j$ for every edge, i.e., an upper-triangular R-MAT
 matrix.  This exposition follows the triangle-finding algorithm
 presented in~\cite{Cohen09}.
 
@@ -344,12 +341,11 @@ Input: \\
 	      \> \> \> \> \> Output: Key = $(V_i,V_j,V)$, Value = NULL \\
 \\
 Output: \\
-\> MapReduce object $G$ = triangles in graph: Key = $(V_i,V_j,V_k)$, Value = NULL \\
-
+\> MapReduce object $G$ = triangles in graph: Key = $(V_i,V_j,V_k)$, Value = NULL 
   \end{tabbing}
  \end{minipage}}\end{center}
 
- \caption{\it MapReduce algorithm for triangle enumeration, using 2 MapReduce objects $G$ and $G_0$}
+ \caption{\it MapReduce algorithm for triangle enumeration, using two MapReduce objects $G$ and $G_0$}
 
  \label{fig:tri}
 \end{figure}
@@ -391,7 +387,7 @@ a MapReduce algorithm that labels each vertex in a graph with a
 component ID.  All vertices in the same component are labeled with
 the same ID, which is the ID of some vertex in the component.  We
 assume an input graph $E$ of undirected edges $(V_i,V_j)$.  This
-exposition also follows the connected-component algorithm presented
+exposition follows the connected-component algorithm presented
 in~\cite{Cohen09}, with the addition of logic that load-balances data
 across processors, which is important when one or a few giant
 components exist in the graph.
@@ -444,8 +440,7 @@ Iterate: \\
        \> \> \> Output: Key = $V_i$, Value = $Z_{new}$ \\
 \\
 Output: \\
-\> MapReduce object $V$ = zone assignment of each vertex: Key = $V_i$, Value = $Z_i$ \\
-
+\> MapReduce object $V$ = zone assignment of each vertex: Key = $V_i$, Value = $Z_i$ 
   \end{tabbing}
  \end{minipage}}\end{center}
 
@@ -483,7 +478,7 @@ the winning ID as a value.  If no zone ID changes are emitted, the
 algorithm is finished, and the iterations cease.
 
 The third {\it map()} inverts the vertex/zone KV pairs to become
-zone/vertex KV pairs.  The partitioning logic described in
+zone/vertex KV pairs.  The partitioning logic in
 Figure~\ref{fig:cc} for this step (and subsequent ones) is described
 below.  The fourth {\it map()} adds the changed zone assignments in
 $W$ to the set of KV pairs in $V$.  The fourth {\it collate()} can now
@@ -518,7 +513,7 @@ added to the zone ID, as indicated by the $Z_i^+$ notation in
 Figure~\ref{fig:cc}.  Likewise, if $Z_i$ has been partitioned, the
 fourth {\it map()} emits the KV pair for the zone ID as
 ($Z_i^+$,$Z_{winner}$) instead of as ($Z_i$,$Z_{winner}$).  In this
-case ($Z_i$,$Z_{winner}$), is emitted not once, but $P+1$ times, once
+case, ($Z_i$,$Z_{winner}$) is emitted not once, but $P+1$ times, once
 for each processor, and once as if $Z_i$ had not been partitioned (for
 a reason discussed below).
 
@@ -609,8 +604,7 @@ while $N_{edges}$ in $E > 0$: \\
 \> 4 Collate $E$: Edge as key \\
 \\
 Output: \\
-\> MapReduce object $V$ = maximal independent set vertices: Key = $V_i$, Value = NULL \\
-
+\> MapReduce object $V$ = maximal independent set vertices: Key = $V_i$, Value = NULL 
   \end{tabbing}
  \end{minipage}}\end{center}
 
@@ -647,7 +641,7 @@ which will accumulate MIS vertices as the iterations proceed.
 
 At each iteration, the current set of edges in $E$ is examined to
 identify winning vertices.  Vertices adjacent to winners are flagged
-as losers, and all edges which contain a loser vertex are marked for
+as losers, and all edges that contain a loser vertex are marked for
 removal at the start of the next iteration.  Vertices with all their
 edges marked as losers are also flagged as winners.  At each iteration
 marked edges are removed from the graph, and winning vertices are
@@ -664,7 +658,7 @@ In the second {\it reduce()}, if $V_i$ won the comparison with all its
 neighbor vertices, then it becomes a ``winner'' vertex.  All vertices
 connected to the winner are emitted with $V_i$ tagged with a winner
 flag.  If $V_i$ is not an overall winner, its neighbor vertices are
-emitted without the winner flag on $V_i$..  The second {\it collate()}
+emitted without the winner flag on $V_i$.  The second {\it collate()}
 collects this new information for each vertex.
 
 In the third {\it reduce()}, if any neighbor of $V_i$ was a winner in
@@ -709,7 +703,7 @@ For a distributed graph, global information about edge adjacencies and
 labeled vertices is not available.  Instead, following the
 Bellman-Ford-style algorithm of~\cite{SSSPMapReduce, Bellman58,
 Ford62}, every edge of the graph is visited in each iteration and
-vertex distance are updated.  A MapReduce formulation of this
+vertex distances are updated.  A MapReduce formulation of this
 algorithm, described in Figure~\ref{fig:sssp}, begins with a graph $E$
 of directed edges $(V_i,V_j)$.  As generated by the R-MAT procedure
 discussed earlier, this may include self-edges $(V_i,V_i)$ and loop
@@ -761,8 +755,7 @@ while not $done$: \\
 \\
 Output: \\
 \> MapReduce object $V$ = vertices with distances from source vertex $V_s$: \\
-\> \> Key = $V_i$, Value = $d_i$ \\
-
+\> \> Key = $V_i$, Value = $d_i$ 
   \end{tabbing}
  \end{minipage}}\end{center}
 
@@ -787,7 +780,7 @@ which requires no communication.
 In each iteration of SSSP, typically only a small number of new
 distances are generated.  The enhanced algorithm uses MapReduce object
 $U$ to store these updates.  Only the updates in $U$ are communicated;
-which aggregates them to the same processor that permanently stores
+they are aggregated to the same processor that permanently stores
 the corresponding vertex and its edges.  Thus, the total amount of
 required communication is smaller than in the original algorithm,
 which communicated all graph edges at each iteration.  Updated vertex
@@ -824,8 +817,7 @@ while not $done$: \\
 \\
 Output: \\
 \> MapReduce object $V$ = vertices with distances from source vertex $V_s$: \\
-\> \> Key = $V_i$, Value = $d_i$ \\
-
+\> \> Key = $V_i$, Value = $d_i$ 
   \end{tabbing}
  \end{minipage}}\end{center}
 
