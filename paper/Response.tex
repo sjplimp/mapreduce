@@ -30,7 +30,7 @@ Response to reviewers:
 We thank the reviewers for their careful reading of our paper.  Their
 suggestions helped us improve the clarity of what we discuss, and even
 sparked some new ideas for improving our algorithms.  Below we list
-the Reviewers' comments verbatim.  Our responses are shown in red.
+the Reviewers' comments; our responses are shown in red.
 
 Steve Plimpton and Karen Devine
 
@@ -78,12 +78,12 @@ easier to use than the Trilinos library?  Should higher-level user
 applications be considered?  Can the MapReduce-based inefficiencies be
 isolated more concisely?
 
-\revise{We added some of these comparison points to the final
-``Lessons Learned'' section.  In particular we highlight the
-relatively small line count of the MapReduce algorithms and the
-natural out-of-core ability it provides, as compared for example to
-Trilinos.  The comment with respect to MR inefficiencies is addressed
-below.}
+\revise{We added some of these comparison points to a new section 5.7
+  and to the final ``Lessons Learned'' section.  In particular we
+  highlight the relatively small line count of the MapReduce
+  algorithms and the natural out-of-core ability it provides, as
+  compared for example to Trilinos.  The comment with respect to MR
+  inefficiencies is addressed below.}
 
 The paper does not have a concise "Conclusion", only a "Lessons Learned"
 section.
@@ -132,14 +132,14 @@ is), and Figure 4 at least actually had names for the map-reduce
 objects.
 
 \revise{We agree that our notation in Section 4 was deficient.  I
-couldn't understand some of the deteails when I re-read it!  So we
-significantly re-worked and standardized the notation used in Section
-4 to hopefully describe all the graph algorithms more precisely.  In
-particular we noted which operations are performed with which
-MapReduce objects and their associated key/value data, so that the
-flow of data through each algorithm should be more clear.  A
-discussion of the MR-MPI library's ability to allow creation of
-multiple MapReduce objects was added to Section 2.}
+  couldn't understand some of the details when I re-read it!  So we
+  re-worked and standardized the notation used in Section 4 to
+  hopefully describe all the graph algorithms more precisely.  In
+  particular we noted which operations are performed with which
+  MapReduce objects and their associated key/value data, so that the
+  flow of data through each algorithm should be more clear.  A
+  discussion of the MR-MPI library's ability to allow creation of
+  multiple MapReduce objects was added to Section 2.}
 
 Your performance is quite low when compared to non map/reduce
 implementations of the same algorithm. It would be interesting to know the
