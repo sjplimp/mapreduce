@@ -420,7 +420,7 @@ benchmarks.
 \hline
 Algorithm & R-MAT & R-MAT++ & PageRank & Tri & CC & MIS & SSSP & SSSP++ \\
 \hline
-Lines of code & 208 & 216 & 694 & 367 & 453 & 393 & 505 & 569 \\
+Lines of code & 208 & 216 & 603 & 367 & 453 & 393 & 394 & 448 \\
 Figure & \ref{fig:rmat} & \ref{fig:rmat2} & \ref{fig:pr2} & \ref{fig:tri} & \ref{fig:cc} & \ref{fig:luby} & \ref{fig:sssp} & \ref{fig:sssp2} \\
 \hline
 \end{tabular}
@@ -433,15 +433,15 @@ Figure & \ref{fig:rmat} & \ref{fig:rmat2} & \ref{fig:pr2} & \ref{fig:tri} & \ref
 For comparison, we wrote a parallel distributed-memory R-MAT
 generation code with explicit MPI calls using a different
 (non-MapReduce) algorithm than that of Figures \ref{fig:rmat} and
-\ref{fig:rmat2}.  It required 1006 lines of code, mainly because it
+\ref{fig:rmat2}.  It required 845 lines of code, mainly because it
 must implement the parallelism explicitly, whereas the codes of this
 section relegate that task to the MR-MPI library.  A similar all-MPI
-implementation of the PageRank algorithm required 1206 lines.  By
+implementation of the PageRank algorithm required 718 lines.  By
 contrast an implementation of PageRank using the Trilinos parallel
 linear algebra library (discussed in Section
 \ref{subsec:results_pagerank}) required only 153 lines of code, since
-an entire matrix-vector multiplication can be invoked by a single call
-to Trilinos.  Our collaborators (see Acknowledgments) have a Hadoop
+entire dot-products and matrix-vector multiplications can be invoked by single function calls to
+Trilinos.  Our collaborators (see Acknowledgments) have a Hadoop
 implementation of the SSSP algorithm of Figure \ref{fig:sssp}.  It
 required 697 lines of Java.
 
