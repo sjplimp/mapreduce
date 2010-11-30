@@ -22,6 +22,8 @@
 //              print vertex out-degree histogramming to histofile
 //         -in histofile
 //              print vertex in-degree histogramming to histofile
+//         -l matrixfile
+//              print laplacian of graph in Matrix Market format
 //         -m matrixfile
 //              print graph in Matrix Market format with 1/outdegree field
 //         -mw
@@ -82,6 +84,11 @@ void matrix_write_weights(char *, int, char *, int, int *, KeyValue *, void *);
 double Hash_Max;  //  Global variable needed for linear_hash hash function.
 int linear_hash(char *, int);
 
+void emit_lap_edges(uint64_t , char *, int, char *, int, KeyValue *, void *);
+void add_singletons(uint64_t , char *, int, char *, int, KeyValue *, void *);
+void print_symmetrized(char *, int, char *, int, int *, KeyValue *, void *);
+void print_diagonals(char *, int, char *, int, int *, KeyValue *, void *);
+
 /* ---------------------------------------------------------------------- */
 
 int main(int narg, char **args)
@@ -105,6 +112,7 @@ int main(int narg, char **args)
   char *tsfile = NULL;
   char *outhfile = NULL;
   char *inhfile = NULL;
+  char *lfile = NULL;
   char *mfile = NULL;
   bool mfile_weights = 0;
   char *hfile = NULL;
@@ -142,6 +150,16 @@ int main(int narg, char **args)
       int n = strlen(args[iarg+1]) + 1;
       tsfile = new char[n];
       strcpy(tsfile,args[iarg+1]);
+      iarg += 2;
+    } else if (strcmp(args[iarg],"-l") == 0) {
+      // Generate a matrix-market output file with Laplacian.
+      if (iarg+2 > narg) {
+        flag = 1;
+        break;
+      }
+      int n = strlen(args[iarg+1]) + 1;
+      lfile = new char[n];
+      strcpy(lfile,args[iarg+1]);
       iarg += 2;
     } else if (strcmp(args[iarg],"-m") == 0) {
       // Generate a matrix-market output file.
@@ -201,7 +219,7 @@ int main(int narg, char **args)
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
-  if (convertflag == 0 && mfile) {
+  if (convertflag == 0 && (mfile || lfile)) {
     if (me == 0) printf("Must convert vertex values if output matrix\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
@@ -345,7 +363,6 @@ int main(int narg, char **args)
     delete mrout;
     if (fp[0]) fclose(fp[0]);
   }
-  if (mrvert) delete mrvert;
 
   MPI_Barrier(MPI_COMM_WORLD);
   tnow = MPI_Wtime();
@@ -447,6 +464,65 @@ int main(int narg, char **args)
   tnow = MPI_Wtime();
   if (me == 0) printf("Time for histos:  %g secs\n", tnow - tprev);
   tprev = tnow;
+
+  // output a Laplacian matrix in Matrix Market file
+  // one-line header + one chunk per proc
+
+  if (lfile) {
+
+    if (me == 0) printf("Generating Laplacian matrix-market file...\n");
+
+    char fname[128];
+#ifndef KEEP_OUTPUT
+    sprintf(fname,"%s/%s.%d",MYLOCALDISK,lfile,me);
+#else
+    sprintf(fname,"%s.%d",lfile,me);
+#endif
+    FILE *fp = fopen(fname, "w");
+
+    // Symmetrize the matrix.
+    // For each edge (i,j), store (i,j) if i < j and (j,i) if j < i.
+    // Automatically removes self-edges.
+    
+    MapReduce *mrtmp = new MapReduce(MPI_COMM_WORLD);
+    mrtmp->map(mredge, emit_lap_edges, NULL);
+
+    uint64_t halfedges = mrtmp->collate(NULL);
+
+    // Print the symmetrized edges (i,j) and (j,i)
+    // Emit a value for each i, j to count degrees of symmetrized graph.
+    mrtmp->reduce(print_symmetrized, fp);
+
+    // Add an entry for each vertex to catch degrees of singletons.
+    mrtmp->map(mrvert, add_singletons, NULL, 1);
+
+    mrtmp->collate(NULL);
+ 
+    // Print diagonal entries of laplacian matrix (nvalues - 1).
+    mrtmp->reduce(print_diagonals, fp);
+
+    delete mrtmp;
+    fclose(fp);
+
+    if (me == 0) {
+      char fname[254];
+#ifndef KEEP_OUTPUT
+      sprintf(fname,"%s/%s.header",MYLOCALDISK,lfile);
+#else
+      sprintf(fname,"%s.header",lfile);
+#endif
+
+      FILE *fp = fopen(fname,"w");
+      fprintf(fp,"%ld %ld %ld\n",nverts,nverts,2*halfedges+nverts);
+      fclose(fp);
+    }
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  tnow = MPI_Wtime();
+  if (me == 0) printf("Time for Laplacian mtx:  %g secs\n", tnow - tprev);
+  tprev = tnow;
+  if (mrvert) delete mrvert;
 
   // output a Matrix Market file
   // one-line header + one chunk per proc
@@ -812,4 +888,83 @@ int linear_hash(char *key, int keybytes)
   static int np=-1;
   if (np < 0) MPI_Comm_size(MPI_COMM_WORLD, &np);
   return ((int) ((((double) (v->v-1)) / Hash_Max) * (double) np));
+}
+
+/* ----------------------------------------------------------------------
+   emit_lap_edges map() function
+   Given a MapReduce object of edges (i,j), emit
+      (i,j) if i < j
+      (j,i) if j < i
+   Self-edges are automatically removed.
+   Input:  Key:  V_i   Value:  {V_j w_ij}
+   Output:  Key:  {V_i V_j}  Value:  NULL
+------------------------------------------------------------------------*/
+void emit_lap_edges(uint64_t itask, char *key, int keybytes, char *value,
+                    int valuebytes, KeyValue *kv, void *ptr)
+{
+  iVERTEX vi = *((iVERTEX *) key);
+  iEDGE *edge = (iEDGE *) value;
+  iVERTEX vj = edge->v;
+  iVERTEX newkey[2];
+
+  if (vi < vj) {
+    newkey[0] = vi;
+    newkey[1] = vj;
+    kv->add((char *) newkey, 2 * sizeof(iVERTEX), NULL, 0);
+  }
+  else if (vj < vi) {
+    newkey[1] = vi;
+    newkey[0] = vj;
+    kv->add((char *) newkey, 2 * sizeof(iVERTEX), NULL, 0);
+  }
+}
+
+/* ----------------------------------------------------------------------
+   print_symmetrized reduce() function
+   input KMV: [Vi,Vj], NULLs
+   Write each edge twice to file for symmetry (i,j) and (j,i)
+   Emit each vertex once for counting degrees of laplacian matrix.
+------------------------------------------------------------------------- */
+void print_symmetrized(char *key, int keybytes, char *multivalue,
+                       int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  FILE *fp = (FILE *) ptr;
+  iVERTEX *vi = (iVERTEX *) key;
+  iVERTEX *vj = (iVERTEX *) (key + sizeof(iVERTEX));
+
+  fprintf(fp, "%d %d -1.\n", vi->v, vj->v);
+  fprintf(fp, "%d %d -1.\n", vj->v, vi->v);
+
+  kv->add((char *) vi, sizeof(iVERTEX), NULL, 0);
+  kv->add((char *) vj, sizeof(iVERTEX), NULL, 0);
+}
+
+/* ----------------------------------------------------------------------
+   add_singletons map() function
+   Need to have an entry for each vertex in Laplacian matrix; add in the
+   vertices here so we can have entries for singletons.
+   input KMV: Key = Vi (hash ID)  Value = Vi in [1:N]
+   output:  Key = Vi in [1:N]  Value = NULL
+------------------------------------------------------------------------- */
+void add_singletons(uint64_t itask, char *key, int keybytes, char *value,
+                    int valuebytes, KeyValue *kv, void *ptr)
+{
+  iVERTEX *v = (iVERTEX *) value;
+  kv->add((char *) v, sizeof(iVERTEX), NULL, 0);
+}
+
+/* ----------------------------------------------------------------------
+   print_diagonals reduce() function
+   input KMV: [Vi], NULLs
+   Print each diagonal entry:   Vi, Vi, nvalues - 1
+   nvalues = degree of Vi in Laplacian matrix + 1 for entries 
+   created in add_singletons.
+------------------------------------------------------------------------- */
+void print_diagonals(char *key, int keybytes, char *multivalue,
+                     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+{
+  FILE *fp = (FILE *) ptr;
+  iVERTEX *vi = (iVERTEX *) key;
+  
+  fprintf(fp, "%d %d %d\n", vi->v, vi->v, nvalues-1);
 }
