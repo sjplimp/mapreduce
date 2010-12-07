@@ -60,11 +60,12 @@ int main(int narg, char **args)
   // generate RMAT matrix, make it upper triangular with no diagonal elements
 
   int niterate;
-  RMATGenerate rmat(in.nvert,in.nedge,in.a,in.b,in.c,in.d,in.fraction,in.seed);
+  RMATGenerate rmat(in.nvert,in.nedge,in.a,in.b,in.c,in.d,in.fraction,in.seed,
+		    MPI_COMM_WORLD);
   rmat.run(mre,niterate);
 
   uint64_t newedge;
-  MatrixUpper upper;
+  MatrixUpper upper(MPI_COMM_WORLD);
   upper.run(mre,newedge);
 
   // MRV for MIS vertices

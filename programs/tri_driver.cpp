@@ -1,4 +1,5 @@
 // Benchmark to enumerate triangles in an RMAT matrix
+//
 // Syntax: tri_driver -n 10 -e 8 -abcd 0.25 0.25 0.25 0.25 -f 0.8 -s 587283
 //         -n = order of matrix = 2^n, no default
 //         -e = # of edges per row, no default
@@ -59,11 +60,12 @@ int main(int narg, char **args)
   // generate RMAT matrix, make it upper triangular with no diagonal elements
 
   int niterate;
-  RMATGenerate rmat(in.nvert,in.nedge,in.a,in.b,in.c,in.d,in.fraction,in.seed);
+  RMATGenerate rmat(in.nvert,in.nedge,in.a,in.b,in.c,in.d,in.fraction,in.seed,
+		    MPI_COMM_WORLD);
   rmat.run(mre,niterate);
 
   uint64_t newedge;
-  MatrixUpper upper;
+  MatrixUpper upper(MPI_COMM_WORLD);
   upper.run(mre,newedge);
 
   // MRT for triangles

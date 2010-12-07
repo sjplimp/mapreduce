@@ -1,15 +1,13 @@
 /* ----------------------------------------------------------------------
    generate an RMAT matrix via marble-drop algorithm
-   constructor inputs:
-     Nvert,Nedge = size of matrix
-     a,b,c,d,fraction = RMAT params
-     seed = random # seed = positive int
-   run() inputs:
-     mr = empty MR object
-   run() outputs:
-     mr = one KV per unique edge = (Eij,NULL)
-     niterate = # of iterations required
-     return elapsed time
+   Nvert,Nedge = size of matrix to construct
+   a,b,c,d,fraction = RMAT params
+   seed = random # seed = positive int
+   input MR = empty
+   output MR = one KV per unique edge = Eij : NULL, Eij = Vi Vj
+   Vi are from 0 to Nvert-1
+   niterate = # of iterations required
+   datatypes: Vi = uint64
  ------------------------------------------------------------------------- */
 
 #include "mpi.h"
@@ -27,11 +25,8 @@ using MAPREDUCE_NS::KeyValue;
 
 RMATGenerate::RMATGenerate(uint64_t nvert_in, uint64_t nedge_in,
 			   double a_in, double b_in, double c_in, double d_in,
-			   double fraction_in, int seed)
+			   double fraction_in, int seed, MPI_Comm world_in)
 {
-  MPI_Comm_rank(MPI_COMM_WORLD,&me);
-  MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-
   nvert = nvert_in;
   nedge = nedge_in;
   a = a_in;
@@ -39,18 +34,22 @@ RMATGenerate::RMATGenerate(uint64_t nvert_in, uint64_t nedge_in,
   c = c_in;
   d = d_in;
   fraction = fraction_in;
-  
+  world = world_in;
+
+  MPI_Comm_rank(world,&me);
+  MPI_Comm_size(world,&nprocs);
+
   if (a + b + c + d != 1.0) {
     if (me == 0) printf("ERROR: RMATGenerate a,b,c,d must sum to 1\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
+    MPI_Abort(world,1);
   }
   if (fraction < 0.0 || fraction >= 1.0) {
     if (me == 0) printf("ERROR: RMATGenerate fraction must be < 1\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
+    MPI_Abort(world,1);
   }
   if (seed <= 0) {
     if (me == 0) printf("ERROR: RMATGenerate seed must be positive int\n");
-    MPI_Abort(MPI_COMM_WORLD,1);
+    MPI_Abort(world,1);
   }
 
   uint64_t one = 1;
@@ -58,7 +57,7 @@ RMATGenerate::RMATGenerate(uint64_t nvert_in, uint64_t nedge_in,
   while ((one << nlevels) < nvert) nlevels++;
   if ((one << nlevels) != nvert) {
     if (me == 0) printf("ERROR: RMATGenerate nvert must be power of 2");
-    MPI_Abort(MPI_COMM_WORLD,1);
+    MPI_Abort(world,1);
   }
 
   srand48(seed+me);
@@ -70,7 +69,7 @@ double RMATGenerate::run(MapReduce *mr, int &niterate)
 {
   // loop until desired number of unique nonzero entries
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(world);
   double tstart = MPI_Wtime();
 
   niterate = 0;
@@ -84,7 +83,7 @@ double RMATGenerate::run(MapReduce *mr, int &niterate)
     ngenerate = nedge - nunique;
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(world);
   double tstop = MPI_Wtime();
 
   return tstop-tstart;

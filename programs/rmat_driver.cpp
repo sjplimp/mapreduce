@@ -50,7 +50,8 @@ int main(int narg, char **args)
   // generate RMAT matrix
 
   int niterate;
-  RMATGenerate rmat(in.nvert,in.nedge,in.a,in.b,in.c,in.d,in.fraction,in.seed);
+  RMATGenerate rmat(in.nvert,in.nedge,in.a,in.b,in.c,in.d,in.fraction,in.seed,
+		    MPI_COMM_WORLD);
   double time = rmat.run(mr,niterate);
 
   if (me == 0)

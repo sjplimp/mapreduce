@@ -1,6 +1,7 @@
 #ifndef RMAT_GENERATE_H
 #define RMAT_GENERATE_H
 
+#include "mpi.h"
 #include "stdint.h"
 
 namespace MAPREDUCE_NS {
@@ -11,7 +12,7 @@ namespace MAPREDUCE_NS {
 class RMATGenerate {
  public:
   RMATGenerate(uint64_t, uint64_t,
-	       double, double, double, double, double, int);
+	       double, double, double, double, double, int, MPI_Comm);
   double run(MAPREDUCE_NS::MapReduce *, int &);
 
  private:
@@ -19,13 +20,14 @@ class RMATGenerate {
   double a,b,c,d,fraction;
   int seed;
 
+  MPI_Comm world;
   int me,nprocs;
-  MAPREDUCE_NS::MapReduce *mr;
   int nlevels;
   uint64_t ngenerate;
 
+  typedef uint64_t VERTEX;
   typedef struct {
-    uint64_t vi,vj;
+    VERTEX vi,vj;
   } EDGE;
 
   static void map_rmat_edge(int, MAPREDUCE_NS::KeyValue *, void *);

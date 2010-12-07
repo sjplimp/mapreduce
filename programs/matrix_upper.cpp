@@ -1,17 +1,15 @@
 /* ----------------------------------------------------------------------
-   convert matrix to upper triangular with no diagonal elements
+   convert edge matrix to upper triangular with no diagonal elements
+   input MR = Eij : value, Eij = Vi Vj
    Eij with Vi < Vj is left alone
    Eij with Vi > Vj is flipped to Eji
    Eij with Vi = Vi is deleted
-   any duplicate Eij are deleted
-   run() inputs:
-     mr = one KV per edge = (Eij,NULL)
-   run() outputs:
-     mr = one KV per edge = (Eij,NULL), with Vi < Vj
-     nedge = # of non-zeroes in final mr
-     return elapsed time
+   collate and reduce to remove any Eij duplicates
+   output MR = Eij : NULL
+   datatypes: Vi = uint64
  ------------------------------------------------------------------------- */
 
+#include "mpi.h"
 #include "stdint.h"
 #include "stdlib.h"
 #include "matrix_upper.h"
@@ -23,20 +21,23 @@ using MAPREDUCE_NS::KeyValue;
 
 /* ---------------------------------------------------------------------- */
 
+MatrixUpper::MatrixUpper(MPI_Comm world_in)
+{
+  world = world_in;
+}
+
+/* ---------------------------------------------------------------------- */
+
 double MatrixUpper::run(MapReduce *mr, uint64_t &nedge)
 {
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(world);
   double tstart = MPI_Wtime();
 
-  // eliminate duplicate edges, if both I,J and J,I exist
-  // eliminate diagonal self edges, I,I
-  // results in ((Vi,Vj),NULL) with all Vi < Vj
-
-  mr->map(mr,map_invert_drop,NULL);
+  mr->map(mr,map,NULL);
   mr->collate(NULL);
-  nedge = mr->reduce(reduce_cull,NULL);
+  nedge = mr->reduce(reduce,NULL);
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(world);
   double tstop = MPI_Wtime();
 
   return tstop-tstart;
@@ -44,9 +45,9 @@ double MatrixUpper::run(MapReduce *mr, uint64_t &nedge)
 
 /* ---------------------------------------------------------------------- */
 
-void MatrixUpper::map_invert_drop(uint64_t itask, char *key, int keybytes, 
-				  char *value, int valuebytes, 
-				  KeyValue *kv, void *ptr)
+void MatrixUpper::map(uint64_t itask, char *key, int keybytes, 
+		      char *value, int valuebytes, 
+		      KeyValue *kv, void *ptr)
 {
   EDGE *edge = (EDGE *) key;
   if (edge->vi < edge->vj) kv->add(key,keybytes,NULL,0);
@@ -60,9 +61,9 @@ void MatrixUpper::map_invert_drop(uint64_t itask, char *key, int keybytes,
 
 /* ---------------------------------------------------------------------- */
 
-void MatrixUpper::reduce_cull(char *key, int keybytes,
-			      char *multivalue, int nvalues,
-			      int *valuebytes, KeyValue *kv, void *ptr)
+void MatrixUpper::reduce(char *key, int keybytes,
+			 char *multivalue, int nvalues,
+			 int *valuebytes, KeyValue *kv, void *ptr)
 {
   kv->add(key,keybytes,NULL,0);
 }

@@ -116,6 +116,20 @@ cc_driver:	cc_driver.o rmat_generate.o cc_find.o cc_stats.o $(LIB)
 	$(LINK) $(LINKFLAGS) cc_driver.o rmat_generate.o \
 	cc_find.o cc_stats.o $(USRLIB) $(SYSLIB) -o cc_driver
 
+# benchmark for SGI algorithm
+
+sgi_driver:	sgi_driver.o read_mm_edge.o read_mm_vert.o \
+		rmat_generate.o matrix_upper.o \
+		vert_generate.o graph_label.o sgi.o $(LIB)
+	$(LINK) $(LINKFLAGS) sgi_driver.o read_mm_edge.o read_mm_vert.o \
+		rmat_generate.o \
+		matrix_upper.o vert_generate.o graph_label.o sgi.o \
+		$(USRLIB) $(SYSLIB) -o sgi_driver
+
+sgi_check:	sgi_check.o $(LIB)
+	$(LINK) $(LINKFLAGS) sgi_check.o \
+		$(USRLIB) $(SYSLIB) -o sgi_check
+
 clean:
 	rm *.o *.d
 	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp sssp_v2 stress_test1 stress_test2 wordfreq

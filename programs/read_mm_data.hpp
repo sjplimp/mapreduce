@@ -38,6 +38,7 @@ public:
   ReadMMData(int narg, char **args, bool invwtflag=false);
   ~ReadMMData() {};
   void run(MapReduce **, MapReduce **, uint64_t*, uint64_t*, uint64_t*);
+  void run(MapReduce *, MapReduce *, uint64_t*, uint64_t*, uint64_t*);
 
   char *filename;    // If -ff option is used, onefile contains the filename.
   int vertexsize;    // Use 8-bytes or 16-bytes for one vertex hashkey ID?
@@ -168,6 +169,64 @@ void ReadMMData::run(
   }
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// run:  Read the input files and generate MapReduce objects with unique
+//       vertices and edges.
+void ReadMMData::run(
+  MapReduce *mrvert,           // Output:  Unique vertices
+                               //          Key = Vi hashkey ID; value = NULL.
+                               //          Aggregated by Vi.
+  MapReduce *mredge,           // Output:  Unique edges
+                               //          Key = Vi hashkey ID; 
+                               //          Value = {Vj hashkey ID, Wij} for
+                               //          edge Vi->Vj with weight Wij
+                               //          Aggregated by Vi.
+  uint64_t *nverts,            // Output:  Number of unique non-zero vertices.
+  uint64_t *nrawedges,         // Output:  Number of edges in input files.
+  uint64_t *nedges             // Output:  Number of unique edges in input file.
+) 
+{
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tstart = MPI_Wtime();
+
+  if (me == 0) printf("Reading input files %s...\n", filename);
+  *nrawedges = mredge->map(np,1,&filename,'\n',80,&readMM_fileread,this);
+  int tmp = N;
+  MPI_Allreduce(&tmp, &N, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  double tmap = MPI_Wtime();
+  timeMap = tmap - tstart;
+
+  // mrvert = unique non-zero vertices
+
+  if (me == 0) printf("Finding unique vertices...\n");
+  *nverts = mrvert->map(np,&readMM_vertex_emit,this);
+  mrvert->aggregate(NULL);
+
+  if (me == 0) printf("        vertex_unique complete.\n");
+
+  // mredge = unique I->J edges with I and J non-zero + edge weights
+  //          (computed as number of occurrences of I->J in input OR 
+  //           1/number of occurrences of I->J).
+  // no longer need mrraw
+  if (me == 0) printf("Finding unique edges...\n");
+
+  mredge->collate(NULL);
+  // Use same reducer as FB data.
+  *nedges = mredge->reduce(&readFB_edge_unique<ReadMMData>,this);  
+  mredge->aggregate(NULL);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  timeUnique = MPI_Wtime() - tmap;
+
+  if (me == 0) {
+    cout << "ReadMM:  Number of edges:            " << *nrawedges << endl;
+    cout << "ReadMM:  Number of unique edges:     " << *nedges << endl;
+    cout << "ReadMM:  Number of unique vertices:  " << *nverts << endl;
+  }
+}
+
 /* ----------------------------------------------------------------------
    mm_vertex_emit map() function
    Must be called with number of tasks == number of processors.
@@ -220,11 +279,30 @@ static void readMM_fileread(int itask, char *bytes, int nbytes,
   int vi, vj;
   double nzv;
 
-  char line[81];
-  int linecnt = 0;
-
   int vjidx = 1;
   if (rfp->vertexsize == 16) vjidx = 2;
+
+  int skip = 0;
+  if (itask == 0) skip = 3;
+  int nlines = 0;
+
+  while (1) {
+    sscanf(bytes,"%d %d %lf",&vi,&vj,&nzv);
+    bytes = strchr(bytes,'\n');
+    if (!bytes) return;
+    bytes += 1;
+    nlines++;
+    if (nlines > skip) {
+      edge[0] = vi;
+      edge[vjidx] = vj;
+      kv->add((char *)edge, 2*rfp->vertexsize, NULL, 0);
+      PRINT_MAP(edge, rfp->vertexsize);
+    } else if (nlines == 3) {
+      rfp->N = vi;
+    }
+  }
+
+  /*
 
   for (int k = 0; k < nbytes-1; k++) {
     line[linecnt++] = bytes[k];
@@ -252,6 +330,8 @@ static void readMM_fileread(int itask, char *bytes, int nbytes,
       linecnt = 0;
     }
   }
+
+  */
 }
 
 #endif
