@@ -37,6 +37,7 @@
 #include "test_cc_common.h"
 
 #include <map>
+#include <iostream>
 
 using namespace std;
 using namespace MAPREDUCE_NS;
