@@ -20,6 +20,7 @@
 #include "stdint.h"
 #include "stdlib.h"
 #include "string.h"
+#include "blockmacros.h"
 #include "sgi.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
@@ -298,18 +299,32 @@ void SGI::reduce1a(char *key, int keybytes,
   X2VALUE newvalue;
   int i;
 
+  uint64_t nvalues_total;
+  CHECK_FOR_BLOCKS(multivalue,valuebytes,nvalues,nvalues_total)
+
   // find Wi
 
   LABEL wi;
+  int flag = 0;
+
+  BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
+
   for (i = 0; i < nvalues; i++)
     if (valuebytes[i] == sizeof(LABEL)) {
       wi = *(LABEL *) &multivalue[i*sizeof(X1VALUE)];
+      flag = 1;
       break;
     }
 
-  if (i == nvalues) return;
+  if (flag) break;
+
+  END_BLOCK_LOOP
+
+  if (!flag) return;
 
   // emit all edges flipped
+
+  BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
 
   int offset = 0;
   for (i = 0; i < nvalues; i++) {
@@ -323,6 +338,8 @@ void SGI::reduce1a(char *key, int keybytes,
     }
     offset += valuebytes[i];
   }
+
+  END_BLOCK_LOOP
 }
 
 /* ---------------------------------------------------------------------- */
@@ -336,19 +353,33 @@ void SGI::reduce1b(char *key, int keybytes,
   X3VALUE newvalue;
   int i;
 
+  uint64_t nvalues_total;
+  CHECK_FOR_BLOCKS(multivalue,valuebytes,nvalues,nvalues_total)
+
   // find Wi
 
   LABEL wi;
+  int flag = 0;
+
+  BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
+
   for (i = 0; i < nvalues; i++)
     if (valuebytes[i] == sizeof(LABEL)) {
       wi = *(LABEL *) &multivalue[i*sizeof(X2VALUE)];
+      flag = 1;
       break;
     }
 
-  if (i == nvalues) return;
+  if (flag) break;
+
+  END_BLOCK_LOOP
+
+  if (!flag) return;
 
   // emit all edges twice, forward and reverse
   // NOTE: need to exclude edges that match nothing in tour
+
+  BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
 
   int offset = 0;
   for (i = 0; i < nvalues; i++) {
@@ -371,6 +402,8 @@ void SGI::reduce1b(char *key, int keybytes,
     }
     offset += valuebytes[i];
   }
+
+  END_BLOCK_LOOP
 }
 
 /* ---------------------------------------------------------------------- */
@@ -391,6 +424,11 @@ void SGI::reduce3(char *key, int keybytes,
   int vertexsize = sizeof(VERTEX);
   if (itour == 1) vertexsize = sizeof(EDGE);
 
+  if (!multivalue) {
+    printf("ERROR: Tour + vertex reduce exceeds one block\n");
+    MPI_Abort(sgi->world,1);
+  }
+
   // ntour = # of values that are current tours
   // nvert = # of values that are new vertices to add to tours
 
@@ -399,6 +437,8 @@ void SGI::reduce3(char *key, int keybytes,
   for (int i = 0; i < nvalues; i++)
     if (valuebytes[i] == vertexsize) nvert++;
     else ntour++;
+
+  if (nvert == 0) return;
 
   // double loop over tour and vertex values
   // for efficiency, put smaller loop on outside
