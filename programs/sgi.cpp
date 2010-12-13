@@ -83,6 +83,11 @@ double SGI::run(MapReduce *mrv, MapReduce *mre,
   // debug
   //mrs->map(mrs,sprint,this,1);
 
+  // debug
+
+  mry->verbosity = 2;
+  mrs->verbosity = 2;
+
   // generate all matches as loop over edges of tour
 
   for (int k = 1; k < ntour; k++) {
