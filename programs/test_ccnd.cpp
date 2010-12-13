@@ -29,7 +29,7 @@
 #include "keyvalue.h"
 #include "random_mars.h"
 #include "assert.h"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "localdisks.hpp"
 
 #include "test_cc_common.h"

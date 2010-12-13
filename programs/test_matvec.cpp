@@ -35,7 +35,7 @@
 #include "keyvalue.h"
 #include "mrmatrix.h"
 #include "mrvector.h"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "localdisks.hpp"
 #include <assert.h>
 

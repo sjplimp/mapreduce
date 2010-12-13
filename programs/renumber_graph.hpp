@@ -21,7 +21,7 @@
 #include "string.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "shared.hpp"
 
 
@@ -116,7 +116,7 @@ void edge_label1(char *key, int keybytes, char *multivalue,
   if (i < nvalues) {
     id.v = - (*((iVERTEX *) &multivalue[offset])).v;
     found = 1;
-    BREAK_BLOCK_LOOP;
+    BREAK_BLOCK_LOOP
   }
 
   END_BLOCK_LOOP
@@ -181,7 +181,7 @@ void edge_label2(char *key, int keybytes, char *multivalue,
   }
   if (i < nvalues) {
     id = *((iVERTEX *) &multivalue[offset]);
-    BREAK_BLOCK_LOOP;
+    BREAK_BLOCK_LOOP
   }
 
   END_BLOCK_LOOP

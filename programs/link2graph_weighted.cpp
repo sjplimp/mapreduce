@@ -58,7 +58,7 @@
 #include "string.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "localdisks.hpp"
 #include "renumber_graph.hpp"
 #include "read_fb_data.hpp"
@@ -746,7 +746,7 @@ void matrix_write_inverse_degree(char *key, int keybytes, char *multivalue,
   if (i < nvalues) {
     int tmp = *((int *) &multivalue[offset]);
     inverse_outdegree = -1.0/tmp;
-    BREAK_BLOCK_LOOP;
+    BREAK_BLOCK_LOOP
   }
 
   END_BLOCK_LOOP

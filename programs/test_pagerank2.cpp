@@ -30,7 +30,7 @@
 #include "keyvalue.h"
 #include "mrvector2.hpp"
 #include "mrmatrix2.hpp"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "localdisks.hpp"
 #include "read_fb_data.hpp"
 #include "read_mm_data.hpp"

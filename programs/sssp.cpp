@@ -15,7 +15,7 @@
 #include <float.h>
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "read_fb_data.hpp"
 #include "read_mm_data.hpp"
 #include "rmat.hpp"

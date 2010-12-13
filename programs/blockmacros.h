@@ -1,8 +1,8 @@
 // Code to simplify use of multi-page KMVs
 // Karen Devine, March 2010
 
-#ifndef _BLOCKMACROS_HPP
-#define _BLOCKMACROS_HPP
+#ifndef _BLOCKMACROS_H
+#define _BLOCKMACROS_H
 
 // Macros to loop over blocks when reduce multivalues may span more than 1 block
 // Use CHECK_FOR_BLOCKS initially to get # of blocks in the multivalue
@@ -25,5 +25,7 @@
                                              &(multivalue),&(valuebytes)); 
 
 #define END_BLOCK_LOOP } 
+
+#define BREAK_BLOCK_LOOP break;
 
 #endif

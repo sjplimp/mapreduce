@@ -9,7 +9,7 @@
 #include "string.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "localdisks.hpp"
 
 using namespace MAPREDUCE_NS;

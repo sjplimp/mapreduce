@@ -32,7 +32,7 @@
 #include <sys/stat.h>
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "localdisks.hpp"
 #include <assert.h>
 

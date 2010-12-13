@@ -35,7 +35,7 @@
 #include "mrvector.h"
 #include <assert.h>
 #include <unistd.h>
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "localdisks.hpp"
 
 using namespace MAPREDUCE_NS;

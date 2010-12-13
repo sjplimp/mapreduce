@@ -18,7 +18,7 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 #include "mrvector2.hpp"
-#include "blockmacros.hpp"
+#include "blockmacros.h"
 #include "mrall2.h"
 #include "localdisks.hpp"
 
@@ -299,7 +299,7 @@ static void mrm_terms(char *key, int keybytes,
       break;
     mvptr += valuebytes[k];
   }
-  if (k < nvalues) BREAK_BLOCK_LOOP;
+  if (k < nvalues) BREAK_BLOCK_LOOP
 
   END_BLOCK_LOOP
   
