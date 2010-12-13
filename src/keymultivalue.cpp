@@ -1445,9 +1445,21 @@ void KeyMultiValue::write_page()
   }
 
   uint64_t fileoffset = pages[npage].fileoffset;
-  fseek(fp,fileoffset,SEEK_SET);
-  fwrite(page,pages[npage].filesize,1,fp);
+  int seekflag = fseek(fp,fileoffset,SEEK_SET);
+  int nwrite = fwrite(page,pages[npage].filesize,1,fp);
   mr->wsize += pages[npage].filesize;
+
+  if (seekflag) {
+    char str[128];
+    sprintf(str,"Bad KMV fwrite/fseek on proc %d: %u",me,fileoffset);
+    error->warning(str);
+  }
+  if (nwrite != 1) {
+    char str[128];
+    sprintf(str,"Bad KMV fwrite on proc %d: %d %u",
+	    me,nwrite,pages[npage].filesize);
+    error->warning(str);
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -1465,9 +1477,22 @@ void KeyMultiValue::read_page(int ipage, int writeflag)
   }
 
   uint64_t fileoffset = pages[ipage].fileoffset;
-  fseek(fp,fileoffset,SEEK_SET);
-  fread(page,pages[ipage].filesize,1,fp);
+  int seekflag = fseek(fp,fileoffset,SEEK_SET);
+  int nread = fread(page,pages[ipage].filesize,1,fp);
   mr->rsize += pages[ipage].filesize;
+
+  if (seekflag) {
+    char str[128];
+    sprintf(str,"Bad KMV fread/fseek on proc %d: %u",me,fileoffset);
+    error->warning(str);
+  }
+  if (nread != 1 || ferror(fp)) {
+    char str[128];
+    sprintf(str,"Bad KMV fread on proc %d: %d %u",
+	    me,nread,pages[ipage].filesize);
+    error->warning(str);
+    clearerr(fp);
+  }
 }
 
 /* ----------------------------------------------------------------------

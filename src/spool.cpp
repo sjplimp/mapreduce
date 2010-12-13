@@ -223,8 +223,14 @@ void Spool::write_page()
     fileflag = 1;
   }
 
-  fwrite(page,pages[npage].filesize,1,fp);
+  int nwrite = fwrite(page,pages[npage].filesize,1,fp);
   mr->wsize += pages[npage].filesize;
+
+  if (nwrite != 1) {
+    char str[128];
+    sprintf(str,"Bad SP fwrite: %d %u",nwrite,pages[npage].filesize);
+    error->warning(str);
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -238,8 +244,15 @@ void Spool::read_page(int ipage)
     if (fp == NULL) error->one("Could not open Spool file for reading");
   }
 
-  fread(page,pages[ipage].filesize,1,fp);
+  int nread = fread(page,pages[ipage].filesize,1,fp);
   mr->rsize += pages[ipage].filesize;
+
+  if (nread != 1 || ferror(fp)) {
+    char str[128];
+    sprintf(str,"Bad SP fread: %d %u",nread,pages[ipage].filesize);
+    error->warning(str);
+    clearerr(fp);
+  }
 }
 
 /* ----------------------------------------------------------------------
