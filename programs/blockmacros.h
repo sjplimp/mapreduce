@@ -4,15 +4,10 @@
 #ifndef _BLOCKMACROS_HPP
 #define _BLOCKMACROS_HPP
 
-// Macros defining how to loop over blocks when multivalue is stored in
-// more than one block.  These macros are used frequently, so we define them 
-// here.
-// Each reduce function should initially CHECK_FOR_BLOCKS to get the
-// number of blocks for the multivalue. 
-// Then code to be executed on each block should be between a BEGIN_BLOCK_LOOP
-// and an END_BLOCK_LOOP.
-// Note:  This mechanism is a little clunky.  Make sure you DO NOT have a 
-// semicolon afer these macros.
+// Macros to loop over blocks when reduce multivalues may span more than 1 block
+// Use CHECK_FOR_BLOCKS initially to get # of blocks in the multivalue
+// Enclose code for each block between BEGIN_BLOCK_LOOP and END_BLOCK_LOOP
+// NOTE: DO NOT put a semicolon afer these macros
 
 #define CHECK_FOR_BLOCKS(multivalue, valuebytes, nvalues, totalnvalues)  \
   int macro_nblocks = 1; \
@@ -29,7 +24,6 @@
       (nvalues) = macro_mr->multivalue_block(macro_iblock, \
                                              &(multivalue),&(valuebytes)); 
 
-#define BREAK_BLOCK_LOOP break
 #define END_BLOCK_LOOP } 
 
 #endif
