@@ -86,8 +86,8 @@ double SGI::run(MapReduce *mrv, MapReduce *mre,
 
   // debug
 
-  mry->verbosity = 2;
-  mrs->verbosity = 2;
+  //mry->verbosity = 2;
+  //mrs->verbosity = 2;
 
   // generate all matches as loop over edges of tour
 
@@ -424,23 +424,32 @@ void SGI::reduce3(char *key, int keybytes,
   int vertexsize = sizeof(VERTEX);
   if (itour == 1) vertexsize = sizeof(EDGE);
 
-  if (!multivalue) {
-    printf("ERROR: Tour + vertex reduce exceeds one block\n");
-    MPI_Abort(sgi->world,1);
-  }
+  //if (!multivalue) {
+  //  printf("ERROR: Tour + vertex reduce exceeds one block\n");
+  //  MPI_Abort(sgi->world,1);
+  //}
+
+  uint64_t nvalues_total;
+  CHECK_FOR_BLOCKS(multivalue,valuebytes,nvalues,nvalues_total)
 
   // ntour = # of values that are current tours
   // nvert = # of values that are new vertices to add to tours
 
   int ntour = 0;
   int nvert = 0;
+
+  BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
+
   for (int i = 0; i < nvalues; i++)
     if (valuebytes[i] == vertexsize) nvert++;
     else ntour++;
 
+  END_BLOCK_LOOP
+
   if (nvert == 0) return;
 
   // double loop over tour and vertex values
+  // for multiblock, embed double loop in double loop over pairs of blocks
   // for efficiency, put smaller loop on outside
   // emit new tour pairing each current tour with a new vertex
   // exclude an emit based on ftour flag for new vertex
@@ -450,49 +459,99 @@ void SGI::reduce3(char *key, int keybytes,
   VERTEX *tour;
   VERTEX newtour[itour+1];
   VERTEX vi;
+
   int ioffset,joffset;
+  int iblock,jblock,nvalues_i,nvalues_j;
+  char *multivalue_i,*multivalue_j;
+  int *valuebytes_i,*valuebytes_j;
 
   if (nvert < ntour) {
-    ioffset = 0;
-    for (i = 0; i < nvalues; i++) {
-      vi = *(VERTEX *) &multivalue[ioffset];
-      ioffset += valuebytes[i];
-      if (valuebytes[i] != vertexsize) continue;
-      joffset = 0;
-      for (j = 0; j < nvalues; j++) {
-	tour = (VERTEX *) &multivalue[joffset];
-	joffset += valuebytes[j];
-	if (valuebytes[j] == vertexsize) continue;
-	if (flag < 0) {
-	  for (k = 0; k < itour; k++)
-	    if (vi == tour[k]) break;
-	  if (k < itour) continue;
-	} else if (vi != tour[flag]) continue;
-	memcpy(newtour,tour,toursize);
-	newtour[itour] = *vlast;
-	kv->add((char *) &vi,sizeof(VERTEX),(char *) newtour,newtoursize);
+    for (iblock = 0; iblock < macro_nblocks; iblock++) {
+      if (macro_nblocks > 1) {
+	macro_mr->multivalue_block_select(1);
+	nvalues_i = 
+	  macro_mr->multivalue_block(iblock,&multivalue_i,&valuebytes_i); 
+      } else {
+	nvalues_i = nvalues;
+	multivalue_i = multivalue;
+	valuebytes_i = valuebytes;
+      }
+      for (jblock = 0; jblock < macro_nblocks; jblock++) {
+	if (macro_nblocks > 1) {
+	  macro_mr->multivalue_block_select(2);
+	  nvalues_j = 
+	    macro_mr->multivalue_block(jblock,&multivalue_j,&valuebytes_j);
+	} else {
+	  nvalues_j = nvalues;
+	  multivalue_j = multivalue;
+	  valuebytes_j = valuebytes;
+	}
+	
+	ioffset = 0;
+	for (i = 0; i < nvalues_i; i++) {
+	  vi = *(VERTEX *) &multivalue_i[ioffset];
+	  ioffset += valuebytes_i[i];
+	  if (valuebytes_i[i] != vertexsize) continue;
+	  joffset = 0;
+	  for (j = 0; j < nvalues_j; j++) {
+	    tour = (VERTEX *) &multivalue_j[joffset];
+	    joffset += valuebytes_j[j];
+	    if (valuebytes_j[j] == vertexsize) continue;
+	    if (flag < 0) {
+	      for (k = 0; k < itour; k++)
+		if (vi == tour[k]) break;
+	      if (k < itour) continue;
+	    } else if (vi != tour[flag]) continue;
+	    memcpy(newtour,tour,toursize);
+	    newtour[itour] = *vlast;
+	    kv->add((char *) &vi,sizeof(VERTEX),(char *) newtour,newtoursize);
+	  }
+	}
       }
     }
-
+    
   } else {
-    joffset = 0;
-    for (j = 0; j < nvalues; j++) {
-      tour = (VERTEX *) &multivalue[joffset];
-      joffset += valuebytes[j];
-      if (valuebytes[j] == vertexsize) continue;
-      memcpy(newtour,tour,toursize);
-      newtour[itour] = *vlast;
-      ioffset = 0;
-      for (i = 0; i < nvalues; i++) {
-	vi = *(VERTEX *) &multivalue[ioffset];
-	ioffset += valuebytes[i];
-	if (valuebytes[i] != vertexsize) continue;
-	if (flag < 0) {
-	  for (k = 0; k < itour; k++)
-	    if (vi == tour[k]) break;
-	  if (k < itour) continue;
-	} else if (vi != tour[flag]) continue;
-	kv->add((char *) &vi,sizeof(VERTEX),(char *) newtour,newtoursize);
+    for (iblock = 0; iblock < macro_nblocks; iblock++) {
+      if (macro_nblocks > 1) {
+	macro_mr->multivalue_block_select(1);
+	nvalues_i = 
+	  macro_mr->multivalue_block(iblock,&multivalue_i,&valuebytes_i); 
+      } else {
+	nvalues_i = nvalues;
+	multivalue_i = multivalue;
+	valuebytes_i = valuebytes;
+      }
+      for (jblock = 0; jblock < macro_nblocks; jblock++) {
+	if (macro_nblocks > 1) {
+	  macro_mr->multivalue_block_select(2);
+	  nvalues_j = 
+	    macro_mr->multivalue_block(jblock,&multivalue_j,&valuebytes_j);
+	} else {
+	  nvalues_j = nvalues;
+	  multivalue_j = multivalue;
+	  valuebytes_j = valuebytes;
+	}
+	
+	joffset = 0;
+	for (j = 0; j < nvalues_j; j++) {
+	  tour = (VERTEX *) &multivalue_j[joffset];
+	  joffset += valuebytes_j[j];
+	  if (valuebytes_j[j] == vertexsize) continue;
+	  memcpy(newtour,tour,toursize);
+	  newtour[itour] = *vlast;
+	  ioffset = 0;
+	  for (i = 0; i < nvalues_i; i++) {
+	    vi = *(VERTEX *) &multivalue_i[ioffset];
+	    ioffset += valuebytes_i[i];
+	    if (valuebytes_i[i] != vertexsize) continue;
+	    if (flag < 0) {
+	      for (k = 0; k < itour; k++)
+		if (vi == tour[k]) break;
+	      if (k < itour) continue;
+	    } else if (vi != tour[flag]) continue;
+	    kv->add((char *) &vi,sizeof(VERTEX),(char *) newtour,newtoursize);
+	  }
+	}
       }
     }
   }

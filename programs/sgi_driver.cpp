@@ -104,6 +104,9 @@ int main(int narg, char **args)
   mre->verbosity = 0;
   mre->timer = 0;
 
+  //mrv->memsize = 1;
+  //mre->memsize = 1;
+
   // populate MRV,MVE with labeled graph
   // MRE = Eij : Fij
   // MRV = Vi : Wi
@@ -171,6 +174,10 @@ int main(int narg, char **args)
   MapReduce *mry = new MapReduce(MPI_COMM_WORLD);
   mry->verbosity = 0;
   mry->timer = 0;
+
+  //mrs->memsize = 1;
+  //mrx->memsize = 1;
+  //mry->memsize = 1;
 
   uint64_t nsgi;
   SGI sgi(in.ntour,in.vtour,in.ftour,in.etour,MPI_COMM_WORLD);
