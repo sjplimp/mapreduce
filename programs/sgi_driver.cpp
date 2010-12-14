@@ -1,11 +1,12 @@
 // Benchmark to enumerate sub-graph isomorphism matches in undirected graphs
 //
-// Syntax: sgi_driver -efile file1 -vfile file2
+// Syntax: sgi_driver -efile file1 flag -vfile file2
 //                    -n 10 -e 8 -abcd 0.25 0.25 0.25 0.25 -f 0.8 
 //                    -s 587283 -vatt 3 5 -eatt 1 1
 //                    -g 3 3 0 1 4 0 1 4 1
 //                    -o out.efile out.vfile
 //         -efile = file name of edges and edge attributes to read in MM format
+//                  flag = 0 for no edge wts, 1 for integer, 2 for double
 //         -vfile = file name of vertices and attributes to read in
 //         -n = order of matrix = 2^n
 //         -e = # of edges per row
@@ -21,17 +22,17 @@
 //              E01...En-2n-1 = attribute of each edge in tour
 //              F0...Fn-1 = 0 to N-1 if Vi is same as earlier Vf
 //              F0...Fn-1 = -1 if Vi is different than all earier vertices
+//         -m = -1 to enumerate all SGI matches
+//              0 to count all SGI matches
+//              M > 1 to count and them sample M SGI matches
 //         -o = out.efile out.vfile
 //              write out 2 files for edges and vertices with attributes
 //              useful when auto-generated with -n and -e
 
 // either efile/vfile or n/e switches are required
 // -vatt and -eatt switches are required
-// -g switch is required
+// -g and -m switches are required
 // vertex and edge attributes are assigned randomly to RMAT graphs
-
-// NOTE: need switch for readMMvert vs VertGen
-//       also for whether -vatt and -eatt are needed
 
 #include "mpi.h"
 #include "stdio.h"
@@ -44,7 +45,8 @@
 #include "matrix_upper.h"
 #include "vert_generate.h"
 #include "graph_label.h"
-#include "sgi.h"
+#include "sgi_enumerate.h"
+#include "sgi_sample.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
 
@@ -54,6 +56,7 @@ using MAPREDUCE_NS::KeyValue;
 struct Params {
   int me;
   char *efile,*vfile;
+  int edgeflag;
   uint64_t nvert,nedge;
   double a,b,c,d;
   double fraction;
@@ -63,6 +66,7 @@ struct Params {
   int eattlo,eatthi;
   int ntour;
   int *vtour,*ftour,*etour;
+  int mlimit;
   char *outefile,*outvfile;
   FILE *fp;
 };
@@ -110,23 +114,32 @@ int main(int narg, char **args)
   // populate MRV,MVE with labeled graph
   // MRE = Eij : Fij
   // MRV = Vi : Wi
-  // either read MM file with edge weights or generate RMAT graph
+  // either:
+  // (a) read MM file with or without edge weights and read/generate vertices
+  // (b) generate RMAT graph
   // for MM file, assume no self or duplicate edges
-  // for RMAT force matrix to be upper triangle with no self-edges
+  // for RMAT, force matrix to be upper triangular with no self-edges
 
   if (in.efile) {
-    ReadMMEdge readmme(in.efile,1,MPI_COMM_WORLD);
+    ReadMMEdge readmme(in.efile,in.edgeflag,MPI_COMM_WORLD);
     readmme.run(mre,in.nvert,in.nedge);
 
-    uint64_t tmp;
-    ReadMMVert readmmv(in.vfile,1,MPI_COMM_WORLD);
-    readmmv.run(mrv,tmp);
+    if (in.edgeflag == 0) {
+      GraphLabel elabel(in.eattlo,in.eatthi,in.seed,MPI_COMM_WORLD);
+      elabel.run(mre);
+    }
 
-    //VertGenerate vgen(in.nvert,0,MPI_COMM_WORLD);
-    //vgen.run(mrv);
+    if (in.vfile) {
+      uint64_t tmp;
+      ReadMMVert readmmv(in.vfile,1,MPI_COMM_WORLD);
+      readmmv.run(mrv,tmp);
+    } else {
+      VertGenerate vgen(in.nvert,0,MPI_COMM_WORLD);
+      vgen.run(mrv);
 
-    //GraphLabel vlabel(in.vattlo,in.vatthi,in.seed+10000,MPI_COMM_WORLD);
-    //vlabel.run(mrv);
+      GraphLabel vlabel(in.vattlo,in.vatthi,in.seed+10000,MPI_COMM_WORLD);
+      vlabel.run(mrv);
+    }
 
   } else {
     int niterate;
@@ -165,36 +178,64 @@ int main(int narg, char **args)
 
   // SGI to enumerate sub-graph matches
 
-  MapReduce *mrs = new MapReduce(MPI_COMM_WORLD);
-  mrs->verbosity = 0;
-  mrs->timer = 0;
-  MapReduce *mrx = new MapReduce(MPI_COMM_WORLD);
-  mrx->verbosity = 0;
-  mrx->timer = 0;
-  MapReduce *mry = new MapReduce(MPI_COMM_WORLD);
-  mry->verbosity = 0;
-  mry->timer = 0;
+  if (in.mlimit < 0) {
+    MapReduce *mrs = new MapReduce(MPI_COMM_WORLD);
+    mrs->verbosity = 0;
+    mrs->timer = 0;
+    MapReduce *mrx = new MapReduce(MPI_COMM_WORLD);
+    mrx->verbosity = 0;
+    mrx->timer = 0;
+    MapReduce *mry = new MapReduce(MPI_COMM_WORLD);
+    mry->verbosity = 0;
+    mry->timer = 0;
 
-  //mrs->memsize = 1;
-  //mrx->memsize = 1;
-  //mry->memsize = 1;
+    //mrs->memsize = 1;
+    //mrx->memsize = 1;
+    //mry->memsize = 1;
 
-  uint64_t nsgi;
-  SGI sgi(in.ntour,in.vtour,in.ftour,in.etour,MPI_COMM_WORLD);
-  double time = sgi.run(mrv,mre,mrs,mrx,mry,nsgi);
+    uint64_t nsgi;
+    SGIEnumerate sgi(in.ntour,in.vtour,in.ftour,in.etour,MPI_COMM_WORLD);
+    double time = sgi.run(mrv,mre,mrs,mrx,mry,nsgi);
 
-  if (me == 0)
-    printf("SGI find: %g secs, %u SG in big graph with "
-  	   "%u verts, %u edges on %d procs\n",time,nsgi,
-	   in.nvert,in.nedge,nprocs);
+    if (me == 0)
+      printf("SGI enumerate: %g secs, %u SG in big graph with "
+	     "%u verts, %u edges on %d procs\n",time,nsgi,
+	     in.nvert,in.nedge,nprocs);
+
+    delete mrs;
+    delete mrx;
+    delete mry;
+
+  } else {
+    MapReduce *mrs = new MapReduce(MPI_COMM_WORLD);
+    mrs->verbosity = 0;
+    mrs->timer = 0;
+    MapReduce *mrx = new MapReduce(MPI_COMM_WORLD);
+    mrx->verbosity = 0;
+    mrx->timer = 0;
+    MapReduce *mry = new MapReduce(MPI_COMM_WORLD);
+    mry->verbosity = 0;
+    mry->timer = 0;
+
+    uint64_t nsgi;
+    SGISample sgi(in.mlimit,in.ntour,in.vtour,in.ftour,in.etour,MPI_COMM_WORLD);
+    double time = sgi.run(mrv,mre,mrs,mrx,mry,nsgi);
+
+    if (me == 0)
+      printf("SGI sample: %g secs, %u SG in big graph with "
+	     "%u verts, %u edges on %d procs\n",time,nsgi,
+	     in.nvert,in.nedge,nprocs);
+
+    delete mrs;
+    delete mrx;
+    delete mry;
+  }
+
 
   // clean up
 
   delete mrv;
   delete mre;
-  delete mrs;
-  delete mrx;
-  delete mry;
   delete [] in.efile;
   delete [] in.vfile;
   delete [] in.vtour;
@@ -214,17 +255,19 @@ void parse(int narg, char **args, Params *in)
   in->seed = 12345;
   in->vatt = in->eatt = 0;
   in->ntour = 0;
+  in->mlimit = -2;
   in->outefile = in->outvfile = NULL;
 
   int iarg = 1;
   while (iarg < narg) {
     if (strcmp(args[iarg],"-efile") == 0) {
-      if (iarg+2 > narg) break;
+      if (iarg+3 > narg) break;
       int n = strlen(args[iarg+1]) + 1;
       delete [] in->efile;
       in->efile = new char[n];
       strcpy(in->efile,args[iarg+1]);
-      iarg += 2;
+      in->edgeflag = atoi(args[iarg+2]);
+      iarg += 3;
     } else if (strcmp(args[iarg],"-vfile") == 0) {
       if (iarg+2 > narg) break;
       int n = strlen(args[iarg+1]) + 1;
@@ -283,6 +326,10 @@ void parse(int narg, char **args, Params *in)
 	if (i != in->ntour-1) in->etour[i] = atoi(args[iarg + 3*i + 4]);
       }
       iarg += 3*in->ntour + 1;
+    } else if (strcmp(args[iarg],"-m") == 0) {
+      if (iarg+2 > narg) break;
+      in->mlimit = atoi(args[iarg+1]);
+      iarg += 2;
     } else if (strcmp(args[iarg],"-o") == 0) {
       if (iarg+3 > narg) break;
       int n = strlen(args[iarg+1]) + 1;
@@ -305,18 +352,32 @@ void parse(int narg, char **args, Params *in)
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
-  int fileflag = 0;
-  if (in->efile && in->vfile) fileflag = 1;
   int rmatflag = 0;
   if (in->nvert && in->nedge) rmatflag = 1;
 
-  if (!fileflag && !rmatflag) {
+  if (!in->efile && !rmatflag) {
     if (me == 0) printf("ERROR: No command-line setting for files or RMAT\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
-  if (fileflag && rmatflag) {
-    if (me == 0) printf("ERROR: No command-line setting for files or RMAT\n");
+  if ((in->efile || in->vfile) && rmatflag) {
+    if (me == 0)
+      printf("ERROR: Ccommand-line setting for both files and RMAT\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  if (in->efile && in->edgeflag && in->eatt) {
+    if (me == 0) printf("ERROR: Edge attributes both in file and via eatt");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  if (in->efile && in->edgeflag == 0 && in->eatt == 0) {
+    if (me == 0) printf("ERROR: No edge attributes defined");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  if (in->vfile && in->vatt) {
+    if (me == 0) printf("ERROR: Vertex attributes both in file and via vatt");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
 
@@ -357,6 +418,16 @@ void parse(int narg, char **args, Params *in)
 	MPI_Abort(MPI_COMM_WORLD,1);
       }
     }
+  }
+
+  if (in->mlimit == -2) {
+    if (me == 0) printf("ERROR: No command-line setting for -m\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+
+  if (in->mlimit < -1) {
+    if (me == 0) printf("ERROR: Invalid command-line setting for -m\n");
+    MPI_Abort(MPI_COMM_WORLD,1);
   }
 
   if (in->nvert) in->nedge *= in->nvert;

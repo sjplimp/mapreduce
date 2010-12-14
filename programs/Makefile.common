@@ -120,10 +120,12 @@ cc_driver:	cc_driver.o rmat_generate.o cc_find.o cc_stats.o $(LIB)
 
 sgi_driver:	sgi_driver.o read_mm_edge.o read_mm_vert.o \
 		rmat_generate.o matrix_upper.o \
-		vert_generate.o graph_label.o sgi.o $(LIB)
+		vert_generate.o graph_label.o sgi_enumerate.o sgi_sample.o \
+		$(LIB)
 	$(LINK) $(LINKFLAGS) sgi_driver.o read_mm_edge.o read_mm_vert.o \
 		rmat_generate.o \
-		matrix_upper.o vert_generate.o graph_label.o sgi.o \
+		matrix_upper.o vert_generate.o graph_label.o \
+		sgi_enumerate.o sgi_sample.o \
 		$(USRLIB) $(SYSLIB) -o sgi_driver
 
 sgi_check:	sgi_check.o $(LIB)

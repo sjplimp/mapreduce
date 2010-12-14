@@ -1,5 +1,5 @@
-#ifndef SGI_H
-#define SGI_H
+#ifndef SGI_ENUMERATE_H
+#define SGI_ENUMERATE_H
 
 #include "mpi.h"
 #include "stdio.h"
@@ -10,9 +10,9 @@ namespace MAPREDUCE_NS {
   class KeyValue;
 };
 
-class SGI {
+class SGIEnumerate {
  public:
-  SGI(int, int *, int *, int *, MPI_Comm);
+  SGIEnumerate(int, int *, int *, int *, MPI_Comm);
   double run(MAPREDUCE_NS::MapReduce *, MAPREDUCE_NS::MapReduce *, 
 	     MAPREDUCE_NS::MapReduce *, MAPREDUCE_NS::MapReduce *, 
 	     MAPREDUCE_NS::MapReduce *, uint64_t &);
@@ -44,19 +44,6 @@ class SGI {
     LABEL fij;
   } X3VALUE;
 
-  static void x1print(uint64_t, char *, int, char *, int, 
-		      MAPREDUCE_NS::KeyValue *, void *);
-  static void x2print(uint64_t, char *, int, char *, int, 
-		      MAPREDUCE_NS::KeyValue *, void *);
-  static void x3print(uint64_t, char *, int, char *, int, 
-		      MAPREDUCE_NS::KeyValue *, void *);
-  static void sprint(uint64_t, char *, int, char *, int, 
-		     MAPREDUCE_NS::KeyValue *, void *);
-  static void rprint(char *, int, char *, int, int *,
-		     MAPREDUCE_NS::KeyValue *, void *);
-  static void tprint(uint64_t, char *, int, char *, int, 
-		     MAPREDUCE_NS::KeyValue *, void *);
-
   static void map1(uint64_t, char *, int, char *, int, 
 		   MAPREDUCE_NS::KeyValue *, void *);
   static void map2(uint64_t, char *, int, char *, int,
@@ -72,6 +59,18 @@ class SGI {
   static void reduce3(char *, int, char *, int, int *,
 		      MAPREDUCE_NS::KeyValue *, void *);
 
+  static void x1print(uint64_t, char *, int, char *, int, 
+		      MAPREDUCE_NS::KeyValue *, void *);
+  static void x2print(uint64_t, char *, int, char *, int, 
+		      MAPREDUCE_NS::KeyValue *, void *);
+  static void x3print(uint64_t, char *, int, char *, int, 
+		      MAPREDUCE_NS::KeyValue *, void *);
+  static void sprint(uint64_t, char *, int, char *, int, 
+		     MAPREDUCE_NS::KeyValue *, void *);
+  static void rprint(char *, int, char *, int, int *,
+		     MAPREDUCE_NS::KeyValue *, void *);
+  static void tprint(uint64_t, char *, int, char *, int, 
+		     MAPREDUCE_NS::KeyValue *, void *);
 };
 
 #endif
