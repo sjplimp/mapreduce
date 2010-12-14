@@ -8,12 +8,15 @@
 MapReduce reduce() method :h3
 MapReduce multivalue_blocks() method :h3
 MapReduce multivalue_block() method :h3
+MapReduce multivalue_block_select() method :h3
 
 uint64_t MapReduce::reduce(void (*myreduce)(char *, int, char *, int, int *, KeyValue *, void *), void *ptr) :pre
 
 uint64_t MapReduce::multivalue_blocks() :pre
 
 int MapReduce::multivalue_block(int iblock, char **ptr_multivalue, int **ptr_valuesizes) :pre
+
+void MapReduce::multivalue_block_select(int which) :pre
 
 This calls the reduce() method of a MapReduce object, passing it a
 function pointer to a myreduce function you write.  It operates on a
@@ -96,6 +99,13 @@ Also note that your myreduce() function can call multivalue_block() as
 many times as it wishes and process the blocks of values multiple
 times or in any order, though looping through blocks in ascending
 order will typically give the best disk I/O performance.
+
+If you need to load and process two blocks of values simultaneously
+(e.g. in a double loop), then the multivalue_block_select() function
+can be called with which = 1 or 2 to specify a page of memory to read
+a block of values into.  This should be set just before the call to
+multivalue_block(), to insure one block of values is not overwritten
+by reading a second block.
 
 Your myreduce() function can produce key/value pairs (though this is
 not required) which it registers with the MapReduce object by calling
