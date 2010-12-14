@@ -693,8 +693,9 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
   kv->set_page();
 
   uint64_t dummy;
-  int memtag;
-  char *mvpage = mymalloc(1,dummy,memtag);
+  int memtag1,memtag2;
+  char *mvpage1 = mymalloc(1,dummy,memtag1);
+  char *mvpage2 = mymalloc(1,dummy,memtag2);
 
   int nkey_kmv,nvalues,keybytes,mvaluebytes;
   uint64_t dummy1,dummy2,dummy3;
@@ -737,13 +738,15 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 
-	// set KMV page to mvpage so key will not be overwritten
+	// set KMV page to mvpage1 so key will not be overwritten
 	// when multivalue_block() loads new pages of values
 
-	kmv->page = mvpage;
 	kmv_block_valid = 1;
 	kmv_key_page = ipage;
+	kmv_mvpage1 = mvpage1;
+	kmv_mvpage2 = mvpage2;
 	kmv_nvalue_total = kmv->multivalue_blocks(ipage,kmv_nblock);
+	kmv->page = mvpage1;
 	appcompress(key,keybytes,NULL,0,(int *) this,kv,appptr);
 	kmv_block_valid = 0;
 	ipage += kmv_nblock;
@@ -753,7 +756,8 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
   }
 
   kv->complete();
-  myfree(memtag);
+  myfree(memtag1);
+  myfree(memtag2);
 
   // delete KMV
   // close is necessary b/c KMV files do not close themselves
@@ -1576,8 +1580,9 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
   kv->set_page();
 
   uint64_t dummy;
-  int memtag;
-  char *mvpage = mymalloc(1,dummy,memtag);
+  int memtag1,memtag2;
+  char *mvpage1 = mymalloc(1,dummy,memtag1);
+  char *mvpage2 = mymalloc(1,dummy,memtag2);
 
   int nkey_kmv,nvalues,keybytes,mvaluebytes;
   uint64_t dummy1,dummy2,dummy3;
@@ -1620,13 +1625,15 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 
-	// set KMV page to mvpage so key will not be overwritten
+	// set KMV page to mvpage1 so key will not be overwritten
 	// when multivalue_block() loads new pages of values
 
-	kmv->page = mvpage;
 	kmv_block_valid = 1;
 	kmv_key_page = ipage;
+	kmv_mvpage1 = mvpage1;
+	kmv_mvpage2 = mvpage2;
 	kmv_nvalue_total = kmv->multivalue_blocks(ipage,kmv_nblock);
+	kmv->page = mvpage1;
 	appreduce(key,keybytes,NULL,0,(int *) this,kv,appptr);
 	kmv_block_valid = 0;
 	ipage += kmv_nblock;
@@ -1636,7 +1643,8 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
   }
 
   kv->complete();
-  myfree(memtag);
+  myfree(memtag1);
+  myfree(memtag2);
 
   // delete KMV
   // close is necessary b/c KMV files do not close themselves
@@ -1694,6 +1702,19 @@ uint64_t MapReduce::multivalue_blocks(int &nblock)
   if (!kmv_block_valid) error->one("Invalid call to multivalue_blocks()");
   nblock = kmv_nblock;
   return kmv_nvalue_total;
+}
+
+/* ----------------------------------------------------------------------
+   query total # of values and # of value blocks in a single multi-page KMV
+   called from user myreduce() or mycompress() function
+------------------------------------------------------------------------- */
+
+void MapReduce::multivalue_block_select(int which)
+{
+  if (!kmv_block_valid) error->one("Invalid call to multivalue_block_select()");
+  if (which == 1) kmv->page = kmv_mvpage1;
+  else if (which == 2) kmv->page = kmv_mvpage2;
+  else error->one("Invalid arg to multivalue_block_select()");
 }
 
 /* ----------------------------------------------------------------------

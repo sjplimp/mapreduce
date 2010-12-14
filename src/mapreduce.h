@@ -95,6 +95,7 @@ class MapReduce {
   uint64_t scrunch(int, char *, int);
 
   uint64_t multivalue_blocks(int &);
+  void multivalue_block_select(int);
   int multivalue_block(int, char **, int **);
 
   uint64_t sort_keys(int (*)(char *, int, char *, int));
@@ -175,6 +176,8 @@ class MapReduce {
   int kmv_key_page;           // which page the key info is on
   int kmv_nblock;             // # of value pages in multi-block KMV
   uint64_t kmv_nvalue_total;  // total # of values in multi-block KMV
+  char *kmv_mvpage1;          // page ptrs for 2 multi-block blocks of values
+  char *kmv_mvpage2;
 
   // file map()
 

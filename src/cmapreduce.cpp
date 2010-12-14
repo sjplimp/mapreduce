@@ -273,6 +273,12 @@ uint64_t MR_multivalue_blocks(void *MRptr, int *pnblock)
   return nvalue_total;
 }
 
+void MR_multivalue_block_select(void *MRptr, int which)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->multivalue_block_select(which);
+}
+
 int MR_multivalue_block(void *MRptr, int iblock,
 			char **ptr_multivalue, int **ptr_valuesizes)
 {

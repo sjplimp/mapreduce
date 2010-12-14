@@ -94,6 +94,7 @@ uint64_t MR_reduce(void *MRptr,
 uint64_t MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes);
 
 uint64_t MR_multivalue_blocks(void *MRptr);
+void MR_multivalue_block_select(void *MRptr, int which);
 int MR_multivalue_block(void *MRptr, int iblock,
 			char **ptr_multivalue, int **ptr_valuesizes);
 
