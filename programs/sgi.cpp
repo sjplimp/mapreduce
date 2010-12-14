@@ -125,101 +125,6 @@ double SGI::run(MapReduce *mrv, MapReduce *mre,
 
 /* ---------------------------------------------------------------------- */
 
-void SGI::x1print(uint64_t itask, char *key, int keybytes, 
-		 char *value, int valuebytes, KeyValue *kv, void *ptr) 
-{
-  VERTEX vi = *(VERTEX *) key;
-  if (valuebytes == sizeof(X1VALUE)) {
-    X1VALUE *x = (X1VALUE *) value;
-    VERTEX vj = x->vj;
-    int fij = x->fij;
-    printf("MR X1a: %d %d: %u %u %d\n",keybytes,valuebytes,vi,vj,fij);
-  } else {
-    VERTEX vj = *(VERTEX *) value;
-    printf("MR X1b: %d %d: %u %u\n",keybytes,valuebytes,vi,vj);
-  }
-}
-
-void SGI::x2print(uint64_t itask, char *key, int keybytes, 
-		 char *value, int valuebytes, KeyValue *kv, void *ptr) 
-{
-  SGI *sgi = (SGI *) ptr;
-  int me = sgi->me;
-
-  VERTEX v = *(VERTEX *) key;
-  if (valuebytes == sizeof(X2VALUE)) {
-    X2VALUE *x = (X2VALUE *) value;
-    VERTEX vi = x->vi;
-    int wi = x->wi;
-    int fij = x->fij;
-    printf("MR X2a: %d: %d %d: %u %u %d %d\n",me,keybytes,valuebytes,v,vi,wi,fij);
-  } else {
-    VERTEX vj = *(VERTEX *) value;
-    printf("MR X2b: %d: %d %d: %u %u\n",me,keybytes,valuebytes,v,vj);
-  }
-}
-
-void SGI::x3print(uint64_t itask, char *key, int keybytes, 
-		  char *value, int valuebytes, KeyValue *kv, void *ptr) 
-{
-  VERTEX vi = *(VERTEX *) key;
-  X3VALUE *x = (X3VALUE *) value;
-  VERTEX vj = x->vj;
-  int wi = x->wi;
-  int wj = x->wj;
-  int fij = x->fij;
-  printf("MR X3: %d %d: %u %u %d %d %d\n",keybytes,valuebytes,vi,vj,wi,wj,fij);
-}
-
-void SGI::sprint(uint64_t itask, char *key, int keybytes, 
-		 char *value, int valuebytes, KeyValue *kv, void *ptr) 
-{
-  VERTEX v = *(VERTEX *) key;
-  printf("MR S: %d %d: %u\n",keybytes,valuebytes,v);
-}
-
-void SGI::rprint(char *key, int keybytes, 
-		 char *multivalue, int nvalues, int *valuebytes,
-		 KeyValue *kv, void *ptr) 
-{
-  SGI *sgi = (SGI *) ptr;
-  int itour = sgi->itour;
-  int vertexsize = sizeof(VERTEX);
-  if (itour == 1) vertexsize = sizeof(EDGE);
-
-  VERTEX vk = *(VERTEX *) key;
-  printf("MR R: %d %d: %u\n",keybytes,nvalues,vk);
-  int offset = 0;
-  for (int i = 0; i < nvalues; i++) {
-    if (valuebytes[i] == vertexsize) {
-      VERTEX v = *(VERTEX *) &multivalue[offset];
-      printf("  %u single value\n",v);
-    } else {
-      VERTEX *tour = (VERTEX *) &multivalue[offset];
-      int n = valuebytes[i]/sizeof(VERTEX);
-      printf("  ");
-      for (int j = 0; j < n; j++)
-	printf("%u ",tour[j]);
-      printf("\n");
-    }
-    offset += valuebytes[i];
-  }
-}
-
-void SGI::tprint(uint64_t itask, char *key, int keybytes, 
-		 char *value, int valuebytes, KeyValue *kv, void *ptr) 
-{
-  VERTEX v = *(VERTEX *) key;
-  printf("MR TOUR: %u %d %d: %u: ",itask,keybytes,valuebytes,v);
-  int n = valuebytes/sizeof(VERTEX);
-  VERTEX *tour = (VERTEX *) value;
-  for (int i = 0; i < n; i++)
-    printf("%u ",tour[i]);
-  printf("\n");
-}
-
-/* ---------------------------------------------------------------------- */
-
 void SGI::map1(uint64_t itask, char *key, int keybytes, 
 	       char *value, int valuebytes, KeyValue *kv, void *ptr) 
 {
@@ -278,11 +183,11 @@ void SGI::map4(uint64_t itask, char *key, int keybytes,
   }
   FILE *fp = sgi->fp;
 
-  int ntour = sgi->ntour;
+  int ntourm1 = sgi->ntour - 1;
   VERTEX *vlast = (VERTEX *) key;
   VERTEX *vlist = (VERTEX *) value;
 
-  for (int i = 0; i < ntour-1; i++) fprintf(fp,"%u ",vlist[i]);
+  for (int i = 0; i < ntourm1; i++) fprintf(fp,"%u ",vlist[i]);
   fprintf(fp,"%u\n",*vlast);
 
   kv->add(key,keybytes,value,valuebytes);
@@ -320,8 +225,6 @@ void SGI::reduce1a(char *key, int keybytes,
 
   END_BLOCK_LOOP
 
-  if (!flag) return;
-
   // emit all edges flipped
 
   BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
@@ -353,6 +256,12 @@ void SGI::reduce1b(char *key, int keybytes,
   X3VALUE newvalue;
   int i;
 
+  SGI *sgi = (SGI *) ptr;
+  int ntourm1 = sgi->ntour - 1;
+  int itour = sgi->itour;
+  int *vtour = sgi->vtour;
+  int *etour = sgi->etour;
+
   uint64_t nvalues_total;
   CHECK_FOR_BLOCKS(multivalue,valuebytes,nvalues,nvalues_total)
 
@@ -374,10 +283,8 @@ void SGI::reduce1b(char *key, int keybytes,
 
   END_BLOCK_LOOP
 
-  if (!flag) return;
-
   // emit all edges twice, forward and reverse
-  // NOTE: need to exclude edges that match nothing in tour
+  // exclude edges that match nothing in tour
 
   BEGIN_BLOCK_LOOP(multivalue,valuebytes,nvalues)
 
@@ -391,14 +298,28 @@ void SGI::reduce1b(char *key, int keybytes,
       newvalue.wi = wi;
       newvalue.wj = oldvalue->wi;
       newvalue.fij = oldvalue->fij;
-      kv->add((char *) &vi,sizeof(VERTEX),(char *) &newvalue,sizeof(X3VALUE));
+      for (int j = 0; j < ntourm1; j++) {
+	if (newvalue.wi == vtour[j] && newvalue.wj == vtour[j+1] && 
+	    newvalue.fij == etour[j]) {
+	  kv->add((char *) &vi,sizeof(VERTEX),
+		  (char *) &newvalue,sizeof(X3VALUE));
+	  break;
+	}
+      }
 
       vj = oldvalue->vi;
       newvalue.vj = *(VERTEX *) key;
       newvalue.wi = oldvalue->wi;
       newvalue.wj = wi;
       newvalue.fij = oldvalue->fij;
-      kv->add((char *) &vj,sizeof(VERTEX),(char *) &newvalue,sizeof(X3VALUE));
+      for (int j = 0; j < ntourm1; j++) {
+	if (newvalue.wi == vtour[j] && newvalue.wj == vtour[j+1] && 
+	    newvalue.fij == etour[j]) {
+	  kv->add((char *) &vj,sizeof(VERTEX),
+		  (char *) &newvalue,sizeof(X3VALUE));
+	  break;
+	}
+      }
     }
     offset += valuebytes[i];
   }
@@ -555,4 +476,99 @@ void SGI::reduce3(char *key, int keybytes,
       }
     }
   }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void SGI::x1print(uint64_t itask, char *key, int keybytes, 
+		 char *value, int valuebytes, KeyValue *kv, void *ptr) 
+{
+  VERTEX vi = *(VERTEX *) key;
+  if (valuebytes == sizeof(X1VALUE)) {
+    X1VALUE *x = (X1VALUE *) value;
+    VERTEX vj = x->vj;
+    int fij = x->fij;
+    printf("MR X1a: %d %d: %u %u %d\n",keybytes,valuebytes,vi,vj,fij);
+  } else {
+    VERTEX vj = *(VERTEX *) value;
+    printf("MR X1b: %d %d: %u %u\n",keybytes,valuebytes,vi,vj);
+  }
+}
+
+void SGI::x2print(uint64_t itask, char *key, int keybytes, 
+		 char *value, int valuebytes, KeyValue *kv, void *ptr) 
+{
+  SGI *sgi = (SGI *) ptr;
+  int me = sgi->me;
+
+  VERTEX v = *(VERTEX *) key;
+  if (valuebytes == sizeof(X2VALUE)) {
+    X2VALUE *x = (X2VALUE *) value;
+    VERTEX vi = x->vi;
+    int wi = x->wi;
+    int fij = x->fij;
+    printf("MR X2a: %d: %d %d: %u %u %d %d\n",me,keybytes,valuebytes,v,vi,wi,fij);
+  } else {
+    VERTEX vj = *(VERTEX *) value;
+    printf("MR X2b: %d: %d %d: %u %u\n",me,keybytes,valuebytes,v,vj);
+  }
+}
+
+void SGI::x3print(uint64_t itask, char *key, int keybytes, 
+		  char *value, int valuebytes, KeyValue *kv, void *ptr) 
+{
+  VERTEX vi = *(VERTEX *) key;
+  X3VALUE *x = (X3VALUE *) value;
+  VERTEX vj = x->vj;
+  int wi = x->wi;
+  int wj = x->wj;
+  int fij = x->fij;
+  printf("MR X3: %d %d: %u %u %d %d %d\n",keybytes,valuebytes,vi,vj,wi,wj,fij);
+}
+
+void SGI::sprint(uint64_t itask, char *key, int keybytes, 
+		 char *value, int valuebytes, KeyValue *kv, void *ptr) 
+{
+  VERTEX v = *(VERTEX *) key;
+  printf("MR S: %d %d: %u\n",keybytes,valuebytes,v);
+}
+
+void SGI::rprint(char *key, int keybytes, 
+		 char *multivalue, int nvalues, int *valuebytes,
+		 KeyValue *kv, void *ptr) 
+{
+  SGI *sgi = (SGI *) ptr;
+  int itour = sgi->itour;
+  int vertexsize = sizeof(VERTEX);
+  if (itour == 1) vertexsize = sizeof(EDGE);
+
+  VERTEX vk = *(VERTEX *) key;
+  printf("MR R: %d %d: %u\n",keybytes,nvalues,vk);
+  int offset = 0;
+  for (int i = 0; i < nvalues; i++) {
+    if (valuebytes[i] == vertexsize) {
+      VERTEX v = *(VERTEX *) &multivalue[offset];
+      printf("  %u single value\n",v);
+    } else {
+      VERTEX *tour = (VERTEX *) &multivalue[offset];
+      int n = valuebytes[i]/sizeof(VERTEX);
+      printf("  ");
+      for (int j = 0; j < n; j++)
+	printf("%u ",tour[j]);
+      printf("\n");
+    }
+    offset += valuebytes[i];
+  }
+}
+
+void SGI::tprint(uint64_t itask, char *key, int keybytes, 
+		 char *value, int valuebytes, KeyValue *kv, void *ptr) 
+{
+  VERTEX v = *(VERTEX *) key;
+  printf("MR TOUR: %u %d %d: %u: ",itask,keybytes,valuebytes,v);
+  int n = valuebytes/sizeof(VERTEX);
+  VERTEX *tour = (VERTEX *) value;
+  for (int i = 0; i < n; i++)
+    printf("%u ",tour[i]);
+  printf("\n");
 }
