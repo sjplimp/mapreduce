@@ -20,6 +20,7 @@
 #include "sys/types.h"
 #include "sys/stat.h"
 #include "mapreduce.h"
+#include "mrtype.h"
 #include "keyvalue.h"
 #include "keymultivalue.h"
 #include "spool.h"
@@ -221,9 +222,9 @@ void MapReduce::defaults()
     error->all("Not compiled for 8-byte integers and pointers");
 
   int mpisize;
-  MPI_Type_size(MPI_UNSIGNED_LONG,&mpisize);
+  MPI_Type_size(MRMPI_BIGINT,&mpisize);
   if (mpisize != 8)
-    error->all("MPI_UNSIGNED_LONG is not 8-byte data type");
+    error->all("MRMPI_BIGINT is not 8-byte data type: edit mrtype.h");
 }
 
 /* ----------------------------------------------------------------------
@@ -324,7 +325,7 @@ uint64_t MapReduce::add(MapReduce *mr)
   stats("Add",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -488,7 +489,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
   stats("Aggregate",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -510,7 +511,7 @@ uint64_t MapReduce::broadcast(int root)
   if (nprocs == 1) {
     stats("Broadcast",0);
     uint64_t nkeyall;
-    MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+    MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
     return nkeyall;
   }
 
@@ -533,7 +534,7 @@ uint64_t MapReduce::broadcast(int root)
   for (int ipage = 0; ipage < npage_kv; ipage++) {
     if (me == root)
       sizes[0] = kv->request_page(ipage,sizes[1],sizes[2],sizes[3]);
-    MPI_Bcast(sizes,4,MPI_UNSIGNED_LONG,root,comm);
+    MPI_Bcast(sizes,4,MRMPI_BIGINT,root,comm);
     MPI_Bcast(buf,sizes[3],MPI_BYTE,root,comm);
     if (me == root) cssize += sizes[3];
     else {
@@ -551,7 +552,7 @@ uint64_t MapReduce::broadcast(int root)
   stats("Broadcast",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -580,7 +581,7 @@ uint64_t MapReduce::clone()
   stats("Clone",1);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -599,7 +600,7 @@ uint64_t MapReduce::close()
   stats("Complete",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -629,7 +630,7 @@ uint64_t MapReduce::collapse(char *key, int keybytes)
   stats("Collapse",1);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -660,7 +661,7 @@ uint64_t MapReduce::collate(int (*hash)(char *, int))
   fcounter_part = fcounter_set = 0;
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -772,7 +773,7 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
   fcounter_part = fcounter_set = 0;
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -804,7 +805,7 @@ uint64_t MapReduce::convert()
   if (!collateflag) fcounter_part = fcounter_set = 0;
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -830,7 +831,7 @@ uint64_t MapReduce::gather(int numprocs)
   if (nprocs == 1 || numprocs == nprocs) {
     stats("Gather",0);
     uint64_t nkeyall;
-    MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+    MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
     return nkeyall;
   }
 
@@ -851,7 +852,7 @@ uint64_t MapReduce::gather(int numprocs)
       for (int ipage = 0; ipage < npage_kv; ipage++) {
 	MPI_Irecv(buf,pagesize,MPI_BYTE,iproc,1,comm,&request);
 	MPI_Send(&flag,0,MPI_INT,iproc,0,comm);
-	MPI_Recv(sizes,4,MPI_UNSIGNED_LONG,iproc,0,comm,&status);
+	MPI_Recv(sizes,4,MRMPI_BIGINT,iproc,0,comm,&status);
 	crsize += sizes[3];
 	MPI_Wait(&request,&status);
 	kv->add(sizes[0],buf,sizes[1],sizes[2],sizes[3]);
@@ -870,7 +871,7 @@ uint64_t MapReduce::gather(int numprocs)
     for (int ipage = 0; ipage < npage_kv; ipage++) {
       sizes[0] = kv->request_page(ipage,sizes[1],sizes[2],sizes[3]);
       MPI_Recv(&flag,0,MPI_INT,iproc,0,comm,&status);
-      MPI_Send(sizes,4,MPI_UNSIGNED_LONG,iproc,0,comm);
+      MPI_Send(sizes,4,MRMPI_BIGINT,iproc,0,comm);
       MPI_Send(buf,sizes[3],MPI_BYTE,iproc,1,comm);
       cssize += sizes[3];
     }
@@ -889,7 +890,7 @@ uint64_t MapReduce::gather(int numprocs)
   stats("Gather",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -989,7 +990,7 @@ uint64_t MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
   stats("Map",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1143,7 +1144,7 @@ uint64_t MapReduce::map(char *file,
   stats("Map",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1327,7 +1328,7 @@ uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
   delete [] filemap.whichtask;
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1504,7 +1505,7 @@ uint64_t MapReduce::map(MapReduce *mr,
   stats("Map",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1658,7 +1659,7 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
   stats("Reduce",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1688,7 +1689,7 @@ uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
   stats("Scrunch",1);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1764,7 +1765,7 @@ uint64_t MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
   fcounter_sort = 0;
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1787,7 +1788,7 @@ uint64_t MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
   fcounter_sort = 0;
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1902,7 +1903,7 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
   stats("Sort_multivalues",0);
 
   uint64_t nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -2246,10 +2247,10 @@ void MapReduce::kv_stats(int level)
 
   int npages;
   uint64_t nkeyall,ksizeall,vsizeall,esizeall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kv->ksize,&ksizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kv->vsize,&vsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kv->esize,&esizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  MPI_Allreduce(&kv->ksize,&ksizeall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  MPI_Allreduce(&kv->vsize,&vsizeall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  MPI_Allreduce(&kv->esize,&esizeall,1,MRMPI_BIGINT,MPI_SUM,comm);
   MPI_Allreduce(&kv->npage,&npages,1,MPI_INT,MPI_SUM,comm);
 
   if (me == 0)
@@ -2276,10 +2277,10 @@ void MapReduce::kmv_stats(int level)
 
   int npages;
   uint64_t nkeyall,ksizeall,vsizeall,esizeall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kmv->ksize,&ksizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kmv->vsize,&vsizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&kmv->esize,&esizeall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->ksize,&ksizeall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->vsize,&vsizeall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  MPI_Allreduce(&kmv->esize,&esizeall,1,MRMPI_BIGINT,MPI_SUM,comm);
   MPI_Allreduce(&kmv->npage,&npages,1,MPI_INT,MPI_SUM,comm);
   
   if (me == 0)
@@ -2306,7 +2307,7 @@ void MapReduce::cummulative_stats(int level, int reset)
 
   uint64_t csize[2] = {cssize,crsize};
   uint64_t allcsize[2];
-  MPI_Allreduce(csize,allcsize,2,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(csize,allcsize,2,MRMPI_BIGINT,MPI_SUM,comm);
 
   double ctime[1] = {commtime};
   double allctime[1];
@@ -2327,7 +2328,7 @@ void MapReduce::cummulative_stats(int level, int reset)
 
   uint64_t size[2] = {rsize,wsize};
   uint64_t allsize[2];
-  MPI_Allreduce(size,allsize,2,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(size,allsize,2,MRMPI_BIGINT,MPI_SUM,comm);
 
   if (allsize[0] || allsize[1]) {
     if (me == 0) printf("Cummulative I/O = %.3g Mb read, %.3g Mb write\n",
@@ -2370,7 +2371,7 @@ void MapReduce::mr_stats(int level)
   int npages;
   MPI_Allreduce(&npage,&npages,1,MPI_INT,MPI_SUM,comm);
   uint64_t fsizemaxall;
-  MPI_Allreduce(&fsizemax,&fsizemaxall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&fsizemax,&fsizemaxall,1,MRMPI_BIGINT,MPI_SUM,comm);
 
   if (me == 0)
     printf("MapReduce stats = %d pages, %.3g Mb mem, "
@@ -2417,8 +2418,8 @@ void MapReduce::stats(const char *heading, int which)
   uint64_t rall,sall,wall;
   double mbyte = 1024.0*1024.0;
 
-  MPI_Allreduce(&cssize_one,&sall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&crsize_one,&rall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&cssize_one,&sall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  MPI_Allreduce(&crsize_one,&rall,1,MRMPI_BIGINT,MPI_SUM,comm);
   if (sall || rall) {
     if (me == 0) printf("%s Comm = %.3g Mb send, %.3g Mb recv\n",heading,
 			sall/mbyte,rall/mbyte);
@@ -2428,8 +2429,8 @@ void MapReduce::stats(const char *heading, int which)
     }
   }
 
-  MPI_Allreduce(&rsize_one,&rall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
-  MPI_Allreduce(&wsize_one,&wall,1,MPI_UNSIGNED_LONG,MPI_SUM,comm);
+  MPI_Allreduce(&rsize_one,&rall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  MPI_Allreduce(&wsize_one,&wall,1,MRMPI_BIGINT,MPI_SUM,comm);
   if (rall || wall) {
     if (me == 0) printf("%s I/O = %.3g Mb read, %.3g Mb write\n",heading,
 			rall/mbyte,wall/mbyte);

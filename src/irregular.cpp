@@ -15,6 +15,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include "irregular.h"
+#include "mrtype.h"
 #include "memory.h"
 #include "error.h"
 
@@ -107,7 +108,7 @@ int Irregular::setup(int n, int *proclist, int *sizes, int *reorder,
   // error return if any proc's send total > INTMAX
 
   uint64_t sendtotalmax;
-  MPI_Allreduce(&sendtotal,&sendtotalmax,1,MPI_UNSIGNED_LONG,MPI_MAX,comm);
+  MPI_Allreduce(&sendtotal,&sendtotalmax,1,MRMPI_BIGINT,MPI_MAX,comm);
   if (sendtotalmax > INTMAX) {
     fraction = ((double) INTMAX) / sendtotal;
     return 0;
@@ -127,7 +128,7 @@ int Irregular::setup(int n, int *proclist, int *sizes, int *reorder,
   // error return if any proc's recv total > min(recvlimit,INTMAX)
   
   uint64_t recvtotalmax;
-  MPI_Allreduce(&recvtotal,&recvtotalmax,1,MPI_UNSIGNED_LONG,MPI_MAX,comm);
+  MPI_Allreduce(&recvtotal,&recvtotalmax,1,MRMPI_BIGINT,MPI_MAX,comm);
   if (recvtotalmax > recvlimit) {
     fraction = ((double) recvlimit) / recvtotal;
     return 0;

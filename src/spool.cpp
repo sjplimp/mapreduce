@@ -226,7 +226,7 @@ void Spool::write_page()
   int nwrite = fwrite(page,pages[npage].filesize,1,fp);
   mr->wsize += pages[npage].filesize;
 
-  if (nwrite != 1) {
+  if (nwrite != 1 && pages[npage].filesize) {
     char str[128];
     sprintf(str,"Bad SP fwrite: %d %u",nwrite,pages[npage].filesize);
     error->warning(str);
@@ -247,7 +247,7 @@ void Spool::read_page(int ipage)
   int nread = fread(page,pages[ipage].filesize,1,fp);
   mr->rsize += pages[ipage].filesize;
 
-  if (nread != 1 || ferror(fp)) {
+  if ((nread != 1 && pages[ipage].filesize) || ferror(fp)) {
     char str[128];
     sprintf(str,"Bad SP fread: %d %u",nread,pages[ipage].filesize);
     error->warning(str);
