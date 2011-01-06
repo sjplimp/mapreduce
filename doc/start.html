@@ -75,4 +75,14 @@ Makefiles may need to be modified for your platform.  Some of the
 example programs are provided as a C++ program, a C program, and as a
 Python script.
 </P>
+<P>When you run a MapReduce program, if you get an immediate error about
+the MRMPI_BIGINT data type, you will need to edit the file
+src/mrtype.h and re-compile the library.  Mrtype.h and the error check
+insures that your MPI will perform operations on 8-byte unsigned
+integers as required by the MR-MPI library.  For the MPI on most
+machines, this is satisfied by the MPI data type
+MPI_UNSIGNED_LONG_LONG.  But some machines do not support the "long
+long" data type, and it thus may be something different in your
+installed MPI, such as MPI_UNSIGNED_LONG.
+</P>
 </HTML>
