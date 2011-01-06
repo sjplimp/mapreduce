@@ -362,13 +362,17 @@ mr.map(nmap,mymap,ptr,addflag) # if addflag is specfied as a non-zero int,
 			       #   new key/value pairs will be added to the
 			       #   existing key/value pairs 
 </PRE>
-<PRE>mr.map_file_list(file,mymap) # file is a file containing a list of filenames
+<PRE>mr.map_file(files,mymap)     # files is a list of filenames
 			     # mymap is a function called back from the
 			     #   library as mymap(itask,filename,mr,ptr)
 			     # as above, ptr and addflag are optional args
-mr.map_dir(dir,oneflag,mymap)
+mr.map_file_file(file,mymap) # file is a file containing a list of filenames
+			     # mymap is a function called back from the
+			     #   library as mymap(itask,filename,mr,ptr)
+			     # as above, ptr and addflag are optional args
+mr.map_file_dir(dir,selfflag,mymap)
                              # dir is a directory name
-                             # oneflag = 1 for same dir on each proc, else 0
+                             # selfflag = 0 for same dir on each proc, else 1
 			     # mymap is a function called back from the
 			     #   library as mymap(itask,filename,mr,ptr)
 			     # as above, ptr and addflag are optional args
