@@ -48,22 +48,30 @@ uint64_t MR_map(void *MRptr, int nmap,
 uint64_t MR_map_add(void *MRptr, int nmap,
 		    void (*mymap)(int, void *KVptr, void *APPptr),
 		    void *APPptr, int addflag);
-uint64_t MR_map_file_list(void *MRptr, char *file,
+uint64_t MR_map_file(void *MRptr, int nfile, char *files,
+		     void (*mymap)(int, char *, 
+				   void *KVptr, void *APPptr),
+		     void *APPptr);
+uint64_t MR_map_file_add(void *MRptr, int nfile, char *files,
+			 void (*mymap)(int, char *, 
+				       void *KVptr, void *APPptr),
+			 void *APPptr, int addflag);
+uint64_t MR_map_file_file(void *MRptr, char *file,
 			  void (*mymap)(int, char *, 
 					void *KVptr, void *APPptr),
 			  void *APPptr);
-uint64_t MR_map_file_list_add(void *MRptr, char *file,
+uint64_t MR_map_file_file_add(void *MRptr, char *file,
 			      void (*mymap)(int, char *, 
 					    void *KVptr, void *APPptr),
 			      void *APPptr, int addflag);
-uint64_t MR_map_dir(void *MRptr, char *dir, int oneflag,
-		    void (*mymap)(int, char *, 
-				  void *KVptr, void *APPptr),
-		    void *APPptr);
-uint64_t MR_map_dir_add(void *MRptr, char *dir, int oneflag,
-			void (*mymap)(int, char *, 
-				      void *KVptr, void *APPptr),
-			void *APPptr, int addflag);
+uint64_t MR_map_file_dir(void *MRptr, char *dir, int oneflag,
+			 void (*mymap)(int, char *, 
+				       void *KVptr, void *APPptr),
+			 void *APPptr);
+uint64_t MR_map_file_dir_add(void *MRptr, char *dir, int oneflag,
+			     void (*mymap)(int, char *, 
+					   void *KVptr, void *APPptr),
+			     void *APPptr, int addflag);
 uint64_t MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
 			  char sepchar, int delta,
 			  void (*mymap)(int, char *, int, 
@@ -92,6 +100,7 @@ uint64_t MR_map_mr_add(void *MRptr, void *MRptr2,
 		       void (*mymap)(uint64_t, char *, int, char *, int, 
 				     void *KVptr, void *APPptr),
 		       void *APPptr, int addflag);
+
 void MR_open(void *MRptr);
 void MR_open_add(void *MRptr, int addflag);
 void MR_print(void *MRptr, int proc, int nstride, int kflag, int vflag);

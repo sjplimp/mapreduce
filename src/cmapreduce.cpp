@@ -138,7 +138,27 @@ uint64_t MR_map_add(void *MRptr, int nmap,
   return mr->map(nmap,appmap,APPptr,addflag);
 }
 
-uint64_t MR_map_file_list(void *MRptr, char *file,
+uint64_t MR_map_file(void *MRptr, int nfile, char **files,
+			  void (*mymap)(int, char *, void *, void *),
+			  void *APPptr)
+{
+  typedef void (MapFunc)(int, char *, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(nfile,files,appmap,APPptr);
+}
+
+uint64_t MR_map_file_add(void *MRptr, int nfile, char **files,
+			      void (*mymap)(int, char *, void *, void *),
+			      void *APPptr, int addflag)
+{
+  typedef void (MapFunc)(int, char *, KeyValue *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  MapFunc *appmap = (MapFunc *) mymap;
+  return mr->map(nfile,files,appmap,APPptr,addflag);
+}
+
+uint64_t MR_map_file_file(void *MRptr, char *file,
 			  void (*mymap)(int, char *, void *, void *),
 			  void *APPptr)
 {
@@ -148,7 +168,7 @@ uint64_t MR_map_file_list(void *MRptr, char *file,
   return mr->map(file,appmap,APPptr);
 }
 
-uint64_t MR_map_file_list_add(void *MRptr, char *file,
+uint64_t MR_map_file_file_add(void *MRptr, char *file,
 			      void (*mymap)(int, char *, void *, void *),
 			      void *APPptr, int addflag)
 {
@@ -158,9 +178,9 @@ uint64_t MR_map_file_list_add(void *MRptr, char *file,
   return mr->map(file,appmap,APPptr,addflag);
 }
 
-uint64_t MR_map_dir(void *MRptr, char *dir, int oneflag,
-		    void (*mymap)(int, char *, void *, void *),
-		    void *APPptr)
+uint64_t MR_map_file_dir(void *MRptr, char *dir, int oneflag,
+			 void (*mymap)(int, char *, void *, void *),
+			 void *APPptr)
 {
   typedef void (MapFunc)(int, char *, KeyValue *, void *);
   MapReduce *mr = (MapReduce *) MRptr;
@@ -168,9 +188,9 @@ uint64_t MR_map_dir(void *MRptr, char *dir, int oneflag,
   return mr->map(dir,oneflag,appmap,APPptr);
 }
 
-uint64_t MR_map_dir_add(void *MRptr, char *dir, int oneflag,
-			      void (*mymap)(int, char *, void *, void *),
-			      void *APPptr, int addflag)
+uint64_t MR_map_file_dir_add(void *MRptr, char *dir, int oneflag,
+			     void (*mymap)(int, char *, void *, void *),
+			     void *APPptr, int addflag)
 {
   typedef void (MapFunc)(int, char *, KeyValue *, void *);
   MapReduce *mr = (MapReduce *) MRptr;

@@ -904,101 +904,25 @@ uint64_t MapReduce::gather(int numprocs)
 uint64_t MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
 			void *appptr, int addflag)
 {
-  MPI_Status status;
-
-  if (timer) start_timer();
-  if (verbosity) file_stats(0);
-
-  if (!allocated) allocate();
-  if (kmv) myfree(kmv->memtag);
-  delete kmv;
-  kmv = NULL;
-
-  if (addflag == 0) {
-    if (kv) myfree(kv->memtag);
-    delete kv;
-    kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
-  } else if (kv == NULL) {
-    kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
-  } else {
-    kv->append();
-  }
-
-  // nprocs = 1 = all tasks to single processor
-  // mapstyle 0 = chunk of tasks to each proc
-  // mapstyle 1 = strided tasks to each proc
-  // mapstyle 2 = master/slave assignment of tasks
-
-  if (nprocs == 1) {
-    for (int itask = 0; itask < nmap; itask++)
-      appmap(itask,kv,appptr);
-
-  } else if (mapstyle == 0) {
-    uint64_t nmap64 = nmap;
-    int lo = me * nmap64 / nprocs;
-    int hi = (me+1) * nmap64 / nprocs;
-    for (int itask = lo; itask < hi; itask++)
-      appmap(itask,kv,appptr);
-
-  } else if (mapstyle == 1) {
-    for (int itask = me; itask < nmap; itask += nprocs)
-      appmap(itask,kv,appptr);
-
-  } else if (mapstyle == 2) {
-    if (me == 0) {
-      int doneflag = -1;
-      int ndone = 0;
-      int itask = 0;
-      for (int iproc = 1; iproc < nprocs; iproc++) {
-	if (itask < nmap) {
-	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
-	  itask++;
-	} else {
-	  MPI_Send(&doneflag,1,MPI_INT,iproc,0,comm);
-	  ndone++;
-	}
-      }
-      while (ndone < nprocs-1) {
-	int iproc,tmp;
-	MPI_Recv(&tmp,1,MPI_INT,MPI_ANY_SOURCE,0,comm,&status);
-	iproc = status.MPI_SOURCE;
-
-	if (itask < nmap) {
-	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
-	  itask++;
-	} else {
-	  MPI_Send(&doneflag,1,MPI_INT,iproc,0,comm);
-	  ndone++;
-	}
-      }
-
-    } else {
-      while (1) {
-	int itask;
-	MPI_Recv(&itask,1,MPI_INT,0,0,comm,&status);
-	if (itask < 0) break;
-	appmap(itask,kv,appptr);
-	MPI_Send(&itask,1,MPI_INT,0,0,comm);
-      }
-    }
-
-  } else error->all("Invalid mapstyle setting");
-
-  kv->complete();
-
-  stats("Map",0);
-
-  uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
-  return nkeyall;
+  return map_task(nmap,NULL,appmap,NULL,appptr,addflag,0);
 }
 
 /* ----------------------------------------------------------------------
-   create a KV via a parallel map operation for list of files in file
-   make one call to appmap() for each file in file
-   mapstyle determines how tasks are partitioned to processors
+   parallel map operation for list of files
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::map(int nfile, char **files,
+			void (*appmap)(int, char *, KeyValue *, void *),
+			void *appptr, int addflag)
+{
+  return map_task(nfile,files,NULL,appmap,appptr,addflag,0);
+}
+
+/* ----------------------------------------------------------------------
+   parallel map operation for list of files in file
+   open file and extract filenames
+   bcast each filename to all procs
+   trim whitespace from beginning and end of filename
 ------------------------------------------------------------------------- */
 
 uint64_t MapReduce::map(char *file, 
@@ -1007,33 +931,8 @@ uint64_t MapReduce::map(char *file,
 {
   int n;
   char line[MAXLINE];
-  MPI_Status status;
 
-  if (timer) start_timer();
-  if (verbosity) file_stats(0);
-
-  if (!allocated) allocate();
-  if (kmv) myfree(kmv->memtag);
-  delete kmv;
-  kmv = NULL;
-
-  if (addflag == 0) {
-    if (kv) myfree(kv->memtag);
-    delete kv;
-    kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
-  } else if (kv == NULL) {
-    kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
-  } else {
-    kv->append();
-  }
-
-  // open file and extract filenames
-  // bcast each filename to all procs
-  // trim whitespace from beginning and end of filename
-
-  int nmap = 0;
+  int nfile = 0;
   int maxfiles = 0;
   char **files = NULL;
   FILE *fp;
@@ -1064,105 +963,85 @@ uint64_t MapReduce::map(char *file,
     ptr2++;
     *ptr2 = '\0';
 
-    if (nmap == maxfiles) {
+    if (nfile == maxfiles) {
       maxfiles += FILECHUNK;
       files = (char **)
 	memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
     }
     n = strlen(ptr) + 1;
-    files[nmap] = new char[n];
-    strcpy(files[nmap],ptr);
-    nmap++;
+    files[nfile] = new char[n];
+    strcpy(files[nfile],ptr);
+    nfile++;
   }
-  
-  // nprocs = 1 = all tasks to single processor
-  // mapstyle 0 = chunk of tasks to each proc
-  // mapstyle 1 = strided tasks to each proc
-  // mapstyle 2 = master/slave assignment of tasks
 
-  if (nprocs == 1) {
-    for (int itask = 0; itask < nmap; itask++)
-      appmap(itask,files[itask],kv,appptr);
-
-  } else if (mapstyle == 0) {
-    uint64_t nmap64 = nmap;
-    int lo = me * nmap64 / nprocs;
-    int hi = (me+1) * nmap64 / nprocs;
-    for (int itask = lo; itask < hi; itask++)
-      appmap(itask,files[itask],kv,appptr);
-
-  } else if (mapstyle == 1) {
-    for (int itask = me; itask < nmap; itask += nprocs)
-      appmap(itask,files[itask],kv,appptr);
-
-  } else if (mapstyle == 2) {
-    if (me == 0) {
-      int doneflag = -1;
-      int ndone = 0;
-      int itask = 0;
-      for (int iproc = 1; iproc < nprocs; iproc++) {
-	if (itask < nmap) {
-	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
-	  itask++;
-	} else {
-	  MPI_Send(&doneflag,1,MPI_INT,iproc,0,comm);
-	  ndone++;
-	}
-      }
-      while (ndone < nprocs-1) {
-	int iproc,tmp;
-	MPI_Recv(&tmp,1,MPI_INT,MPI_ANY_SOURCE,0,comm,&status);
-	iproc = status.MPI_SOURCE;
-
-	if (itask < nmap) {
-	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
-	  itask++;
-	} else {
-	  MPI_Send(&doneflag,1,MPI_INT,iproc,0,comm);
-	  ndone++;
-	}
-      }
-
-    } else {
-      while (1) {
-	int itask;
-	MPI_Recv(&itask,1,MPI_INT,0,0,comm,&status);
-	if (itask < 0) break;
-	appmap(itask,files[itask],kv,appptr);
-	MPI_Send(&itask,1,MPI_INT,0,0,comm);
-      }
-    }
-
-  } else error->all("Invalid mapstyle setting");
-
-  // clean up file list
-
-  for (int i = 0; i < nmap; i++) delete [] files[i];
-  memory->sfree(files);
-
-  kv->complete();
-
-  stats("Map",0);
-
-  uint64_t nkeyall;
-  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
-  return nkeyall;
+  return map_task(nfile,files,NULL,appmap,appptr,addflag,0);
 }
 
 /* ----------------------------------------------------------------------
-   create a KV via a parallel map operation for list of files in dir
-   make one call to appmap() for each file in dir
-   if oneflag = 1, all processors process all files in single dir
-     mapstyle determines how tasks are partitioned to processors
-   if oneflag = 0, each processor reads own dir, processes those files
+   parallel map operation for list of files in dir
+   open dir and read filenames
+   if oneflag = 0, each proc reads filenames from own dir
+   if oneflag = 1, proc 0 reads filenames, bcast list to all procs
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map(char *dir, int oneflag,
+uint64_t MapReduce::map(char *dir, int selfflag,
 			void (*appmap)(int, char *, KeyValue *, void *),
 			void *appptr, int addflag)
 {
   int n;
-  char line[MAXLINE];
+
+  int nfile = 0;
+  int maxfiles = 0;
+  char **files = NULL;
+
+  if (selfflag || me == 0) {
+    struct dirent *ep;
+    DIR *dp = opendir(dir);
+    if (dp == NULL) error->one("Cannot open dir to search for files");
+    while (ep = readdir(dp)) {
+      if (nfile == maxfiles) {
+	maxfiles += FILECHUNK;
+	files = (char **)
+	  memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
+      }
+      n = strlen(ep->d_name) + 1;
+      files[nfile] = new char[n];
+      strcpy(files[nfile],ep->d_name);
+      nfile++;
+    }
+    closedir(dp);
+  }
+
+  if (selfflag == 0) {
+    MPI_Bcast(&nfile,1,MPI_INT,0,comm);
+    if (me > 0) {
+      maxfiles += nfile;
+      files = (char **)
+	memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
+    }
+    for (int i = 0; i < nfile; i++) {
+      if (me == 0) n = strlen(files[i]) + 1;
+      MPI_Bcast(&n,1,MPI_INT,0,comm);
+      if (me > 0) files[i] = new char[n];
+      MPI_Bcast(files[i],n,MPI_CHAR,0,comm);
+    }
+  }
+
+  return map_task(nfile,files,NULL,appmap,appptr,addflag,selfflag);
+}
+
+/* ----------------------------------------------------------------------
+   create a KV via a parallel map operation for nmap tasks
+   make one call to appmap() for each task
+   mapstyle determines how tasks are partitioned to processors
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::map_task(int ntask, char **files,
+			     void (*appmaptask)(int, KeyValue *, void *),
+			     void (*appmapfile)(int, char *, 
+						KeyValue *, void *),
+			     void *appptr, int addflag, int selfflag)
+{
   MPI_Status status;
 
   if (timer) start_timer();
@@ -1185,72 +1064,29 @@ uint64_t MapReduce::map(char *dir, int oneflag,
     kv->append();
   }
 
-  // open dir and read filenames
-  // if oneflag = 0, each proc reads filenames from own dir
-  // if oneflag = 1, only proc 0 reads filenames, bcast list to all procs
-
-  int nmap = 0;
-  int maxfiles = 0;
-  char **files = NULL;
-
-  if (oneflag == 0 || me == 0) {
-    struct dirent *ep;
-    DIR *dp = opendir(dir);
-    if (dp == NULL) error->one("Cannot open dir to search for files");
-    while (ep = readdir(dp)) {
-      if (nmap == maxfiles) {
-	maxfiles += FILECHUNK;
-	files = (char **)
-	  memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
-      }
-      n = strlen(ep->d_name) + 1;
-      files[nmap] = new char[n];
-      strcpy(files[nmap],ep->d_name);
-      nmap++;
-    }
-    closedir(dp);
-  }
-
-  if (oneflag) {
-    MPI_Bcast(&nmap,1,MPI_INT,0,comm);
-    if (me > 0) {
-      maxfiles += nmap;
-      files = (char **)
-	memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
-    }
-    for (int i = 0; i < nmap; i++) {
-      if (me == 0) n = strlen(files[i]) + 1;
-      MPI_Bcast(&n,1,MPI_INT,0,comm);
-      if (me > 0) files[i] = new char[n];
-      MPI_Bcast(files[i],n,MPI_CHAR,0,comm);
-    }
-  }
-
-  // if oneflag = 0, each processor performs own tasks
-  // else:
+  // selfflag = 1 = each processor performs own tasks
   // nprocs = 1 = all tasks to single processor
   // mapstyle 0 = chunk of tasks to each proc
   // mapstyle 1 = strided tasks to each proc
   // mapstyle 2 = master/slave assignment of tasks
 
-  if (oneflag == 0) {
-    for (int itask = 0; itask < nmap; itask++)
-      appmap(itask,files[itask],kv,appptr);
-
-  } else if (nprocs == 1) {
-    for (int itask = 0; itask < nmap; itask++)
-      appmap(itask,files[itask],kv,appptr);
+  if (selfflag == 1 || nprocs == 1) {
+    for (int itask = 0; itask < ntask; itask++)
+      if (files) appmapfile(itask,files[itask],kv,appptr);
+      else appmaptask(itask,kv,appptr);
 
   } else if (mapstyle == 0) {
-    uint64_t nmap64 = nmap;
+    uint64_t nmap64 = ntask;
     int lo = me * nmap64 / nprocs;
     int hi = (me+1) * nmap64 / nprocs;
     for (int itask = lo; itask < hi; itask++)
-      appmap(itask,files[itask],kv,appptr);
+      if (files) appmapfile(itask,files[itask],kv,appptr);
+      else appmaptask(itask,kv,appptr);
 
   } else if (mapstyle == 1) {
-    for (int itask = me; itask < nmap; itask += nprocs)
-      appmap(itask,files[itask],kv,appptr);
+    for (int itask = me; itask < ntask; itask += nprocs)
+      if (files) appmapfile(itask,files[itask],kv,appptr);
+      else appmaptask(itask,kv,appptr);
 
   } else if (mapstyle == 2) {
     if (me == 0) {
@@ -1258,7 +1094,7 @@ uint64_t MapReduce::map(char *dir, int oneflag,
       int ndone = 0;
       int itask = 0;
       for (int iproc = 1; iproc < nprocs; iproc++) {
-	if (itask < nmap) {
+	if (itask < ntask) {
 	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
 	  itask++;
 	} else {
@@ -1271,7 +1107,7 @@ uint64_t MapReduce::map(char *dir, int oneflag,
 	MPI_Recv(&tmp,1,MPI_INT,MPI_ANY_SOURCE,0,comm,&status);
 	iproc = status.MPI_SOURCE;
 
-	if (itask < nmap) {
+	if (itask < ntask) {
 	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
 	  itask++;
 	} else {
@@ -1285,7 +1121,8 @@ uint64_t MapReduce::map(char *dir, int oneflag,
 	int itask;
 	MPI_Recv(&itask,1,MPI_INT,0,0,comm,&status);
 	if (itask < 0) break;
-	appmap(itask,files[itask],kv,appptr);
+	if (files) appmapfile(itask,files[itask],kv,appptr);
+	else appmaptask(itask,kv,appptr);
 	MPI_Send(&itask,1,MPI_INT,0,0,comm);
       }
     }
@@ -1293,9 +1130,11 @@ uint64_t MapReduce::map(char *dir, int oneflag,
   } else error->all("Invalid mapstyle setting");
 
   // clean up file list
-
-  for (int i = 0; i < nmap; i++) delete [] files[i];
-  memory->sfree(files);
+  
+  if (files) {
+    for (int i = 0; i < ntask; i++) delete [] files[i];
+    memory->sfree(files);
+  }
 
   kv->complete();
 
@@ -1308,10 +1147,10 @@ uint64_t MapReduce::map(char *dir, int oneflag,
 
 /* ----------------------------------------------------------------------
    create a KV via a parallel map operation for nmap tasks
-   nfiles filenames are split into nmap pieces based on separator char
+   nfile filenames are split into nmap pieces based on separator char
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map(int nmap, int nfiles, char **files,
+uint64_t MapReduce::map(int nmap, int nfile, char **files,
 			char sepchar, int delta,
 			void (*appmap)(int, char *, int, KeyValue *, void *),
 			void *appptr, int addflag)
@@ -1320,15 +1159,15 @@ uint64_t MapReduce::map(int nmap, int nfiles, char **files,
   filemap.sepchar = sepchar;
   filemap.delta = delta;
 
-  return map_file(nmap,nfiles,files,appmap,appptr,addflag);
+  return map_file(nmap,nfile,files,appmap,appptr,addflag);
 }
 
 /* ----------------------------------------------------------------------
    create a KV via a parallel map operation for nmap tasks
-   nfiles filenames are split into nmap pieces based on separator string
+   nfile filenames are split into nmap pieces based on separator string
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map(int nmap, int nfiles, char **files,
+uint64_t MapReduce::map(int nmap, int nfile, char **files,
 			char *sepstr, int delta,
 			void (*appmap)(int, char *, int, KeyValue *, void *),
 			void *appptr, int addflag)
@@ -1339,24 +1178,25 @@ uint64_t MapReduce::map(int nmap, int nfiles, char **files,
   strcpy(filemap.sepstr,sepstr);
   filemap.delta = delta;
 
-  return map_file(nmap,nfiles,files,appmap,appptr,addflag);
+  return map_file(nmap,nfile,files,appmap,appptr,addflag);
 }
 
 /* ----------------------------------------------------------------------
    called by 2 map methods that take files and a separator
    create a KV via a parallel map operation for nmap tasks
-   nfiles filenames are split into nmap pieces based on separator
+   nfile filenames are split into nmap pieces based on separator
    FileMap struct stores info on how to split files
    calls non-file map() to partition tasks to processors
      with callback to non-class map_file_standalone()
    map_file_standalone() reads chunk of file and passes it to user appmap()
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
-			     void (*appmap)(int, char *, int, KeyValue *, void *),
+uint64_t MapReduce::map_file(int nmap, int nfile, char **files,
+			     void (*appmap)(int, char *, 
+					    int, KeyValue *, void *),
 			     void *appptr, int addflag)
 {
-  if (nfiles > nmap) error->all("Cannot map with more files than tasks");
+  if (nfile > nmap) error->all("Cannot map with more files than tasks");
   if (timer) start_timer();
   if (verbosity) file_stats(0);
 
@@ -1367,8 +1207,8 @@ uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
 
   // copy filenames into FileMap
 
-  filemap.filename = new char*[nfiles];
-  for (int i = 0; i < nfiles; i++) {
+  filemap.filename = new char*[nfile];
+  for (int i = 0; i < nfile; i++) {
     int n = strlen(files[i]) + 1;
     filemap.filename[i] = new char[n];
     strcpy(filemap.filename[i],files[i]);
@@ -1377,24 +1217,24 @@ uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
   // get filesize of each file via stat()
   // proc 0 queries files, bcasts results to all procs
 
-  filemap.filesize = new uint64_t[nfiles];
+  filemap.filesize = new uint64_t[nfile];
   struct stat stbuf;
 
   if (me == 0) {
-    for (int i = 0; i < nfiles; i++) {
+    for (int i = 0; i < nfile; i++) {
       int flag = stat(files[i],&stbuf);
       if (flag < 0) error->one("Could not query file size");
       filemap.filesize[i] = stbuf.st_size;
     }
   }
 
-  MPI_Bcast(filemap.filesize,nfiles*sizeof(uint64_t),MPI_BYTE,0,comm);
+  MPI_Bcast(filemap.filesize,nfile*sizeof(uint64_t),MPI_BYTE,0,comm);
 
   // ntotal = total size of all files
   // nideal = ideal # of bytes per task
 
   uint64_t ntotal = 0;
-  for (int i = 0; i < nfiles; i++) ntotal += filemap.filesize[i];
+  for (int i = 0; i < nfile; i++) ntotal += filemap.filesize[i];
   uint64_t nideal = MAX(1,ntotal/nmap);
 
   // tasksperfile[i] = # of tasks for Ith file
@@ -1402,23 +1242,23 @@ uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
   // increment/decrement tasksperfile until reach target # of tasks
   // even small files must have 1 task
 
-  filemap.tasksperfile = new int[nfiles];
+  filemap.tasksperfile = new int[nfile];
 
   int ntasks = 0;
-  for (int i = 0; i < nfiles; i++) {
+  for (int i = 0; i < nfile; i++) {
     filemap.tasksperfile[i] = MAX(1,filemap.filesize[i]/nideal);
     ntasks += filemap.tasksperfile[i];
   }
 
   while (ntasks < nmap)
-    for (int i = 0; i < nfiles; i++)
+    for (int i = 0; i < nfile; i++)
       if (filemap.filesize[i] > nideal) {
 	filemap.tasksperfile[i]++;
 	ntasks++;
 	if (ntasks == nmap) break;
       }
   while (ntasks > nmap)
-    for (int i = 0; i < nfiles; i++)
+    for (int i = 0; i < nfile; i++)
       if (filemap.tasksperfile[i] > 1) {
 	filemap.tasksperfile[i]--;
 	ntasks--;
@@ -1429,7 +1269,7 @@ uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
   // if so, reduce number of tasks for that file and issue warning
 
   int flag = 0;
-  for (int i = 0; i < nfiles; i++) {
+  for (int i = 0; i < nfile; i++) {
     if (filemap.filesize[i] / filemap.tasksperfile[i] > filemap.delta)
       continue;
     flag = 1;
@@ -1454,7 +1294,7 @@ uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
   filemap.whichtask = new int[nmap];
 
   int itask = 0;
-  for (int i = 0; i < nfiles; i++)
+  for (int i = 0; i < nfile; i++)
     for (int j = 0; j < filemap.tasksperfile[i]; j++) {
       filemap.whichfile[itask] = i;
       filemap.whichtask[itask++] = j;
@@ -1478,7 +1318,7 @@ uint64_t MapReduce::map_file(int nmap, int nfiles, char **files,
   // destroy FileMap
 
   if (filemap.sepwhich == 0) delete [] filemap.sepstr;
-  for (int i = 0; i < nfiles; i++) delete [] filemap.filename[i];
+  for (int i = 0; i < nfile; i++) delete [] filemap.filename[i];
   delete [] filemap.filename;
   delete [] filemap.filesize;
   delete [] filemap.tasksperfile;

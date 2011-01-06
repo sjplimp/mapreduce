@@ -53,9 +53,9 @@ class mrmpi:
     MAP_FILE_FUNC = CFUNCTYPE(c_void_p,c_int,c_char_p,c_void_p,c_void_p)
     self.map_file_def = MAP_FILE_FUNC(self.map_file_callback)
     
-    MAP_FILE_STR_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
-                                 c_void_p,c_void_p)
-    self.map_file_str_def = MAP_FILE_STR_FUNC(self.map_file_str_callback)
+    MAP_STR_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
+                             c_void_p,c_void_p)
+    self.map_str_def = MAP_STR_FUNC(self.map_str_callback)
     
     MAP_MR_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
                             POINTER(c_char),c_int,c_void_p,c_void_p)
@@ -178,7 +178,20 @@ class mrmpi:
     if self.map_argcount == 2: self.map_caller(itask,self)
     else: self.map_caller(itask,self,self.map_ptr)
     
-  def map_file_list(self,file,map,ptr=None,addflag=0):
+  def map_file(self,files,map,ptr=None,addflag=0):
+    self.map_caller = map
+    self.map_argcount = map.func_code.co_argcount
+    self.map_ptr = ptr
+    cfiles = (c_char_p*len(files))(*files)   # array of C strings from list
+    if not addflag:
+      n = self.lib.MR_map_file(self.mr,len(cfiles),cfiles,
+                               self.map_file_def,None)
+    else:
+      n = self.lib.MR_map_file_add(self.mr,len(cfiles),cfiles,
+                                   self.map_file_def,None,addflag)
+    return n
+
+  def map_file_file(self,file,map,ptr=None,addflag=0):
     self.map_caller = map
     self.map_argcount = map.func_code.co_argcount
     self.map_ptr = ptr
@@ -189,14 +202,14 @@ class mrmpi:
                                         None,addflag)
     return n
 
-  def map_dir(self,dir,oneflag,map,ptr=None,addflag=0):
+  def map_dir(self,dir,selfflag,map,ptr=None,addflag=0):
     self.map_caller = map
     self.map_argcount = map.func_code.co_argcount
     self.map_ptr = ptr
     if not addflag:
-      n = self.lib.MR_map_dir(self.mr,dir,oneflag,self.map_file_def,None)
+      n = self.lib.MR_map_dir(self.mr,dir,selfflag,self.map_file_def,None)
     else:
-      n = self.lib.MR_map_dir_add(self.mr,dir,oneflag,self.map_file_def,
+      n = self.lib.MR_map_dir_add(self.mr,dir,selfflag,self.map_file_def,
                                   None,addflag)
     return n
 
@@ -213,31 +226,29 @@ class mrmpi:
     cfiles = (c_char_p*len(files))(*files)   # array of C strings from list
     if not addflag:
       n = self.lib.MR_map_file_char(self.mr,nmap,len(files),cfiles,
-                                    ord(sepchar),delta,
-                                    self.map_file_str_def,None)
+                                    ord(sepchar),delta,self.map_str_def,None)
     else:
       n = self.lib.MR_map_file_char_add(self.mr,nmap,len(files),cfiles,
                                         ord(sepchar),delta,
-                                        self.map_file_str_def,None,addflag)
+                                        self.map_str_def,None,addflag)
     return n
     
   def map_file_str(self,nmap,files,sepstr,delta,map,
-                   ptr=None,addflag=0):
+              ptr=None,addflag=0):
     self.map_caller = map
     self.map_argcount = map.func_code.co_argcount
     self.map_ptr = ptr
     cfiles = (c_char_p*len(files))(*files)   # array of C strings from list
     if not addflag:
       n = self.lib.MR_map_file_str(self.mr,nmap,len(files),cfiles,
-                                   sepstr,delta,
-                                   self.map_file_str_def,None)
+                                   sepstr,delta,self.map_str_def,None)
     else:
       n = self.lib.MR_map_file_str_add(self.mr,nmap,len(files),cfiles,
                                        sepstr,delta,
-                                       self.map_file_str_def,None,addflag)
+                                       self.map_str_def,None,addflag)
     return n
 
-  def map_file_str_callback(self,itask,cstr,size,kv,dummy):
+  def map_str_callback(self,itask,cstr,size,kv,dummy):
     self.kv = kv
     str = cstr[:size]
     if self.map_argcount == 3: self.map_caller(itask,str,self)

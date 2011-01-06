@@ -75,6 +75,8 @@ class MapReduce {
 
   uint64_t map(int, void (*)(int, class KeyValue *, void *),
 	       void *, int addflag = 0);
+  uint64_t map(int, char **, void (*)(int, char *, class KeyValue *, void *),
+	       void *, int addflag = 0);
   uint64_t map(char *, void (*)(int, char *, class KeyValue *, void *),
 	       void *, int addflag = 0);
   uint64_t map(char *, int, void (*)(int, char *, class KeyValue *, void *),
@@ -206,9 +208,13 @@ class MapReduce {
   void copy_kv(KeyValue *);
   void copy_kmv(KeyMultiValue *);
 
+  uint64_t map_task(int, char **,
+		    void (*)(int, KeyValue *, void *),
+		    void (*)(int, char *, KeyValue *, void *),
+		    void *, int, int);
   uint64_t map_file(int, int, char **,
 		    void (*)(int, char *, int, class KeyValue *, void *),
-		    void *, int addflag);
+		    void *, int);
 
   void sort_kv(int);
   void sort_onepage(int, int, char *, char *, char *);
