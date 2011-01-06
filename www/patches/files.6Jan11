@@ -1,0 +1,23 @@
+1Nov10 version files changed by 6Jan11 upgrade:
+
+doc/interface_c.html
+doc/interface_c.txt
+doc/interface_python.html
+doc/interface_python.txt
+doc/map.html
+doc/map.txt
+doc/reduce.html
+doc/reduce.txt
+examples/wordfreq.cpp
+mpistubs/mpi.cpp
+mpistubs/mpi.h
+python/mrmpi.py
+src/cmapreduce.cpp
+src/cmapreduce.h
+src/irregular.cpp
+src/keymultivalue.cpp
+src/keyvalue.cpp
+src/mapreduce.cpp
+src/mapreduce.h
+src/mrtype.h
+src/spool.cpp
