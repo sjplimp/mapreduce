@@ -17,6 +17,17 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[6 Jan 2011]
+
+Added some new options to the "map()"_doc/map.html method to enable
+lists of files or entire directories of files to be read in as part of
+a map operation.
+
+This is the "list of changed files"_patches/files.6Jan11 from the 1
+Nov 2010 version.
+
+:line
+
 [1 Nov 2010]
 
 The print() function in the Python interface was causing some problems
