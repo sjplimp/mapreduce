@@ -19,6 +19,7 @@
 #include "stdint.h"
 #include "sys/types.h"
 #include "sys/stat.h"
+#include "dirent.h"
 #include "mapreduce.h"
 #include "mrtype.h"
 #include "keyvalue.h"
@@ -1156,7 +1157,7 @@ uint64_t MapReduce::map(char *file,
    if oneflag = 0, each processor reads own dir, processes those files
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map(char *file, int oneflag,
+uint64_t MapReduce::map(char *dir, int oneflag,
 			void (*appmap)(int, char *, KeyValue *, void *),
 			void *appptr, int addflag)
 {
@@ -1184,58 +1185,59 @@ uint64_t MapReduce::map(char *file, int oneflag,
     kv->append();
   }
 
-  // open file and extract filenames
-  // bcast each filename to all procs
-  // trim whitespace from beginning and end of filename
+  // open dir and read filenames
+  // if oneflag = 0, each proc reads filenames from own dir
+  // if oneflag = 1, only proc 0 reads filenames, bcast list to all procs
 
   int nmap = 0;
   int maxfiles = 0;
   char **files = NULL;
-  FILE *fp;
 
-  if (me == 0) {
-    fp = fopen(file,"r");
-    if (fp == NULL) error->one("Could not open file of file names");
+  if (oneflag == 0 || me == 0) {
+    struct dirent *ep;
+    DIR *dp = opendir(dir);
+    if (dp == NULL) error->one("Cannot open dir to search for files");
+    while (ep = readdir(dp)) {
+      if (nmap == maxfiles) {
+	maxfiles += FILECHUNK;
+	files = (char **)
+	  memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
+      }
+      n = strlen(ep->d_name) + 1;
+      files[nmap] = new char[n];
+      strcpy(files[nmap],ep->d_name);
+      nmap++;
+    }
+    closedir(dp);
   }
 
-  while (1) {
-    if (me == 0) {
-      if (fgets(line,MAXLINE,fp) == NULL) n = 0;
-      else n = strlen(line) + 1;
-    }
-    MPI_Bcast(&n,1,MPI_INT,0,comm);
-    if (n == 0) {
-      if (me == 0) fclose(fp);
-      break;
-    }
-
-    MPI_Bcast(line,n,MPI_CHAR,0,comm);
-
-    char *ptr = line;
-    while (isspace(*ptr)) ptr++;
-    if (strlen(ptr) == 0) error->all("Blank line in file of file names");
-    char *ptr2 = ptr + strlen(ptr) - 1;
-    while (isspace(*ptr2)) ptr2--;
-    ptr2++;
-    *ptr2 = '\0';
-
-    if (nmap == maxfiles) {
-      maxfiles += FILECHUNK;
+  if (oneflag) {
+    MPI_Bcast(&nmap,1,MPI_INT,0,comm);
+    if (me > 0) {
+      maxfiles += nmap;
       files = (char **)
 	memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
     }
-    n = strlen(ptr) + 1;
-    files[nmap] = new char[n];
-    strcpy(files[nmap],ptr);
-    nmap++;
+    for (int i = 0; i < nmap; i++) {
+      if (me == 0) n = strlen(files[i]) + 1;
+      MPI_Bcast(&n,1,MPI_INT,0,comm);
+      if (me > 0) files[i] = new char[n];
+      MPI_Bcast(files[i],n,MPI_CHAR,0,comm);
+    }
   }
-  
+
+  // if oneflag = 0, each processor performs own tasks
+  // else:
   // nprocs = 1 = all tasks to single processor
   // mapstyle 0 = chunk of tasks to each proc
   // mapstyle 1 = strided tasks to each proc
   // mapstyle 2 = master/slave assignment of tasks
 
-  if (nprocs == 1) {
+  if (oneflag == 0) {
+    for (int itask = 0; itask < nmap; itask++)
+      appmap(itask,files[itask],kv,appptr);
+
+  } else if (nprocs == 1) {
     for (int itask = 0; itask < nmap; itask++)
       appmap(itask,files[itask],kv,appptr);
 
