@@ -77,6 +77,8 @@ class MapReduce {
 	       void *, int addflag = 0);
   uint64_t map(char *, void (*)(int, char *, class KeyValue *, void *),
 	       void *, int addflag = 0);
+  uint64_t map(char *, int, void (*)(int, char *, class KeyValue *, void *),
+	       void *, int addflag = 0);
   uint64_t map(int, int, char **, char, int, 
 	       void (*)(int, char *, int, class KeyValue *, void *),
 	       void *, int addflag = 0);

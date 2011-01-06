@@ -86,6 +86,6 @@ void CCStats::map_print(uint64_t itask, char *key, int keybytes,
 {
   uint64_t nvert = *(uint64_t *) key;
   uint64_t ncc = *(uint64_t *) value;
-  printf("  %u CCs with %u vertices\n",ncc,nvert);
+  printf("  %lu CCs with %lu vertices\n",ncc,nvert);
 }
 

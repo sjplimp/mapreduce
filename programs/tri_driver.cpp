@@ -80,8 +80,8 @@ int main(int narg, char **args)
   double time = tri.run(mre,mrt,ntri);
 
   if (me == 0)
-    printf("Triangle find: %g secs, %u triangles in RMAT with "
-	   "%u verts, %u edges on %d procs\n",time,ntri,
+    printf("Triangle find: %g secs, %lu triangles in RMAT with "
+	   "%lu verts, %lu edges on %d procs\n",time,ntri,
 	   in.nvert,newedge,nprocs);
 
   delete mre;

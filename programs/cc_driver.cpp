@@ -84,7 +84,7 @@ int main(int narg, char **args)
 
   if (me == 0)
     printf("CC find: %g secs, %d iterations on RMAT with "
-	   "%u verts, %u edges on %d procs\n",time,niterate,
+	   "%lu verts, %u edges on %d procs\n",time,niterate,
 	   in.nvert,in.nedge,nprocs);
 
   // CC stats

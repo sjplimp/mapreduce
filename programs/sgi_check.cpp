@@ -75,7 +75,7 @@ int main(int narg, char **args)
   combine(nvert,verts,nedge,edges);
 
   //for (int i = 0; i < nedge; i++)
-  //  printf("EDGE %u %u: %d %d %d\n",
+  //  printf("EDGE %lu %lu: %d %d %d\n",
   //	   edges[i].vi,edges[i].vj,edges[i].fij,edges[i].wi,edges[i].wj);
 
   // recursive find of each SGI match
@@ -96,7 +96,7 @@ int main(int narg, char **args)
 
   // stats
 
-  printf("SGI find: %g secs, %u SG in big graph with "
+  printf("SGI find: %g secs, %d SG in big graph with "
 	 "%d verts, %d edges\n",time,nsgi,nvert,nedge);
 
   // clean up
@@ -122,7 +122,7 @@ void find(int itour, int nvert, VERT *verts, int nedge, EDGE *edges,
 
   if (itour == ntour) {
     for (int i = 0; i < ntour; i++)
-      fprintf(fp,"%u ",tour[i]);
+      fprintf(fp,"%lu ",tour[i]);
     fprintf(fp,"\n");
     nsgi++;
     return;

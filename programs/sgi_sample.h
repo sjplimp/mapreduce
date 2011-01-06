@@ -14,8 +14,9 @@ class SGISample {
  public:
   SGISample(int, int, int *, int *, int *, MPI_Comm);
   double run(MAPREDUCE_NS::MapReduce *, MAPREDUCE_NS::MapReduce *, 
+	     MAPREDUCE_NS::MapReduce **, MAPREDUCE_NS::MapReduce **, 
 	     MAPREDUCE_NS::MapReduce *, MAPREDUCE_NS::MapReduce *, 
-	     MAPREDUCE_NS::MapReduce *, uint64_t &);
+	     uint64_t &);
 
  private:
   int me;
@@ -26,6 +27,7 @@ class SGISample {
   char *outfile;
   FILE *fp;
 
+  typedef uint64_t ULONG;
   typedef uint64_t VERTEX;
   typedef int LABEL;
   typedef struct {
@@ -40,10 +42,21 @@ class SGISample {
     LABEL wi,fij;
   } X2VALUE;
   typedef struct {
-    VERTEX vj;
     LABEL wi,wj;
     LABEL fij;
   } X3VALUE;
+  typedef struct {
+    VERTEX vi,vj;
+    LABEL k;
+  } X4VALUE;
+  typedef struct {
+    ULONG count,dummy;
+  } COUNT;
+
+  MAPREDUCE_NS::MapReduce **mro,**mri;
+  MAPREDUCE_NS::MapReduce *mreprime,*mrc;
+  int eflag,kindex;
+  ULONG tlocal;
 
   static void map1(uint64_t, char *, int, char *, int, 
 		   MAPREDUCE_NS::KeyValue *, void *);
@@ -51,13 +64,25 @@ class SGISample {
 		   MAPREDUCE_NS::KeyValue *, void *);
   static void map3(uint64_t, char *, int, char *, int,
 		   MAPREDUCE_NS::KeyValue *, void *);
-  static void map4(uint64_t, char *, int, char *, int,
+  static void map5(uint64_t, char *, int, char *, int,
 		   MAPREDUCE_NS::KeyValue *, void *);
+
   static void reduce1a(char *, int, char *, int, int *,
 		      MAPREDUCE_NS::KeyValue *, void *);
   static void reduce1b(char *, int, char *, int, int *,
 		      MAPREDUCE_NS::KeyValue *, void *);
   static void reduce3(char *, int, char *, int, int *,
+		      MAPREDUCE_NS::KeyValue *, void *);
+  static void reduce4a(char *, int, char *, int, int *,
+		       MAPREDUCE_NS::KeyValue *, void *);
+  static void reduce4b(char *, int, char *, int, int *,
+		       MAPREDUCE_NS::KeyValue *, void *);
+
+  static void x3print(uint64_t, char *, int, char *, int, 
+		      MAPREDUCE_NS::KeyValue *, void *);
+  static void bpgprint(uint64_t, char *, int, char *, int, 
+		       MAPREDUCE_NS::KeyValue *, void *);
+  static void r3print(uint64_t, char *, int, char *, int, 
 		      MAPREDUCE_NS::KeyValue *, void *);
 
 };

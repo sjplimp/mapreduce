@@ -81,8 +81,8 @@ int main(int narg, char **args)
   double time = luby.run(mre,mrv,niterate,nset);
 
   if (me == 0)
-    printf("MIS find: %g secs, %u vertices, %d iterations on RMAT with "
-	   "%u verts, %u edges on %d procs\n",time,nset,niterate,
+    printf("MIS find: %g secs, %lu vertices, %d iterations on RMAT with "
+	   "%lu verts, %lu edges on %d procs\n",time,nset,niterate,
 	   in.nvert,newedge,nprocs);
 
   delete mre;

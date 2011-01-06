@@ -50,8 +50,8 @@ class mrmpi:
     MAPFUNC = CFUNCTYPE(c_void_p,c_int,c_void_p,c_void_p)
     self.map_def = MAPFUNC(self.map_callback)
     
-    MAP_FILE_LIST_FUNC = CFUNCTYPE(c_void_p,c_int,c_char_p,c_void_p,c_void_p)
-    self.map_file_list_def = MAP_FILE_LIST_FUNC(self.map_file_list_callback)
+    MAP_FILE_FUNC = CFUNCTYPE(c_void_p,c_int,c_char_p,c_void_p,c_void_p)
+    self.map_file_def = MAP_FILE_FUNC(self.map_file_callback)
     
     MAP_FILE_STR_FUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
                                  c_void_p,c_void_p)
@@ -183,13 +183,24 @@ class mrmpi:
     self.map_argcount = map.func_code.co_argcount
     self.map_ptr = ptr
     if not addflag:
-      n = self.lib.MR_map_file_list(self.mr,file,self.map_file_list_def,None)
+      n = self.lib.MR_map_file_list(self.mr,file,self.map_file_def,None)
     else:
-      n = self.lib.MR_map_file_list_add(self.mr,file,self.map_file_list_def,
+      n = self.lib.MR_map_file_list_add(self.mr,file,self.map_file_def,
                                         None,addflag)
     return n
 
-  def map_file_list_callback(self,itask,file,kv,dummy):
+  def map_dir(self,dir,oneflag,map,ptr=None,addflag=0):
+    self.map_caller = map
+    self.map_argcount = map.func_code.co_argcount
+    self.map_ptr = ptr
+    if not addflag:
+      n = self.lib.MR_map_dir(self.mr,dir,oneflag,self.map_file_def,None)
+    else:
+      n = self.lib.MR_map_dir_add(self.mr,dir,oneflag,self.map_file_def,
+                                  None,addflag)
+    return n
+
+  def map_file_callback(self,itask,file,kv,dummy):
     self.kv = kv
     if self.map_argcount == 3: self.map_caller(itask,file,self)
     else: self.map_caller(itask,file,self,self.map_ptr)

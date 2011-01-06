@@ -132,6 +132,11 @@ sgi_check:	sgi_check.o $(LIB)
 	$(LINK) $(LINKFLAGS) sgi_check.o \
 		$(USRLIB) $(SYSLIB) -o sgi_check
 
+# MP driver
+
+mp_driver:	mp_driver.o $(LIB)
+	$(LINK) $(LINKFLAGS) mp_driver.o $(USRLIB) $(SYSLIB) -o mp_driver
+
 clean:
 	rm *.o *.d
 	rm matvec pagerank gs ccd ccnd tri_new link2graph_weighted sssp sssp_v2 stress_test1 stress_test2 wordfreq

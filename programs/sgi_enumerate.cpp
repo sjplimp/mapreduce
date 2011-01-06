@@ -107,7 +107,7 @@ double SGIEnumerate::run(MapReduce *mrv, MapReduce *mre,
     // debug
     //mrs->map(mrs,tprint,this,1);
 
-    if (me == 0) printf("%u sub-graphs after edge %d\n",nsgi,k);
+    if (me == 0) printf("%lu sub-graphs after edge %d\n",nsgi,k);
   }
 
   MPI_Barrier(world);
@@ -187,8 +187,8 @@ void SGIEnumerate::map4(uint64_t itask, char *key, int keybytes,
   VERTEX *vlast = (VERTEX *) key;
   VERTEX *vlist = (VERTEX *) value;
 
-  for (int i = 0; i < ntourm1; i++) fprintf(fp,"%u ",vlist[i]);
-  fprintf(fp,"%u\n",*vlast);
+  for (int i = 0; i < ntourm1; i++) fprintf(fp,"%lu ",vlist[i]);
+  fprintf(fp,"%lu\n",*vlast);
 
   kv->add(key,keybytes,value,valuebytes);
 }
@@ -479,6 +479,7 @@ void SGIEnumerate::reduce3(char *key, int keybytes,
 }
 
 /* ---------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------- */
 
 void SGIEnumerate::x1print(uint64_t itask, char *key, int keybytes, 
 			   char *value, int valuebytes, 
@@ -489,10 +490,10 @@ void SGIEnumerate::x1print(uint64_t itask, char *key, int keybytes,
     X1VALUE *x = (X1VALUE *) value;
     VERTEX vj = x->vj;
     int fij = x->fij;
-    printf("MR X1a: %d %d: %u %u %d\n",keybytes,valuebytes,vi,vj,fij);
+    printf("MR X1a: %d %d: %lu %lu %d\n",keybytes,valuebytes,vi,vj,fij);
   } else {
     VERTEX vj = *(VERTEX *) value;
-    printf("MR X1b: %d %d: %u %u\n",keybytes,valuebytes,vi,vj);
+    printf("MR X1b: %d %d: %lu %lu\n",keybytes,valuebytes,vi,vj);
   }
 }
 
@@ -509,10 +510,11 @@ void SGIEnumerate::x2print(uint64_t itask, char *key, int keybytes,
     VERTEX vi = x->vi;
     int wi = x->wi;
     int fij = x->fij;
-    printf("MR X2a: %d: %d %d: %u %u %d %d\n",me,keybytes,valuebytes,v,vi,wi,fij);
+    printf("MR X2a: %d: %d %d: %lu %lu %d %d\n",
+	   me,keybytes,valuebytes,v,vi,wi,fij);
   } else {
     VERTEX vj = *(VERTEX *) value;
-    printf("MR X2b: %d: %d %d: %u %u\n",me,keybytes,valuebytes,v,vj);
+    printf("MR X2b: %d: %d %d: %lu %lu\n",me,keybytes,valuebytes,v,vj);
   }
 }
 
@@ -526,14 +528,15 @@ void SGIEnumerate::x3print(uint64_t itask, char *key, int keybytes,
   int wi = x->wi;
   int wj = x->wj;
   int fij = x->fij;
-  printf("MR X3: %d %d: %u %u %d %d %d\n",keybytes,valuebytes,vi,vj,wi,wj,fij);
+  printf("MR X3: %d %d: %lu %lu: %d %d %d\n",
+	 keybytes,valuebytes,vi,vj,wi,wj,fij);
 }
 
 void SGIEnumerate::sprint(uint64_t itask, char *key, int keybytes, 
 			  char *value, int valuebytes, KeyValue *kv, void *ptr) 
 {
   VERTEX v = *(VERTEX *) key;
-  printf("MR S: %d %d: %u\n",keybytes,valuebytes,v);
+  printf("MR S: %d %d: %lu\n",keybytes,valuebytes,v);
 }
 
 void SGIEnumerate::rprint(char *key, int keybytes, 
@@ -546,18 +549,18 @@ void SGIEnumerate::rprint(char *key, int keybytes,
   if (itour == 1) vertexsize = sizeof(EDGE);
 
   VERTEX vk = *(VERTEX *) key;
-  printf("MR R: %d %d: %u\n",keybytes,nvalues,vk);
+  printf("MR R: %d %d: %lu\n",keybytes,nvalues,vk);
   int offset = 0;
   for (int i = 0; i < nvalues; i++) {
     if (valuebytes[i] == vertexsize) {
       VERTEX v = *(VERTEX *) &multivalue[offset];
-      printf("  %u single value\n",v);
+      printf("  %lu single value\n",v);
     } else {
       VERTEX *tour = (VERTEX *) &multivalue[offset];
       int n = valuebytes[i]/sizeof(VERTEX);
       printf("  ");
       for (int j = 0; j < n; j++)
-	printf("%u ",tour[j]);
+	printf("%lu ",tour[j]);
       printf("\n");
     }
     offset += valuebytes[i];
@@ -568,10 +571,10 @@ void SGIEnumerate::tprint(uint64_t itask, char *key, int keybytes,
 			  char *value, int valuebytes, KeyValue *kv, void *ptr) 
 {
   VERTEX v = *(VERTEX *) key;
-  printf("MR TOUR: %u %d %d: %u: ",itask,keybytes,valuebytes,v);
+  printf("MR TOUR: %lu %d %d: %lu: ",itask,keybytes,valuebytes,v);
   int n = valuebytes/sizeof(VERTEX);
   VERTEX *tour = (VERTEX *) value;
   for (int i = 0; i < n; i++)
-    printf("%u ",tour[i]);
+    printf("%lu ",tour[i]);
   printf("\n");
 }

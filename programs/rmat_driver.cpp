@@ -56,7 +56,7 @@ int main(int narg, char **args)
 
   if (me == 0)
     printf("RMAT creation: %g secs, %d iterations with "
-	   "%u verts, %u edges on %d procs\n",time,niterate,
+	   "%lu verts, %lu edges on %d procs\n",time,niterate,
 	   in.nvert,in.nedge,nprocs);
 
   // RMAT matrix stats

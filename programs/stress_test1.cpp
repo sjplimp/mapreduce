@@ -311,8 +311,8 @@ void checksort(uint64_t itask, char *key, int keybytes,
     int i1 = atoi(old);
     int i2 = atoi(value);
     if (i1 > i2)
-      printf("BAD SORT %u %d: %d %d\n",ME,itask,i1,i2);
-    //if (ME == 0) printf("AAA %u %s %s\n",itask,old,value);
+      printf("BAD SORT %d %d: %d %d\n",ME,itask,i1,i2);
+    //if (ME == 0) printf("AAA %lu %s %s\n",itask,old,value);
   }
   strcpy(old,value);
   //printf("AAA %d %d %d %s %d\n",itask,*(int *)key,keybytes,value,valuebytes);

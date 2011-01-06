@@ -38,12 +38,12 @@ double MatrixStats::run(MapReduce *mr, uint64_t nrow)
   int me;
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   if (me == 0)
-    printf("Stats for matrix with %u nrows, %u non-zeroes:\n",nrow,nonzero);
+    printf("Stats for matrix with %lu nrows, %lu non-zeroes:\n",nrow,nonzero);
   uint64_t sum = 0;
   mr->verbosity = 0;
   mr->timer = 0;
   mr->map(mr,map_print,&sum);
-  if (me == 0) printf("  %u rows with 0 elements\n",nrow-sum);
+  if (me == 0) printf("  %lu rows with 0 elements\n",nrow-sum);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -100,7 +100,7 @@ void MatrixStats::map_print(uint64_t itask, char *key, int keybytes,
 {
   uint64_t ncount = *(uint64_t *) key;
   uint64_t nrow = *(uint64_t *) value;
-  printf("  %u rows with %u elements\n",nrow,ncount);
+  printf("  %lu rows with %lu elements\n",nrow,ncount);
   uint64_t *sum = (uint64_t *) ptr;
   *sum += nrow;
 }

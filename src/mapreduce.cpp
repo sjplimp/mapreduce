@@ -1149,6 +1149,162 @@ uint64_t MapReduce::map(char *file,
 }
 
 /* ----------------------------------------------------------------------
+   create a KV via a parallel map operation for list of files in dir
+   make one call to appmap() for each file in dir
+   if oneflag = 1, all processors process all files in single dir
+     mapstyle determines how tasks are partitioned to processors
+   if oneflag = 0, each processor reads own dir, processes those files
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::map(char *file, int oneflag,
+			void (*appmap)(int, char *, KeyValue *, void *),
+			void *appptr, int addflag)
+{
+  int n;
+  char line[MAXLINE];
+  MPI_Status status;
+
+  if (timer) start_timer();
+  if (verbosity) file_stats(0);
+
+  if (!allocated) allocate();
+  if (kmv) myfree(kmv->memtag);
+  delete kmv;
+  kmv = NULL;
+
+  if (addflag == 0) {
+    if (kv) myfree(kv->memtag);
+    delete kv;
+    kv = new KeyValue(this,kalign,valign,memory,error,comm);
+    kv->set_page();
+  } else if (kv == NULL) {
+    kv = new KeyValue(this,kalign,valign,memory,error,comm);
+    kv->set_page();
+  } else {
+    kv->append();
+  }
+
+  // open file and extract filenames
+  // bcast each filename to all procs
+  // trim whitespace from beginning and end of filename
+
+  int nmap = 0;
+  int maxfiles = 0;
+  char **files = NULL;
+  FILE *fp;
+
+  if (me == 0) {
+    fp = fopen(file,"r");
+    if (fp == NULL) error->one("Could not open file of file names");
+  }
+
+  while (1) {
+    if (me == 0) {
+      if (fgets(line,MAXLINE,fp) == NULL) n = 0;
+      else n = strlen(line) + 1;
+    }
+    MPI_Bcast(&n,1,MPI_INT,0,comm);
+    if (n == 0) {
+      if (me == 0) fclose(fp);
+      break;
+    }
+
+    MPI_Bcast(line,n,MPI_CHAR,0,comm);
+
+    char *ptr = line;
+    while (isspace(*ptr)) ptr++;
+    if (strlen(ptr) == 0) error->all("Blank line in file of file names");
+    char *ptr2 = ptr + strlen(ptr) - 1;
+    while (isspace(*ptr2)) ptr2--;
+    ptr2++;
+    *ptr2 = '\0';
+
+    if (nmap == maxfiles) {
+      maxfiles += FILECHUNK;
+      files = (char **)
+	memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
+    }
+    n = strlen(ptr) + 1;
+    files[nmap] = new char[n];
+    strcpy(files[nmap],ptr);
+    nmap++;
+  }
+  
+  // nprocs = 1 = all tasks to single processor
+  // mapstyle 0 = chunk of tasks to each proc
+  // mapstyle 1 = strided tasks to each proc
+  // mapstyle 2 = master/slave assignment of tasks
+
+  if (nprocs == 1) {
+    for (int itask = 0; itask < nmap; itask++)
+      appmap(itask,files[itask],kv,appptr);
+
+  } else if (mapstyle == 0) {
+    uint64_t nmap64 = nmap;
+    int lo = me * nmap64 / nprocs;
+    int hi = (me+1) * nmap64 / nprocs;
+    for (int itask = lo; itask < hi; itask++)
+      appmap(itask,files[itask],kv,appptr);
+
+  } else if (mapstyle == 1) {
+    for (int itask = me; itask < nmap; itask += nprocs)
+      appmap(itask,files[itask],kv,appptr);
+
+  } else if (mapstyle == 2) {
+    if (me == 0) {
+      int doneflag = -1;
+      int ndone = 0;
+      int itask = 0;
+      for (int iproc = 1; iproc < nprocs; iproc++) {
+	if (itask < nmap) {
+	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
+	  itask++;
+	} else {
+	  MPI_Send(&doneflag,1,MPI_INT,iproc,0,comm);
+	  ndone++;
+	}
+      }
+      while (ndone < nprocs-1) {
+	int iproc,tmp;
+	MPI_Recv(&tmp,1,MPI_INT,MPI_ANY_SOURCE,0,comm,&status);
+	iproc = status.MPI_SOURCE;
+
+	if (itask < nmap) {
+	  MPI_Send(&itask,1,MPI_INT,iproc,0,comm);
+	  itask++;
+	} else {
+	  MPI_Send(&doneflag,1,MPI_INT,iproc,0,comm);
+	  ndone++;
+	}
+      }
+
+    } else {
+      while (1) {
+	int itask;
+	MPI_Recv(&itask,1,MPI_INT,0,0,comm,&status);
+	if (itask < 0) break;
+	appmap(itask,files[itask],kv,appptr);
+	MPI_Send(&itask,1,MPI_INT,0,0,comm);
+      }
+    }
+
+  } else error->all("Invalid mapstyle setting");
+
+  // clean up file list
+
+  for (int i = 0; i < nmap; i++) delete [] files[i];
+  memory->sfree(files);
+
+  kv->complete();
+
+  stats("Map",0);
+
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
    create a KV via a parallel map operation for nmap tasks
    nfiles filenames are split into nmap pieces based on separator char
 ------------------------------------------------------------------------- */

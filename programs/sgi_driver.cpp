@@ -108,9 +108,6 @@ int main(int narg, char **args)
   mre->verbosity = 0;
   mre->timer = 0;
 
-  //mrv->memsize = 1;
-  //mre->memsize = 1;
-
   // populate MRV,MVE with labeled graph
   // MRE = Eij : Fij
   // MRV = Vi : Wi
@@ -189,6 +186,9 @@ int main(int narg, char **args)
     mry->verbosity = 0;
     mry->timer = 0;
 
+    //mrs->timer = mrx->timer = mry->timer = 1;
+    //mrs->verbosity = mrx->verbosity = mry->verbosity = 1;
+
     //mrs->memsize = 1;
     //mrx->memsize = 1;
     //mry->memsize = 1;
@@ -198,8 +198,8 @@ int main(int narg, char **args)
     double time = sgi.run(mrv,mre,mrs,mrx,mry,nsgi);
 
     if (me == 0)
-      printf("SGI enumerate: %g secs, %u SG in big graph with "
-	     "%u verts, %u edges on %d procs\n",time,nsgi,
+      printf("SGI enumerate: %g secs, %lu SG in big graph with "
+	     "%lu verts, %lu edges on %d procs\n",time,nsgi,
 	     in.nvert,in.nedge,nprocs);
 
     delete mrs;
@@ -207,30 +207,45 @@ int main(int narg, char **args)
     delete mry;
 
   } else {
-    MapReduce *mrs = new MapReduce(MPI_COMM_WORLD);
-    mrs->verbosity = 0;
-    mrs->timer = 0;
-    MapReduce *mrx = new MapReduce(MPI_COMM_WORLD);
-    mrx->verbosity = 0;
-    mrx->timer = 0;
-    MapReduce *mry = new MapReduce(MPI_COMM_WORLD);
-    mry->verbosity = 0;
-    mry->timer = 0;
+    MapReduce **mro = new MapReduce*[in.ntour-1];
+    for (int k = 0; k < in.ntour-1; k++) {
+      mro[k] = new MapReduce(MPI_COMM_WORLD);
+      mro[k]->verbosity = 0;
+      mro[k]->timer = 0;
+      mro[k]->memsize = 8;
+    }
+    MapReduce **mri = new MapReduce*[in.ntour];
+    for (int k = 1; k < in.ntour; k++) {
+      mri[k] = new MapReduce(MPI_COMM_WORLD);
+      mri[k]->verbosity = 0;
+      mri[k]->timer = 0;
+      mri[k]->memsize = 8;
+    }
+    MapReduce *mreprime = new MapReduce(MPI_COMM_WORLD);
+    mreprime->verbosity = 0;
+    mreprime->timer = 0;
+    mreprime->memsize = 8;
+    MapReduce *mrc = new MapReduce(MPI_COMM_WORLD);
+    mrc->verbosity = 0;
+    mrc->timer = 0;
+    mrc->memsize = 8;
 
     uint64_t nsgi;
     SGISample sgi(in.mlimit,in.ntour,in.vtour,in.ftour,in.etour,MPI_COMM_WORLD);
-    double time = sgi.run(mrv,mre,mrs,mrx,mry,nsgi);
+    double time = sgi.run(mrv,mre,mro,mri,mreprime,mrc,nsgi);
 
     if (me == 0)
-      printf("SGI sample: %g secs, %u SG in big graph with "
-	     "%u verts, %u edges on %d procs\n",time,nsgi,
+      printf("SGI sample: %g secs, %lu SG in big graph with "
+	     "%lu verts, %lu edges on %d procs\n",time,nsgi,
 	     in.nvert,in.nedge,nprocs);
 
-    delete mrs;
-    delete mrx;
-    delete mry;
+    for (int k = 0; k < in.ntour-1; k++) delete mro[k];
+    for (int k = 1; k < in.ntour; k++) delete mri[k];
+    delete [] mro;
+    delete [] mri;
+    delete mreprime;
+    delete mrc;
   }
-
 
   // clean up
 
@@ -448,7 +463,7 @@ void eprint(uint64_t itask, char *key, int keybytes,
 
   EDGE *edge = (EDGE *) key;
   LABEL *fij = (LABEL *) value;
-  fprintf(in->fp,"%u %u %d\n",edge->vi,edge->vj,*fij);
+  fprintf(in->fp,"%lu %lu %d\n",edge->vi,edge->vj,*fij);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -466,5 +481,5 @@ void vprint(uint64_t itask, char *key, int keybytes,
 
   VERTEX *vi = (VERTEX *) key;
   LABEL *wi = (LABEL *) value;
-  fprintf(in->fp,"%u %d\n",*vi,*wi);
+  fprintf(in->fp,"%lu %d\n",*vi,*wi);
 }
