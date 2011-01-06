@@ -974,7 +974,10 @@ uint64_t MapReduce::map(char *file,
     nfile++;
   }
 
-  return map_task(nfile,files,NULL,appmap,appptr,addflag,0);
+  uint64_t nkeyall = map_task(nfile,files,NULL,appmap,appptr,addflag,0);
+  for (int i = 0; i < nfile; i++) delete [] files[i];
+  memory->sfree(files);
+  return nkeyall;
 }
 
 /* ----------------------------------------------------------------------
@@ -999,14 +1002,16 @@ uint64_t MapReduce::map(char *dir, int selfflag,
     DIR *dp = opendir(dir);
     if (dp == NULL) error->one("Cannot open dir to search for files");
     while (ep = readdir(dp)) {
+      if (strcmp(ep->d_name,".") == 0) continue;
+      if (strcmp(ep->d_name,"..") == 0) continue;
       if (nfile == maxfiles) {
 	maxfiles += FILECHUNK;
 	files = (char **)
 	  memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
       }
-      n = strlen(ep->d_name) + 1;
+      n = strlen(dir) + strlen(ep->d_name) + 2;
       files[nfile] = new char[n];
-      strcpy(files[nfile],ep->d_name);
+      sprintf(files[nfile],"%s/%s",dir,ep->d_name);
       nfile++;
     }
     closedir(dp);
@@ -1027,7 +1032,10 @@ uint64_t MapReduce::map(char *dir, int selfflag,
     }
   }
 
-  return map_task(nfile,files,NULL,appmap,appptr,addflag,selfflag);
+  uint64_t nkeyall = map_task(nfile,files,NULL,appmap,appptr,addflag,selfflag);
+  for (int i = 0; i < nfile; i++) delete [] files[i];
+  memory->sfree(files);
+  return nkeyall;
 }
 
 /* ----------------------------------------------------------------------
@@ -1128,13 +1136,6 @@ uint64_t MapReduce::map_task(int ntask, char **files,
     }
 
   } else error->all("Invalid mapstyle setting");
-
-  // clean up file list
-  
-  if (files) {
-    for (int i = 0; i < ntask; i++) delete [] files[i];
-    memory->sfree(files);
-  }
 
   kv->complete();
 

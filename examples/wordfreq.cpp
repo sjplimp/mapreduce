@@ -27,7 +27,7 @@
 
 using namespace MAPREDUCE_NS;
 
-void fileread(int, KeyValue *, void *);
+void fileread(int, char *, KeyValue *, void *);
 void sum(char *, int, char *, int, int *, KeyValue *, void *);
 int ncompare(char *, int, char *, int);
 void output(uint64_t, char *, int, char *, int, KeyValue *, void *);
@@ -58,9 +58,9 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  int nwords = mr->map(narg-1,&fileread,&args[1]);
+  int nwords = mr->map(narg-1,&args[1],fileread,NULL);
   mr->collate(NULL);
-  int nunique = mr->reduce(&sum,NULL);
+  int nunique = mr->reduce(sum,NULL);
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -71,15 +71,15 @@ int main(int narg, char **args)
   count.n = 0;
   count.limit = 10;
   count.flag = 0;
-  mr->map(mr,&output,&count);
+  mr->map(mr,output,&count);
   
   mr->gather(1);
-  mr->sort_values(&ncompare);
+  mr->sort_values(ncompare);
 
   count.n = 0;
   count.limit = 10;
   count.flag = 1;
-  mr->map(mr,&output,&count);
+  mr->map(mr,output,&count);
 
   delete mr;
 
@@ -97,21 +97,19 @@ int main(int narg, char **args)
    for each word in file, emit key = word, value = NULL
 ------------------------------------------------------------------------- */
 
-void fileread(int itask, KeyValue *kv, void *ptr)
+void fileread(int itask, char *fname, KeyValue *kv, void *ptr)
 {
   // filesize = # of bytes in file
 
-  char **files = (char **) ptr;
-
   struct stat stbuf;
-  int flag = stat(files[itask],&stbuf);
+  int flag = stat(fname,&stbuf);
   if (flag < 0) {
     printf("ERROR: Could not query file size\n");
     MPI_Abort(MPI_COMM_WORLD,1);
   }
   int filesize = stbuf.st_size;
 
-  FILE *fp = fopen(files[itask],"r");
+  FILE *fp = fopen(fname,"r");
   char *text = new char[filesize+1];
   int nchar = fread(text,1,filesize,fp);
   text[nchar] = '\0';

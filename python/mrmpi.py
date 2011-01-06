@@ -202,15 +202,15 @@ class mrmpi:
                                         None,addflag)
     return n
 
-  def map_dir(self,dir,selfflag,map,ptr=None,addflag=0):
+  def map_file_dir(self,dir,selfflag,map,ptr=None,addflag=0):
     self.map_caller = map
     self.map_argcount = map.func_code.co_argcount
     self.map_ptr = ptr
     if not addflag:
-      n = self.lib.MR_map_dir(self.mr,dir,selfflag,self.map_file_def,None)
+      n = self.lib.MR_map_file_dir(self.mr,dir,selfflag,self.map_file_def,None)
     else:
-      n = self.lib.MR_map_dir_add(self.mr,dir,selfflag,self.map_file_def,
-                                  None,addflag)
+      n = self.lib.MR_map_file_dir_add(self.mr,dir,selfflag,self.map_file_def,
+                                       None,addflag)
     return n
 
   def map_file_callback(self,itask,file,kv,dummy):
