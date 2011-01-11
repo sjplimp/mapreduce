@@ -17,6 +17,16 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[11 Jan 2011]
+
+Enhanced the "gather()"_doc/gather.html method so it should now work
+with a "pagesize"_doc/settings.html larger than 2 Gb.
+
+This is the "list of changed files"_patches/files.11Jan11 from the 6
+Jan 2011 version.
+
+:line
+
 [6 Jan 2011]
 
 Added some new options to the "map()"_doc/map.html method to enable
