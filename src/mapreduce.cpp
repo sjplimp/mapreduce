@@ -818,8 +818,13 @@ uint64_t MapReduce::convert()
 uint64_t MapReduce::gather(int numprocs)
 {
   int flag,npage_kv,memtag;
-  char *buf;
-  uint64_t dummy,sizes[4];
+  int nkey,rkey,skey,keybytes,valuebytes;
+  int sizes[4];
+  uint64_t dummy;
+  uint64_t keysize,valuesize,alignsize;
+  uint64_t rkeysize,rvaluesize,ralignsize;
+  uint64_t skeysize,svaluesize,salignsize;
+  char *buf,*rbuf,*sbuf,*ptr,*ptrprev;
   MPI_Status status;
   MPI_Request request;
 
@@ -851,12 +856,28 @@ uint64_t MapReduce::gather(int numprocs)
       MPI_Recv(&npage_kv,1,MPI_INT,iproc,0,comm,&status);
       
       for (int ipage = 0; ipage < npage_kv; ipage++) {
-	MPI_Irecv(buf,pagesize,MPI_BYTE,iproc,1,comm,&request);
 	MPI_Send(&flag,0,MPI_INT,iproc,0,comm);
-	MPI_Recv(sizes,4,MRMPI_BIGINT,iproc,0,comm,&status);
-	crsize += sizes[3];
-	MPI_Wait(&request,&status);
-	kv->add(sizes[0],buf,sizes[1],sizes[2],sizes[3]);
+	MPI_Recv(&nkey,1,MPI_INT,iproc,0,comm,&status);
+	rkey = 0;
+	rkeysize = svaluesize = salignsize = 0;
+	rbuf = buf;
+
+	// recv sections of pages that fit in INTMAX as required by MPI_Irecv
+
+	while (rkey < nkey) {
+	  MPI_Irecv(rbuf,INTMAX,MPI_BYTE,iproc,1,comm,&request);
+	  MPI_Send(&flag,0,MPI_INT,iproc,0,comm);
+	  MPI_Recv(sizes,4,MPI_INT,iproc,0,comm,&status);
+	  MPI_Wait(&request,&status);
+	  crsize += sizes[3];
+	  rkey += sizes[0];
+	  rkeysize += sizes[1];
+	  rvaluesize += sizes[2];
+	  ralignsize += sizes[3];
+	  kv->add(sizes[0],rbuf,
+		  (uint64_t) sizes[1],(uint64_t) sizes[2],(uint64_t) sizes[3]);
+	  rbuf += sizes[3];
+	}
       }
     }
 
@@ -870,11 +891,55 @@ uint64_t MapReduce::gather(int numprocs)
     MPI_Send(&npage_kv,1,MPI_INT,iproc,0,comm);
 
     for (int ipage = 0; ipage < npage_kv; ipage++) {
-      sizes[0] = kv->request_page(ipage,sizes[1],sizes[2],sizes[3]);
+      nkey = kv->request_page(ipage,keysize,valuesize,alignsize);
       MPI_Recv(&flag,0,MPI_INT,iproc,0,comm,&status);
-      MPI_Send(sizes,4,MRMPI_BIGINT,iproc,0,comm);
-      MPI_Send(buf,sizes[3],MPI_BYTE,iproc,1,comm);
-      cssize += sizes[3];
+      MPI_Send(&nkey,1,MPI_INT,iproc,0,comm);
+      skey = 0;
+      skeysize = svaluesize = salignsize = 0;
+      sbuf = buf;
+
+      // send sections of pages that fit in INTMAX as required by MPI_Send
+
+      while (skey < nkey) {
+	if (alignsize-salignsize <= INTMAX) {
+	  sizes[0] = nkey - skey;
+	  sizes[1] = keysize - skeysize;
+	  sizes[2] = valuesize - svaluesize;
+	  sizes[3] = alignsize - salignsize;
+
+	} else {
+	  sizes[0] = sizes[1] = sizes[2] = 0;
+	  ptr = sbuf;
+	  while (ptr-sbuf <= INTMAX) {
+	    ptrprev = ptr;
+	    keybytes = *((int *) ptr);
+	    valuebytes = *((int *) (ptr+sizeof(int)));;
+	    ptr += twolenbytes;
+	    ptr = ROUNDUP(ptr,kalignm1);
+	    ptr += keybytes;
+	    ptr = ROUNDUP(ptr,valignm1);
+	    ptr += valuebytes;
+	    ptr = ROUNDUP(ptr,talignm1);
+	    sizes[0]++;
+	    sizes[1] += keybytes;
+	    sizes[2] += valuebytes;
+	  }
+	  sizes[0]--;
+	  sizes[1] -= keybytes;
+	  sizes[2] -= valuebytes;
+	  sizes[3] = ptrprev - sbuf;;
+	}
+
+	MPI_Recv(&flag,0,MPI_INT,iproc,0,comm,&status);
+	MPI_Send(sizes,4,MPI_INT,iproc,0,comm);
+	MPI_Send(sbuf,sizes[3],MPI_BYTE,iproc,1,comm);
+	cssize += sizes[3];
+	skey += sizes[0];
+	skeysize += sizes[1];
+	svaluesize += sizes[2];
+	salignsize += sizes[3];
+	sbuf += sizes[3];
+      }
     }
 
     // leave empty KV on vacated procs

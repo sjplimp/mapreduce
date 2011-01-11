@@ -72,7 +72,7 @@ int main(int narg, char **args)
   count.limit = 10;
   count.flag = 0;
   mr->map(mr,output,&count);
-  
+
   mr->gather(1);
   mr->sort_values(ncompare);
 
