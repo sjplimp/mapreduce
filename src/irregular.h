@@ -38,6 +38,7 @@ class Irregular {
 
   // all2all and custom settings
 
+  uint64_t *bigsendbytes;    // bytes to send to each proc, including self
   int *sendbytes;            // bytes to send to each proc, including self
   int *sdispls;              // proc offset into clumped send buffer
   int *recvbytes;            // bytes to recv from each proc, including self

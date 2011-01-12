@@ -31,8 +31,8 @@ class KeyValue {
   uint64_t fsize;                 // size of KV file
   int msize;                      // size of largest KV pair across all procs
 
-  char *page;                     // memory page
-  int memtag;                     // page ID
+  char *page;                     // in-memory page
+  int memtag;                     // memory page ID
   int npage;                      // # of pages in entire KV
 
   KeyValue(class MapReduce *, int, int, 

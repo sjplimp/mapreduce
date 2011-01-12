@@ -187,6 +187,7 @@ void MapReduce::defaults()
 
   minpage = 0;
   maxpage = 0;
+  holdpage = 1;
   keyalign = valuealign = ALIGNKV;
 
 #ifdef MRMPI_FPATH
@@ -247,6 +248,7 @@ MapReduce *MapReduce::copy()
   mrnew->memsize = memsize;
   mrnew->minpage = minpage;
   mrnew->maxpage = maxpage;
+  mrnew->holdpage = holdpage;
 
   if (allocated) {
     mrnew->keyalign = kalign;

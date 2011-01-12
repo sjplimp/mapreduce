@@ -32,6 +32,7 @@ class MapReduce {
   int memsize;        // # of Mbytes per page
   int minpage;        // # of pages that will be pre-allocated per proc >= 0
   int maxpage;        // max # of pages that can be allocated per proc, 0 = inf
+  int holdpage;       // 0 if free unused pages after every operation, 1 if keep
   int keyalign;       // align keys to this byte count
   int valuealign;     // align values to this byte count
   char *fpath;        // prefix path added to intermediate out-of-core files
