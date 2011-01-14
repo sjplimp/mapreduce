@@ -98,7 +98,8 @@ uint64_t MR_map_mr_add(void *MRptr, void *MRptr2,
 </PRE>
 <PRE>void MR_open(void *MRptr, int addflag);
 void MR_open_add(void *MRptr);
-void MR_print(void *MRptr, int, int, int, int); 
+void MR_print(void *MRptr, int, int, int, int);
+void MR_print_file(void *MRptr, char *, int, int, int, int, int); 
 </PRE>
 <PRE>uint64_t MR_reduce(void *MRptr,
 	           void (*myreduce)(char *, int, char *, int, int *, void *KVptr, void *APPptr),

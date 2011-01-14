@@ -393,7 +393,8 @@ mr.map_mr(mr2,mymap)         # pass key/values in mr2 to mymap
 </PRE>
 <PRE>mr.open()
 mr.open(addflag)
-mr.print_mr(proc,nstride,kflag,vflag) 
+mr.print_screen(proc,nstride,kflag,vflag)
+mr.print_file(file,fflag,proc,nstride,kflag,vflag) 
 </PRE>
 <PRE>mr.reduce(myreduce)         # myreduce is a function called back from the
 			    #   library as myreduce(key,mvalue,mr,ptr)

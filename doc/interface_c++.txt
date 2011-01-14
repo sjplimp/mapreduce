@@ -36,7 +36,7 @@ Here is an overview of how the various library methods operate on KV
 and KMV objects.  This is useful to understand, since this determines
 how the various operations can be chained together in your program.
 
-"add()"_add.html, KV -> KV, add pairs from one KV to another, serial, 1 page
+"add()"_add.html, KV -> KV, add pairs from one KV to another, serial, 2 pages
 "aggregate()"_aggregate.html, KV -> KV, pairs are aggregated onto procs, parallel, 7 pages
 "broadcast()"_broadcast.html, KV -> KV, send pairs from one proc to all procs, parallel, 2 pages 
 "clone()"_clone.html, KV -> KMV, each KV pair becomes a KMV pair, serial, 2 pages 

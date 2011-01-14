@@ -7,15 +7,21 @@
 
 MapReduce print() method :h3
 
-void MapReduce::print(int proc, int nstride, int kflag, int vflag) :pre
+void MapReduce::print(int proc, int nstride, int kflag, int vflag)
+void MapReduce::print(char *file, int fflag, int proc, int nstride, int kflag, int vflag) :pre
 
-This calls the print() method of a MapReduce object, which prints out
-the KeyValue or KeyMultiValue pairs to the screen.  This can be useful
+This calls the print() method of a MapReduce object.  The first
+variant prints out the KeyValue or KeyMultiValue pairs to the screen.
+The second variant prints to one or more files.  This can be useful
 for debugging purposes.
 
 If {proc} < 0, then all processors print their information, one
 processor at a time.  If {proc} >= 0, then only the specified {proc}
 prints its information.
+
+For printing to files, if {fflag} = 0, then all processors print in
+succession to the names file.  If {fflag} = 1, then each processor
+writes to file.P, where P = 0 to Nprocs-1.
 
 Each processor prints every Nth of its pairs, where N = {nstride}.
 Thus if {nstride} = 1, all pairs are printed.

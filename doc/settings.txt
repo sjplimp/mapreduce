@@ -16,6 +16,7 @@ timer = 0 (none) or 1 (summary) or 2 (histogrammed)
 memsize = N = number of Mbytes per page of memory
 minpage = N = # of pages to pre-allocate per processor
 maxpage = N = max # of pages allocatable per processor
+holdpage = 0 (no) or 1 (yes) if memory pages are held on to between operations
 keyalign = N = byte-alignment of keys
 valuealign = N = byte-alignment of values
 fpath = string :ul
@@ -113,11 +114,11 @@ The default value for {timer} is 0.
 
 The {memsize} setting determines the page size (in Mbytes) of each
 page of memory allocated by the MapReduce object to perform its
-operations.  Once allocated, pages are never deallocated until the
-MapReduce object is deleted, but pages are reused by successive
-operations performed by the library.  The number of pages required by
-different methods varies; 1 to 7 is typical.  See "this
-section"_interface_c++.html for a summary of memory page requirements.
+operations.  The number of pages required by different methods varies;
+1 to 7 is typical.  The {holdpage} setting (see below) determines
+whether pages are freed or not between operations, once allocated.
+See "this section"_interface_c++.html for a summary of memory page
+requirements.
 
 The minimum allowed value for the {memsize} setting is 1, meaning 1 Mb
 pages.
@@ -190,6 +191,33 @@ This setting can be changed at any time, though previously-allocated
 pages are not deleted if {maxpage} is set to a smaller number.
 
 The default value for {maxpage} is 0.
+
+:line
+
+The {holdpage} setting determines whether or not the MapReduce ojbect
+frees its memory pages after each operation is completed.  If
+{holdpage} is set to 1, then once allocated, pages are never
+deallocated until the MapReduce object itself is deleted.  In this
+case pages are reused by successive operations performed by the
+library.  If {holdpage} is set to 0, then after each operation, pages
+used by the operation are freed (and then reallocated as needed by the
+next operation).
+
+It can be useful to set {holdpage} to 0, if your code allocates and
+uses several MapReduce objects, so that each does not hold onto
+multiple pages of memory.  If memory is not an issue, setting
+{holdpage} to 1 may be somewhat faster, since memory pages will not be
+repeatedly allocated and freed and initialized.
+
+Note that if a KeyValue or KeyMultiValue object is created by the
+operation and its size is such that it fits in a single page of
+memory, then that page cannot be deleted.  If the KeyValue or
+KeyMultiValue object was stored to disk because it was too large for a
+single page, then the page can be deleted.
+
+This setting can be changed at any time.
+
+The default value for {holdpage} is 1.
 
 :line
 

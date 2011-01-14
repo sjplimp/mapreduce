@@ -16,8 +16,8 @@ uint64_t MapReduce::map(int nfile, char **files, void (*mymap)(int, char *, KeyV
 uint64_t MapReduce::map(char *file, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
 uint64_t MapReduce::map(char *file, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) :pre
 
-uint64_t MapReduce::map(char *dir, int oneflag, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
-uint64_t MapReduce::map(char *dir, int oneflag, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) :pre
+uint64_t MapReduce::map(char *dir, int selfflag, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(char *dir, int selfflag, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) :pre
 
 uint64_t MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
 uint64_t MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) :pre
@@ -60,13 +60,13 @@ you should normally insure that any processor can read any of the
 files listed in the master file.
 
 For the fourth set of variants you specify a directory name.  If
-oneflag is set to 1, then one processor reads the names of all files
+selfflag is set to 0, then one processor reads the names of all files
 in the directory, shares the list of names with all processors, and
 the filenames are passed back, one at time, to your mymap() function.
 While you have some control over which filename is assigned to which
 processor (see the {mapstyle} setting described "here"_settings.html),
 you should normally insure that any processor can read any of the
-files in the directory.  If oneflag is set to 0, then the physical
+files in the directory.  If selfflag is set to 1, then the physical
 directory is presumed to be different on every processor.  This could
 be becuase the directories reside on the local disk of each processor,
 or the dir string is specified differently on each processor to point
