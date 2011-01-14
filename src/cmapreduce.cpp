@@ -178,24 +178,24 @@ uint64_t MR_map_file_file_add(void *MRptr, char *file,
   return mr->map(file,appmap,APPptr,addflag);
 }
 
-uint64_t MR_map_file_dir(void *MRptr, char *dir, int oneflag,
+uint64_t MR_map_file_dir(void *MRptr, char *dir, int selfflag,
 			 void (*mymap)(int, char *, void *, void *),
 			 void *APPptr)
 {
   typedef void (MapFunc)(int, char *, KeyValue *, void *);
   MapReduce *mr = (MapReduce *) MRptr;
   MapFunc *appmap = (MapFunc *) mymap;
-  return mr->map(dir,oneflag,appmap,APPptr);
+  return mr->map(dir,selfflag,appmap,APPptr);
 }
 
-uint64_t MR_map_file_dir_add(void *MRptr, char *dir, int oneflag,
+uint64_t MR_map_file_dir_add(void *MRptr, char *dir, int selfflag,
 			     void (*mymap)(int, char *, void *, void *),
 			     void *APPptr, int addflag)
 {
   typedef void (MapFunc)(int, char *, KeyValue *, void *);
   MapReduce *mr = (MapReduce *) MRptr;
   MapFunc *appmap = (MapFunc *) mymap;
-  return mr->map(dir,oneflag,appmap,APPptr,addflag);
+  return mr->map(dir,selfflag,appmap,APPptr,addflag);
 }
 
 uint64_t MR_map_file_char(void *MRptr, int nmap, int nfiles, char **files,
@@ -284,6 +284,13 @@ void MR_print(void *MRptr, int proc, int nstride, int kflag, int vflag)
 {
   MapReduce *mr = (MapReduce *) MRptr;
   mr->print(proc,nstride,kflag,vflag);
+}
+
+void MR_print_file(void *MRptr, char *file, int fflag,
+		   int proc, int nstride, int kflag, int vflag)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  mr->print(file,fflag,proc,nstride,kflag,vflag);
 }
 
 uint64_t MR_reduce(void *MRptr,

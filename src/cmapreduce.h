@@ -64,11 +64,11 @@ uint64_t MR_map_file_file_add(void *MRptr, char *file,
 			      void (*mymap)(int, char *, 
 					    void *KVptr, void *APPptr),
 			      void *APPptr, int addflag);
-uint64_t MR_map_file_dir(void *MRptr, char *dir, int oneflag,
+uint64_t MR_map_file_dir(void *MRptr, char *dir, int selfflag,
 			 void (*mymap)(int, char *, 
 				       void *KVptr, void *APPptr),
 			 void *APPptr);
-uint64_t MR_map_file_dir_add(void *MRptr, char *dir, int oneflag,
+uint64_t MR_map_file_dir_add(void *MRptr, char *dir, int selfflag,
 			     void (*mymap)(int, char *, 
 					   void *KVptr, void *APPptr),
 			     void *APPptr, int addflag);
@@ -104,6 +104,9 @@ uint64_t MR_map_mr_add(void *MRptr, void *MRptr2,
 void MR_open(void *MRptr);
 void MR_open_add(void *MRptr, int addflag);
 void MR_print(void *MRptr, int proc, int nstride, int kflag, int vflag);
+void MR_print_file(void *MRptr, char *file, int fflag, 
+		   int proc, int nstride, int kflag, int vflag);
+
 uint64_t MR_reduce(void *MRptr,
 		   void (*myreduce)(char *, int, char *,
 				    int, int *, void *KVptr, void *APPptr),

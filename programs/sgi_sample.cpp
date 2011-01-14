@@ -51,6 +51,7 @@ SGISample::SGISample(int msample_in, int ntour_in,
 double SGISample::run(MapReduce *mrv, MapReduce *mre,
 		      MapReduce **mro_in, MapReduce **mri_in,
 		      MapReduce *mreprime_in, MapReduce *mrc_in,
+		      MapReduce *mrsk_in,
 		      uint64_t &nsgi)
 {
   MPI_Barrier(world);
@@ -60,6 +61,7 @@ double SGISample::run(MapReduce *mrv, MapReduce *mre,
   mri = mri_in;
   mreprime = mreprime_in;
   mrc = mrc_in;
+  mrsk = mrsk_in;
 
   // pre-calculate X = Eij : Wi Wj Fij, one for each edge in big graph
 
@@ -165,6 +167,33 @@ double SGISample::run(MapReduce *mrv, MapReduce *mre,
   mrc->map(mrc,map5,this);
   MPI_Allreduce(&tlocal,&nsgi,1,MPI_UNSIGNED_LONG,MPI_SUM,world);
   if (me == 0) printf("PATHS ON UP SWEEP = %lu\n",nsgi);
+
+  // calculate Sk
+
+  mreprime->collate(NULL);
+  for (int k = 0; k < ntour; k++) mrsk[k]->open();
+  mreprime->reduce(reduce5,this);
+  for (int k = 0; k < ntour; k++) mrsk[k]->collate(NULL);
+  for (int k = 0; k < ntour; k++) mrsk[k]->reduce(reduce6,NULL);
+
+  // enumerate all walks thru BPG
+
+  if (msample >= nsgi) {
+
+    mrp->open();
+    mrsk[0]->map(map7,this);
+
+    for (int k = 0; k < ntour; k++) {
+      mrp->add(mrsk[k]);
+      mrp->convert();
+      mrp->reduce(reduce7,this);
+    }
+
+
+  // sample M walks thru BPG
+
+  } else {
+  }
 
   MPI_Barrier(world);
   double tstop = MPI_Wtime();

@@ -29,7 +29,7 @@ class KeyMultiValue {
   uint64_t fsize;               // size of KMV file
 
   char *page;                   // in-memory page
-  int memtag;                   // page ID
+  int memtag;                   // memory page ID
   int npage;                    // # of pages in entire KMV
 
   KeyMultiValue(class MapReduce *, int, int,
@@ -49,7 +49,7 @@ class KeyMultiValue {
   void collapse(char *, int, class KeyValue *);
   void convert(class KeyValue *);
 
-  void print(int, int, int);
+  void print(FILE *, int, int, int);
 
  private:
   MapReduce *mr;

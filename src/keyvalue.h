@@ -53,7 +53,7 @@ class KeyValue {
   void add(int, char *, int, char *, int);
   void add(int, char *, int *, char *, int *);
 
-  void print(int, int, int);
+  void print(FILE *, int, int, int);
 
  private:
   MapReduce *mr;

@@ -1,7 +1,13 @@
 /* ----------------------------------------------------------------------
-   read a vertex file with vertex weights
+   read a vertex file with vertex attributes
    file = file to read
-   wtflag = 1 for integer weights, 2 for double
+   format of file:
+     % comment
+     N (# of vertices listed)
+     vertex-ID vertex-attribute (ID is a positive uint64_t)
+     vertex-ID vertex-attribute (attribute is int or double)
+     ...
+   attflag = 1 for integer attributes, 2 for double
    input MR = empty
    aggregate vertices to owning processor
    output MR = Vi : wt
@@ -12,7 +18,9 @@
 #include "mpi.h"
 #include "string.h"
 #include "stdlib.h"
+#include "stdint.h"
 #include "read_mm_vert.h"
+#include "mrtype.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
 
@@ -21,10 +29,10 @@ using MAPREDUCE_NS::KeyValue;
 
 /* ---------------------------------------------------------------------- */
 
-ReadMMVert::ReadMMVert(char *file_in, int wtflag_in, MPI_Comm world_in)
+ReadMMVert::ReadMMVert(char *file_in, int attflag_in, MPI_Comm world_in)
 {
   file = file_in;
-  wtflag = wtflag_in;
+  attflag = attflag_in;
   world = world_in;
 }
 
@@ -41,8 +49,8 @@ double ReadMMVert::run(MapReduce *mr, uint64_t &nvert)
   nv = 0;
   mr->map(nprocs,1,&file,'\n',80,map,this);
 
-  int nvsum;
-  MPI_Allreduce(&nv,&nvsum,1,MPI_INT,MPI_SUM,world);
+  uint64_t nvsum;
+  MPI_Allreduce(&nv,&nvsum,1,MRMPI_BIGINT,MPI_SUM,world);
   nvert = nvsum;
 
   MPI_Barrier(world);
@@ -56,15 +64,13 @@ double ReadMMVert::run(MapReduce *mr, uint64_t &nvert)
 void ReadMMVert::map(int itask, char *bytes, int nbytes, 
 		     KeyValue *kv, void *ptr)
 {
-  int v,iwt;
-  double dwt;
-  VERTEX vi;
-  IWEIGHT iweight;
-  DWEIGHT dweight;
+  VERTEX v;
+  IATTRIBUTE iattribute;
+  DATTRIBUTE dattribute;
   char *next;
 
   ReadMMVert *rmm = (ReadMMVert *) ptr;
-  int wtflag = rmm->wtflag;
+  int attflag = rmm->attflag;
 
   int skip = 0;
 
@@ -74,18 +80,17 @@ void ReadMMVert::map(int itask, char *bytes, int nbytes,
 
     if (bytes[0] == '%') skip = 1;
     else if (skip) {
-      sscanf(bytes,"%d",&rmm->nv);
+      sscanf(bytes,"%ld",&rmm->nv);
       skip = 0;
     } else {
-      if (wtflag == 1) sscanf(bytes,"%d %d",&v,&iwt);
-      else sscanf(bytes,"%d %lg",&v,&dwt);
-      vi = v;
-      if (wtflag == 1) {
-	iweight = iwt;
-	kv->add((char *) &vi,sizeof(VERTEX),(char *) &iweight,sizeof(IWEIGHT));
+      if (attflag == 1) {
+	sscanf(bytes,"%ld %d",&v,&iattribute);
+	kv->add((char *) &v,sizeof(VERTEX),
+		(char *) &iattribute,sizeof(IATTRIBUTE));
       } else {
-	dweight = dwt;
-	kv->add((char *) &vi,sizeof(VERTEX),(char *) &dweight,sizeof(DWEIGHT));
+	sscanf(bytes,"%ld %lg",&v,&dattribute);
+	kv->add((char *) &v,sizeof(VERTEX),
+		(char *) &dattribute,sizeof(DATTRIBUTE));
       }
     }
 

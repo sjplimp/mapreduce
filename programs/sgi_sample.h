@@ -16,6 +16,8 @@ class SGISample {
   double run(MAPREDUCE_NS::MapReduce *, MAPREDUCE_NS::MapReduce *, 
 	     MAPREDUCE_NS::MapReduce **, MAPREDUCE_NS::MapReduce **, 
 	     MAPREDUCE_NS::MapReduce *, MAPREDUCE_NS::MapReduce *, 
+	     MAPREDUCE_NS::MapReduce **, MAPREDUCE_NS::MapReduce *,
+	     MAPREDUCE_NS::MapReduce *,
 	     uint64_t &);
 
  private:
@@ -55,6 +57,7 @@ class SGISample {
 
   MAPREDUCE_NS::MapReduce **mro,**mri;
   MAPREDUCE_NS::MapReduce *mreprime,*mrc;
+  MAPREDUCE_NS::MapReduce **mrsk;
   int eflag,kindex;
   ULONG tlocal;
 

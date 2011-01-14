@@ -1596,7 +1596,7 @@ void KeyMultiValue::spool_free()
    debug print of each KMV pair with nstride
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::print(int nstride, int kflag, int vflag)
+void KeyMultiValue::print(FILE *fp, int nstride, int kflag, int vflag)
 {
   int nvalues,keybytes,mvaluebytes;
   uint64_t dummy1,dummy2,dummy3;
@@ -1633,67 +1633,68 @@ void KeyMultiValue::print(int nstride, int kflag, int vflag)
 	if (istride != nstride) continue;
 	istride = 0;
 	
-	printf("KMV pair: proc %d, nvalues %d, sizes %d %d",
-	       me,nvalues,keybytes,mvaluebytes);
+	fprintf(fp,"KMV pair: proc %d, nvalues %d, sizes %d %d",
+		me,nvalues,keybytes,mvaluebytes);
 
-	printf(", key ");
-	if (kflag == 0) printf("NULL");
-	else if (kflag == 1) printf("%d",*(int *) key);
-	else if (kflag == 2) printf("%lu",*(uint64_t *) key);
-	else if (kflag == 3) printf("%g",*(float *) key);
-	else if (kflag == 4) printf("%g",*(double *) key);
-	else if (kflag == 5) printf("%s",key);
-	else if (kflag == 6) printf("%d %d",
-				    *(int *) key,
-				    *(int *) (key+sizeof(int)));
-	else if (kflag == 7) printf("%lu %lu",
-				    *(uint64_t *) key,
-				    *(uint64_t *) (key+sizeof(uint64_t)));
+	fprintf(fp,", key ");
+	if (kflag == 0) fprintf(fp,"NULL");
+	else if (kflag == 1) fprintf(fp,"%d",*(int *) key);
+	else if (kflag == 2) fprintf(fp,"%lu",*(uint64_t *) key);
+	else if (kflag == 3) fprintf(fp,"%g",*(float *) key);
+	else if (kflag == 4) fprintf(fp,"%g",*(double *) key);
+	else if (kflag == 5) fprintf(fp,"%s",key);
+	else if (kflag == 6) fprintf(fp,"%d %d",
+				     *(int *) key,
+				     *(int *) (key+sizeof(int)));
+	else if (kflag == 7) fprintf(fp,"%lu %lu",
+				     *(uint64_t *) key,
+				     *(uint64_t *) (key+sizeof(uint64_t)));
 
-	printf(", values ");
+	fprintf(fp,", values ");
 	if (vflag == 0) {
-	  for (int j = 0; j < nvalues; j++) printf("NULL ");
+	  for (int j = 0; j < nvalues; j++) fprintf(fp,"NULL ");
+
 	} else if (vflag == 1) {
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%d ",*(int *) multivalue);
+	    fprintf(fp,"%d ",*(int *) multivalue);
 	    multivalue += valuesizes[j];
 	  }
 	} else if (vflag == 2) {
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%lu ",*(uint64_t *) multivalue);
+	    fprintf(fp,"%lu ",*(uint64_t *) multivalue);
 	    multivalue += valuesizes[j];
 	  }
 	} else if (vflag == 3) {
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%g ",*(float *) multivalue);
+	    fprintf(fp,"%g ",*(float *) multivalue);
 	    multivalue += valuesizes[j];
 	  }
 	} else if (vflag == 4) {
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%g ",*(double *) multivalue);
+	    fprintf(fp,"%g ",*(double *) multivalue);
 	    multivalue += valuesizes[j];
 	  }
 	} else if (vflag == 5) {
 	  char *value = multivalue;
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%s ",multivalue);
+	    fprintf(fp,"%s ",multivalue);
 	    multivalue += valuesizes[j];
 	  }
 	} else if (vflag == 6) {
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%d %d ",*(int *) multivalue,
-		   *(int *) (multivalue+sizeof(int)));
+	    fprintf(fp,"%d %d ",*(int *) multivalue,
+		    *(int *) (multivalue+sizeof(int)));
 	    multivalue += valuesizes[j];
 	  }
 	} else if (vflag == 7) {
 	  for (int j = 0; j < nvalues; j++) {
-	    printf("%lu %lu ",*(uint64_t *) multivalue,
-		   *(uint64_t *) (multivalue+sizeof(uint64_t)));
+	    fprintf(fp,"%lu %lu ",*(uint64_t *) multivalue,
+		    *(uint64_t *) (multivalue+sizeof(uint64_t)));
 	    multivalue += valuesizes[j];
 	  }
 	}
 	
-	printf("\n");
+	fprintf(fp,"\n");
 
       } else {
 	keybytes = *((int *) ptr);
@@ -1701,25 +1702,25 @@ void KeyMultiValue::print(int nstride, int kflag, int vflag)
 	ptr = ROUNDUP(ptr,kalignm1);
 	key = ptr;
 
-	printf("KMV pair: proc %d, nvalues %lu, size %d",
+	fprintf(fp,"KMV pair: proc %d, nvalues %lu, size %d",
 	       me,pages[ipage].nvalue_total,keybytes);
 
-	printf(", key ");
-	if (kflag == 0) printf("NULL");
-	else if (kflag == 1) printf("%d",*(int *) key);
-	else if (kflag == 2) printf("%u",*(uint64_t *) key);
-	else if (kflag == 3) printf("%g",*(float *) key);
-	else if (kflag == 4) printf("%g",*(double *) key);
-	else if (kflag == 5) printf("%s",key);
-	else if (kflag == 6) printf("%d %d",
-				    *(int *) key,
-				    *(int *) (key+sizeof(int)));
-	else if (kflag == 7) printf("%lu %lu",
-				    *(uint64_t *) key,
-				    *(uint64_t *) (key+sizeof(uint64_t)));
+	fprintf(fp,", key ");
+	if (kflag == 0) fprintf(fp,"NULL");
+	else if (kflag == 1) fprintf(fp,"%d",*(int *) key);
+	else if (kflag == 2) fprintf(fp,"%u",*(uint64_t *) key);
+	else if (kflag == 3) fprintf(fp,"%g",*(float *) key);
+	else if (kflag == 4) fprintf(fp,"%g",*(double *) key);
+	else if (kflag == 5) fprintf(fp,"%s",key);
+	else if (kflag == 6) fprintf(fp,"%d %d",
+				     *(int *) key,
+				     *(int *) (key+sizeof(int)));
+	else if (kflag == 7) fprintf(fp,"%lu %lu",
+				     *(uint64_t *) key,
+				     *(uint64_t *) (key+sizeof(uint64_t)));
 
-	printf(", too many values to print");
-	printf("\n");
+	fprintf(fp,", too many values to print");
+	fprintf(fp,"\n");
       }
     }
   }

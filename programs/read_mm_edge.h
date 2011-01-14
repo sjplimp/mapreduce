@@ -16,15 +16,15 @@ class ReadMMEdge {
 
  private:
   char *file;
-  int wtflag;
+  int attflag;
   MPI_Comm world;
-  int nv;
+  uint64_t nv;
   typedef uint64_t VERTEX;
   typedef struct {
     VERTEX vi,vj;
   } EDGE;
-  typedef int IWEIGHT;
-  typedef double DWEIGHT;
+  typedef int IATTRIBUTE;
+  typedef double DATTRIBUTE;
 
   static void map(int, char *, int, MAPREDUCE_NS::KeyValue *, void *);
 };

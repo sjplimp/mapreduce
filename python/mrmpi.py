@@ -275,8 +275,11 @@ class mrmpi:
     if not addflag: self.lib.MR_open(self.mr)
     else: self.lib.MR_open_add(self.mr,addflag)
 
-  def print_mr(self,proc,nstride,kflag,vflag):
+  def print_screen(self,proc,nstride,kflag,vflag):
     self.lib.MR_print(self.mr,proc,nstride,kflag,vflag)
+
+  def print_file(self,file,fflag,proc,nstride,kflag,vflag):
+    self.lib.MR_print_file(self.mr,file,fflag,proc,nstride,kflag,vflag)
 
   def reduce(self,reduce,ptr=None):
     self.reduce_caller = reduce

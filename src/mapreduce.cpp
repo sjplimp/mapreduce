@@ -1050,8 +1050,8 @@ uint64_t MapReduce::map(char *file,
 /* ----------------------------------------------------------------------
    parallel map operation for list of files in dir
    open dir and read filenames
-   if oneflag = 0, each proc reads filenames from own dir
-   if oneflag = 1, proc 0 reads filenames, bcast list to all procs
+   if selfflag = 0, proc 0 reads all filenames, bcast list to all procs
+   if selfflag = 1, each proc reads filenames from own dir
 ------------------------------------------------------------------------- */
 
 uint64_t MapReduce::map(char *dir, int selfflag,
@@ -1069,8 +1069,7 @@ uint64_t MapReduce::map(char *dir, int selfflag,
     DIR *dp = opendir(dir);
     if (dp == NULL) error->one("Cannot open dir to search for files");
     while (ep = readdir(dp)) {
-      if (strcmp(ep->d_name,".") == 0) continue;
-      if (strcmp(ep->d_name,"..") == 0) continue;
+      if (ep->d_name[0] == '.') continue;
       if (nfile == maxfiles) {
 	maxfiles += FILECHUNK;
 	files = (char **)
@@ -1600,7 +1599,7 @@ void MapReduce::open(int addflag)
 }
 
 /* ----------------------------------------------------------------------
-   debug print of KV or KMV pairs
+   print of KV or KMV pairs to screen
    if all procs are printing, pass print token from proc to proc
 ------------------------------------------------------------------------- */
 
@@ -1614,8 +1613,8 @@ void MapReduce::print(int proc, int nstride, int kflag, int vflag)
   if (kflag > 7 || vflag > 7) error->all("Invalid print args");
 
   if (proc == me) {
-    if (kv) kv->print(nstride,kflag,vflag);
-    if (kmv) kmv->print(nstride,kflag,vflag);
+    if (kv) kv->print(stdout,nstride,kflag,vflag);
+    if (kmv) kmv->print(stdout,nstride,kflag,vflag);
   }
 
   if (proc >= 0) return;
@@ -1623,10 +1622,61 @@ void MapReduce::print(int proc, int nstride, int kflag, int vflag)
   int token;
   MPI_Barrier(comm);
   if (me > 0) MPI_Recv(&token,0,MPI_INT,me-1,0,comm,&status);
-  if (kv) kv->print(nstride,kflag,vflag);
-  if (kmv) kmv->print(nstride,kflag,vflag);
+  if (kv) kv->print(stdout,nstride,kflag,vflag);
+  if (kmv) kmv->print(stdout,nstride,kflag,vflag);
   if (me < nprocs-1) MPI_Send(&token,0,MPI_INT,me+1,0,comm);
   MPI_Barrier(comm);
+}
+
+/* ----------------------------------------------------------------------
+   print of KV or KMV pairs to file(s)
+   if one proc is printing, write to filename
+   if all procs are printing and fflag = 0, all write to one file
+   if all procs are printing and fflag = 1, each proc writes to own file
+------------------------------------------------------------------------- */
+
+void MapReduce::print(char *file, int fflag,
+		      int proc, int nstride, int kflag, int vflag)
+{
+  MPI_Status status;
+
+  if (kv == NULL && kmv == NULL)
+    error->all("Cannot print without KeyValue or KeyMultiValue");
+  if (kflag < 0 || vflag < 0) error->all("Invalid print args");
+  if (kflag > 7 || vflag > 7) error->all("Invalid print args");
+
+  if (proc == me) {
+    FILE *fp = fopen(file,"w");
+    if (fp == NULL) error->one("Could not open print file");
+    if (kv) kv->print(fp,nstride,kflag,vflag);
+    if (kmv) kmv->print(fp,nstride,kflag,vflag);
+    fclose(fp);
+  }
+
+  if (proc >= 0) return;
+
+  if (fflag == 1) {
+    int n = strlen(file) + 8;
+    char *procfile = new char[n];
+    sprintf(procfile,"%s.%d",file,me);
+    FILE *fp = fopen(procfile,"w");
+    if (fp == NULL) error->one("Could not open print file");
+    if (kv) kv->print(fp,nstride,kflag,vflag);
+    if (kmv) kmv->print(fp,nstride,kflag,vflag);
+    fclose(fp);
+
+  } else {
+    int token;
+    MPI_Barrier(comm);
+    if (me > 0) MPI_Recv(&token,0,MPI_INT,me-1,0,comm,&status);
+    FILE *fp = fopen(file,"a");
+    if (fp == NULL) error->one("Could not open print file");
+    if (kv) kv->print(fp,nstride,kflag,vflag);
+    if (kmv) kmv->print(fp,nstride,kflag,vflag);
+    fclose(fp);
+    if (me < nprocs-1) MPI_Send(&token,0,MPI_INT,me+1,0,comm);
+    MPI_Barrier(comm);
+  }
 }
 
 /* ----------------------------------------------------------------------

@@ -132,6 +132,16 @@ sgi_check:	sgi_check.o $(LIB)
 	$(LINK) $(LINKFLAGS) sgi_check.o \
 		$(USRLIB) $(SYSLIB) -o sgi_check
 
+# data2graph
+
+data2graph:	data2graph.o $(LIB)
+	$(LINK) $(LINKFLAGS) data2graph.o $(USRLIB) $(SYSLIB) -o data2graph
+
+# data2rare
+
+data2rare:	data2rare.o $(LIB)
+	$(LINK) $(LINKFLAGS) data2rare.o $(USRLIB) $(SYSLIB) -o data2rare
+
 # MP driver
 
 mp_driver:	mp_driver.o $(LIB)

@@ -1,7 +1,13 @@
 /* ----------------------------------------------------------------------
-   read a Matrix Market edge file with or without edge weights
+   read a Matrix Market edge file with or without edge attributes
    file = file to read
-   wtflag = 0 for ignore edge weights, 1 for integer weights, 2 for double
+   format of file:
+     % comment
+     Nv Nv Ne (vertices from 1 to Nv, # of edges listed)
+     vertex1 vertex 2 edge-attribute (vertex IDs are from 1 to Nv)
+     vertex1 vertex 2 edge-attribute (edge att is missing or int or double)
+     ...
+   attflag = 0 for ignore edge attributes, 1 for integer, 2 for double
    input MR = empty
    aggregate edges to owning processor
    output MR = Eij : wt, Eij = Vi Vj
@@ -14,6 +20,7 @@
 #include "string.h"
 #include "stdlib.h"
 #include "read_mm_edge.h"
+#include "mrtype.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
 
@@ -22,10 +29,10 @@ using MAPREDUCE_NS::KeyValue;
 
 /* ---------------------------------------------------------------------- */
 
-ReadMMEdge::ReadMMEdge(char *file_in, int wtflag_in, MPI_Comm world_in)
+ReadMMEdge::ReadMMEdge(char *file_in, int attflag_in, MPI_Comm world_in)
 {
   file = file_in;
-  wtflag = wtflag_in;
+  attflag = attflag_in;
   world = world_in;
 }
 
@@ -42,8 +49,8 @@ double ReadMMEdge::run(MapReduce *mr, uint64_t &nvert, uint64_t &nedge)
   nv = 0;
   nedge = mr->map(nprocs,1,&file,'\n',80,map,this);
 
-  int nvsum;
-  MPI_Allreduce(&nv,&nvsum,1,MPI_INT,MPI_SUM,world);
+  uint64_t nvsum;
+  MPI_Allreduce(&nv,&nvsum,1,MRMPI_BIGINT,MPI_SUM,world);
   nvert = nvsum;
 
   MPI_Barrier(world);
@@ -58,14 +65,12 @@ void ReadMMEdge::map(int itask, char *bytes, int nbytes,
 		     KeyValue *kv, void *ptr)
 {
   EDGE edge;
-  int vi,vj,iwt;
-  double dwt;
-  IWEIGHT iweight;
-  DWEIGHT dweight;
+  IATTRIBUTE iattribute;
+  DATTRIBUTE dattribute;
   char *next;
 
   ReadMMEdge *rmm = (ReadMMEdge *) ptr;
-  int wtflag = rmm->wtflag;
+  int attflag = rmm->attflag;
 
   int skip = 0;
 
@@ -78,19 +83,17 @@ void ReadMMEdge::map(int itask, char *bytes, int nbytes,
       sscanf(bytes,"%d",&rmm->nv);
       skip = 0;
     } else {
-      if (wtflag == 0) sscanf(bytes,"%d %d",&vi,&vj);
-      else if (wtflag == 1) sscanf(bytes,"%d %d %d",&vi,&vj,&iwt);
-      else sscanf(bytes,"%d %d %lg",&vi,&vj,&dwt);
-      edge.vi = vi;
-      edge.vj = vj;
-      if (wtflag == 0) 
+      if (attflag == 0) {
+	sscanf(bytes,"%ld %ld",&edge.vi,&edge.vj);
 	kv->add((char *) &edge,sizeof(EDGE),NULL,0);
-      else if (wtflag == 1) {
-	iweight = iwt;
-	kv->add((char *) &edge,sizeof(EDGE),(char *) &iweight,sizeof(IWEIGHT));
+      } else if (attflag == 1) {
+	  sscanf(bytes,"%ld %ld %d",&edge.vi,&edge.vj,&iattribute);
+	  kv->add((char *) &edge,sizeof(EDGE),
+		  (char *) &iattribute,sizeof(IATTRIBUTE));
       } else {
-	dweight = dwt;
-	kv->add((char *) &edge,sizeof(EDGE),(char *) &dweight,sizeof(DWEIGHT));
+	sscanf(bytes,"%ld %ld %lg",&edge.vi,&edge.vj,&dattribute);
+	kv->add((char *) &edge,sizeof(EDGE),
+		(char *) &dattribute,sizeof(DATTRIBUTE));
       }
     }
 
