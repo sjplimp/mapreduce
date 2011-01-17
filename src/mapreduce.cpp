@@ -49,6 +49,13 @@ double MapReduce::commtime = 0.0;
 void map_file_standalone(int, KeyValue *, void *);
 int compare_standalone(const void *, const void *);
 
+int compare_int(char *, int, char *, int);
+int compare_uint64(char *, int, char *, int);
+int compare_float(char *, int, char *, int);
+int compare_double(char *, int, char *, int);
+int compare_str(char *, int, char *, int);
+int compare_strn(char *, int, char *, int);
+
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
@@ -1880,6 +1887,22 @@ uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
 
 /* ----------------------------------------------------------------------
    sort keys in a KV to create a new KV
+   call sort_keys(appcompare) with pre-defined compare method
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::sort_keys(int flag)
+{
+  if (flag == 1) return sort_keys(compare_int);
+  else if (flag == 2) return sort_keys(compare_uint64);
+  else if (flag == 3) return sort_keys(compare_float);
+  else if (flag == 4) return sort_keys(compare_double);
+  else if (flag == 5) return sort_keys(compare_str);
+  else if (flag == 6) return sort_keys(compare_strn);
+  error->all("Invalid compare method for sort keys");
+}
+
+/* ----------------------------------------------------------------------
+   sort keys in a KV to create a new KV
    use appcompare() to compare 2 keys
    each proc sorts only its data
 ------------------------------------------------------------------------- */
@@ -1903,6 +1926,22 @@ uint64_t MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
 
 /* ----------------------------------------------------------------------
    sort values in a KV to create a new KV
+   call sort_values(appcompare) with pre-defined compare method
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::sort_values(int flag)
+{
+  if (flag == 1) return sort_values(compare_int);
+  else if (flag == 2) return sort_values(compare_uint64);
+  else if (flag == 3) return sort_values(compare_float);
+  else if (flag == 4) return sort_values(compare_double);
+  else if (flag == 5) return sort_values(compare_str);
+  else if (flag == 6) return sort_values(compare_strn);
+  error->all("Invalid compare method for sort values");
+}
+
+/* ----------------------------------------------------------------------
+   sort values in a KV to create a new KV
    use appcompare() to compare 2 values
    each proc sorts only its data
 ------------------------------------------------------------------------- */
@@ -1922,6 +1961,22 @@ uint64_t MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
   uint64_t nkeyall;
   MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
+   sort values within each multivalue in a KMV
+   call sort_multivalues(appcompare) with pre-defined compare method
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::sort_multivalues(int flag)
+{
+  if (flag == 1) return sort_multivalues(compare_int);
+  else if (flag == 2) return sort_multivalues(compare_uint64);
+  else if (flag == 3) return sort_multivalues(compare_float);
+  else if (flag == 4) return sort_multivalues(compare_double);
+  else if (flag == 5) return sort_multivalues(compare_str);
+  else if (flag == 6) return sort_multivalues(compare_strn);
+  error->all("Invalid compare method for sort multivalues");
 }
 
 /* ----------------------------------------------------------------------
@@ -2319,6 +2374,76 @@ void MapReduce::merge(int flag, int src1, void *src1ptr,
       } else len2 = extract(flag,ptr2,str2,nbytes2);
     }
   }
+}
+
+/* ----------------------------------------------------------------------
+   compare 2 integers
+------------------------------------------------------------------------- */
+
+int compare_int(char *str1, int len1, char *str2, int len2)
+{
+  int *i1 = (int *) str1;
+  int *i2 = (int *) str2;
+  if (*i1 < *i2) return -1;
+  if (*i1 > *i2) return 1;
+  return 0;
+}
+
+/* ----------------------------------------------------------------------
+   compare 2 64-bit unsigned integers
+------------------------------------------------------------------------- */
+
+int compare_uint64(char *str1, int len1, char *str2, int len2)
+{
+  uint64_t *i1 = (uint64_t *) str1;
+  uint64_t *i2 = (uint64_t *) str2;
+  if (*i1 < *i2) return -1;
+  if (*i1 > *i2) return 1;
+  return 0;
+}
+
+/* ----------------------------------------------------------------------
+   compare 2 floats
+------------------------------------------------------------------------- */
+
+int compare_float(char *str1, int len1, char *str2, int len2)
+{
+  float *i1 = (float *) str1;
+  float *i2 = (float *) str2;
+  if (*i1 < *i2) return -1;
+  if (*i1 > *i2) return 1;
+  return 0;
+}
+
+/* ----------------------------------------------------------------------
+   compare 2 doubles
+------------------------------------------------------------------------- */
+
+int compare_double(char *str1, int len1, char *str2, int len2)
+{
+  double *i1 = (double *) str1;
+  double *i2 = (double *) str2;
+  if (*i1 < *i2) return -1;
+  if (*i1 > *i2) return 1;
+  return 0;
+}
+
+/* ----------------------------------------------------------------------
+   compare 2 NULL-terminated strings
+------------------------------------------------------------------------- */
+
+int compare_str(char *str1, int len1, char *str2, int len2)
+{
+  return strcmp(str1,str2);
+}
+
+/* ----------------------------------------------------------------------
+   compare 2 non-NULL terminated strings via strncmp on shorter length
+------------------------------------------------------------------------- */
+
+int compare_strn(char *str1, int len1, char *str2, int len2)
+{
+  return strncmp(str1,str2,MIN(len1,len2));
 }
 
 /* ----------------------------------------------------------------------

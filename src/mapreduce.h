@@ -106,9 +106,19 @@ class MapReduce {
   void multivalue_block_select(int);
   int multivalue_block(int, char **, int **);
 
+  uint64_t sort_keys(int);
   uint64_t sort_keys(int (*)(char *, int, char *, int));
+  uint64_t sort_values(int);
   uint64_t sort_values(int (*)(char *, int, char *, int));
+  uint64_t sort_multivalues(int);
   uint64_t sort_multivalues(int (*)(char *, int, char *, int));
+
+  static int compare_int(char *, int, char *, int);
+  static int compare_uint64(char *, int, char *, int);
+  static int compare_float(char *, int, char *, int);
+  static int compare_double(char *, int, char *, int);
+  static int compare_str(char *, int, char *, int);
+  static int compare_strn(char *, int, char *, int);
 
   void kv_stats(int);
   void kmv_stats(int);
