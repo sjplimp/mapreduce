@@ -8,4 +8,6 @@ USRLIB =	-L../src -lmrmpi
 SYSLIB =	-lmpich -lpthread -lrt
 DEPFLAGS = 	-M
 
+LIB =		../src/libmrmpi.a
+
 include Makefile.common

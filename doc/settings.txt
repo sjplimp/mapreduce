@@ -16,7 +16,9 @@ timer = 0 (none) or 1 (summary) or 2 (histogrammed)
 memsize = N = number of Mbytes per page of memory
 minpage = N = # of pages to pre-allocate per processor
 maxpage = N = max # of pages allocatable per processor
-holdpage = 0 (no) or 1 (yes) if memory pages are held on to between operations
+freepage = 1 if memory pages are freed in between operations, 0 if held
+outofcore = 1 if even 1-page data sets are forced to disk, 0 if not
+zeropage = 1 if zero out every allocated page, 0 if not
 keyalign = N = byte-alignment of keys
 valuealign = N = byte-alignment of values
 fpath = string :ul
@@ -115,7 +117,7 @@ The default value for {timer} is 0.
 The {memsize} setting determines the page size (in Mbytes) of each
 page of memory allocated by the MapReduce object to perform its
 operations.  The number of pages required by different methods varies;
-1 to 7 is typical.  The {holdpage} setting (see below) determines
+1 to 7 is typical.  The {freepage} setting (see below) determines
 whether pages are freed or not between operations, once allocated.
 See "this section"_interface_c++.html for a summary of memory page
 requirements.
@@ -169,8 +171,13 @@ set to 16 Mbyte pages, instead of 64.
 :line
 
 The {minpage} setting determines how many memory pages each processor
-pre-allocates when the MapReduce object performs its first operation.
-{Minpage} can be set to a number >= 0.
+pre-allocates as a block of contiguous memory when the MapReduce
+object performs its first operation.  {Minpage} can be set to a number
+>= 0.
+
+Note that if the {freepage} setting is 1 then memory pages will be
+freed after each MapReduce operation.  This will include the initial
+{minpage} block of pages if none of them are in use.
 
 This setting can only be changed before the first KeyValue or
 KeyMultiValue object is created by the MapReduce object.  If changed
@@ -194,30 +201,70 @@ The default value for {maxpage} is 0.
 
 :line
 
-The {holdpage} setting determines whether or not the MapReduce ojbect
-frees its memory pages after each operation is completed.  If
-{holdpage} is set to 1, then once allocated, pages are never
+The {freepage} setting determines whether or not the MapReduce ojbect
+frees unused memory pages after each operation is completed.  If
+{freepage} is set to 0, then once allocated, pages are never
 deallocated until the MapReduce object itself is deleted.  In this
 case pages are reused by successive operations performed by the
-library.  If {holdpage} is set to 0, then after each operation, pages
-used by the operation are freed (and then reallocated as needed by the
-next operation).
+library.  If {freepage} is set to 1, then after each operation, pages
+used by the operation are freed, and then reallocated (as needed) by
+the next operation.
 
-It can be useful to set {holdpage} to 0, if your code allocates and
-uses several MapReduce objects, so that each does not hold onto
-multiple pages of memory.  If memory is not an issue, setting
-{holdpage} to 1 may be somewhat faster, since memory pages will not be
-repeatedly allocated and freed and initialized.
+The default {freepage} setting of 1 is useful to limit memory use,
+particularly if your code uses several MapReduce objects or you are
+running in parallel on a multi-core node where all the cores share the
+same physical memory.  If memory is not an issue, setting {freepage}
+to 0 may be somewhat faster, since memory pages will not be repeatedly
+allocated and freed.  See the {zeropage} setting for an additional
+source of overhead when pages are repeatedly freed and allocated.
 
-Note that if a KeyValue or KeyMultiValue object is created by the
-operation and its size is such that it fits in a single page of
-memory, then that page cannot be deleted.  If the KeyValue or
-KeyMultiValue object was stored to disk because it was too large for a
-single page, then the page can be deleted.
+If the {outofcore} setting is 1, then setting {freepage} to 1 means
+that all memory pages will be released after each MapReduce operation.
+If {outofcore} is set to 0, and data fits in a single page, then the
+MapReduce object will always hold onto a single page of memory for
+that data even if {freepage} is set to 1.
 
 This setting can be changed at any time.
 
-The default value for {holdpage} is 1.
+The default value for {freepage} is 1.
+
+:line
+
+The {outofcore} setting determines whether data that could fit in a
+single page of memory, within a KeyValue or KeyMultiValue object, will
+still be written to disk.  If the data does not fit in a single page,
+it is always written to disk.  If {outofcore} is 1, then disk files
+will be written.  If {outofcore} is 0, then disk files are not written
+if not needed.
+
+Note that if the {freepage} setting and the {outofcore} setting are
+both 1, then all memory pages will be released after each MapReduce
+operation.  This can be useful to insure if your application uses many
+MapReduce objects and wants to limit its memory use.
+
+This setting can be changed at any time.
+
+The default value for {outofcore} is 0.
+
+:line
+
+The {zeropage} setting determines whether newly allocated pages are
+filled with 0 bytes when allocated by the MapReduce object.  Note that
+this does not apply to reused pages that were not freed.  A setting of
+1 means zero each page.  A setting of 0 leaves them uninitialized.
+
+Normally it should not be necessary to zero out allocated memory, and
+it only consumes time, especially if large pages are being used and
+are freed and allocated often (e.g. with {freepage} set to 1).  But it
+can be useful when debugging with memory checkers, which may flag
+certain bytes within pages as uninitialized, even when this doesn't
+matter.  This is because the byte-alignment rules for keys and values
+(discussed below) can skip over bytes in the page when data is written
+to the page.
+
+This setting can be changed at any time.
+
+The default value for {zeropage} is 0.
 
 :line
 

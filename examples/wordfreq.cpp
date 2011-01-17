@@ -54,6 +54,8 @@ int main(int narg, char **args)
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
   mr->verbosity = 2;
   mr->timer = 1;
+  mr->memsize = 1;
+  //mr->outofcore = 1;
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
