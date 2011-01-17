@@ -323,14 +323,26 @@ class mrmpi:
     n = self.lib.MR_sort_keys(self.mr,self.compare_def)
     return n
 
+  def sort_keys_flag(self,flag):
+    n = self.lib.MR_sort_keys_flag(self.mr,flag)
+    return n
+
   def sort_values(self,compare):
     self.compare_caller = compare
     n = self.lib.MR_sort_values(self.mr,self.compare_def)
     return n
 
+  def sort_values_flag(self,flag):
+    n = self.lib.MR_sort_values_flag(self.mr,flag)
+    return n
+
   def sort_multivalues(self,compare):
     self.compare_caller = compare
     n = self.lib.MR_sort_multivalues(self.mr,self.compare_def)
+    return n
+
+  def sort_multivalues_flag(self,flag):
+    n = self.lib.MR_sort_multivalues_flag(self.mr,flag)
     return n
 
   def compare_callback(self,cobj1,len1,cobj2,len2):
