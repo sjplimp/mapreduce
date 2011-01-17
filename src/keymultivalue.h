@@ -36,7 +36,8 @@ class KeyMultiValue {
 		class Memory *, class Error *, MPI_Comm);
   ~KeyMultiValue();
 
-  void set_page();
+  void allocate();
+  void deallocate(int);
   void copy(KeyMultiValue *);
   void complete();
   int request_info(char **);

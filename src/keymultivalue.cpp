@@ -87,12 +87,26 @@ KeyMultiValue::KeyMultiValue(MapReduce *mr_caller,
 
   nkmv = ksize = vsize = esize = fsize = 0;
   init_page();
+
+  page = NULL;
+  memtag = -1;
+  allocate();
 }
 
 /* ---------------------------------------------------------------------- */
 
 KeyMultiValue::~KeyMultiValue()
 {
+  // file may be open, if KMV was being read by MR::compress or MR::reduce
+  // users may use request_page() via multivalue_block() multiple times,
+  // so cannot close file on last page in request_page()
+
+  if (fp) {
+    fclose(fp);
+    fp = NULL;
+  }
+
+  deallocate(1);
   memory->sfree(pages);
   if (fileflag) {
     remove(filename);
@@ -102,12 +116,31 @@ KeyMultiValue::~KeyMultiValue()
 }
 
 /* ----------------------------------------------------------------------
-   trigger KMV to request an available page of memory
+   if need one, request an in-memory page
 ------------------------------------------------------------------------- */
 
-void KeyMultiValue::set_page()
+void KeyMultiValue::allocate()
 {
-  page = mr->mymalloc(1,pagesize,memtag);
+  if (page == NULL) page = mr->mem_request(1,pagesize,memtag);
+}
+
+/* ----------------------------------------------------------------------
+   if allocated, mark in-memory page as unused
+   if forceflag == 1, always do this
+   else:
+     only do this if MR outofcore flag is set or
+     npage > 1 (since values currently in page are now useless)
+------------------------------------------------------------------------- */
+
+void KeyMultiValue::deallocate(int forceflag)
+{
+  if (forceflag || mr->outofcore || npage > 1) {
+    if (page) {
+      mr->mem_unmark(memtag);
+      page = NULL;
+      memtag = -1;
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -122,7 +155,8 @@ void KeyMultiValue::copy(KeyMultiValue *kmv)
   if (kmv == this) error->all("Cannot perform KeyMultiValue copy on self");
 
   // pages will be loaded into memory assigned to other KMV
-  // write_page() will write them from that page to my file
+  // temporarily set my in-memory page to that of other KMV
+  // write_page() will then write from that page to my file
 
   char *page_hold = page;
   int npage_other = kmv->request_info(&page);
@@ -134,12 +168,10 @@ void KeyMultiValue::copy(KeyMultiValue *kmv)
     npage++;
   }
 
-  // last page needs to be copied to my memory before calling complete()
-  // reset my page to my memory
+  // copy last page to my memory, then reset my page to my memory
 
   nkey = kmv->request_page(npage_other-1,0,keysize,valuesize,alignsize);
   memcpy(page_hold,page,alignsize);
-  complete();
   page = page_hold;
 }
 
@@ -152,9 +184,10 @@ void KeyMultiValue::complete()
 {
   create_page();
 
-  // if disk file exists, write last page, close file
+  // if disk file exists or MR outofcore flag set:
+  // write current in-memory page to disk, close file
 
-  if (fileflag) {
+  if (fileflag || mr->outofcore) {
     write_page();
     fclose(fp);
     fp = NULL;
@@ -162,6 +195,10 @@ void KeyMultiValue::complete()
 
   npage++;
   init_page();
+
+  // give up in-memory page if possible
+
+  deallocate(0);
 
   // set sizes for entire KMV
 
@@ -224,7 +261,7 @@ uint64_t KeyMultiValue::multivalue_blocks(int ipage, int &nblock)
 }
 
 /* ----------------------------------------------------------------------
-   write out a changed page of KMV data
+   overwrite a changed page of KMV data onto disk
    called by MR::sort_multivalues()
 ------------------------------------------------------------------------- */
 
@@ -236,7 +273,7 @@ void KeyMultiValue::overwrite_page(int ipage)
 
 /* ----------------------------------------------------------------------
    close disk file if open
-   called by MR::compress() and MR::reduce()
+   called by MR::sort_multivalues()
 ------------------------------------------------------------------------- */
 
 void KeyMultiValue::close_file()
@@ -464,7 +501,7 @@ void KeyMultiValue::convert(KeyValue *kv)
 
   uint64_t uniquesize;
   int uniquetag;
-  char *memunique = mr->mymalloc(2,uniquesize,uniquetag);
+  char *memunique = mr->mem_request(2,uniquesize,uniquetag);
 
   uint64_t n = MAX(kv->nkv,1);
   double keyave = 1.0*kv->ksize/n;
@@ -592,8 +629,8 @@ void KeyMultiValue::convert(KeyValue *kv)
   memory->sfree(partitions);
   memory->sfree(sets);
   spool_free();
-  mr->myfree(uniquetag);
-  mr->myfree(kv_memtag);
+  mr->mem_unmark(uniquetag);
+  mr->mem_unmark(kv_memtag);
 }
 
 /* ----------------------------------------------------------------------
@@ -1523,11 +1560,11 @@ void KeyMultiValue::spool_memory(KeyValue *kv)
 
   // query how many MR pages are available and request all of them
 
-  npages_mr = mr->memquery(dummy1,dummy2);
+  npages_mr = mr->mem_query(dummy1,dummy2);
   tag_mr = (int *) memory->smalloc(npages_mr*sizeof(int),"KMV:tag_mr");
   page_mr = (char **) memory->smalloc(npages_mr*sizeof(char *),"KMV:page_mr");
   for (int i = 0; i < npages_mr; i++)
-    page_mr[i] = mr->mymalloc(1,dummy,tag_mr[i]);
+    page_mr[i] = mr->mem_request(1,dummy,tag_mr[i]);
 }
 
 /* ----------------------------------------------------------------------
@@ -1557,7 +1594,7 @@ void KeyMultiValue::spool_request(int n, int extra)
 				      "KMV:tag_mr");
     page_mr = (char **) memory->srealloc(page_mr,(npages_mr+1)*sizeof(char *),
 					 "KMV:page_mr");
-    page_mr[npages_mr] = mr->mymalloc(1,dummy,tag_mr[npages_mr]);
+    page_mr[npages_mr] = mr->mem_request(1,dummy,tag_mr[npages_mr]);
     npages_mr++;
 
     spoolperpage = nquery / npages_mr;
@@ -1587,7 +1624,7 @@ char *KeyMultiValue::spool_malloc(int i, uint64_t &size)
 
 void KeyMultiValue::spool_free()
 {
-  for (int i = 0; i < npages_mr; i++) mr->myfree(tag_mr[i]);
+  for (int i = 0; i < npages_mr; i++) mr->mem_unmark(tag_mr[i]);
   memory->sfree(tag_mr);
   memory->sfree(page_mr);
 }

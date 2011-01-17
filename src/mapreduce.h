@@ -32,7 +32,9 @@ class MapReduce {
   int memsize;        // # of Mbytes per page
   int minpage;        // # of pages that will be pre-allocated per proc >= 0
   int maxpage;        // max # of pages that can be allocated per proc, 0 = inf
-  int holdpage;       // 0 if free unused pages after every operation, 1 if keep
+  int freepage;       // 1 to free unused pages after every operation, 0 if keep
+  int outofcore;      // 1 to force data out-of-core, 0 = only if exceeds 1 pg
+  int zeropage;       // 1 to init allocated pages to 0, 0 if don't bother
   int keyalign;       // align keys to this byte count
   int valuealign;     // align values to this byte count
   char *fpath;        // prefix path added to intermediate out-of-core files
@@ -143,11 +145,12 @@ class MapReduce {
 
   uint64_t pagesize;        // pagesize for KVs and KMVs
   char **memptr;            // ptrs to each page of memory
-  int *memused;             // flag for each page
-                            // 0 = unused, 1/2 = in use as 1 or 2-page
+  int *memusage;            // 0 if unused, else tag returned to requestor
   int *memcount;            // # of pages alloced starting with this page
-                            // 0 if in the middle of a contiguous alloc
+                            // 0 if in middle of a contiguous alloc
   int npage;                // total # of pages currently allocated
+  int npagemax;             // hi-water mark for # of pages allocated
+  int tagmax;               // highest tag used thus far
 
   // alignment info
 
@@ -235,9 +238,10 @@ class MapReduce {
   void mr_stats(int);
   void allocate();
   void allocate_page(int);
-  char *mymalloc(int, uint64_t &, int &);
-  void myfree(int);
-  int memquery(int &, int &);
+  char *mem_request(int, uint64_t &, int &);
+  void mem_unmark(int);
+  void mem_cleanup();
+  int mem_query(int &, int &);
   void hiwater(int, uint64_t);
 };
 

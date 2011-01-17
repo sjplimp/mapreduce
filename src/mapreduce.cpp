@@ -148,16 +148,16 @@ MapReduce::~MapReduce()
 {
   delete [] fpath;
 
+  delete kv;
+  delete kmv;
+  delete memory;
+  delete error;
+
   for (int i = 0; i < npage; i++)
     if (memcount[i]) memory->sfree(memptr[i]);
   memory->sfree(memptr);
-  memory->sfree(memused);
+  memory->sfree(memusage);
   memory->sfree(memcount);
-
-  delete memory;
-  delete error;
-  delete kv;
-  delete kmv;
 
   instances_now--;
   if (verbosity) mr_stats(verbosity);
@@ -187,7 +187,9 @@ void MapReduce::defaults()
 
   minpage = 0;
   maxpage = 0;
-  holdpage = 1;
+  freepage = 1;
+  outofcore = 0;
+  zeropage = 0;
   keyalign = valuealign = ALIGNKV;
 
 #ifdef MRMPI_FPATH
@@ -211,9 +213,11 @@ void MapReduce::defaults()
 
   allocated = 0;
   memptr = NULL;
-  memused = NULL;
+  memusage = NULL;
   memcount = NULL;
   npage = 0;
+  npagemax = 0;
+  tagmax = 0;
   fsize = 0;
   fsizemax = 0;
 
@@ -248,7 +252,9 @@ MapReduce *MapReduce::copy()
   mrnew->memsize = memsize;
   mrnew->minpage = minpage;
   mrnew->maxpage = maxpage;
-  mrnew->holdpage = holdpage;
+  mrnew->freepage = freepage;
+  mrnew->outofcore = outofcore;
+  mrnew->zeropage = zeropage;
 
   if (allocated) {
     mrnew->keyalign = kalign;
@@ -263,8 +269,17 @@ MapReduce *MapReduce::copy()
   mrnew->fpath = new char[n];
   strcpy(mrnew->fpath,fpath);
 
-  if (kv) mrnew->copy_kv(kv);
-  if (kmv) mrnew->copy_kmv(kmv);
+  if (kv) {
+    kv->allocate();
+    mrnew->copy_kv(kv);
+    kv->deallocate(0);
+  }
+  if (kmv) {
+    kmv->allocate();
+    mrnew->copy_kmv(kmv);
+    kmv->deallocate(0);
+  }
+  if (freepage) mem_cleanup();
 
   if (kv) stats("Copy",0);
   if (kmv) stats("Copy",1);
@@ -281,21 +296,21 @@ void MapReduce::copy_kv(KeyValue *kv_src)
 {
   if (!allocated) allocate();
   kv = new KeyValue(this,kalign,valign,memory,error,comm);
-  kv->set_page();
   kv->copy(kv_src);
+  kv->complete();
 }
 
 /* ----------------------------------------------------------------------
    create my KMV as copy of kmvsrc
-   called by other MR's copy(), so my KMV will not yet exist
+   called by other MR's copy()
 ------------------------------------------------------------------------- */
 
 void MapReduce::copy_kmv(KeyMultiValue *kmv_src)
 {
   if (!allocated) allocate();
   kmv = new KeyMultiValue(this,kalign,valign,memory,error,comm);
-  kmv->set_page();
   kmv->copy(kmv_src);
+  kmv->complete();
 }
 
 /* ----------------------------------------------------------------------
@@ -311,19 +326,17 @@ uint64_t MapReduce::add(MapReduce *mr)
   if (verbosity) file_stats(0);
 
   if (!allocated) allocate();
-  if (kmv) myfree(kmv->memtag);
   delete kmv;
   kmv = NULL;
 
-  if (kv == NULL) {
-    kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
-  } else {
-    kv->append();
-  }
+  if (kv == NULL) kv = new KeyValue(this,kalign,valign,memory,error,comm);
+  else kv->append();
 
+  mr->kv->allocate();
   kv->add(mr->kv);
+  mr->kv->deallocate(0);
   kv->complete();
+  if (freepage) mem_cleanup();
 
   stats("Add",0);
 
@@ -361,10 +374,11 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
     return kv->nkv;
   }
 
+  kv->allocate();
+
   // new KV that will be created
 
   KeyValue *kvnew = new KeyValue(this,kalign,valign,memory,error,comm);
-  kvnew->set_page();
 
   // irregular communicator
 
@@ -373,10 +387,10 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
   // pages of workspace memory, including extra allocated pages
 
   uint64_t twopage;
-  char *cdpage = mymalloc(2,twopage,memtag_cdpage);
-  char *epage = mymalloc(1,dummy,memtag_epage);
-  char *fpage = mymalloc(1,dummy,memtag_fpage);
-  char *gpage = mymalloc(1,dummy,memtag_gpage);
+  char *cdpage = mem_request(2,twopage,memtag_cdpage);
+  char *epage = mem_request(1,dummy,memtag_epage);
+  char *fpage = mem_request(1,dummy,memtag_fpage);
+  char *gpage = mem_request(1,dummy,memtag_gpage);
 
   // maxpage = max # of pages in any proc's KV
 
@@ -479,15 +493,15 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
   }
 
   delete irregular;
-  myfree(memtag_cdpage);
-  myfree(memtag_epage);
-  myfree(memtag_fpage);
-  myfree(memtag_gpage);
+  mem_unmark(memtag_cdpage);
+  mem_unmark(memtag_epage);
+  mem_unmark(memtag_fpage);
+  mem_unmark(memtag_gpage);
 
-  myfree(kv->memtag);
   delete kv;
   kv = kvnew;
   kv->complete();
+  if (freepage) mem_cleanup();
 
   stats("Aggregate",0);
 
@@ -502,7 +516,7 @@ uint64_t MapReduce::aggregate(int (*hash)(char *, int))
 
 uint64_t MapReduce::broadcast(int root)
 {
-  int npage_kv,memtag;
+  int npage_kv;
   char *buf;
   uint64_t dummy,sizes[4];
 
@@ -523,13 +537,11 @@ uint64_t MapReduce::broadcast(int root)
   double timestart = MPI_Wtime();
 
   if (me != root) {
-    myfree(kv->memtag);
     delete kv;
     kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
-    buf = mymalloc(1,dummy,memtag);
-  } else npage_kv = kv->request_info(&buf);
+  } else kv->allocate();
 
+  npage_kv = kv->request_info(&buf);
   MPI_Bcast(&npage_kv,1,MPI_INT,root,comm);
 
   // broadcast KV data, one page at a time, non-root procs add to their KV
@@ -546,11 +558,10 @@ uint64_t MapReduce::broadcast(int root)
     }
   }
 
-  if (me != root) myfree(memtag);
-
   commtime += MPI_Wtime() - timestart;
   if (me != root) kv->complete();
   else kv->complete_dummy();
+  if (freepage) mem_cleanup();
 
   stats("Broadcast",0);
 
@@ -572,14 +583,14 @@ uint64_t MapReduce::clone()
   if (verbosity) file_stats(0);
 
   kmv = new KeyMultiValue(this,kalign,valign,memory,error,comm);
-  kmv->set_page();
+  kv->allocate();
 
   kmv->clone(kv);
   kmv->complete();
 
-  myfree(kv->memtag);
   delete kv;
   kv = NULL;
+  if (freepage) mem_cleanup();
 
   stats("Clone",1);
 
@@ -599,8 +610,9 @@ uint64_t MapReduce::close()
   if (verbosity) file_stats(0);
 
   kv->complete();
+  if (freepage) mem_cleanup();
 
-  stats("Complete",0);
+  stats("Close",0);
 
   uint64_t nkeyall;
   MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
@@ -621,14 +633,14 @@ uint64_t MapReduce::collapse(char *key, int keybytes)
   if (verbosity) file_stats(0);
 
   kmv = new KeyMultiValue(this,kalign,valign,memory,error,comm);
-  kmv->set_page();
+  kv->allocate();
 
   kmv->collapse(key,keybytes,kv);
   kmv->complete();
 
-  myfree(kv->memtag);
   delete kv;
   kv = NULL;
+  if (freepage) mem_cleanup();
 
   stats("Collapse",1);
 
@@ -686,20 +698,24 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
   if (verbosity) file_stats(0);
 
   kmv = new KeyMultiValue(this,kalign,valign,memory,error,comm);
-  kmv->set_page();
+  kv->allocate();
 
-  // KMV will delete kv and free its memory
+  // convert KV into KMV
+  // KMV convert will delete kv
 
   kmv->convert(kv);
   kmv->complete();
+  if (freepage) mem_cleanup();
+
+  // create new KV
 
   kv = new KeyValue(this,kalign,valign,memory,error,comm);
-  kv->set_page();
+  kmv->allocate();
 
   uint64_t dummy;
   int memtag1,memtag2;
-  char *mvpage1 = mymalloc(1,dummy,memtag1);
-  char *mvpage2 = mymalloc(1,dummy,memtag2);
+  char *mvpage1 = mem_request(1,dummy,memtag1);
+  char *mvpage2 = mem_request(1,dummy,memtag2);
 
   int nkey_kmv,nvalues,keybytes,mvaluebytes;
   uint64_t dummy1,dummy2,dummy3;
@@ -760,17 +776,14 @@ uint64_t MapReduce::compress(void (*appcompress)(char *, int, char *, int,
   }
 
   kv->complete();
-  myfree(memtag1);
-  myfree(memtag2);
+  mem_unmark(memtag1);
+  mem_unmark(memtag2);
 
   // delete KMV
-  // close is necessary b/c KMV files do not close themselves
-  // since users may use request_page() via multivalue_block()
 
-  kmv->close_file();
-  myfree(kmv->memtag);
   delete kmv;
   kmv = NULL;
+  if (freepage) mem_cleanup();
 
   stats("Compress",0);
   fcounter_part = fcounter_set = 0;
@@ -795,14 +808,14 @@ uint64_t MapReduce::convert()
   if (verbosity) file_stats(0);
 
   kmv = new KeyMultiValue(this,kalign,valign,memory,error,comm);
-  kmv->set_page();
+  kv->allocate();
 
   // KMV will delete kv and free its memory
 
   kmv->convert(kv);
   kmv->complete();
-
   kv = NULL;
+  if (freepage) mem_cleanup();
 
   stats("Convert",1);
   if (!collateflag) fcounter_part = fcounter_set = 0;
@@ -851,7 +864,7 @@ uint64_t MapReduce::gather(int numprocs)
 
   if (me < numprocs) {
     kv->append();
-    buf = mymalloc(1,dummy,memtag);
+    buf = mem_request(1,dummy,memtag);
 
     for (int iproc = me+numprocs; iproc < nprocs; iproc += numprocs) {
       MPI_Send(&flag,0,MPI_INT,iproc,0,comm);
@@ -883,12 +896,13 @@ uint64_t MapReduce::gather(int numprocs)
       }
     }
 
-    myfree(memtag);
+    mem_unmark(memtag);
 
   } else {
-    int iproc = me % numprocs;
+    kv->allocate();
     npage_kv = kv->request_info(&buf);
 
+    int iproc = me % numprocs;
     MPI_Recv(&flag,0,MPI_INT,iproc,0,comm,&status);
     MPI_Send(&npage_kv,1,MPI_INT,iproc,0,comm);
 
@@ -946,14 +960,13 @@ uint64_t MapReduce::gather(int numprocs)
 
     // leave empty KV on vacated procs
 
-    myfree(kv->memtag);
     delete kv;
     kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
   }
 
   commtime += MPI_Wtime() - timestart;
   kv->complete();
+  if (freepage) mem_cleanup();
 
   stats("Gather",0);
 
@@ -1122,18 +1135,14 @@ uint64_t MapReduce::map_task(int ntask, char **files,
   if (verbosity) file_stats(0);
 
   if (!allocated) allocate();
-  if (kmv) myfree(kmv->memtag);
   delete kmv;
   kmv = NULL;
 
   if (addflag == 0) {
-    if (kv) myfree(kv->memtag);
     delete kv;
     kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
   } else if (kv == NULL) {
     kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
   } else {
     kv->append();
   }
@@ -1204,6 +1213,7 @@ uint64_t MapReduce::map_task(int ntask, char **files,
   } else error->all("Invalid mapstyle setting");
 
   kv->complete();
+  if (freepage) mem_cleanup();
 
   stats("Map",0);
 
@@ -1268,7 +1278,6 @@ uint64_t MapReduce::map_file(int nmap, int nfile, char **files,
   if (verbosity) file_stats(0);
 
   if (!allocated) allocate();
-  if (kmv) myfree(kmv->memtag);
   delete kmv;
   kmv = NULL;
 
@@ -1497,36 +1506,33 @@ uint64_t MapReduce::map(MapReduce *mr,
   if (verbosity) file_stats(0);
 
   if (!allocated) allocate();
-  if (kmv) myfree(kmv->memtag);
   delete kmv;
   kmv = NULL;
 
   // kv_src = KeyValue object which sends KV pairs to appmap()
   // kv_dest = KeyValue object which stores new KV pairs
-  // if mr = this and addflag, then 2 KVs are the same, copy KV first
+  // if mr = this, then 2 KVs are the same:
+  //   if addflag, make copy so can add to it, delete kv_src at end
+  //   if not addflag, add to new KV, delete kv_src at end
 
   KeyValue *kv_src = mr->kv;
+  kv_src->allocate();
   KeyValue *kv_dest;
 
   if (mr == this) {
     if (addflag) {
       kv_dest = new KeyValue(this,kalign,valign,memory,error,comm);
-      kv_dest->set_page();
       kv_dest->copy(kv_src);
       kv_dest->append();
     } else {
       kv_dest = new KeyValue(this,kalign,valign,memory,error,comm);
-      kv_dest->set_page();
     }
   } else {
     if (addflag == 0) {
-      if (kv) myfree(kv->memtag);
       delete kv;
       kv_dest = new KeyValue(this,kalign,valign,memory,error,comm);
-      kv_dest->set_page();
     } else if (kv == NULL) {
       kv_dest = new KeyValue(this,kalign,valign,memory,error,comm);
-      kv_dest->set_page();
     } else {
       kv->append();
       kv_dest = kv;
@@ -1555,17 +1561,16 @@ uint64_t MapReduce::map(MapReduce *mr,
       value = ptr;
       ptr += valuebytes;
       ptr = ROUNDUP(ptr,talignm1);
-      
+
       appmap(n++,key,keybytes,value,valuebytes,kv_dest,appptr);
     }
   }
 
-  if (mr == this) {
-    myfree(kv_src->memtag);
-    delete kv_src;
-  }
+  if (mr == this) delete kv_src;
+  else kv_src->deallocate(0);
   kv = kv_dest;
   kv->complete();
+  if (freepage) mem_cleanup();
 
   stats("Map",0);
 
@@ -1581,21 +1586,19 @@ uint64_t MapReduce::map(MapReduce *mr,
 void MapReduce::open(int addflag)
 {
   if (!allocated) allocate();
-  if (kmv) myfree(kmv->memtag);
   delete kmv;
   kmv = NULL;
 
   if (addflag == 0) {
-    if (kv) myfree(kv->memtag);
     delete kv;
     kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
   } else if (kv == NULL) {
     kv = new KeyValue(this,kalign,valign,memory,error,comm);
-    kv->set_page();
   } else {
     kv->append();
   }
+
+  if (freepage) mem_cleanup();
 }
 
 /* ----------------------------------------------------------------------
@@ -1613,8 +1616,16 @@ void MapReduce::print(int proc, int nstride, int kflag, int vflag)
   if (kflag > 7 || vflag > 7) error->all("Invalid print args");
 
   if (proc == me) {
-    if (kv) kv->print(stdout,nstride,kflag,vflag);
-    if (kmv) kmv->print(stdout,nstride,kflag,vflag);
+    if (kv) {
+      kv->allocate();
+      kv->print(stdout,nstride,kflag,vflag);
+      kv->deallocate(0);
+    }
+    if (kmv) {
+      kmv->allocate();
+      kmv->print(stdout,nstride,kflag,vflag);
+      kmv->deallocate(0);
+    }
   }
 
   if (proc >= 0) return;
@@ -1622,8 +1633,16 @@ void MapReduce::print(int proc, int nstride, int kflag, int vflag)
   int token;
   MPI_Barrier(comm);
   if (me > 0) MPI_Recv(&token,0,MPI_INT,me-1,0,comm,&status);
-  if (kv) kv->print(stdout,nstride,kflag,vflag);
-  if (kmv) kmv->print(stdout,nstride,kflag,vflag);
+  if (kv) {
+    kv->allocate();
+    kv->print(stdout,nstride,kflag,vflag);
+    kv->deallocate(0);
+  }
+  if (kmv) {
+    kmv->allocate();
+    kmv->print(stdout,nstride,kflag,vflag);
+    kmv->deallocate(0);
+  }
   if (me < nprocs-1) MPI_Send(&token,0,MPI_INT,me+1,0,comm);
   MPI_Barrier(comm);
 }
@@ -1694,12 +1713,12 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
   if (verbosity) file_stats(0);
 
   kv = new KeyValue(this,kalign,valign,memory,error,comm);
-  kv->set_page();
+  kmv->allocate();
 
   uint64_t dummy;
   int memtag1,memtag2;
-  char *mvpage1 = mymalloc(1,dummy,memtag1);
-  char *mvpage2 = mymalloc(1,dummy,memtag2);
+  char *mvpage1 = mem_request(1,dummy,memtag1);
+  char *mvpage2 = mem_request(1,dummy,memtag2);
 
   int nkey_kmv,nvalues,keybytes,mvaluebytes;
   uint64_t dummy1,dummy2,dummy3;
@@ -1760,52 +1779,19 @@ uint64_t MapReduce::reduce(void (*appreduce)(char *, int, char *, int,
   }
 
   kv->complete();
-  myfree(memtag1);
-  myfree(memtag2);
+  mem_unmark(memtag1);
+  mem_unmark(memtag2);
 
   // delete KMV
-  // close is necessary b/c KMV files do not close themselves
-  // since users may use request_page() via multivalue_block()
 
-  kmv->close_file();
-  myfree(kmv->memtag);
   delete kmv;
   kmv = NULL;
+  if (freepage) mem_cleanup();
 
   stats("Reduce",0);
 
   uint64_t nkeyall;
   MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
-  return nkeyall;
-}
-
-/* ----------------------------------------------------------------------
-   scrunch KV to create a KMV on fewer processors, each with a single pair
-   gather followed by a collapse
-   numprocs = # of procs new KMV resides on (0 to numprocs-1)
-   new key = provided key name (same on every proc)
-   new value = list of old key,value,key,value,etc
-------------------------------------------------------------------------- */
-
-uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
-{
-  if (kv == NULL) error->all("Cannot scrunch without KeyValue");
-  if (timer) start_timer();
-  if (verbosity) file_stats(0);
-
-  int verbosity_hold = verbosity;
-  int timer_hold = timer;
-  verbosity = timer = 0;
-
-  gather(numprocs);
-  collapse(key,keybytes);
-
-  verbosity = verbosity_hold;
-  timer = timer_hold;
-  stats("Scrunch",1);
-
-  uint64_t nkeyall;
-  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
   return nkeyall;
 }
 
@@ -1860,6 +1846,36 @@ int MapReduce::multivalue_block(int iblock,
   *pmultivalue = ROUNDUP(ptr,valignm1);
 
   return nvalues;
+}
+
+/* ----------------------------------------------------------------------
+   scrunch KV to create a KMV on fewer processors, each with a single pair
+   gather followed by a collapse
+   numprocs = # of procs new KMV resides on (0 to numprocs-1)
+   new key = provided key name (same on every proc)
+   new value = list of old key,value,key,value,etc
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
+{
+  if (kv == NULL) error->all("Cannot scrunch without KeyValue");
+  if (timer) start_timer();
+  if (verbosity) file_stats(0);
+
+  int verbosity_hold = verbosity;
+  int timer_hold = timer;
+  verbosity = timer = 0;
+
+  gather(numprocs);
+  collapse(key,keybytes);
+
+  verbosity = verbosity_hold;
+  timer = timer_hold;
+  stats("Scrunch",1);
+
+  uint64_t nkeyall;
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  return nkeyall;
 }
 
 /* ----------------------------------------------------------------------
@@ -1921,12 +1937,13 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
   int i,j,k;
   int *order;
   uint64_t offset;
+  char *page_kmv;
 
   if (kmv == NULL) error->all("Cannot sort_multivalues without KeyMultiValue");
   if (timer) start_timer();
   if (verbosity) file_stats(0);
 
-  char *page_kmv;
+  kmv->allocate();
   int npage_kmv = kmv->request_info(&page_kmv);
 
   compare = appcompare;
@@ -1934,8 +1951,8 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 
   uint64_t dummy;
   int memtag1,memtag2;
-  char *scratch = mymalloc(1,dummy,memtag1);
-  char *twopage = mymalloc(2,dummy,memtag2);
+  char *twopage = mem_request(2,dummy,memtag2);
+  char *scratch = mem_request(1,dummy,memtag1);
 
   int nkey_kmv,nvalues,keybytes,mvaluebytes;
   uint64_t dummy1,dummy2,dummy3;
@@ -2002,19 +2019,20 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
       memcpy(multivalue,scratch,mvaluebytes);
     }
 
-    // overwrite the changed KMV page
+    // overwrite the changed KMV page to disk
 
     kmv->overwrite_page(ipage);
   }
 
-  // close is necessary b/c KMV files do not close themselves
+  // close KMV file if necessary
 
   kmv->close_file();
 
   // free memory pages
 
-  myfree(memtag1);
-  myfree(memtag2);
+  mem_unmark(memtag1);
+  mem_unmark(memtag2);
+  if (freepage) mem_cleanup();
 
   stats("Sort_multivalues",0);
 
@@ -2030,92 +2048,97 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 
 void MapReduce::sort_kv(int flag)
 {
-   int nkey_kv,memtag,memtag1,memtag2,memtag_twopage,src1,src2;
-   uint64_t dummy,dummy1,dummy2,dummy3;
-   char *page_kv;
-   void *src1ptr,*src2ptr,*destptr;
+  int nkey_kv,memtag_kv,memtag1,memtag2,memtag_twopage,src1,src2;
+  uint64_t dummy,dummy1,dummy2,dummy3;
+  char *page_kv;
+  void *src1ptr,*src2ptr,*destptr;
 
-   mrptr = this;
-   int npage_kv = kv->request_info(&page_kv);
-   memtag = kv->memtag;
+  kv->allocate();
 
-   // KV has single page
-   // sort into newpage, assign newpage to KV, and return
+  mrptr = this;
+  int npage_kv = kv->request_info(&page_kv);
+  memtag_kv = kv->memtag;
 
-   if (npage_kv == 1) {
-     char *twopage = mymalloc(2,dummy,memtag_twopage);
-     char *newpage = mymalloc(1,dummy,memtag1);
-     nkey_kv = kv->request_page(0,dummy1,dummy2,dummy3);
-     sort_onepage(flag,nkey_kv,page_kv,newpage,twopage);
-     myfree(memtag_twopage);
-     myfree(memtag);
-     kv->set_page(pagesize,newpage,memtag1);
-     return;
-   }
+  // KV has single page
+  // sort into newpage, assign newpage to KV, and return
+  
+  if (npage_kv == 1) {
+    char *twopage = mem_request(2,dummy,memtag_twopage);
+    char *newpage = mem_request(1,dummy,memtag1);
+    nkey_kv = kv->request_page(0,dummy1,dummy2,dummy3);
+    sort_onepage(flag,nkey_kv,page_kv,newpage,twopage);
+    mem_unmark(memtag_twopage);
+    mem_unmark(memtag_kv);
+    kv->set_page(pagesize,newpage,memtag1);
+    kv->deallocate(0);
+    if (freepage) mem_cleanup();
+    return;
+  }
 
-   // KV has multiple pages
-   // perform merge sort, two sources at a time into destination
-   // each pass thru while loop increments I by 2 and N by 1
-   // sources can be sorted page or Spool file
-   // destination can be Spool file or final sorted KV
-
-   char *twopage = mymalloc(2,dummy,memtag_twopage);
-   char *page1 = mymalloc(1,dummy,memtag1);
-   char *page2 = mymalloc(1,dummy,memtag2);
-
-   Spool **spools = new Spool*[2*npage_kv];
-   int n = npage_kv;
-   int i = 0;
-
-   while (i < n) {
-     if (i < npage_kv) {
-       kv->set_page(pagesize,page_kv,memtag);
-       nkey_kv = kv->request_page(i++,dummy1,dummy2,dummy3);
-       sort_onepage(flag,nkey_kv,page_kv,page1,twopage);
-       src1ptr = (void *) page1;
-       src1 = nkey_kv;
-     } else {
-       spools[i]->set_page(pagesize,page1);
-       src1ptr = (void *) spools[i++];
-       src1 = 0;
-     }
-     if (i < npage_kv) {
-       kv->set_page(pagesize,page_kv,memtag);
-       nkey_kv = kv->request_page(i++,dummy1,dummy2,dummy3);
-       sort_onepage(flag,nkey_kv,page_kv,page2,twopage);
-       src2ptr = (void *) page2;
-       src2 = nkey_kv;
-     } else {
-       spools[i]->set_page(pagesize,page2);
-       src2ptr = (void *) spools[i++];
-       src2 = 0;
-     }
-
-     if (i < n) {
-       spools[n] = new Spool(SORTFILE,this,memory,error);
-       spools[n]->set_page(pagesize,page_kv);
-       destptr = (void *) spools[n];
-       merge(flag,src1,src1ptr,src2,src2ptr,0,destptr);
-       if (!src1) delete spools[i-2];
-       if (!src2) delete spools[i-1];
-       spools[n++]->complete();
-     } else {
-       delete kv;
-       kv = new KeyValue(this,kalign,valign,memory,error,comm);
-       kv->set_page(pagesize,page_kv,memtag);
-       destptr = (void *) kv;
-       merge(flag,src1,src1ptr,src2,src2ptr,1,destptr);
-       if (!src1) delete spools[i-2];
-       if (!src2) delete spools[i-1];
-       kv->complete();
-     }
-   }
-
-   delete [] spools;
-
-   myfree(memtag_twopage);
-   myfree(memtag1);
-   myfree(memtag2);
+  // KV has multiple pages
+  // perform merge sort, two sources at a time into destination
+  // each pass thru while loop increments I by 2 and N by 1
+  // sources can be sorted page or Spool file
+  // destination can be Spool file or final sorted KV
+  
+  char *twopage = mem_request(2,dummy,memtag_twopage);
+  char *page1 = mem_request(1,dummy,memtag1);
+  char *page2 = mem_request(1,dummy,memtag2);
+  
+  Spool **spools = new Spool*[2*npage_kv];
+  int n = npage_kv;
+  int i = 0;
+  
+  while (i < n) {
+    if (i < npage_kv) {
+      kv->set_page(pagesize,page_kv,memtag_kv);
+      nkey_kv = kv->request_page(i++,dummy1,dummy2,dummy3);
+      sort_onepage(flag,nkey_kv,page_kv,page1,twopage);
+      src1ptr = (void *) page1;
+      src1 = nkey_kv;
+    } else {
+      spools[i]->set_page(pagesize,page1);
+      src1ptr = (void *) spools[i++];
+      src1 = 0;
+    }
+    if (i < npage_kv) {
+      kv->set_page(pagesize,page_kv,memtag_kv);
+      nkey_kv = kv->request_page(i++,dummy1,dummy2,dummy3);
+      sort_onepage(flag,nkey_kv,page_kv,page2,twopage);
+      src2ptr = (void *) page2;
+      src2 = nkey_kv;
+    } else {
+      spools[i]->set_page(pagesize,page2);
+      src2ptr = (void *) spools[i++];
+      src2 = 0;
+    }
+    
+    if (i < n) {
+      spools[n] = new Spool(SORTFILE,this,memory,error);
+      spools[n]->set_page(pagesize,page_kv);
+      destptr = (void *) spools[n];
+      merge(flag,src1,src1ptr,src2,src2ptr,0,destptr);
+      if (!src1) delete spools[i-2];
+      if (!src2) delete spools[i-1];
+      spools[n++]->complete();
+    } else {
+      delete kv;
+      kv = new KeyValue(this,kalign,valign,memory,error,comm);
+      kv->set_page(pagesize,page_kv,memtag_kv);
+      destptr = (void *) kv;
+      merge(flag,src1,src1ptr,src2,src2ptr,1,destptr);
+      if (!src1) delete spools[i-2];
+      if (!src2) delete spools[i-1];
+      kv->complete();
+    }
+  }
+  
+  delete [] spools;
+  
+  mem_unmark(memtag_twopage);
+  mem_unmark(memtag1);
+  mem_unmark(memtag2);
+  if (freepage) mem_cleanup();
 }
 
 /* ----------------------------------------------------------------------
@@ -2477,26 +2500,26 @@ void MapReduce::set_fpath(const char *str)
 }
 
 /* ----------------------------------------------------------------------
-   print memory page and disk file stats for MR
+   print hi-water memory page and disk file stats for MR
 ------------------------------------------------------------------------- */
 
 void MapReduce::mr_stats(int level)
 {
   double mbyte = 1024.0*1024.0;
 
-  int npages;
-  MPI_Allreduce(&npage,&npages,1,MPI_INT,MPI_SUM,comm);
+  int npagemaxall;
+  MPI_Allreduce(&npagemax,&npagemaxall,1,MPI_INT,MPI_MAX,comm);
   uint64_t fsizemaxall;
   MPI_Allreduce(&fsizemax,&fsizemaxall,1,MRMPI_BIGINT,MPI_SUM,comm);
 
   if (me == 0)
-    printf("MapReduce stats = %d pages, %.3g Mb mem, "
+    printf("MapReduce stats = %d hi-water pages, %.3g Mb mem, "
     	   "%.3g Mb hi-water for files\n",
-    	   npages,npages*pagesize/mbyte,fsizemaxall/mbyte);
+    	   npagemaxall,npagemaxall*pagesize/mbyte,fsizemaxall/mbyte);
     
   if (level == 2) {
-    if (npages) write_histo((double) npage,"  Pages:");
-    if (fsizemaxall) write_histo(fsizemax/mbyte,"  HiWater:");
+    if (npagemaxall) write_histo((double) npagemax,"  Pages:");
+    if (fsizemaxall) write_histo(fsizemax/mbyte,"  Files:");
   }
 }
 
@@ -2695,8 +2718,8 @@ void MapReduce::histogram(int n, double *data,
 }
 
 /* ----------------------------------------------------------------------
-   setup memory alignment params
-   setup memory page data structures and do initial allocation
+   setup memory alignment params and pagesize
+   perform initial allocation if minpage > 0
 ------------------------------------------------------------------------- */
 
 void MapReduce::allocate()
@@ -2724,108 +2747,156 @@ void MapReduce::allocate()
   valignm1 = valign - 1;
   talignm1 = talign - 1;
 
-  // memory initialization
+  // error checks
 
   if (memsize == 0) error->all("Invalid memsize setting");
   if (minpage < 0) error->all("Invalid minpage setting");
   if (maxpage && maxpage < minpage) error->all("Invalid maxpage setting");
 
+  // memory initialization
+
   if (memsize > 0)
     pagesize = ((uint64_t) memsize) * 1024*1024;
-  else
+  else if (memsize < 0)
     pagesize = (uint64_t) (-memsize);
-
   if (pagesize < ALIGNFILE) error->all("Page size smaller than ALIGNFILE");
-
   if (minpage) allocate_page(minpage);
 }
 
 /* ----------------------------------------------------------------------
-   allocate a contiguous set of N pages
+   allocate a new set of N contiguous pages
 ------------------------------------------------------------------------- */
 
 void MapReduce::allocate_page(int n)
 {
   int nnew = npage + n;
   memptr = (char **) memory->srealloc(memptr,nnew*sizeof(char *),"MR:memptr");
-  memused = (int *) memory->srealloc(memused,nnew*sizeof(int),"MR:memused");
+  memusage = (int *) memory->srealloc(memusage,nnew*sizeof(int),"MR:memusage");
   memcount = (int *) memory->srealloc(memcount,nnew*sizeof(int),"MR:memcount");
 
   char *ptr = (char *) memory->smalloc_align(n*pagesize,ALIGNFILE,"MR:page");
-  memset(ptr,0,n*pagesize);
+  if (zeropage) memset(ptr,0,n*pagesize);
 
   for (int i = 0; i < n; i++) {
     memptr[npage+i] = ptr + i*pagesize;
-    memused[npage+i] = 0;
+    memusage[npage+i] = 0;
     memcount[npage+i] = 0;
   }
   memcount[npage] = n;
   npage = nnew;
+  npagemax = MAX(npagemax,npage);
 }
 
 /* ----------------------------------------------------------------------
-   request for numpages of contiguous memory
-   satisfy request out of 1st available unused page(s)
-   else allocate new page(s) if maxpage allows
-   else throw error
-   return ptr to memory and size of memory
-   return tag for caller to use when releasing page(s) via myfree()
+   request for N pages of contiguous memory
+   return tag for caller for use when releasing page(s) via mem_unmark()
+   return size of memory and ptr to memory
 ------------------------------------------------------------------------- */
 
-char *MapReduce::mymalloc(int numpage, uint64_t &size, int &tag)
+char *MapReduce::mem_request(int n, uint64_t &size, int &tag)
 {
-  int ipage,ok;
+  int i,j,ok;
 
-  for (tag = 0; tag < npage; tag++) {
-    if (memused[tag]) continue;
-    ok = 1;
-    for (ipage = tag+1; ipage < tag+numpage; ipage++)
-      if (ipage >= npage || memused[ipage] || memcount[ipage]) ok = 0;
-    if (ok) break;
+  // satisfy request out of first unused chunk of exactly size N
+
+  for (i = 0; i < npage; i++) {
+    if (memusage[i]) continue;
+    if (memcount[i] == 0) continue;
+    if (memcount[i] == n) {
+      ok = 1;
+      for (j = i+1; j < i+n; j++)
+	if (memusage[j]) ok = 0;
+      if (ok) break;
+    }
   }
 
-  if (tag == npage) {
-    if (maxpage && npage+numpage > maxpage)
+  // else first unused chunk of size N (even if within larger chunk)
+
+  if (i == npage) {
+    for (i = 0; i < npage; i++) {
+      if (memusage[i]) continue;
+      ok = 1;
+      for (j = i+1; j < i+n; j++)
+	if (j >= npage || memusage[j] || memcount[j]) ok = 0;
+      if (ok) break;
+    }
+  }
+
+  // else allocate new page(s) if maxpage allows
+  // else throw error
+
+  if (i == npage) {
+    if (maxpage && npage+n > maxpage)
       error->one("Cannot allocate requested memory page(s)");
-    allocate_page(numpage);
+    allocate_page(n);
   }
 
-  for (ipage = 0; ipage < numpage; ipage++) memused[tag+ipage] = numpage;
-  size = numpage*pagesize;
-
-  return memptr[tag];
+  tagmax++;
+  for (j = 0; j < n; j++) memusage[i+j] = tagmax;
+  tag = tagmax;
+  size = n*pagesize;
+  return memptr[i];
 }
 
 /* ----------------------------------------------------------------------
-   free one or more pages of memory starting at tag
+   mark pages with tag as unused, could be one or more contiguous pages
 ------------------------------------------------------------------------- */
 
-void MapReduce::myfree(int tag)
+void MapReduce::mem_unmark(int tag)
 {
-  int n = memused[tag];
-  for (int i = 0; i < n; i++) memused[tag++] = 0;
+  for (int i = 0; i < npage; i++)
+    if (memusage[i] == tag) {
+      for (int j = 0; j < memcount[i]; j++) memusage[i+j] = 0;
+      break;
+    }
 }
 
 /* ----------------------------------------------------------------------
-   query status of memory pages
-   return # of free 1-pagers
-   return ncontig = largest # of contiguous free pages available
+   free unused pages and compact page lists
+------------------------------------------------------------------------- */
+
+void MapReduce::mem_cleanup()
+{
+  int i,j,n,ok;
+
+  for (i = 0; i < npage; i++) {
+    if (memusage[i]) continue;
+    ok = 1;
+    n = memcount[i];
+    for (j = i+1; j < i+n; j++)
+      if (memusage[j]) ok = 0;
+    if (!ok) i += n-1;
+    else {
+      for (j = i+n; j < npage; j++) {
+	memptr[j-n] = memptr[j];
+	memusage[j-n] = memusage[j];
+	memcount[j-n] = memcount[j];
+      }
+      npage -= n;
+    }
+  }
+}
+
+/* ----------------------------------------------------------------------
+   query status of currently allocated memory pages
+   return # of unused pages
+   return maxcontig = largest # of contiguous unused pages available
    return max = # of pages that can still be allocated, -1 if infinite
 ------------------------------------------------------------------------- */
 
-int MapReduce::memquery(int &maxcontig, int &max)
+int MapReduce::mem_query(int &maxcontig, int &max)
 {
   int i,j;
 
   int n = 0;
   for (i = 0; i < npage; i++)
-    if (memused[i] == 0) n++;
+    if (memusage[i] == 0) n++;
 
   maxcontig = 0;
   for (i = 0; i < npage; i++) {
-    if (memused[i]) continue;
+    if (memusage[i]) continue;
     for (j = i+1; j < npage; j++)
-      if (memused[j] || memcount[j]) break;
+      if (memusage[j] || memcount[j]) break;
     maxcontig = MAX(maxcontig,j-i);
   }
 

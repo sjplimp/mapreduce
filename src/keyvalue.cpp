@@ -68,12 +68,17 @@ KeyValue::KeyValue(MapReduce *mr_caller, int memkalign, int memvalign,
 
   nkv = ksize = vsize = esize = fsize = 0;
   init_page();
+
+  page = NULL;
+  memtag = -1;
+  allocate();
 }
 
 /* ---------------------------------------------------------------------- */
 
 KeyValue::~KeyValue()
 {
+  deallocate(1);
   memory->sfree(pages);
   if (fileflag) {
     remove(filename);
@@ -83,16 +88,17 @@ KeyValue::~KeyValue()
 }
 
 /* ----------------------------------------------------------------------
-   trigger KV to request an available page of memory
+   if need one, request an in-memory page
 ------------------------------------------------------------------------- */
 
-void KeyValue::set_page()
+void KeyValue::allocate()
 {
-  page = mr->mymalloc(1,pagesize,memtag);
+  if (page == NULL) page = mr->mem_request(1,pagesize,memtag);
 }
 
 /* ----------------------------------------------------------------------
-   directly assign a chunk of memory to be the im-memory page for the KV
+   directly assign page of memory to be the in-memory page
+   caller assumes responsibility for any previously allocated page
 ------------------------------------------------------------------------- */
 
 void KeyValue::set_page(uint64_t memsize, char *memblock, int tag)
@@ -100,6 +106,25 @@ void KeyValue::set_page(uint64_t memsize, char *memblock, int tag)
   pagesize = memsize;
   page = memblock;
   memtag = tag;
+}
+
+/* ----------------------------------------------------------------------
+   if allocated, mark in-memory page as unused
+   if forceflag == 1, always do this
+   else:
+     only do this if MR outofcore flag is set or
+     npage > 1 (since values currently in page are now useless)
+------------------------------------------------------------------------- */
+
+void KeyValue::deallocate(int forceflag)
+{
+  if (forceflag || mr->outofcore || npage > 1) {
+    if (page) {
+      mr->mem_unmark(memtag);
+      page = NULL;
+      memtag = -1;
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -130,7 +155,8 @@ void KeyValue::copy(KeyValue *kv)
   if (kv == this) error->all("Cannot perform KeyValue copy on self");
 
   // pages will be loaded into memory assigned to other KV
-  // write_page() will write them from that page to my file
+  // temporarily set my in-memory page to that of other KV
+  // write_page() will then write from that page to my file
 
   char *page_hold = page;
   int npage_other = kv->request_info(&page);
@@ -142,13 +168,11 @@ void KeyValue::copy(KeyValue *kv)
     npage++;
   }
 
-  // last page needs to be copied to my memory before calling complete()
-  // reset my page to my memory
+  // copy last page to my memory, then reset my page to my memory
 
   nkey = kv->request_page(npage_other-1,keysize,valuesize,alignsize);
   memcpy(page_hold,page,alignsize);
   msize = kv->msize;
-  complete();
   page = page_hold;
 }
 
@@ -160,7 +184,7 @@ void KeyValue::copy(KeyValue *kv)
 void KeyValue::append()
 {
   if (npage == 0) return;
-
+  allocate();
   int ipage = npage-1;
 
   // read last page from file if necessary
@@ -192,9 +216,10 @@ void KeyValue::complete()
 {
   create_page();
 
-  // if disk file exists, write last page, close file
+  // if disk file exists or MR outofcore flag set:
+  // write current in-memory page to disk, close file
 
-  if (fileflag) {
+  if (fileflag || mr->outofcore) {
     write_page();
     fclose(fp);
     fp = NULL;
@@ -202,6 +227,10 @@ void KeyValue::complete()
 
   npage++;
   init_page();
+
+  // give up in-memory page if possible
+
+  deallocate(0);
 
   // set sizes for entire KV
 
@@ -227,11 +256,15 @@ void KeyValue::complete()
 /* ----------------------------------------------------------------------
    dummy complete for a KV that is already complete
    called by a proc while other procs call complete()
-   simple invokes an Allreduce() to match Allreudce() in complete()
+   invoke an Allreduce() to match Allreudce() in complete()
 ------------------------------------------------------------------------- */
 
 void KeyValue::complete_dummy()
 {
+  // give up in-memory page if possible
+
+  deallocate(0);
+
   int tmp = msize;
   MPI_Allreduce(&tmp,&msize,1,MPI_INT,MPI_MAX,comm);
 }
@@ -636,7 +669,7 @@ void KeyValue::write_page()
     sprintf(str,"Bad KV fwrite/fseek on proc %d: %u",me,fileoffset);
     error->warning(str);
   }
-  if (nwrite != 1) {
+  if (nwrite != 1 && pages[npage].filesize > 0) {
     char str[128];
     sprintf(str,"Bad KV fwrite on proc %d: %d %u",
 	    me,nwrite,pages[npage].filesize);
@@ -667,7 +700,7 @@ void KeyValue::read_page(int ipage, int writeflag)
     sprintf(str,"Bad KV fread/fseek on proc %d: %u",me,fileoffset);
     error->warning(str);
   }
-  if (nread != 1 || ferror(fp)) {
+  if ((nread != 1 || ferror(fp)) && pages[ipage].filesize > 0) {
     char str[128];
     sprintf(str,"Bad KV fread on proc %d: %d %u",
 	    me,nread,pages[ipage].filesize);

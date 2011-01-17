@@ -39,8 +39,9 @@ class KeyValue {
 	   class Memory *, class Error *, MPI_Comm);
   ~KeyValue();
 
-  void set_page();
+  void allocate();
   void set_page(uint64_t, char *, int);
+  void deallocate(int);
   void truncate(int, int, uint64_t);
   void copy(KeyValue *);
   void append();
