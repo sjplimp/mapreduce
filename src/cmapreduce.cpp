@@ -339,6 +339,12 @@ uint64_t MR_sort_keys(void *MRptr, int (*mycompare)(char *, int, char *, int))
   return mr->sort_keys(mycompare);
 }
 
+uint64_t MR_sort_keys_flag(void *MRptr, int flag)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->sort_keys(flag);
+}
+
 uint64_t MR_sort_values(void *MRptr, 
 			int (*mycompare)(char *, int, char *, int))
 {
@@ -346,11 +352,23 @@ uint64_t MR_sort_values(void *MRptr,
   return mr->sort_values(mycompare);
 }
 
+uint64_t MR_sort_values_flag(void *MRptr, int flag)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->sort_values(flag);
+}
+
 uint64_t MR_sort_multivalues(void *MRptr, int (*mycompare)(char *, int, 
 							   char *, int))
 {
   MapReduce *mr = (MapReduce *) MRptr;
   return mr->sort_multivalues(mycompare);
+}
+
+uint64_t MR_sort_multivalues_flag(void *MRptr, int flag)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->sort_multivalues(flag);
 }
 
 void MR_kv_stats(void *MRptr, int level)

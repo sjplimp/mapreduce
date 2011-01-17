@@ -120,10 +120,13 @@ int MR_multivalue_block(void *MRptr, int iblock,
 
 uint64_t MR_sort_keys(void *MRptr, 
 		      int (*mycompare)(char *, int, char *, int));
+uint64_t MR_sort_keys_flag(void *MRptr, int);
 uint64_t MR_sort_values(void *MRptr,
 			int (*mycompare)(char *, int, char *, int));
+uint64_t MR_sort_values_flag(void *MRptr, int);
 uint64_t MR_sort_multivalues(void *MRptr,
 			     int (*mycompare)(char *, int, char *, int));
+uint64_t MR_sort_multivalues_flag(void *MRptr, int);
 
 void MR_kv_stats(void *MRptr, int level);
 void MR_kmv_stats(void *MRptr, int level);

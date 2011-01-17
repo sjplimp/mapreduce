@@ -2377,6 +2377,59 @@ void MapReduce::merge(int flag, int src1, void *src1ptr,
 }
 
 /* ----------------------------------------------------------------------
+   extract datum from a KV pair beginning at ptr_start
+   flag = 0, return key and keybytes as str and nbytes
+   flag = 1, return value and valuebytes as str and nbytes
+   also return byte increment to next entry
+------------------------------------------------------------------------- */
+
+int MapReduce::extract(int flag, char *ptr_start, char *&str, int &nbytes)
+{
+  char *ptr = ptr_start;
+  int keybytes = *((int *) ptr);
+  int valuebytes = *((int *) (ptr+sizeof(int)));;
+
+  ptr += twolenbytes;
+  ptr = ROUNDUP(ptr,kalignm1);
+  char *key = ptr;
+  ptr += keybytes;
+  ptr = ROUNDUP(ptr,valignm1);
+  char *value = ptr;
+  ptr += valuebytes;
+  ptr = ROUNDUP(ptr,talignm1);
+
+  if (flag == 0) {
+    str = key;
+    nbytes = keybytes;
+  } else {
+    str = value;
+    nbytes = valuebytes;
+  }
+
+  return ptr - ptr_start;
+}
+
+/* ----------------------------------------------------------------------
+   wrappers on user-provided key or value comparison functions
+   necessary so can extract 2 keys or values to pass back to application
+   2-level wrapper needed b/c qsort() cannot be passed a class method
+     unless it were static, but then it couldn't access MR class data
+   so qsort() is passed standalone non-class method
+   it accesses static class member mrptr, set before call to qsort()
+   standalone calls back into class wrapper which calls user compare()
+------------------------------------------------------------------------- */
+
+int compare_standalone(const void *iptr, const void *jptr)
+{
+  return MapReduce::mrptr->compare_wrapper(*((int *) iptr),*((int *) jptr));
+}
+
+int MapReduce::compare_wrapper(int i, int j)
+{
+  return compare(dptr[i],slength[i],dptr[j],slength[j]);
+}
+
+/* ----------------------------------------------------------------------
    compare 2 integers
 ------------------------------------------------------------------------- */
 
@@ -2444,59 +2497,6 @@ int compare_str(char *str1, int len1, char *str2, int len2)
 int compare_strn(char *str1, int len1, char *str2, int len2)
 {
   return strncmp(str1,str2,MIN(len1,len2));
-}
-
-/* ----------------------------------------------------------------------
-   extract datum from a KV pair beginning at ptr_start
-   flag = 0, return key and keybytes as str and nbytes
-   flag = 1, return value and valuebytes as str and nbytes
-   also return byte increment to next entry
-------------------------------------------------------------------------- */
-
-int MapReduce::extract(int flag, char *ptr_start, char *&str, int &nbytes)
-{
-  char *ptr = ptr_start;
-  int keybytes = *((int *) ptr);
-  int valuebytes = *((int *) (ptr+sizeof(int)));;
-
-  ptr += twolenbytes;
-  ptr = ROUNDUP(ptr,kalignm1);
-  char *key = ptr;
-  ptr += keybytes;
-  ptr = ROUNDUP(ptr,valignm1);
-  char *value = ptr;
-  ptr += valuebytes;
-  ptr = ROUNDUP(ptr,talignm1);
-
-  if (flag == 0) {
-    str = key;
-    nbytes = keybytes;
-  } else {
-    str = value;
-    nbytes = valuebytes;
-  }
-
-  return ptr - ptr_start;
-}
-
-/* ----------------------------------------------------------------------
-   wrappers on user-provided key or value comparison functions
-   necessary so can extract 2 keys or values to pass back to application
-   2-level wrapper needed b/c qsort() cannot be passed a class method
-     unless it were static, but then it couldn't access MR class data
-   so qsort() is passed standalone non-class method
-   it accesses static class member mrptr, set before call to qsort()
-   standalone calls back into class wrapper which calls user compare()
-------------------------------------------------------------------------- */
-
-int compare_standalone(const void *iptr, const void *jptr)
-{
-  return MapReduce::mrptr->compare_wrapper(*((int *) iptr),*((int *) jptr));
-}
-
-int MapReduce::compare_wrapper(int i, int j)
-{
-  return compare(dptr[i],slength[i],dptr[j],slength[j]);
 }
 
 /* ----------------------------------------------------------------------
