@@ -412,6 +412,9 @@ mr.sort_multivalues(mycompare) # compare is a function called back from the
 			       # your mycompare() should compare them
 			       #   and return a -1, 0, or 1 
 			       #   if a < b, or a == b, or a > b :pre
+mr.sort_keys_flag(flag)
+mr.sort_values_flag(flag)
+mr.sort_multivalues_flag(flag)
 
 mr.kv_stats(level)
 mr.kmv_stats(level) :pre
