@@ -35,7 +35,7 @@ control of memory page usage by the library, especially when your code
 creates and uses several MapReduce objects.
 
 freepage = 1 if memory pages are freed in between operations, 0 if held
-outofcore = 1 if even 1-page data sets are forced to disk, 0 if not
+outofcore = 1 if even 1-page data sets are forced to disk, 0 if not, -1 if cannot write to disk
 zeropage = 1 if zero out every allocated page, 0 if not :ul
 
 Note that freepage default is 1, which is different behavior then
