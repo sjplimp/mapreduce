@@ -134,7 +134,7 @@ void KeyMultiValue::allocate()
 
 void KeyMultiValue::deallocate(int forceflag)
 {
-  if (forceflag || mr->outofcore || npage > 1) {
+  if (forceflag || mr->outofcore > 0 || npage > 1) {
     if (page) {
       mr->mem_unmark(memtag);
       page = NULL;
@@ -187,7 +187,7 @@ void KeyMultiValue::complete()
   // if disk file exists or MR outofcore flag set:
   // write current in-memory page to disk, close file
 
-  if (fileflag || mr->outofcore) {
+  if (fileflag || mr->outofcore > 0) {
     write_page();
     fclose(fp);
     fp = NULL;
@@ -271,7 +271,7 @@ void KeyMultiValue::overwrite_page(int ipage)
 {
   int npage_save = npage;
   npage = ipage;
-  if (fileflag || mr->outofcore) write_page();
+  if (fileflag || mr->outofcore > 0) write_page();
   npage = npage_save;
 }
 

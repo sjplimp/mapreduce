@@ -17,6 +17,17 @@ The current version of MR-MPI is 15 March 2010.
 
 :line
 
+[18 Jan 2011]
+
+Added some extra diagnostic output about memory usage and fixed a
+couple bugs with the new memory manager with respect to freeing memory
+and the sort methods.
+
+This is the "list of changed files"_patches/files.18Jan11 from the 17
+Jan 2011 version.
+
+:line
+
 [17 Jan 2011]
 
 Added some "settings"_doc/settings.html that enable more precise
