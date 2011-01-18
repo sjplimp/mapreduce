@@ -1478,10 +1478,16 @@ void KeyMultiValue::create_page()
 
 void KeyMultiValue::write_page()
 {
+  if (mr->outofcore < 0)
+    error->one("Cannot create KeyMultiValue file due to outofcore setting");
+
   if (fp == NULL) {
     fp = fopen(filename,"wb");
-    if (fp == NULL) 
-      error->one("Could not open KeyMultiValue file for writing");
+    if (fp == NULL) {
+      char msg[1023];
+      sprintf(msg,"Cannot open KeyMultiValue file %s for writing",filename);
+      error->one(msg);
+    }
     fileflag = 1;
   }
 

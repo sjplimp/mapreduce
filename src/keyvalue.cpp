@@ -677,11 +677,14 @@ void KeyValue::create_page()
 
 void KeyValue::write_page()
 {
+  if (mr->outofcore < 0)
+    error->one("Cannot create KeyValue file due to outofcore setting");
+
   if (fp == NULL) {
     fp = fopen(filename,"wb");
     if (fp == NULL) {
       char msg[1023];
-      sprintf(msg, "Could not open KeyValue file %s for writing.", filename);
+      sprintf(msg,"Cannot open KeyValue file %s for writing",filename);
       error->one(msg);
     }
     fileflag = 1;

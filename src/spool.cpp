@@ -217,9 +217,16 @@ void Spool::create_page()
 
 void Spool::write_page()
 {
+  if (mr->outofcore < 0)
+    error->one("Cannot create Spool file due to outofcore setting");
+
   if (fp == NULL) {
     fp = fopen(filename,"wb");
-    if (fp == NULL) error->one("Could not open Spool file for writing");
+    if (fp == NULL) {
+      char msg[1023];
+      sprintf(msg,"Cannot open Spool file %s for writing",filename);
+      error->one(msg);
+    }
     fileflag = 1;
   }
 
