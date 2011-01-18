@@ -19,7 +19,7 @@
 <LI>minpage = N = # of pages to pre-allocate per processor
 <LI>maxpage = N = max # of pages allocatable per processor
 <LI>freepage = 1 if memory pages are freed in between operations, 0 if held
-<LI>outofcore = 1 if even 1-page data sets are forced to disk, 0 if not
+<LI>outofcore = 1 if even 1-page data sets are forced to disk, 0 if not, -1 if cannot write to disk
 <LI>zeropage = 1 if zero out every allocated page, 0 if not
 <LI>keyalign = N = byte-alignment of keys
 <LI>valuealign = N = byte-alignment of values
@@ -237,7 +237,9 @@ single page of memory, within a KeyValue or KeyMultiValue object, will
 still be written to disk.  If the data does not fit in a single page,
 it is always written to disk.  If <I>outofcore</I> is 1, then disk files
 will be written.  If <I>outofcore</I> is 0, then disk files are not written
-if not needed.
+if not needed.  If <I>outofcore</I> is -1, then disk files cannot be
+created and an error will result if they are needed.  The latter
+setting is a way to insure that your data set fits in memory.
 </P>
 <P>Note that if the <I>freepage</I> setting and the <I>outofcore</I> setting are
 both 1, then all memory pages will be released after each MapReduce
