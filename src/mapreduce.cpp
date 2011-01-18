@@ -38,6 +38,8 @@ MapReduce *MapReduce::mrptr;
 int MapReduce::instances_now = 0;
 int MapReduce::instances_ever = 0;
 int MapReduce::mpi_finalize_flag = 0;
+uint64_t MapReduce::msize = 0;
+uint64_t MapReduce::msizemax = 0;
 uint64_t MapReduce::rsize = 0;
 uint64_t MapReduce::wsize = 0;
 uint64_t MapReduce::cssize = 0;
@@ -161,7 +163,10 @@ MapReduce::~MapReduce()
   delete error;
 
   for (int i = 0; i < npage; i++)
-    if (memcount[i]) memory->sfree(memptr[i]);
+    if (memcount[i]) {
+      memory->sfree(memptr[i]);
+      msize -= memcount[i]*pagesize;
+    }
   memory->sfree(memptr);
   memory->sfree(memusage);
   memory->sfree(memcount);
@@ -2085,11 +2090,12 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
 
   // free memory pages
 
+  kmv->deallocate(0);
   mem_unmark(memtag1);
   mem_unmark(memtag2);
   if (freepage) mem_cleanup();
 
-  stats("Sort_multivalues",0);
+  stats("Sort_multivalues",1);
 
   uint64_t nkeyall;
   MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
@@ -2109,7 +2115,6 @@ void MapReduce::sort_kv(int flag)
   void *src1ptr,*src2ptr,*destptr;
 
   kv->allocate();
-
   mrptr = this;
   int npage_kv = kv->request_info(&page_kv);
   memtag_kv = kv->memtag;
@@ -2125,6 +2130,8 @@ void MapReduce::sort_kv(int flag)
     mem_unmark(memtag_twopage);
     mem_unmark(memtag_kv);
     kv->set_page(pagesize,newpage,memtag1);
+    kv->overwrite_page(0);
+    kv->close_file();
     kv->deallocate(0);
     if (freepage) mem_cleanup();
     return;
@@ -2560,12 +2567,23 @@ void MapReduce::kmv_stats(int level)
 }
 
 /* ----------------------------------------------------------------------
-   print cummulative comm and file read/write stats
+   print cummulative memory, comm, and file read/write stats for all MR objects
 ------------------------------------------------------------------------- */
 
 void MapReduce::cummulative_stats(int level, int reset)
 {
   double mbyte = 1024.0*1024.0;
+  double gbyte = 1024.0*1024.0*1024.0;
+
+  // memory
+
+  uint64_t allmsizemax,allmsize;
+  MPI_Allreduce(&msizemax,&allmsizemax,1,MRMPI_BIGINT,MPI_MAX,comm);
+  MPI_Allreduce(&msizemax,&allmsize,1,MRMPI_BIGINT,MPI_SUM,comm);
+
+  if (me == 0) printf("Cummulative hi-water mem = "
+		      "%.3g Mb any proc, %.3g Gb all procs\n",
+		      allmsizemax/mbyte,allmsize/gbyte);
 
   // communication
 
@@ -2573,15 +2591,14 @@ void MapReduce::cummulative_stats(int level, int reset)
   uint64_t allcsize[2];
   MPI_Allreduce(csize,allcsize,2,MRMPI_BIGINT,MPI_SUM,comm);
 
-  double ctime[1] = {commtime};
-  double allctime[1];
-  MPI_Allreduce(ctime,allctime,1,MPI_DOUBLE,MPI_SUM,comm);
+  double allctime;
+  MPI_Allreduce(&commtime,&allctime,1,MPI_DOUBLE,MPI_SUM,comm);
 
   if (allcsize[0] || allcsize[1]) {
     if (me == 0) printf("Cummulative comm = "
 			"%.3g Mb send, %.3g Mb recv, %.3g secs\n", 
 			allcsize[0]/mbyte,allcsize[1]/mbyte,
-			allctime[0]/nprocs);
+			allctime/nprocs);
     if (level == 2) {
       write_histo(csize[0]/mbyte,"  Send (Mb):");
       write_histo(csize[1]/mbyte,"  Recv (Mb):");
@@ -2638,8 +2655,8 @@ void MapReduce::mr_stats(int level)
   MPI_Allreduce(&fsizemax,&fsizemaxall,1,MRMPI_BIGINT,MPI_SUM,comm);
 
   if (me == 0)
-    printf("MapReduce stats = %d hi-water pages, %.3g Mb mem, "
-    	   "%.3g Mb hi-water for files\n",
+    printf("MR stats = %d max pages any proc, %.3g Mb, "
+    	   "%.3g Mb max file size all procs\n",
     	   npagemaxall,npagemaxall*pagesize/mbyte,fsizemaxall/mbyte);
     
   if (level == 2) {
@@ -2910,6 +2927,8 @@ void MapReduce::allocate_page(int n)
   memcount[npage] = n;
   npage = nnew;
   npagemax = MAX(npagemax,npage);
+  msize += n*pagesize;
+  msizemax = MAX(msizemax,msize);
 }
 
 /* ----------------------------------------------------------------------
@@ -2985,19 +3004,30 @@ void MapReduce::mem_cleanup()
   int i,j,n,ok;
 
   for (i = 0; i < npage; i++) {
+
+    // do not free if in use
+
     if (memusage[i]) continue;
+
+    // ok = 1 if no page in contiguous chunk is in use
+    // if not ok, do not free
+    // else free and compact remaining pages
+
     ok = 1;
     n = memcount[i];
     for (j = i+1; j < i+n; j++)
       if (memusage[j]) ok = 0;
     if (!ok) i += n-1;
     else {
+      memory->sfree(memptr[i]);
+      msize -= n*pagesize;
       for (j = i+n; j < npage; j++) {
 	memptr[j-n] = memptr[j];
 	memusage[j-n] = memusage[j];
 	memcount[j-n] = memcount[j];
       }
       npage -= n;
+      i--;
     }
   }
 }
@@ -3028,6 +3058,20 @@ int MapReduce::mem_query(int &maxcontig, int &max)
   if (maxpage == 0) max = -1;
   else max = maxpage-npage;
   return n;
+}
+
+/* ----------------------------------------------------------------------
+   debug print-out of memory page data structures
+   iproc = -1, print for all procs
+   else only iproc prints
+------------------------------------------------------------------------- */
+
+void MapReduce::mem_debug(int iproc)
+{
+  if (iproc >= 0 && iproc != me) return; 
+  printf("MEMORY PAGES: %d on proc %d\n",npage,me);
+  for (int i = 0; i < npage; i++)
+    printf("  %d usage, %d count, %p ptr\n",memusage[i],memcount[i],memptr[i]);
 }
 
 /* ----------------------------------------------------------------------

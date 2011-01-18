@@ -307,6 +307,34 @@ int KeyValue::request_page(int ipage, uint64_t &keysize_page,
 }
 
 /* ----------------------------------------------------------------------
+   overwrite a reorganized page of KV data onto disk
+   reset npage to ipage so write_page() will work
+   page properties stay the same so no call to create_page()
+   called by MR::sort_keys() and MR::sort_values() when KV is just one page
+------------------------------------------------------------------------- */
+
+void KeyValue::overwrite_page(int ipage)
+{
+  int npage_save = npage;
+  npage = ipage;
+  if (fileflag || mr->outofcore) write_page();
+  npage = npage_save;
+}
+
+/* ----------------------------------------------------------------------
+   close disk file if open
+   called by MR::sort_keys() and MR::sort_values() on one proc
+------------------------------------------------------------------------- */
+
+void KeyValue::close_file()
+{
+  if (fp) {
+    fclose(fp);
+    fp = NULL;
+  }
+}
+
+/* ----------------------------------------------------------------------
    add a single key/value pair
    called by user appmap() or appreduce() or appcompress()
 ------------------------------------------------------------------------- */
@@ -669,7 +697,7 @@ void KeyValue::write_page()
     sprintf(str,"Bad KV fwrite/fseek on proc %d: %u",me,fileoffset);
     error->warning(str);
   }
-  if (nwrite != 1 && pages[npage].filesize > 0) {
+  if (nwrite != 1 && pages[npage].filesize) {
     char str[128];
     sprintf(str,"Bad KV fwrite on proc %d: %d %u",
 	    me,nwrite,pages[npage].filesize);
@@ -700,7 +728,7 @@ void KeyValue::read_page(int ipage, int writeflag)
     sprintf(str,"Bad KV fread/fseek on proc %d: %u",me,fileoffset);
     error->warning(str);
   }
-  if ((nread != 1 || ferror(fp)) && pages[ipage].filesize > 0) {
+  if ((nread != 1 || ferror(fp)) && pages[ipage].filesize) {
     char str[128];
     sprintf(str,"Bad KV fread on proc %d: %d %u",
 	    me,nread,pages[ipage].filesize);

@@ -49,6 +49,8 @@ class KeyValue {
   void complete_dummy();
   int request_info(char **);
   int request_page(int, uint64_t &, uint64_t &, uint64_t &);
+  void overwrite_page(int);
+  void close_file();
 
   void add(char *, int, char *, int);
   void add(int, char *, int, char *, int);

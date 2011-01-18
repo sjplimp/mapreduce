@@ -261,14 +261,18 @@ uint64_t KeyMultiValue::multivalue_blocks(int ipage, int &nblock)
 }
 
 /* ----------------------------------------------------------------------
-   overwrite a changed page of KMV data onto disk
+   overwrite a reorganized page of KMV data onto disk
+   reset npage to ipage so write_page() will work
+   page properties stay the same so no call to create_page()
    called by MR::sort_multivalues()
 ------------------------------------------------------------------------- */
 
 void KeyMultiValue::overwrite_page(int ipage)
 {
-  if (!fileflag) return;
-  write_page();
+  int npage_save = npage;
+  npage = ipage;
+  if (fileflag || mr->outofcore) write_page();
+  npage = npage_save;
 }
 
 /* ----------------------------------------------------------------------
@@ -1491,7 +1495,7 @@ void KeyMultiValue::write_page()
     sprintf(str,"Bad KMV fwrite/fseek on proc %d: %u",me,fileoffset);
     error->warning(str);
   }
-  if (nwrite != 1) {
+  if (nwrite != 1 && pages[npage].filesize) {
     char str[128];
     sprintf(str,"Bad KMV fwrite on proc %d: %d %u",
 	    me,nwrite,pages[npage].filesize);
@@ -1523,7 +1527,7 @@ void KeyMultiValue::read_page(int ipage, int writeflag)
     sprintf(str,"Bad KMV fread/fseek on proc %d: %u",me,fileoffset);
     error->warning(str);
   }
-  if (nread != 1 || ferror(fp)) {
+  if ((nread != 1 || ferror(fp)) && pages[ipage].filesize) {
     char str[128];
     sprintf(str,"Bad KMV fread on proc %d: %d %u",
 	    me,nread,pages[ipage].filesize);

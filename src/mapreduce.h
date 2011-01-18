@@ -50,6 +50,7 @@ class MapReduce {
   static int instances_ever;       // total # of MRs ever instantiated
                                    // grows as created, never shrinks
   static int mpi_finalize_flag;    // 1 if MR library should finalize MPI
+  static uint64_t msize,msizemax;  // current and hi-water memory allocation
   static uint64_t rsize,wsize;     // total read/write bytes for all I/O
   static uint64_t cssize,crsize;   // total send/recv bytes for all comm
   static double commtime;          // total time for all comm
@@ -245,6 +246,7 @@ class MapReduce {
   void mem_unmark(int);
   void mem_cleanup();
   int mem_query(int &, int &);
+  void mem_debug(int);
   void hiwater(int, uint64_t);
 };
 
