@@ -38,7 +38,8 @@ class MapReduce {
   int keyalign;       // align keys to this byte count
   int valuealign;     // align values to this byte count
   char *fpath;        // prefix path added to intermediate out-of-core files
-  
+  int mapfilecount;   // number of files processed by map file variants
+
   class KeyValue *kv;              // single KV stored by MR
   class KeyMultiValue *kmv;        // single KMV stored by MR
 

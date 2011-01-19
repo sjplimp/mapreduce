@@ -21,6 +21,7 @@
 #include "sys/stat.h"
 #include "dirent.h"
 #include "mapreduce.h"
+#include "version.h"
 #include "mrtype.h"
 #include "keyvalue.h"
 #include "keymultivalue.h"
@@ -1020,6 +1021,8 @@ uint64_t MapReduce::map(int nstr, char **strings,
       findfiles(strings[i],recurse,readflag,nfile,maxfile,files);
 
   if (selfflag == 0) bcastfiles(nfile,files);
+  if (selfflag) MPI_Allreduce(&nfile,&mapfilecount,1,MPI_INT,MPI_SUM,comm);
+  else mapfilecount = nfile;
 
   uint64_t nkeyall = map_tasks(nfile,files,NULL,appmap,appptr,addflag,selfflag);
   for (int i = 0; i < nfile; i++) delete [] files[i];
@@ -2606,6 +2609,10 @@ void MapReduce::cummulative_stats(int level, int reset)
 {
   double mbyte = 1024.0*1024.0;
   double gbyte = 1024.0*1024.0*1024.0;
+
+  // version info
+
+  if (me == 0) printf("MapReduce-MPI (%s)\n",MRMPI_VERSION);
 
   // memory
 
