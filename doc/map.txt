@@ -75,6 +75,13 @@ In this mode, each file should contain contain one filename per line.
 Blank lines are not allowed.  Leading and trailing whitespace around
 each filename is OK.
 
+The number of files that are generated and processed can be accessed
+after the map() method is invoked, but the variable mapfilecount, e.g.
+
+MapReduce *mr = new MapReduce();
+mr->map(nstr,strings,1,0,1,mymap,NULL);
+int ntotalfiles = mr->mapfilecount; :pre
+
 The third set of variants allows large file(s) to be broken into
 chunks and one or more sections to be passed back to your mymap()
 function as a string so it can process it.  {Nmap} is the number of
