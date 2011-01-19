@@ -178,39 +178,19 @@ class mrmpi:
     if self.map_argcount == 2: self.map_caller(itask,self)
     else: self.map_caller(itask,self,self.map_ptr)
     
-  def map_file(self,files,map,ptr=None,addflag=0):
+  def map_file(self,files,selfflag,recurse,readfile,map,ptr=None,addflag=0):
     self.map_caller = map
     self.map_argcount = map.func_code.co_argcount
     self.map_ptr = ptr
     cfiles = (c_char_p*len(files))(*files)   # array of C strings from list
     if not addflag:
       n = self.lib.MR_map_file(self.mr,len(cfiles),cfiles,
+                               selfflag,recurse,readfile,
                                self.map_file_def,None)
     else:
       n = self.lib.MR_map_file_add(self.mr,len(cfiles),cfiles,
+                                   selfflag,recurse,readfile,
                                    self.map_file_def,None,addflag)
-    return n
-
-  def map_file_file(self,file,map,ptr=None,addflag=0):
-    self.map_caller = map
-    self.map_argcount = map.func_code.co_argcount
-    self.map_ptr = ptr
-    if not addflag:
-      n = self.lib.MR_map_file_list(self.mr,file,self.map_file_def,None)
-    else:
-      n = self.lib.MR_map_file_list_add(self.mr,file,self.map_file_def,
-                                        None,addflag)
-    return n
-
-  def map_file_dir(self,dir,selfflag,map,ptr=None,addflag=0):
-    self.map_caller = map
-    self.map_argcount = map.func_code.co_argcount
-    self.map_ptr = ptr
-    if not addflag:
-      n = self.lib.MR_map_file_dir(self.mr,dir,selfflag,self.map_file_def,None)
-    else:
-      n = self.lib.MR_map_file_dir_add(self.mr,dir,selfflag,self.map_file_def,
-                                       None,addflag)
     return n
 
   def map_file_callback(self,itask,file,kv,dummy):
@@ -218,7 +198,7 @@ class mrmpi:
     if self.map_argcount == 3: self.map_caller(itask,file,self)
     else: self.map_caller(itask,file,self,self.map_ptr)
     
-  def map_file_char(self,nmap,files,sepchar,delta,map,
+  def map_file_char(self,nmap,files,recurse,readfile,sepchar,delta,map,
                     ptr=None,addflag=0):
     self.map_caller = map
     self.map_argcount = map.func_code.co_argcount
@@ -226,14 +206,16 @@ class mrmpi:
     cfiles = (c_char_p*len(files))(*files)   # array of C strings from list
     if not addflag:
       n = self.lib.MR_map_file_char(self.mr,nmap,len(files),cfiles,
+                                    recurse,readfile,
                                     ord(sepchar),delta,self.map_str_def,None)
     else:
       n = self.lib.MR_map_file_char_add(self.mr,nmap,len(files),cfiles,
+                                        recurse,readfile,
                                         ord(sepchar),delta,
                                         self.map_str_def,None,addflag)
     return n
     
-  def map_file_str(self,nmap,files,sepstr,delta,map,
+  def map_file_str(self,nmap,files,recurse,readfile,sepstr,delta,map,
               ptr=None,addflag=0):
     self.map_caller = map
     self.map_argcount = map.func_code.co_argcount
@@ -241,9 +223,11 @@ class mrmpi:
     cfiles = (c_char_p*len(files))(*files)   # array of C strings from list
     if not addflag:
       n = self.lib.MR_map_file_str(self.mr,nmap,len(files),cfiles,
+                                   recurse,readfile,
                                    sepstr,delta,self.map_str_def,None)
     else:
       n = self.lib.MR_map_file_str_add(self.mr,nmap,len(files),cfiles,
+                                       recurse,readfile,
                                        sepstr,delta,
                                        self.map_str_def,None,addflag)
     return n
