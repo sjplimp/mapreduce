@@ -1212,7 +1212,7 @@ uint64_t MapReduce::map_chunks(int nmap, int nfile, char **files,
 					      int, KeyValue *, void *),
 			       void *appptr, int addflag)
 {
-  if (nfile > nmap) error->all("Cannot map with more files than tasks");
+  if (nfile > nmap) error->all("Cannot map with more files than chunks");
   if (timer) start_timer();
   if (verbosity) file_stats(0);
 
@@ -2449,12 +2449,13 @@ void MapReduce::findfiles(char *str, int recurse, int readflag,
   char newstr[MAXLINE];
 
   err = stat(str,&buf);
-  if (err) error->one("Could not stat file");
+  if (err) error->one("Could not query status of file in map");
   else if (S_ISREG(buf.st_mode)) addfiles(str,readflag,nfile,maxfile,files);
   else if (S_ISDIR(buf.st_mode)) {
     struct dirent *ep;
     DIR *dp = opendir(str);
-    if (dp == NULL) error->one("Cannot open dir to search for files");
+    if (dp == NULL)
+      error->one("Cannot open directory to search for files in map");
     while (ep = readdir(dp)) {
       if (ep->d_name[0] == '.') continue;
       sprintf(newstr,"%s/%s",str,ep->d_name);
@@ -2464,7 +2465,7 @@ void MapReduce::findfiles(char *str, int recurse, int readflag,
 	findfiles(newstr,recurse,readflag,nfile,maxfile,files);
     }
     closedir(dp);
-  } else error->one("Invalid str");
+  } else error->one("Invalid filename in map");
 }
 
 /* ----------------------------------------------------------------------
@@ -2490,14 +2491,14 @@ void MapReduce::addfiles(char *str, int readflag,
   }
 
   FILE *fp = fopen(str,"r");
-  if (fp == NULL) error->one("Could not open file to read");
+  if (fp == NULL) error->one("Could not open file of filenames in map");
 
   char line[MAXLINE];
 
   while (fgets(line,MAXLINE,fp)) {
     char *ptr = line;
     while (isspace(*ptr)) ptr++;
-    if (strlen(ptr) == 0) error->one("Blank line in file of file names");
+    if (strlen(ptr) == 0) error->one("Blank line in file of filenames in map");
     char *ptr2 = ptr + strlen(ptr) - 1;
     while (isspace(*ptr2)) ptr2--;
     ptr2++;
