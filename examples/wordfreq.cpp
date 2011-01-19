@@ -12,10 +12,11 @@
 ------------------------------------------------------------------------- */
 
 // MapReduce word frequency example in C++
-// Syntax: wordfreq file1 file2 ...
-// (1) reads all files, parses into words separated by whitespace
-// (2) counts occurrence of each word in all files
-// (3) prints top 10 words
+// Syntax: wordfreq file1 dir1 file2 dir2 ...
+// (1) read all files and files in dirs
+// (2) parse into words separated by whitespace
+// (3) count occurrence of each word in all files
+// (4) print top 10 words
 
 #include "mpi.h"
 #include "stdio.h"
@@ -60,7 +61,7 @@ int main(int narg, char **args)
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  int nwords = mr->map(narg-1,&args[1],fileread,NULL);
+  int nwords = mr->map(narg-1,&args[1],0,1,0,fileread,NULL);
   mr->collate(NULL);
   int nunique = mr->reduce(sum,NULL);
 
