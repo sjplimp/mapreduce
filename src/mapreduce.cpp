@@ -988,7 +988,7 @@ uint64_t MapReduce::gather(int numprocs)
 }
 
 /* ----------------------------------------------------------------------
-   create a KV via a parallel map operation for nmap tasks
+   user call: create a KV via a parallel map operation for nmap tasks
    make one call to appmap() for each task
    mapstyle determines how tasks are partitioned to processors
 ------------------------------------------------------------------------- */
@@ -996,150 +996,50 @@ uint64_t MapReduce::gather(int numprocs)
 uint64_t MapReduce::map(int nmap, void (*appmap)(int, KeyValue *, void *),
 			void *appptr, int addflag)
 {
-  return map_task(nmap,NULL,appmap,NULL,appptr,addflag,0);
+  return map_tasks(nmap,NULL,appmap,NULL,appptr,addflag,0);
 }
 
 /* ----------------------------------------------------------------------
-   parallel map operation for list of files
+   user call: create a KV via a parallel map operation on nstr file/dir names
+   input nstr/strings are used to generate list of filenames
+   selfflag = 0, just proc 0 generates file list and bcasts it
+   selfflag = 1, each proc generates its own file list
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map(int nfile, char **files,
+uint64_t MapReduce::map(int nstr, char **strings,
+			int selfflag, int recurse, int readflag,
 			void (*appmap)(int, char *, KeyValue *, void *),
 			void *appptr, int addflag)
 {
-  return map_task(nfile,files,NULL,appmap,appptr,addflag,0);
-}
-
-/* ----------------------------------------------------------------------
-   parallel map operation for list of files in file
-   open file and extract filenames
-   bcast each filename to all procs
-   trim whitespace from beginning and end of filename
-------------------------------------------------------------------------- */
-
-uint64_t MapReduce::map(char *file, 
-			void (*appmap)(int, char *, KeyValue *, void *),
-			void *appptr, int addflag)
-{
-  int n;
-  char line[MAXLINE];
-
   int nfile = 0;
-  int maxfiles = 0;
+  int maxfile = 0;
   char **files = NULL;
-  FILE *fp;
 
-  if (me == 0) {
-    fp = fopen(file,"r");
-    if (fp == NULL) error->one("Could not open file of file names");
-  }
+  if (selfflag || me == 0)
+    for (int i = 0; i < nstr; i++)
+      findfiles(strings[i],recurse,readflag,nfile,maxfile,files);
 
-  while (1) {
-    if (me == 0) {
-      if (fgets(line,MAXLINE,fp) == NULL) n = 0;
-      else n = strlen(line) + 1;
-    }
-    MPI_Bcast(&n,1,MPI_INT,0,comm);
-    if (n == 0) {
-      if (me == 0) fclose(fp);
-      break;
-    }
+  if (selfflag == 0) bcastfiles(nfile,files);
 
-    MPI_Bcast(line,n,MPI_CHAR,0,comm);
-
-    char *ptr = line;
-    while (isspace(*ptr)) ptr++;
-    if (strlen(ptr) == 0) error->all("Blank line in file of file names");
-    char *ptr2 = ptr + strlen(ptr) - 1;
-    while (isspace(*ptr2)) ptr2--;
-    ptr2++;
-    *ptr2 = '\0';
-
-    if (nfile == maxfiles) {
-      maxfiles += FILECHUNK;
-      files = (char **)
-	memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
-    }
-    n = strlen(ptr) + 1;
-    files[nfile] = new char[n];
-    strcpy(files[nfile],ptr);
-    nfile++;
-  }
-
-  uint64_t nkeyall = map_task(nfile,files,NULL,appmap,appptr,addflag,0);
+  uint64_t nkeyall = map_tasks(nfile,files,NULL,appmap,appptr,addflag,selfflag);
   for (int i = 0; i < nfile; i++) delete [] files[i];
   memory->sfree(files);
   return nkeyall;
 }
 
 /* ----------------------------------------------------------------------
-   parallel map operation for list of files in dir
-   open dir and read filenames
-   if selfflag = 0, proc 0 reads all filenames, bcast list to all procs
-   if selfflag = 1, each proc reads filenames from own dir
+   called by 2 user map methods above (task count, list of files)
+   assign out and process the tasks
+   ntasks can be generic (files = NULL), or number of files
+   make one call to two different flavors of appmap() for each task
+   mapstyle and selfflag determine how tasks are partitioned to processors
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map(char *dir, int selfflag,
-			void (*appmap)(int, char *, KeyValue *, void *),
-			void *appptr, int addflag)
-{
-  int n;
-
-  int nfile = 0;
-  int maxfiles = 0;
-  char **files = NULL;
-
-  if (selfflag || me == 0) {
-    struct dirent *ep;
-    DIR *dp = opendir(dir);
-    if (dp == NULL) error->one("Cannot open dir to search for files");
-    while (ep = readdir(dp)) {
-      if (ep->d_name[0] == '.') continue;
-      if (nfile == maxfiles) {
-	maxfiles += FILECHUNK;
-	files = (char **)
-	  memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
-      }
-      n = strlen(dir) + strlen(ep->d_name) + 2;
-      files[nfile] = new char[n];
-      sprintf(files[nfile],"%s/%s",dir,ep->d_name);
-      nfile++;
-    }
-    closedir(dp);
-  }
-
-  if (selfflag == 0) {
-    MPI_Bcast(&nfile,1,MPI_INT,0,comm);
-    if (me > 0) {
-      maxfiles += nfile;
-      files = (char **)
-	memory->srealloc(files,maxfiles*sizeof(char *),"MR:files");
-    }
-    for (int i = 0; i < nfile; i++) {
-      if (me == 0) n = strlen(files[i]) + 1;
-      MPI_Bcast(&n,1,MPI_INT,0,comm);
-      if (me > 0) files[i] = new char[n];
-      MPI_Bcast(files[i],n,MPI_CHAR,0,comm);
-    }
-  }
-
-  uint64_t nkeyall = map_task(nfile,files,NULL,appmap,appptr,addflag,selfflag);
-  for (int i = 0; i < nfile; i++) delete [] files[i];
-  memory->sfree(files);
-  return nkeyall;
-}
-
-/* ----------------------------------------------------------------------
-   create a KV via a parallel map operation for nmap tasks
-   make one call to appmap() for each task
-   mapstyle determines how tasks are partitioned to processors
-------------------------------------------------------------------------- */
-
-uint64_t MapReduce::map_task(int ntask, char **files,
-			     void (*appmaptask)(int, KeyValue *, void *),
-			     void (*appmapfile)(int, char *, 
-						KeyValue *, void *),
-			     void *appptr, int addflag, int selfflag)
+uint64_t MapReduce::map_tasks(int ntask, char **files,
+			      void (*appmaptask)(int, KeyValue *, void *),
+			      void (*appmapfile)(int, char *, 
+						 KeyValue *, void *),
+			      void *appptr, int addflag, int selfflag)
 {
   MPI_Status status;
 
@@ -1235,44 +1135,71 @@ uint64_t MapReduce::map_task(int ntask, char **files,
 }
 
 /* ----------------------------------------------------------------------
-   create a KV via a parallel map operation for nmap tasks
-   nfile filenames are split into nmap pieces based on separator char
+   user call: create a KV via a parallel map operation on file splitting
+   nfile filenames are split into nmap pieces based on separator character
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map(int nmap, int nfile, char **files,
+uint64_t MapReduce::map(int nmap, int nstr, char **strings,
+			int recurse, int readflag,
 			char sepchar, int delta,
 			void (*appmap)(int, char *, int, KeyValue *, void *),
 			void *appptr, int addflag)
 {
+  int nfile = 0;
+  int maxfile = 0;
+  char **files = NULL;
+
+  if (me == 0)
+    for (int i = 0; i < nstr; i++)
+      findfiles(strings[i],recurse,readflag,nfile,maxfile,files);
+
+  bcastfiles(nfile,files);
+
   filemap.sepwhich = 1;
   filemap.sepchar = sepchar;
   filemap.delta = delta;
 
-  return map_file(nmap,nfile,files,appmap,appptr,addflag);
+  uint64_t nkeyall = map_chunks(nmap,nfile,files,appmap,appptr,addflag);
+  for (int i = 0; i < nfile; i++) delete [] files[i];
+  memory->sfree(files);
+  return nkeyall;
 }
 
 /* ----------------------------------------------------------------------
-   create a KV via a parallel map operation for nmap tasks
+   user call: create a KV via a parallel map operation on file splitting
    nfile filenames are split into nmap pieces based on separator string
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map(int nmap, int nfile, char **files,
+uint64_t MapReduce::map(int nmap, int nstr, char **strings,
+			int recurse, int readflag,
 			char *sepstr, int delta,
 			void (*appmap)(int, char *, int, KeyValue *, void *),
 			void *appptr, int addflag)
 {
+  int nfile = 0;
+  int maxfile = 0;
+  char **files = NULL;
+
+  if (me == 0)
+    for (int i = 0; i < nstr; i++)
+      findfiles(strings[i],recurse,readflag,nfile,maxfile,files);
+
+  bcastfiles(nfile,files);
+
   filemap.sepwhich = 0;
   int n = strlen(sepstr) + 1;
   filemap.sepstr = new char[n];
   strcpy(filemap.sepstr,sepstr);
   filemap.delta = delta;
 
-  return map_file(nmap,nfile,files,appmap,appptr,addflag);
+  uint64_t nkeyall = map_chunks(nmap,nfile,files,appmap,appptr,addflag);
+  for (int i = 0; i < nfile; i++) delete [] files[i];
+  memory->sfree(files);
+  return nkeyall;
 }
 
 /* ----------------------------------------------------------------------
-   called by 2 map methods that take files and a separator
-   create a KV via a parallel map operation for nmap tasks
+   called by 2 user map methods above (char/str separator for splitting files)
    nfile filenames are split into nmap pieces based on separator
    FileMap struct stores info on how to split files
    calls non-file map() to partition tasks to processors
@@ -1280,10 +1207,10 @@ uint64_t MapReduce::map(int nmap, int nfile, char **files,
    map_file_standalone() reads chunk of file and passes it to user appmap()
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::map_file(int nmap, int nfile, char **files,
-			     void (*appmap)(int, char *, 
-					    int, KeyValue *, void *),
-			     void *appptr, int addflag)
+uint64_t MapReduce::map_chunks(int nmap, int nfile, char **files,
+			       void (*appmap)(int, char *, 
+					      int, KeyValue *, void *),
+			       void *appptr, int addflag)
 {
   if (nfile > nmap) error->all("Cannot map with more files than tasks");
   if (timer) start_timer();
@@ -1502,7 +1429,7 @@ void MapReduce::map_file_wrapper(int imap, KeyValue *kv)
 }
 
 /* ----------------------------------------------------------------------
-   create a KV via a parallel map operation from an existing MR's KV
+   user call: create a KV via a parallel map operation on an existing MR's KV
    make one call to appmap() for each key/value pair in the input MR's KV
    each proc operates on key/value pairs it owns
 ------------------------------------------------------------------------- */
@@ -2504,6 +2431,110 @@ int compare_str(char *str1, int len1, char *str2, int len2)
 int compare_strn(char *str1, int len1, char *str2, int len2)
 {
   return strncmp(str1,str2,MIN(len1,len2));
+}
+
+/* ----------------------------------------------------------------------
+   use str to find files to add to list of filenames
+   if str is a file, add it to list
+   if str is a directory, add all files in directory to list
+   if recurse = 1, call findfiles() on any directory found within directory
+   return updated list of files
+------------------------------------------------------------------------- */
+
+void MapReduce::findfiles(char *str, int recurse, int readflag,
+			  int &nfile, int &maxfile, char **&files)
+{
+  int err,n;
+  struct stat buf;
+  char newstr[MAXLINE];
+
+  err = stat(str,&buf);
+  if (err) error->one("Could not stat file");
+  else if (S_ISREG(buf.st_mode)) addfiles(str,readflag,nfile,maxfile,files);
+  else if (S_ISDIR(buf.st_mode)) {
+    struct dirent *ep;
+    DIR *dp = opendir(str);
+    if (dp == NULL) error->one("Cannot open dir to search for files");
+    while (ep = readdir(dp)) {
+      if (ep->d_name[0] == '.') continue;
+      sprintf(newstr,"%s/%s",str,ep->d_name);
+      err = stat(newstr,&buf);
+      if (S_ISREG(buf.st_mode)) addfiles(newstr,readflag,nfile,maxfile,files);
+      else if (S_ISDIR(buf.st_mode) && recurse)
+	findfiles(newstr,recurse,readflag,nfile,maxfile,files);
+    }
+    closedir(dp);
+  } else error->one("Invalid str");
+}
+
+/* ----------------------------------------------------------------------
+   add a str to list of filenames
+   if readflag = 0, just add str as filename
+   if readflag = 1, open the file, read filenames out of it and add each to list
+   return updated list of files
+------------------------------------------------------------------------- */
+
+void MapReduce::addfiles(char *str, int readflag, 
+			 int &nfile, int &maxfile, char **&files)
+{
+  if (!readflag) {
+    if (nfile == maxfile) {
+      maxfile += FILECHUNK;
+      files = (char **) realloc(files,maxfile*sizeof(char *));
+    }
+    int n = strlen(str) + 1;
+    files[nfile] = new char[n];
+    strcpy(files[nfile],str);
+    nfile++;
+    return;
+  }
+
+  FILE *fp = fopen(str,"r");
+  if (fp == NULL) error->one("Could not open file to read");
+
+  char line[MAXLINE];
+
+  while (fgets(line,MAXLINE,fp)) {
+    char *ptr = line;
+    while (isspace(*ptr)) ptr++;
+    if (strlen(ptr) == 0) error->one("Blank line in file of file names");
+    char *ptr2 = ptr + strlen(ptr) - 1;
+    while (isspace(*ptr2)) ptr2--;
+    ptr2++;
+    *ptr2 = '\0';
+
+    if (nfile == maxfile) {
+      maxfile += FILECHUNK;
+      files = (char **) realloc(files,maxfile*sizeof(char *));
+    }
+    
+    int n = strlen(ptr) + 1;
+    files[nfile] = new char[n];
+    strcpy(files[nfile],ptr);
+    nfile++;
+  }
+
+  fclose(fp);
+}
+
+/* ----------------------------------------------------------------------
+   bcast list of files from proc 0
+------------------------------------------------------------------------- */
+
+void MapReduce::bcastfiles(int &nfile, char **&files)
+{
+  MPI_Bcast(&nfile,1,MPI_INT,0,comm);
+ 
+ if (me > 0)
+    files = (char **) memory->srealloc(files,nfile*sizeof(char *),"MR:files");
+
+  int n;
+  for (int i = 0; i < nfile; i++) {
+    if (me == 0) n = strlen(files[i]) + 1;
+    MPI_Bcast(&n,1,MPI_INT,0,comm);
+    if (me > 0) files[i] = new char[n];
+    MPI_Bcast(files[i],n,MPI_CHAR,0,comm);
+  }
 }
 
 /* ----------------------------------------------------------------------
