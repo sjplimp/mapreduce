@@ -9,25 +9,24 @@
 
 <H3>MapReduce map() method 
 </H3>
-<PRE>uint64_t MapReduce::map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr)
+<PRE>Variant 1:
+uint64_t MapReduce::map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr)
 uint64_t MapReduce::map(int nmap, void (*mymap)(int, KeyValue *, void *), void *ptr, int addflag) 
 </PRE>
-<PRE>uint64_t MapReduce::map(int nfile, char **files, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
-uint64_t MapReduce::map(int nfile, char **files, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) 
+<PRE>Variant 2:
+uint64_t MapReduce::map(int nstr, char **strings, int self, int recurse, int readfile, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(int nstr, char **strings, int self, int recurse, int readfile, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) 
 </PRE>
-<PRE>uint64_t MapReduce::map(char *file, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
-uint64_t MapReduce::map(char *file, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) 
+<PRE>Variant 3:
+uint64_t MapReduce::map(int nmap, int nstr, char **strings, int recurse, int readfile, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(int nmap, int nstr, char **strings, int recurse, int readfile, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
 </PRE>
-<PRE>uint64_t MapReduce::map(char *dir, int selfflag, void (*mymap)(int, char *, KeyValue *, void *), void *ptr)
-uint64_t MapReduce::map(char *dir, int selfflag, void (*mymap)(int, char *, KeyValue *, void *), void *ptr, int addflag) 
+<PRE>Variant 4:
+uint64_t MapReduce::map(int nmap, int nstr, char **strings, int recurse, int readfile, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
+uint64_t MapReduce::map(int nmap, int nstr, char **strings, int recurse, int readfile, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
 </PRE>
-<PRE>uint64_t MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
-uint64_t MapReduce::map(int nmap, int nfiles, char **files, char sepchar, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
-</PRE>
-<PRE>uint64_t MapReduce::map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr)
-uint64_t MapReduce::map(int nmap, int nfiles, char **files, char *sepstr, int delta, void (*mymap)(int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
-</PRE>
-<PRE>uint64_t MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr)
+<PRE>Variant 5:
+uint64_t MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr)
 uint64_t MapReduce::map(MapReduce *mr2, void (*mymap)(uint64_t, char *, int, char *, int, KeyValue *, void *), void *ptr, int addflag) 
 </PRE>
 <P>This calls the map() method of a MapReduce object.  A function pointer
@@ -38,59 +37,75 @@ KeyValue object.  The method returns the total number of key/value
 pairs in the KeyValue object.
 </P>
 <P>There are several variants of the map() methods to allow for different
-ways to process input data.  This also induces different variants of
-the callback mymap() function.
+ways to process input data.  This also induces variants of the
+callback mymap() function.
 </P>
-<P>For the first set of variants (with and without addflag) you specify a
-total number of map tasks <I>nmap</I> to perform across all processors.
-The index of a map task is passed back to your mymap() function.
+<P>For the first set of variants (with or without addflag) you simply
+specify a total number of map tasks <I>nmap</I> to perform across all
+processors.  The index of a map task is passed back to your mymap()
+function.  The MapReduce library assigns map tasks to processors; see
+more details below.
 </P>
-<P>For the second set of variants you specify a list of filenames.  Each
-filename in the list is passed back to your mymap() function.  While
-you have some control over which filename is assigned to which
-processor (see the <I>mapstyle</I> setting described <A HREF = "settings.html">here</A>),
-you should normally insure that any processor can read any of the
-files.
+<P>For the second set of variants, you specify <I>nstr</I> and <I>strings</I> which
+are file and/or directory names.  Using these strings, a list of
+filenames is generated.  Each filename in the list is passed back to
+your mymap() function which can open the file and process it.
 </P>
-<P>For the third set of variants you specify a filename which is a master
-file, containing one filename per line.  Blank lines are not allowed.
-Leading and trailing whitespace around each filename is OK.  Each
-filename in the file is passed back to your mymap() function.  While
-you have some control over which filename is assigned to which
-processor (see the <I>mapstyle</I> setting described <A HREF = "settings.html">here</A>),
-you should normally insure that any processor can read any of the
-files listed in the master file.
+<P>If <I>self</I> is 0, then only processor 0 generates the list of filenames,
+and the MapReduce library assigns files to processors; see more
+details below.  If <I>self</I> is 1, then each processor generates its own
+list of filenames and those files are assigned to that processor.
+Note that in the <I>self</I> = 0 case, it is assumed that every processor
+can read any file that is assigned to it.  Also note, that with <I>self</I>
+= 1 you can assign files to a processor that reside on a disk local to
+a processor, or with a parallel disk system you can pass different
+strings to different processors so that each processor reads from
+different set of files/directories.
 </P>
-<P>For the fourth set of variants you specify a directory name.  If
-selfflag is set to 0, then one processor reads the names of all files
-in the directory, shares the list of names with all processors, and
-the filenames are passed back, one at time, to your mymap() function.
-While you have some control over which filename is assigned to which
-processor (see the <I>mapstyle</I> setting described <A HREF = "settings.html">here</A>),
-you should normally insure that any processor can read any of the
-files in the directory.  If selfflag is set to 1, then the physical
-directory is presumed to be different on every processor.  This could
-be becuase the directories reside on the local disk of each processor,
-or the dir string is specified differently on each processor to point
-to a sub-directory on a parallel disk.  Each procesor reads the names
-of all files in its directory, and they are all passed back, one at a
-time, to your mymap() function running on that processor.
+<P>The list of filenames is generated in the following manner.  Each of
+the <I>strings</I> is checked for whether it is a file or directory.  If it
+is a file, it is added to the list of files.  If it is a directory,
+the directory is opened and all the files in it are added to the list
+of files.  If the <I>recurse</I> flag is set to 1, then if sub-directories
+are found in the directory, they are opened and the files in them are
+also added to the list of files (and so forth, recursively).
 </P>
-<P>For the fifth set of variants you specify an list of one or more file
-names and a separation character (sepchar).  For the sixth set of
-variants, you specify a list of one or more files names and a
-separation string (sepstr).  The file(s) are split into nmap chunks
-with roughly equal numbers of bytes in each chunk.  One chunk from one
-file is read and passed back to your mymap() function as a string, so
-your code does not read the file.  See details below about the
+<P>The <I>readfile</I> setting adds one additional wrinkle.  If <I>readfile</I> is
+1, then instead of adding each filename to the list, each file is
+opened, and filenames are read from that file and added to the list.
+In this mode, each file should contain contain one filename per line.
+Blank lines are not allowed.  Leading and trailing whitespace around
+each filename is OK.
+</P>
+<P>The third set of variants allows large file(s) to be broken into
+chunks and one or more sections to be passed back to your mymap()
+function as a string so it can process it.  <I>Nmap</I> is the number of
+chunks to generate from all the files in aggregate (not <I>nmap</I> chunks
+per file).  As with the previous variant, you also specify <I>nstr</I>,
+<I>strings</I>, <I>recurse</I>, and <I>readfile</I>.  This generates a list of
+filenames, the same as in the previous variant.  The only difference
+is that no <I>self</I> setting is allowed, because only processor 0 does
+this.  The specified <I>nmap</I> must be >= the number of files in the
+generated list.
+</P>
+<P>For the third set of variants you specify a separation character
+<I>sepchar</I>.  For the fourth set of variants, you specify a separation
+string <I>sepstr</I>.  The files in the generated list of files are split
+into <I>nmap</I> chunks with roughly equal numbers of bytes in each chunk.
+Think of all the files concatenated together and then split into
+<I>nmap</I> chunks.  For each call to your mymap() function, a chunk is
+read from a particular file, and passed to your function as a string,
+so your code does not read the file.  See details below about the
 splitting methodology and the delta input parameter.
 </P>
-<P>For the last set of variants, you specify an existing MapReduce object
-mr2 with key/value pairs, which can either be this MapReduce object or
-another one.  The key/value pairs from mr2 are passed back to your
-mymap() function, one key/value at a time, allowing you to generate
-new key/value pairs from an existing set.
+<P>For the fifth set of variants, you specify an existing MapReduce
+object mr2 with key/value pairs, which can either be this MapReduce
+object or another one.  The key/value pairs from mr2 are passed back
+to your mymap() function, one key/value at a time, allowing you to
+generate new key/value pairs from an existing set.
 </P>
+<HR>
+
 <P>You can give any of the map() methods a pointer (void *ptr) which will
 be returned to your mymap() function.  See the <A HREF = "technical.html">Technical
 Details</A> section for why this can be useful.  Just
@@ -118,8 +133,10 @@ is 1, then newly generated KV pairs are added to the existing KeyValue
 object.  If addflag is 0, then the existing KeyValue object is
 effectively replaced by the newly generated KV pairs.
 </P>
-<P>In this example the user function is called mymap() and it has one of
-four interfaces depending on which variant of the map() method is
+<HR>
+
+<P>In these examples the user function is called mymap() and it has one
+of four interfaces depending on which variant of the map() method is
 invoked:
 </P>
 <PRE>void mymap(int itask, KeyValue *kv, void *ptr)
@@ -133,25 +150,24 @@ object, and the original pointer you specified as an argument to the
 map() method, as void *ptr.
 </P>
 <P>In the first mymap() variant, itask is passed to your function with a
-value 0 <= itask < nmap, where nmap was specified in the map() call.
-For example, you could use itask to select a file from a list stored
-by your application.  Your mymap() function could open and read the
-file or perform some other operation.
+value 0 <= itask < <I>nmap</I>, where <I>nmap</I> was specified in the map()
+call.  For example, you could use itask to select a file from a list
+stored by your application.  Your mymap() function could open and read
+the file or perform some other operation.
 </P>
 <P>In the second mymap() variant, itask will have a value 0 <= itask <
-nfiles, where nfiles is either the number of filenames in list of
-files you specified, or in the master file you specified, or the
-number of files in the directory you specified.  Your function is also
-passed a single filename, which it will presumably open and read.
+nfiles, where nfiles is either the number of filenames in the list of
+files that was generated.  Your function is also passed a single
+filename, which it will presumably open and read.
 </P>
 <P>In the third mymap() variant, itask will have a value from 0 <= itask
-< nmap, where nmap was specified in the map() call and is the number
-of file segments generated.  It is also passed a string of bytes (str)
-of length size read from one of the files.  Size includes a trailing
-'\0' that is appended to the string.
+< <I>nmap</I>, where <I>nmap</I> was specified in the map() call and is the
+number of file segments generated.  It is also passed a string of
+bytes (str) of length size read from one of the files.  Size includes
+a trailing '\0' that is appended to the string.
 </P>
 <P>For map() methods that take files and a separation criterion as
-arguments, you must specify nmap >= nfiles, so that there is one or
+arguments, you must specify <I>nmap</I> >= nfiles, so that there is one or
 more map tasks per file.  For files that are split into multiple
 chunks, the split is done at occurrences of the separation character
 or string.  You specify a delta of how many extra bytes to read with
@@ -176,17 +192,19 @@ with the character immediately preceeding a sepstr (followed by a
 '\0').  Note that this means your mymap() function will be passed
 different byte strings if you specify sepchar = 'A' vs sepstr = "A".
 </P>
-<P>In the last mymap() variant, itask will have a value from 0 <= itask <
-nkey, where nkey is a unsigned 64-bit int and is the number of
+<P>In the fourth mymap() variant, itask will have a value from 0 <= itask
+< nkey, where nkey is a unsigned 64-bit int and is the number of
 key/value pairs in the specified MapReduce object.  Key and value are
 the byte strings for a single key/value pair and are of length
 keybytes and valuebytes respectively.
 </P>
+<HR>
+
 <P>The MapReduce library assigns map tasks to processors.  Options for
 how it does this can be controlled by <A HREF = "settings.html">MapReduce
-settings</A>.  Basically, nmap/P tasks are assigned to each
-processor, where P is the number of processors in the MPI communicator
-you instantiated the MapReduce object with.
+settings</A>.  Basically, <I>nmap</I>/P tasks are assigned to
+each processor, where P is the number of processors in the MPI
+communicator you instantiated the MapReduce object with.
 </P>
 <P>Typically, your mymap() function will produce key/value pairs which it
 registers with the MapReduce object by calling the <A HREF = "kv_add.html">add()</A>

@@ -358,27 +358,18 @@ mr.map(nmap,mymap,ptr)      # if specified, ptr is any Python datum
 mr.map(nmap,mymap,ptr,addflag) # if addflag is specfied as a non-zero int,
 			       #   new key/value pairs will be added to the
 			       #   existing key/value pairs :pre
-mr.map_file(files,mymap)     # files is a list of filenames
+mr.map_file(files,self,recurse,readfile,mymap)
+                             # files is a list of filenames and dirnames
 			     # mymap is a function called back from the
 			     #   library as mymap(itask,filename,mr,ptr)
 			     # as above, ptr and addflag are optional args
-mr.map_file_file(file,mymap) # file is a file containing a list of filenames
-			     # mymap is a function called back from the
-			     #   library as mymap(itask,filename,mr,ptr)
-			     # as above, ptr and addflag are optional args
-mr.map_file_dir(dir,selfflag,mymap)
-                             # dir is a directory name
-                             # selfflag = 0 for same dir on each proc, else 1
-			     # mymap is a function called back from the
-			     #   library as mymap(itask,filename,mr,ptr)
-			     # as above, ptr and addflag are optional args
-mr.map_file_char(nmap,files,sepchar,delta,mymap)
-                             # files is a list of filenames
+mr.map_file_char(nmap,files,recurse,readfile,sepchar,delta,mymap)
+                             # files is a list of filenames and dirnames
 			     # mymap is a function called back from the
 			     #   library as mymap(itask,str,mr,ptr)
 			     # as above, ptr and addflag are optional args
-mr.map_file_str(nmap,files,sepstr,delta,mymap)
-                             # files is a list of filenames
+mr.map_file_str(nmap,files,recurse,readfile,sepstr,delta,mymap)
+                             # files is a list of filenames and dirnames
 			     # mymap is a function called back from the
 			     #   library as mymap(itask,str,mr,ptr)
 			     # as above, ptr and addflag are optional args
