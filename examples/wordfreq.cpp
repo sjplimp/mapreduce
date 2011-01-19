@@ -62,6 +62,7 @@ int main(int narg, char **args)
   double tstart = MPI_Wtime();
 
   int nwords = mr->map(narg-1,&args[1],0,1,0,fileread,NULL);
+  int nfiles = mr->mapfilecount;
   mr->collate(NULL);
   int nunique = mr->reduce(sum,NULL);
 
@@ -89,7 +90,7 @@ int main(int narg, char **args)
   if (me == 0) {
     printf("%d total words, %d unique words\n",nwords,nunique);
     printf("Time to process %d files on %d procs = %g (secs)\n",
-	   narg-1,nprocs,tstop-tstart);
+	   nfiles,nprocs,tstop-tstart);
   }
 
   MPI_Finalize();
