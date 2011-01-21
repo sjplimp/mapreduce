@@ -40,6 +40,15 @@ patch.
 :line
 :line
 
+[21 Jan 2011]
+
+Added version string to distribution.
+
+This is the "list of changed files"_patches/files.21Jan11 from the 19
+Jan 2011 version.
+
+:line
+
 [19 Jan 2011]
 
 Changed the calling syntax of several of the "map()"_doc/map.html
