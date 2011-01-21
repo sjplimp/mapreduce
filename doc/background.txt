@@ -85,7 +85,7 @@ This library also has the following limitation:
 
 No fault tolerance.  Current MPI implementations do not enable easy
 detection of a dead processor.  So like most MPI programs, a MapReduce
-operation will hang or crash if a processor goes away. :ul
+operation will hang or crash if a processor goes away. :ulb,l,ule
 
 Finally, I call attention to "recent work"_#Gray by Alexander Gray and
 colleagues at Georgia Tech.  They show that various kinds of
