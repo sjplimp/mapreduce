@@ -2452,13 +2452,20 @@ void MapReduce::findfiles(char *str, int recurse, int readflag,
   char newstr[MAXLINE];
 
   err = stat(str,&buf);
-  if (err) error->one("Could not query status of file in map");
+  if (err) {
+    char msg[256];
+    sprintf(msg,"Could not query status of file %s in map",str);
+    error->one(msg);
+  }
   else if (S_ISREG(buf.st_mode)) addfiles(str,readflag,nfile,maxfile,files);
   else if (S_ISDIR(buf.st_mode)) {
     struct dirent *ep;
     DIR *dp = opendir(str);
-    if (dp == NULL)
-      error->one("Cannot open directory to search for files in map");
+    if (dp == NULL) {
+      char msg[256];
+      sprintf(msg,"Cannot open directory %s to search for files in map",str);
+      error->one(msg);
+    }
     while (ep = readdir(dp)) {
       if (ep->d_name[0] == '.') continue;
       sprintf(newstr,"%s/%s",str,ep->d_name);
@@ -2468,7 +2475,11 @@ void MapReduce::findfiles(char *str, int recurse, int readflag,
 	findfiles(newstr,recurse,readflag,nfile,maxfile,files);
     }
     closedir(dp);
-  } else error->one("Invalid filename in map");
+  } else {
+    char msg[256];
+    sprintf(msg,"Invalid filename %s in map",str);
+    error->one(msg);
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -2494,14 +2505,22 @@ void MapReduce::addfiles(char *str, int readflag,
   }
 
   FILE *fp = fopen(str,"r");
-  if (fp == NULL) error->one("Could not open file of filenames in map");
+  if (fp == NULL) {
+    char msg[256];
+    sprintf(msg,"Could not open file %s of filenames in map",str);
+    error->one(msg);
+  }
 
   char line[MAXLINE];
 
   while (fgets(line,MAXLINE,fp)) {
     char *ptr = line;
     while (isspace(*ptr)) ptr++;
-    if (strlen(ptr) == 0) error->one("Blank line in file of filenames in map");
+    if (strlen(ptr) == 0) {
+      char msg[256];
+      sprintf(msg,"Blank line in file %s of filenames in map",str);
+      error->one(msg);
+    }
     char *ptr2 = ptr + strlen(ptr) - 1;
     while (isspace(*ptr2)) ptr2--;
     ptr2++;
