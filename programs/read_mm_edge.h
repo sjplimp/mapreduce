@@ -11,14 +11,13 @@ namespace MAPREDUCE_NS {
 
 class ReadMMEdge {
  public:
-  ReadMMEdge(char *, int, MPI_Comm);
-  double run(MAPREDUCE_NS::MapReduce *, uint64_t &, uint64_t &);
+  ReadMMEdge(int, char **, int, int, MPI_Comm);
+  double run(MAPREDUCE_NS::MapReduce *, uint64_t &);
 
  private:
-  char *file;
-  int attflag;
+  int nstr,self,attflag;
+  char **strings;
   MPI_Comm world;
-  uint64_t nv;
   typedef uint64_t VERTEX;
   typedef struct {
     VERTEX vi,vj;
@@ -26,7 +25,7 @@ class ReadMMEdge {
   typedef int IATTRIBUTE;
   typedef double DATTRIBUTE;
 
-  static void map(int, char *, int, MAPREDUCE_NS::KeyValue *, void *);
+  static void map(int, char *, MAPREDUCE_NS::KeyValue *, void *);
 };
 
 #endif

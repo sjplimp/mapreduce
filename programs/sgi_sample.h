@@ -16,8 +16,6 @@ class SGISample {
   double run(MAPREDUCE_NS::MapReduce *, MAPREDUCE_NS::MapReduce *, 
 	     MAPREDUCE_NS::MapReduce **, MAPREDUCE_NS::MapReduce **, 
 	     MAPREDUCE_NS::MapReduce *, MAPREDUCE_NS::MapReduce *, 
-	     MAPREDUCE_NS::MapReduce **, MAPREDUCE_NS::MapReduce *,
-	     MAPREDUCE_NS::MapReduce *,
 	     uint64_t &);
 
  private:

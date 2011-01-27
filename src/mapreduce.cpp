@@ -1791,6 +1791,146 @@ int MapReduce::multivalue_block(int iblock,
 }
 
 /* ----------------------------------------------------------------------
+   scan KV pairs without altering them
+   make one call to appscan() for each KV pair
+   each proc processes its owned KV pairs
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::scan(void (*appscan)(uint64_t, char *, int, char *, int, 
+					 void *), void *appptr)
+{
+  if (kv == NULL) error->all("Cannot scan without KeyValue");
+  if (timer) start_timer();
+  if (verbosity) file_stats(0);
+
+  kv->allocate();
+
+  int nkey_kv,keybytes,valuebytes;
+  uint64_t dummy1,dummy2,dummy3;
+  char *page_kv,*ptr,*key,*value;
+  int npage_kv = kv->request_info(&page_kv);
+  uint64_t n = 0;
+
+  for (int ipage = 0; ipage < npage_kv; ipage++) {
+    nkey_kv = kv->request_page(ipage,dummy1,dummy2,dummy3);
+    ptr = page_kv;
+
+    for (int i = 0; i < nkey_kv; i++) {
+      keybytes = *((int *) ptr);
+      valuebytes = *((int *) (ptr+sizeof(int)));;
+
+      ptr += twolenbytes;
+      ptr = ROUNDUP(ptr,kalignm1);
+      key = ptr;
+      ptr += keybytes;
+      ptr = ROUNDUP(ptr,valignm1);
+      value = ptr;
+      ptr += valuebytes;
+      ptr = ROUNDUP(ptr,talignm1);
+
+      appscan(n++,key,keybytes,value,valuebytes,appptr);
+    }
+  }
+
+  kv->deallocate(0);
+  if (freepage) mem_cleanup();
+
+  stats("Scan",0);
+
+  uint64_t nkeyall;
+  MPI_Allreduce(&kv->nkv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
+   scan KMV pairs without altering them
+   make one call to appscan() for each KMV pair
+   each proc processes its owned KMV pairs
+------------------------------------------------------------------------- */
+
+uint64_t MapReduce::scan(void (*appscan)(char *, int, char *, int, int *,
+					 void *), void *appptr)
+{
+  if (kmv == NULL) error->all("Cannot scan without KeyMultiValue");
+  if (timer) start_timer();
+  if (verbosity) file_stats(0);
+
+  kmv->allocate();
+
+  uint64_t dummy;
+  int memtag1,memtag2;
+  char *mvpage1 = mem_request(1,dummy,memtag1);
+  char *mvpage2 = mem_request(1,dummy,memtag2);
+
+  int nkey_kmv,nvalues,keybytes,mvaluebytes;
+  uint64_t dummy1,dummy2,dummy3;
+  int *valuesizes;
+  char *ptr,*key,*multivalue;
+
+  char *page_kmv;
+  int npage_kmv = kmv->request_info(&page_kmv);
+  char *page_hold = page_kmv;
+
+  for (int ipage = 0; ipage < npage_kmv; ipage++) {
+    nkey_kmv = kmv->request_page(ipage,0,dummy1,dummy2,dummy3);
+    ptr = page_kmv;
+
+    for (int i = 0; i < nkey_kmv; i++) {
+      nvalues = *((int *) ptr);
+      ptr += sizeof(int);
+
+      if (nvalues > 0) {
+	keybytes = *((int *) ptr);
+	ptr += sizeof(int);
+	mvaluebytes = *((int *) ptr);
+	ptr += sizeof(int);
+	valuesizes = (int *) ptr;
+	ptr += ((uint64_t) nvalues) * sizeof(int);
+	
+	ptr = ROUNDUP(ptr,kalignm1);
+	key = ptr;
+	ptr += keybytes;
+	ptr = ROUNDUP(ptr,valignm1);
+	multivalue = ptr;
+	ptr += mvaluebytes;
+	ptr = ROUNDUP(ptr,talignm1);
+	
+	appscan(key,keybytes,multivalue,nvalues,valuesizes,appptr);
+
+      } else {
+	keybytes = *((int *) ptr);
+	ptr += sizeof(int);
+	ptr = ROUNDUP(ptr,kalignm1);
+	key = ptr;
+
+	// set KMV page to mvpage1 so key will not be overwritten
+	// when multivalue_block() loads new pages of values
+
+	kmv_block_valid = 1;
+	kmv_key_page = ipage;
+	kmv_mvpage1 = mvpage1;
+	kmv_mvpage2 = mvpage2;
+	kmv_nvalue_total = kmv->multivalue_blocks(ipage,kmv_nblock);
+	kmv->page = mvpage1;
+	appscan(key,keybytes,NULL,0,(int *) this,appptr);
+	kmv_block_valid = 0;
+	ipage += kmv_nblock;
+	kmv->page = page_hold;
+      }
+    }
+  }
+
+  kmv->deallocate(0);
+  if (freepage) mem_cleanup();
+
+  stats("Scan",0);
+
+  uint64_t nkeyall;
+  MPI_Allreduce(&kmv->nkmv,&nkeyall,1,MRMPI_BIGINT,MPI_SUM,comm);
+  return nkeyall;
+}
+
+/* ----------------------------------------------------------------------
    scrunch KV to create a KMV on fewer processors, each with a single pair
    gather followed by a collapse
    numprocs = # of procs new KMV resides on (0 to numprocs-1)

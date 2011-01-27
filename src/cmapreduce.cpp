@@ -275,12 +275,6 @@ uint64_t MR_reduce(void *MRptr,
   return mr->reduce(appreduce,APPptr);
 }
 
-uint64_t MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes)
-{
-  MapReduce *mr = (MapReduce *) MRptr;
-  return mr->scrunch(numprocs,key,keybytes);
-}
-
 uint64_t MR_multivalue_blocks(void *MRptr, int *pnblock)
 {
   MapReduce *mr = (MapReduce *) MRptr;
@@ -303,6 +297,31 @@ int MR_multivalue_block(void *MRptr, int iblock,
   return mr->multivalue_block(iblock,ptr_multivalue,ptr_valuesizes);
 }
 
+uint64_t MR_scan_kv(void *MRptr,
+		    void (*myscan)(uint64_t, char *, int, char *, int, void *),
+		    void *APPptr)
+{
+  typedef void (ScanFunc)(uint64_t, char *, int, char *, int, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  ScanFunc *appscan = (ScanFunc *) myscan;
+  return mr->scan(appscan,APPptr);
+}
+
+uint64_t MR_scan_kmv(void *MRptr,
+		     void (*myscan)(char *, int, char *, int, int *, void *),
+		     void *APPptr)
+{
+  typedef void (ScanFunc)(char *, int, char *, int, int *, void *);
+  MapReduce *mr = (MapReduce *) MRptr;
+  ScanFunc *appscan = (ScanFunc *) myscan;
+  return mr->scan(appscan,APPptr);
+}
+
+uint64_t MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return mr->scrunch(numprocs,key,keybytes);
+}
 uint64_t MR_sort_keys(void *MRptr, int (*mycompare)(char *, int, char *, int))
 {
   MapReduce *mr = (MapReduce *) MRptr;

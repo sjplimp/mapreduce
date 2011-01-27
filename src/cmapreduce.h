@@ -101,13 +101,18 @@ uint64_t MR_reduce(void *MRptr,
 		   void (*myreduce)(char *, int, char *,
 				    int, int *, void *KVptr, void *APPptr),
 		   void *APPptr);
-uint64_t MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes);
-
 uint64_t MR_multivalue_blocks(void *MRptr);
 void MR_multivalue_block_select(void *MRptr, int which);
 int MR_multivalue_block(void *MRptr, int iblock,
 			char **ptr_multivalue, int **ptr_valuesizes);
+uint64_t MR_scan_kv(void *MRptr,
+		    void (*myscan)(uint64_t, char *, int, char *, int, void *),
+		    void *APPptr);
+uint64_t MR_scan_kmv(void *MRptr,
+		     void (*myscan)(char *, int, char *, int, int *, void *),
+		     void *APPptr);
 
+uint64_t MR_scrunch(void *MRptr, int numprocs, char *key, int keybytes);
 uint64_t MR_sort_keys(void *MRptr, 
 		      int (*mycompare)(char *, int, char *, int));
 uint64_t MR_sort_keys_flag(void *MRptr, int);

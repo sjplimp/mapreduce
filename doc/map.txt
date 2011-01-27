@@ -136,7 +136,11 @@ For the last variant, if the source of KeyValue pairs (mr2) is the
 same as MapReduce object mr, there are two possibilities.  If addflag
 is 1, then newly generated KV pairs are added to the existing KeyValue
 object.  If addflag is 0, then the existing KeyValue object is
-effectively replaced by the newly generated KV pairs.
+effectively replaced by the newly generated KV pairs.  Note that the
+addflag=1 option requires the KeyValue object to first be copied.  If
+your mymap() function will not generate any new KV pairs, then it is
+more efficient to use the "scan()"_scan.html method, which simply
+allows you to iterated over the existing KV pairs.
 
 :line 
 

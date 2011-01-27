@@ -50,8 +50,6 @@ class SGIEnumerate {
 		   MAPREDUCE_NS::KeyValue *, void *);
   static void map3(uint64_t, char *, int, char *, int,
 		   MAPREDUCE_NS::KeyValue *, void *);
-  static void map4(uint64_t, char *, int, char *, int,
-		   MAPREDUCE_NS::KeyValue *, void *);
   static void reduce1a(char *, int, char *, int, int *,
 		      MAPREDUCE_NS::KeyValue *, void *);
   static void reduce1b(char *, int, char *, int, int *,

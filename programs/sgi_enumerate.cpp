@@ -51,6 +51,11 @@ double SGIEnumerate::run(MapReduce *mrv, MapReduce *mre,
   MPI_Barrier(world);
   double tstart = MPI_Wtime();
 
+  //printf("MRV print\n");
+  //mrv->print(-1,1,2,1);
+  //printf("MRE print\n");
+  //mre->print(-1,1,7,1);
+
   // pre-calculate X = Vi : Vj Wi Wj Fij, two for each edge in big graph
 
   mrv->aggregate(NULL);
@@ -113,13 +118,6 @@ double SGIEnumerate::run(MapReduce *mrv, MapReduce *mre,
   MPI_Barrier(world);
   double tstop = MPI_Wtime();
 
-  // write tours to sgi.out.P
-
-  outfile = "sgi.out";
-  fp = NULL;
-  mrs->map(mrs,map4,this);
-  if (fp) fclose(fp);
-
   return tstop-tstart;
 }
 
@@ -167,30 +165,6 @@ void SGIEnumerate::map3(uint64_t itask, char *key, int keybytes,
       kv->add(key,keybytes,(char *) &pair,sizeof(EDGE));
     }
   }
-}
-
-/* ---------------------------------------------------------------------- */
-
-void SGIEnumerate::map4(uint64_t itask, char *key, int keybytes, 
-			char *value, int valuebytes, KeyValue *kv, void *ptr) 
-{
-  SGIEnumerate *sgi = (SGIEnumerate *) ptr;
-
-  if (itask == 0) {
-    char fname[16];
-    sprintf(fname,"%s.%d",sgi->outfile,sgi->me);
-    sgi->fp = fopen(fname,"w");
-  }
-  FILE *fp = sgi->fp;
-
-  int ntourm1 = sgi->ntour - 1;
-  VERTEX *vlast = (VERTEX *) key;
-  VERTEX *vlist = (VERTEX *) value;
-
-  for (int i = 0; i < ntourm1; i++) fprintf(fp,"%lu ",vlist[i]);
-  fprintf(fp,"%lu\n",*vlast);
-
-  kv->add(key,keybytes,value,valuebytes);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -490,10 +464,10 @@ void SGIEnumerate::x1print(uint64_t itask, char *key, int keybytes,
     X1VALUE *x = (X1VALUE *) value;
     VERTEX vj = x->vj;
     int fij = x->fij;
-    printf("MR X1a: %d %d: %lu %lu %d\n",keybytes,valuebytes,vi,vj,fij);
+    printf("MR X1a: %d %d: %lu, %lu %d\n",keybytes,valuebytes,vi,vj,fij);
   } else {
-    VERTEX vj = *(VERTEX *) value;
-    printf("MR X1b: %d %d: %lu %lu\n",keybytes,valuebytes,vi,vj);
+    int wi = *(int *) value;
+    printf("MR X1b: %d %d: %lu, %d\n",keybytes,valuebytes,vi,wi);
   }
 }
 
@@ -510,11 +484,11 @@ void SGIEnumerate::x2print(uint64_t itask, char *key, int keybytes,
     VERTEX vi = x->vi;
     int wi = x->wi;
     int fij = x->fij;
-    printf("MR X2a: %d: %d %d: %lu %lu %d %d\n",
+    printf("MR X2a: %d: %d %d: %lu, %lu %d %d\n",
 	   me,keybytes,valuebytes,v,vi,wi,fij);
   } else {
-    VERTEX vj = *(VERTEX *) value;
-    printf("MR X2b: %d: %d %d: %lu %lu\n",me,keybytes,valuebytes,v,vj);
+    int wi = *(int *) value;
+    printf("MR X2b: %d: %d %d: %lu, %d\n",me,keybytes,valuebytes,v,wi);
   }
 }
 
@@ -528,7 +502,7 @@ void SGIEnumerate::x3print(uint64_t itask, char *key, int keybytes,
   int wi = x->wi;
   int wj = x->wj;
   int fij = x->fij;
-  printf("MR X3: %d %d: %lu %lu: %d %d %d\n",
+  printf("MR X3: %d %d: %lu, %lu %d %d %d\n",
 	 keybytes,valuebytes,vi,vj,wi,wj,fij);
 }
 
