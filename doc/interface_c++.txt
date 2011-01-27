@@ -50,6 +50,7 @@ how the various operations can be chained together in your program.
 "reduce()"_reduce.html, KMV -> KV, calls back to user program to process KMV pairs, serial, 3 pages
 "open()"_open.html, create or add to a KV, allows one MapReduce object to add KV pairs to another, serial, 0 pages
 "print()"_print.html, KV or KMV, print KV or KMV pairs to screen or file(s), serial, 1 page
+"scan()"_scan.html, KV or KMV, calls back to user program to process KV or KMV pairs, serial, 1 page
 "scrunch()"_scrunch.html, KV -> KMV, gather + collapse, parallel, 3 pages
 "sort_keys()"_sort_keys.html, KV -> KV, calls back to user program to sort pairs by key, serial, 5 pages
 "sort_values()"_sort_values.html, KV -> KV, calls back to user program to sort pairs by value, serial, 5 pages

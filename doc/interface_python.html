@@ -396,22 +396,38 @@ mr.print_file(file,fflag,proc,nstride,kflag,vflag)
 			    #   make calls like mr->add(key,value)
 mr.reduce(myreduce,ptr)     # if specified, ptr is any Python datum
 			    #    and is passed back to your myreduce()
-			    # if not specified, ptr = None
-mr.scrunch(nprocs,key) 
+			    # if not specified, ptr = None 
 </PRE>
-<PRE>mr.sort_keys(mycompare)
+<PRE>mr.scan_kv(myscan)          # myscan is a function called back from the
+			    #   library as myscan(key,value,ptr)
+			    #   for each key/value pair
+			    #   and you (optionally) provide ptr (see below)
+mr.scan_kv(myscan,ptr)      # if specified, ptr is any Python datum
+			    #    and is passed back to your myreduce()
+			    # if not specified, ptr = None 
+</PRE>
+<PRE>mr.scan_kmv(myscan)         # myscan is a function called back from the
+			    #   library as myreduce(key,mvalue,ptr)
+			    #   where mvalue is a list of values associated
+			    #   with the key,
+			    #   and you (optionally) provide ptr (see below)
+mr.scan_kmv(myscan,ptr)     # if specified, ptr is any Python datum
+			    #    and is passed back to your myreduce()
+			    # if not specified, ptr = None 
+</PRE>
+<PRE>mr.scrunch(nprocs,key)
+mr.sort_keys(mycompare)
 mr.sort_values(mycompare)
 mr.sort_multivalues(mycompare) # compare is a function called back from the
 			       #   library as mycompare(a,b) where
 			       #   a and b are two keys or two values
 			       # your mycompare() should compare them
 			       #   and return a -1, 0, or 1 
-			       #   if a < b, or a == b, or a > b 
-</PRE>
-<P>mr.sort_keys_flag(flag)
+			       #   if a < b, or a == b, or a > b
+mr.sort_keys_flag(flag)
 mr.sort_values_flag(flag)
-mr.sort_multivalues_flag(flag)
-</P>
+mr.sort_multivalues_flag(flag) 
+</PRE>
 <PRE>mr.kv_stats(level)
 mr.kmv_stats(level) 
 </PRE>

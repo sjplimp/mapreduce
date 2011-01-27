@@ -392,9 +392,25 @@ mr.reduce(myreduce)         # myreduce is a function called back from the
 			    #   make calls like mr->add(key,value)
 mr.reduce(myreduce,ptr)     # if specified, ptr is any Python datum
 			    #    and is passed back to your myreduce()
-			    # if not specified, ptr = None
-mr.scrunch(nprocs,key) :pre
+			    # if not specified, ptr = None :pre
 
+mr.scan_kv(myscan)          # myscan is a function called back from the
+			    #   library as myscan(key,value,ptr)
+			    #   for each key/value pair
+			    #   and you (optionally) provide ptr (see below)
+mr.scan_kv(myscan,ptr)      # if specified, ptr is any Python datum
+			    #    and is passed back to your myreduce()
+			    # if not specified, ptr = None :pre
+mr.scan_kmv(myscan)         # myscan is a function called back from the
+			    #   library as myreduce(key,mvalue,ptr)
+			    #   where mvalue is a list of values associated
+			    #   with the key,
+			    #   and you (optionally) provide ptr (see below)
+mr.scan_kmv(myscan,ptr)     # if specified, ptr is any Python datum
+			    #    and is passed back to your myreduce()
+			    # if not specified, ptr = None :pre
+
+mr.scrunch(nprocs,key)
 mr.sort_keys(mycompare)
 mr.sort_values(mycompare)
 mr.sort_multivalues(mycompare) # compare is a function called back from the
