@@ -9,22 +9,25 @@ MapReduce kv_stats() method :h3
 MapReduce kmv_stats() method :h3
 MapReduce cummulative_stats() method :h3
 
-void MapReduce::kv_stats(int level)
-void MapReduce::kmv_stats(int level)
+uint64_t MapReduce::kv_stats(int level)
+uint64_t MapReduce::kmv_stats(int level)
 void MapReduce::cummulative_stats(int level, int reset) :pre
 
 Calling the kv_stats() method prints statistics about the KeyValue
-object stored within the MapReduce object.  If level = 1 is specified,
-a one-line summary is printed for all the key/value pairs across all
-processors.  If a level = 2 is specified, per-processor information is
-also printed in a one-line histogram format.
-
-Calling the kmv_stats() method prints statistics about the
-KeyMultiValue object stored within the MapReduce object.  If level = 1
-is specified, a one-line summary is printed for all the
-key/multi-value pairs across all processors.  If a level = 2 is
+object stored within the MapReduce object.  The total number of
+key/value pairs is returned.  If level = 0 is specified, nothing else
+is done.  If level = 1 is specified, a one-line summary is printed for
+all the key/value pairs across all processors.  If a level = 2 is
 specified, per-processor information is also printed in a one-line
 histogram format.
+
+Calling the kmv_stats() method prints statistics about the
+KeyMultiValue object stored within the MapReduce object.  The total
+number of key/multi-value pairs is returned.  If level = 0 is
+specified, nothing else is done.  If level = 1 is specified, a
+one-line summary is printed for all the key/multi-value pairs across
+all processors.  If a level = 2 is specified, per-processor
+information is also printed in a one-line histogram format.
 
 Calling the cummulative_stats() method prints statistics about the
 cummulative memory allocation, inter-processor communication volume,
