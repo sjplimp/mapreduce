@@ -311,8 +311,8 @@ class mrmpi:
       value = loads(multivalue[start:stop])
       mvalue.append(value)
       start = stop
-    if self.scan_argcount == 3: self.scan_caller(key,mvalue,self)
-    else: self.scan_caller(key,mvalue,self,self.scan_ptr)
+    if self.scan_argcount == 3: self.scan_caller(key,mvalue)
+    else: self.scan_caller(key,mvalue,self.scan_ptr)
 
   def scan_kmv(self,scan,ptr=None):
     self.scan_caller = scan
@@ -324,8 +324,8 @@ class mrmpi:
   def scankmv_callback(self,itask,ckey,keybytes,cvalue,valuebytes,dummy):
     key = loads(ckey[:keybytes])
     value = loads(cvalue[:valuebytes])
-    if self.scan_argcount == 3: self.scan_caller(itask,key,value,self)
-    else: self.scan_caller(itask,key,value,self,self.scan_ptr)
+    if self.scan_argcount == 3: self.scan_caller(itask,key,value)
+    else: self.scan_caller(itask,key,value,self.scan_ptr)
 
   def scrunch(self,nprocs,key):
     ckey = dumps(key,1)
