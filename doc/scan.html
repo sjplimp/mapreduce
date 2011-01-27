@@ -15,21 +15,22 @@ uint64_t MapReduce::scan(void (*myscan)(char *, int, char *, int, int *, void *)
 <P>This calls the scan() method of a MapReduce object, passing it a
 function pointer to a myscan function you write.  Depending on whether
 you pass it a function for processing key/value (KV) or
-key/multi-value (KMV) pairs, it will call your myscan function oce for
-each KV or KMV pair owned by that processor.  The KV or KMV pairs
+key/multi-value (KMV) pairs, it will call your myscan function once
+for each KV or KMV pair owned by that processor.  The KV or KMV pairs
 stored by the MapReduce object are not altered by this operation, nor
 are you allowed to emit any new KV pairs.  Thus your myscan function
 is not passed a KV pointer.  This is a useful way to simply scan over
 the existing KV or KMV pairs and process them in some way, e.g. for
-debugging or output.
+debugging or statistics generation or output.
 </P>
 <P>Contrast this method with the <A HREF = "map.html">map()</A> method variant that
-takes the same MapReduce object as input and returns KV pairs to your
-mymap() function.  If the addflag parameter is set to 0, your existing
-KV pairs are deleted by this action.  If the addflag parameter is set
-to 1, and you emit no new KV pairs, then your existing KV pairs are
-unchanged.  However a copy of all your KV pairs is performed to insure
-this outcome.  The scan() method avoids this copy.
+takes a MapReduce object as input and returns KV pairs to your mymap()
+function.  If that MapReduce object is the same as the caller and if
+the addflag parameter is set to 0, your existing KV pairs are deleted
+by this action.  If the addflag parameter is set to 1, and you emit no
+new KV pairs, then your existing KV pairs are unchanged.  However a
+copy of all your KV pairs is first performed to insure this outcome.
+The scan() method avoids this copy.
 </P>
 <P>Also contrast this method with the <A HREF = "reduce.html">reduce()</A> method which
 returns KMV pairs to your myreduce() function.  Your existing KMV
@@ -59,15 +60,13 @@ The first is that it fits in one page of memory allocated by the
 MapReduce object, which is the usual case.  Or it does not, in which
 case the meaning of the arguments passed to your function is changed.
 This behavior is identical to that of the <A HREF = "reduce.html">reduce()</A>
-method, including the meaning of the arguments returned to your myscan()
-function and the 3 additional library functions you can call to
-retrieve additional values in the KMV pair, namely:
+method, including the meaning of the arguments returned to your
+myscan() function, and the 3 additional library functions you can call
+to retrieve additional values in the KMV pair, namely:
 </P>
-<PRE>uint64_t MapReduce::multivalue_blocks() 
-</PRE>
-<PRE>int MapReduce::multivalue_block(int iblock, char **ptr_multivalue, int **ptr_valuesizes) 
-</PRE>
-<PRE>void MapReduce::multivalue_block_select(int which) 
+<PRE>uint64_t MapReduce::multivalue_blocks()
+int MapReduce::multivalue_block(int iblock, char **ptr_multivalue, int **ptr_valuesizes)
+void MapReduce::multivalue_block_select(int which) 
 </PRE>
 <P>See the <A HREF = "reduce.html">reduce()</A> method doc page for details.
 </P>
@@ -75,7 +74,7 @@ retrieve additional values in the KMV pair, namely:
 Details</A> sections for details on the byte-alignment of
 keys and values that are passed to your myscan() function.  Note that
 only the first value of a multi-value (or of each block of values)
-passed to your myreduce() function will be aligned to the <I>valuealign</I>
+passed to your myscan() function will be aligned to the <I>valuealign</I>
 <A HREF = "settings.html">setting</A>.
 </P>
 <P>This method is an on-processor operation, requiring no communication.
