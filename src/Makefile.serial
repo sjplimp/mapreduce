@@ -1,7 +1,7 @@
 # Serial Makefile for MapReduce library, g++, no MPI
 
 CC =		g++
-CCFLAGS =	-O -I../mpistubs
+CCFLAGS =	-g -O -I../mpistubs
 DEPFLAGS =	-M
 ARCHIVE =	ar
 ARFLAGS =	-rc

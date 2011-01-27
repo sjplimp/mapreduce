@@ -118,8 +118,8 @@ uint64_t MR_sort_multivalues(void *MRptr,
 			     int (*mycompare)(char *, int, char *, int));
 uint64_t MR_sort_multivalues_flag(void *MRptr, int);
 
-void MR_kv_stats(void *MRptr, int level);
-void MR_kmv_stats(void *MRptr, int level);
+uint64_t MR_kv_stats(void *MRptr, int level);
+uint64_t MR_kmv_stats(void *MRptr, int level);
 void MR_cummulative_stats(void *MRptr, int level, int reset);
 
 void MR_set_mapstyle(void *MRptr, int value);

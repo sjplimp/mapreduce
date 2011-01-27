@@ -112,8 +112,8 @@ class MapReduce {
   uint64_t sort_multivalues(int);
   uint64_t sort_multivalues(int (*)(char *, int, char *, int));
 
-  void kv_stats(int);
-  void kmv_stats(int);
+  uint64_t kv_stats(int);
+  uint64_t kmv_stats(int);
   void cummulative_stats(int, int);
 
   void set_fpath(const char *);

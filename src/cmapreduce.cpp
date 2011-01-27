@@ -341,16 +341,16 @@ uint64_t MR_sort_multivalues_flag(void *MRptr, int flag)
   return mr->sort_multivalues(flag);
 }
 
-void MR_kv_stats(void *MRptr, int level)
+uint64_t MR_kv_stats(void *MRptr, int level)
 {
   MapReduce *mr = (MapReduce *) MRptr;
-  mr->kv_stats(level);
+  return mr->kv_stats(level);
 }
 
-void MR_kmv_stats(void *MRptr, int level)
+uint64_t MR_kmv_stats(void *MRptr, int level)
 {
   MapReduce *mr = (MapReduce *) MRptr;
-  mr->kmv_stats(level);
+  return mr->kmv_stats(level);
 }
 
 void MR_cummulative_stats(void *MRptr, int level, int reset)

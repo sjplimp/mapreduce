@@ -2564,7 +2564,7 @@ void MapReduce::bcastfiles(int &nfile, char **&files)
    print stats for KV
 ------------------------------------------------------------------------- */
 
-void MapReduce::kv_stats(int level)
+uint64_t MapReduce::kv_stats(int level)
 {
   if (kv == NULL) error->all("Cannot print stats without KeyValue");
 
@@ -2578,23 +2578,28 @@ void MapReduce::kv_stats(int level)
   MPI_Allreduce(&kv->esize,&esizeall,1,MRMPI_BIGINT,MPI_SUM,comm);
   MPI_Allreduce(&kv->npage,&npages,1,MPI_INT,MPI_SUM,comm);
 
-  if (me == 0)
-    printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %.3g Mb, "
-	   "%d pages\n",
-	   nkeyall,ksizeall/mbyte,vsizeall/mbyte,esizeall/mbyte,npages);
+  if (level == 0) return nkeyall;
+
+  if (level == 1)
+    if (me == 0)
+      printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %.3g Mb, "
+	     "%d pages\n",
+	     nkeyall,ksizeall/mbyte,vsizeall/mbyte,esizeall/mbyte,npages);
 
   if (level == 2) {
     write_histo((double) kv->nkv,"  KV pairs:");
     write_histo(kv->ksize/mbyte,"  Kdata (Mb):");
     write_histo(kv->vsize/mbyte,"  Vdata (Mb):");
   }
+  
+  return nkeyall;
 }
 
 /* ----------------------------------------------------------------------
    print stats for KMV
 ------------------------------------------------------------------------- */
 
-void MapReduce::kmv_stats(int level)
+uint64_t MapReduce::kmv_stats(int level)
 {
   if (kmv == NULL) error->all("Cannot print stats without KeyMultiValue");
 
@@ -2608,7 +2613,10 @@ void MapReduce::kmv_stats(int level)
   MPI_Allreduce(&kmv->esize,&esizeall,1,MRMPI_BIGINT,MPI_SUM,comm);
   MPI_Allreduce(&kmv->npage,&npages,1,MPI_INT,MPI_SUM,comm);
   
-  if (me == 0)
+  if (level == 0) return nkeyall;
+
+  if (level == 1)
+    if (me == 0)
       printf("%lu pairs, %.3g Mb keys, %.3g Mb values, %.3g Mb, "
 	     "%d pages\n",
 	     nkeyall,ksizeall/mbyte,vsizeall/mbyte,esizeall/mbyte,npages);
@@ -2618,6 +2626,8 @@ void MapReduce::kmv_stats(int level)
     write_histo(kmv->ksize/mbyte,"  Kdata (Mb):");
     write_histo(kmv->vsize/mbyte,"  Vdata (Mb):");
   }
+
+  return nkeyall;
 }
 
 /* ----------------------------------------------------------------------
