@@ -106,7 +106,7 @@ void MR_multivalue_block_select(void *MRptr, int which);
 int MR_multivalue_block(void *MRptr, int iblock,
 			char **ptr_multivalue, int **ptr_valuesizes);
 uint64_t MR_scan_kv(void *MRptr,
-		    void (*myscan)(uint64_t, char *, int, char *, int, void *),
+		    void (*myscan)(char *, int, char *, int, void *),
 		    void *APPptr);
 uint64_t MR_scan_kmv(void *MRptr,
 		     void (*myscan)(char *, int, char *, int, int *, void *),

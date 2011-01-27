@@ -98,7 +98,7 @@ class MapReduce {
   void print(char *, int, int, int, int, int);
   uint64_t reduce(void (*)(char *, int, char *,
 			   int, int *, class KeyValue *, void *), void *);
-  uint64_t scan(void (*)(uint64_t, char *, int, char *, int, void *), void *);
+  uint64_t scan(void (*)(char *, int, char *, int, void *), void *);
   uint64_t scan(void (*)(char *, int, char *, int, int *, void *), void *);
   uint64_t scrunch(int, char *, int);
 

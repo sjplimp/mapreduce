@@ -298,10 +298,10 @@ int MR_multivalue_block(void *MRptr, int iblock,
 }
 
 uint64_t MR_scan_kv(void *MRptr,
-		    void (*myscan)(uint64_t, char *, int, char *, int, void *),
+		    void (*myscan)(char *, int, char *, int, void *),
 		    void *APPptr)
 {
-  typedef void (ScanFunc)(uint64_t, char *, int, char *, int, void *);
+  typedef void (ScanFunc)(char *, int, char *, int, void *);
   MapReduce *mr = (MapReduce *) MRptr;
   ScanFunc *appscan = (ScanFunc *) myscan;
   return mr->scan(appscan,APPptr);

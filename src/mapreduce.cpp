@@ -1796,7 +1796,7 @@ int MapReduce::multivalue_block(int iblock,
    each proc processes its owned KV pairs
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::scan(void (*appscan)(uint64_t, char *, int, char *, int, 
+uint64_t MapReduce::scan(void (*appscan)(char *, int, char *, int, 
 					 void *), void *appptr)
 {
   if (kv == NULL) error->all("Cannot scan without KeyValue");
@@ -1809,7 +1809,6 @@ uint64_t MapReduce::scan(void (*appscan)(uint64_t, char *, int, char *, int,
   uint64_t dummy1,dummy2,dummy3;
   char *page_kv,*ptr,*key,*value;
   int npage_kv = kv->request_info(&page_kv);
-  uint64_t n = 0;
 
   for (int ipage = 0; ipage < npage_kv; ipage++) {
     nkey_kv = kv->request_page(ipage,dummy1,dummy2,dummy3);
@@ -1828,7 +1827,7 @@ uint64_t MapReduce::scan(void (*appscan)(uint64_t, char *, int, char *, int,
       ptr += valuebytes;
       ptr = ROUNDUP(ptr,talignm1);
 
-      appscan(n++,key,keybytes,value,valuebytes,appptr);
+      appscan(key,keybytes,value,valuebytes,appptr);
     }
   }
 
@@ -1848,7 +1847,8 @@ uint64_t MapReduce::scan(void (*appscan)(uint64_t, char *, int, char *, int,
    each proc processes its owned KMV pairs
 ------------------------------------------------------------------------- */
 
-uint64_t MapReduce::scan(void (*appscan)(char *, int, char *, int, int *,
+uint64_t MapReduce::scan(void (*appscan)(char *, int, 
+					 char *, int, int *,
 					 void *), void *appptr)
 {
   if (kmv == NULL) error->all("Cannot scan without KeyMultiValue");
