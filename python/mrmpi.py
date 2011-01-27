@@ -67,12 +67,11 @@ class mrmpi:
     self.reduce_def = REDUCEFUNC(self.reduce_callback)
 
     SCANKVFUNC = CFUNCTYPE(c_void_p,POINTER(c_char),c_int,
-                           POINTER(c_char),c_int,POINTER(c_int),
-                           c_void_p)
+                           POINTER(c_char),c_int,c_void_p)
     self.scankv_def = SCANKVFUNC(self.scankv_callback)
 
-    SCANKMVFUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
-                            POINTER(c_char),c_int,c_void_p)
+    SCANKMVFUNC = CFUNCTYPE(c_void_p,POINTER(c_char),c_int,
+                            POINTER(c_char),c_int,POINTER(c_int),c_void_p)
     self.scankmv_def = SCANKMVFUNC(self.scankmv_callback)
 
     # create an instance of MR-MPI library
@@ -302,6 +301,19 @@ class mrmpi:
     n = self.lib.MR_scan_kv(self.mr,self.scankv_def,None)
     return n
 
+  def scankv_callback(self,ckey,keybytes,cvalue,valuebytes,dummy):
+    key = loads(ckey[:keybytes])
+    value = loads(cvalue[:valuebytes])
+    if self.scan_argcount == 3: self.scan_caller(key,value)
+    else: self.scan_caller(key,value,self.scan_ptr)
+
+  def scan_kmv(self,scan,ptr=None):
+    self.scan_caller = scan
+    self.scan_argcount = scan.func_code.co_argcount
+    self.scan_ptr = ptr
+    n = self.lib.MR_scan_kmv(self.mr,self.scankmv_def,None)
+    return n
+
   def scankv_callback(self,ckey,keybytes,multivalue,nvalues,valuesizes,dummy):
     key = loads(ckey[:keybytes])
     mvalue = []
@@ -313,19 +325,6 @@ class mrmpi:
       start = stop
     if self.scan_argcount == 3: self.scan_caller(key,mvalue)
     else: self.scan_caller(key,mvalue,self.scan_ptr)
-
-  def scan_kmv(self,scan,ptr=None):
-    self.scan_caller = scan
-    self.scan_argcount = scan.func_code.co_argcount
-    self.scan_ptr = ptr
-    n = self.lib.MR_scan_kmv(self.mr,self.scankmv_def,None)
-    return n
-
-  def scankmv_callback(self,itask,ckey,keybytes,cvalue,valuebytes,dummy):
-    key = loads(ckey[:keybytes])
-    value = loads(cvalue[:valuebytes])
-    if self.scan_argcount == 3: self.scan_caller(itask,key,value)
-    else: self.scan_caller(itask,key,value,self.scan_ptr)
 
   def scrunch(self,nprocs,key):
     ckey = dumps(key,1)
