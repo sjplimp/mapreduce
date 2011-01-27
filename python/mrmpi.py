@@ -66,6 +66,15 @@ class mrmpi:
                            c_void_p,c_void_p)
     self.reduce_def = REDUCEFUNC(self.reduce_callback)
 
+    SCANKVFUNC = CFUNCTYPE(c_void_p,POINTER(c_char),c_int,
+                           POINTER(c_char),c_int,POINTER(c_int),
+                           c_void_p)
+    self.scankv_def = SCANKVFUNC(self.scankv_callback)
+
+    SCANKMVFUNC = CFUNCTYPE(c_void_p,c_int,POINTER(c_char),c_int,
+                            POINTER(c_char),c_int,c_void_p)
+    self.scankmv_def = SCANKMVFUNC(self.scankmv_callback)
+
     # create an instance of MR-MPI library
     
     if comm == None: self.mr = self.lib.MR_create_mpi()
@@ -285,6 +294,38 @@ class mrmpi:
       start = stop
     if self.reduce_argcount == 3: self.reduce_caller(key,mvalue,self)
     else: self.reduce_caller(key,mvalue,self,self.reduce_ptr)
+
+  def scan_kv(self,scan,ptr=None):
+    self.scan_caller = scan
+    self.scan_argcount = scan.func_code.co_argcount
+    self.scan_ptr = ptr
+    n = self.lib.MR_scan_kv(self.mr,self.scankv_def,None)
+    return n
+
+  def scankv_callback(self,ckey,keybytes,multivalue,nvalues,valuesizes,dummy):
+    key = loads(ckey[:keybytes])
+    mvalue = []
+    start = 0
+    for i in xrange(nvalues):
+      stop = start + valuesizes[i]
+      value = loads(multivalue[start:stop])
+      mvalue.append(value)
+      start = stop
+    if self.scan_argcount == 3: self.scan_caller(key,mvalue,self)
+    else: self.scan_caller(key,mvalue,self,self.scan_ptr)
+
+  def scan_kmv(self,scan,ptr=None):
+    self.scan_caller = scan
+    self.scan_argcount = scan.func_code.co_argcount
+    self.scan_ptr = ptr
+    n = self.lib.MR_scan_kmv(self.mr,self.scankmv_def,None)
+    return n
+
+  def scankmv_callback(self,itask,ckey,keybytes,cvalue,valuebytes,dummy):
+    key = loads(ckey[:keybytes])
+    value = loads(cvalue[:valuebytes])
+    if self.scan_argcount == 3: self.scan_caller(itask,key,value,self)
+    else: self.scan_caller(itask,key,value,self,self.scan_ptr)
 
   def scrunch(self,nprocs,key):
     ckey = dumps(key,1)
