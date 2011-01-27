@@ -335,10 +335,12 @@ class mrmpi:
     return self.compare_caller(obj1,obj2)
 
   def kv_stats(self,level):
-    self.lib.MR_kv_stats(self.mr,level)
-
+    n = self.lib.MR_kv_stats(self.mr,level)
+    return n
+  
   def kmv_stats(self,level):
-    self.lib.MR_kmv_stats(self.mr,level)
+    n = self.lib.MR_kmv_stats(self.mr,level)
+    return n
 
   def mapstyle(self,value):
     self.lib.MR_set_mapstyle(self.mr,value)
