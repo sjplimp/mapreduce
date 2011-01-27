@@ -40,6 +40,17 @@ patch.
 :line
 :line
 
+[27 Jan 2011]
+
+Added a "scan()"_doc/scan.html method to the MR-MPI library to
+process existing key/value or key/multi-value pairs without changing or
+deleting them.
+
+This is the "list of changed files"_patches/files.27Jan11 from the 21
+Jan 2011 version.
+
+:line
+
 [21 Jan 2011]
 
 Added version string to distribution.
