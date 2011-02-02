@@ -59,6 +59,13 @@ int compare_double(char *, int, char *, int);
 int compare_str(char *, int, char *, int);
 int compare_strn(char *, int, char *, int);
 
+int compare_int_reverse(char *, int, char *, int);
+int compare_uint64_reverse(char *, int, char *, int);
+int compare_float_reverse(char *, int, char *, int);
+int compare_double_reverse(char *, int, char *, int);
+int compare_str_reverse(char *, int, char *, int);
+int compare_strn_reverse(char *, int, char *, int);
+
 #define MIN(A,B) ((A) < (B)) ? (A) : (B)
 #define MAX(A,B) ((A) > (B)) ? (A) : (B)
 
@@ -1215,13 +1222,16 @@ uint64_t MapReduce::map_chunks(int nmap, int nfile, char **files,
 					      int, KeyValue *, void *),
 			       void *appptr, int addflag)
 {
-  if (nfile > nmap) error->all("Cannot map with more files than chunks");
   if (timer) start_timer();
   if (verbosity) file_stats(0);
 
   if (!allocated) allocate();
   delete kmv;
   kmv = NULL;
+
+  // must have at least as many chunks as files
+
+  if (nfile > nmap) nmap = nfile;
 
   // copy filenames into FileMap
 
@@ -1967,12 +1977,27 @@ uint64_t MapReduce::scrunch(int numprocs, char *key, int keybytes)
 
 uint64_t MapReduce::sort_keys(int flag)
 {
-  if (flag == 1) return sort_keys(compare_int);
-  else if (flag == 2) return sort_keys(compare_uint64);
-  else if (flag == 3) return sort_keys(compare_float);
-  else if (flag == 4) return sort_keys(compare_double);
-  else if (flag == 5) return sort_keys(compare_str);
-  else if (flag == 6) return sort_keys(compare_strn);
+  int absflag = flag;
+  if (flag < 0) absflag = -flag;
+  if (absflag == 1) {
+    if (flag > 0) return sort_keys(compare_int);
+    else return sort_keys(compare_int_reverse);
+  } else if (absflag == 2) {
+    if (flag > 0) return sort_keys(compare_uint64);
+    else return sort_keys(compare_uint64_reverse);
+  } else if (absflag == 3) {
+    if (flag > 0) return sort_keys(compare_float);
+    else return sort_keys(compare_float_reverse);
+  } else if (absflag == 4) {
+    if (flag > 0) return sort_keys(compare_double);
+    else return sort_keys(compare_double_reverse);
+  } else if (absflag == 5) {
+    if (flag > 0) return sort_keys(compare_str);
+    else return sort_keys(compare_str_reverse);
+  } else if (absflag == 6) {
+    if (flag > 0) return sort_keys(compare_strn);
+    else return sort_keys(compare_strn_reverse);
+  }
   error->all("Invalid compare method for sort keys");
 }
 
@@ -2006,12 +2031,27 @@ uint64_t MapReduce::sort_keys(int (*appcompare)(char *, int, char *, int))
 
 uint64_t MapReduce::sort_values(int flag)
 {
-  if (flag == 1) return sort_values(compare_int);
-  else if (flag == 2) return sort_values(compare_uint64);
-  else if (flag == 3) return sort_values(compare_float);
-  else if (flag == 4) return sort_values(compare_double);
-  else if (flag == 5) return sort_values(compare_str);
-  else if (flag == 6) return sort_values(compare_strn);
+  int absflag = flag;
+  if (flag < 0) absflag = -flag;
+  if (absflag == 1) {
+    if (flag > 0) return sort_values(compare_int);
+    else return sort_values(compare_int_reverse);
+  } else if (absflag == 2) {
+    if (flag > 0) return sort_values(compare_uint64);
+    else return sort_values(compare_uint64_reverse);
+  } else if (absflag == 3) {
+    if (flag > 0) return sort_values(compare_float);
+    else return sort_values(compare_float_reverse);
+  } else if (absflag == 4) {
+    if (flag > 0) return sort_values(compare_double);
+    else return sort_values(compare_double_reverse);
+  } else if (absflag == 5) {
+    if (flag > 0) return sort_values(compare_str);
+    else return sort_values(compare_str_reverse);
+  } else if (absflag == 6) {
+    if (flag > 0) return sort_values(compare_strn);
+    else return sort_values(compare_strn_reverse);
+  }
   error->all("Invalid compare method for sort values");
 }
 
@@ -2045,12 +2085,27 @@ uint64_t MapReduce::sort_values(int (*appcompare)(char *, int, char *, int))
 
 uint64_t MapReduce::sort_multivalues(int flag)
 {
-  if (flag == 1) return sort_multivalues(compare_int);
-  else if (flag == 2) return sort_multivalues(compare_uint64);
-  else if (flag == 3) return sort_multivalues(compare_float);
-  else if (flag == 4) return sort_multivalues(compare_double);
-  else if (flag == 5) return sort_multivalues(compare_str);
-  else if (flag == 6) return sort_multivalues(compare_strn);
+  int absflag = flag;
+  if (flag < 0) absflag = -flag;
+  if (absflag == 1) {
+    if (flag > 0) return sort_multivalues(compare_int);
+    else return sort_multivalues(compare_int_reverse);
+  } else if (absflag == 2) {
+    if (flag > 0) return sort_multivalues(compare_uint64);
+    else return sort_multivalues(compare_uint64_reverse);
+  } else if (absflag == 3) {
+    if (flag > 0) return sort_multivalues(compare_float);
+    else return sort_multivalues(compare_float_reverse);
+  } else if (absflag == 4) {
+    if (flag > 0) return sort_multivalues(compare_double);
+    else return sort_multivalues(compare_double_reverse);
+  } else if (absflag == 5) {
+    if (flag > 0) return sort_multivalues(compare_str);
+    else return sort_multivalues(compare_str_reverse);
+  } else if (absflag == 6) {
+    if (flag > 0) return sort_multivalues(compare_strn);
+    else return sort_multivalues(compare_strn_reverse);
+  }
   error->all("Invalid compare method for sort multivalues");
 }
 
@@ -2519,6 +2574,15 @@ int compare_int(char *str1, int len1, char *str2, int len2)
   return 0;
 }
 
+int compare_int_reverse(char *str1, int len1, char *str2, int len2)
+{
+  int *i1 = (int *) str1;
+  int *i2 = (int *) str2;
+  if (*i1 < *i2) return 1;
+  if (*i1 > *i2) return -1;
+  return 0;
+}
+
 /* ----------------------------------------------------------------------
    compare 2 64-bit unsigned integers
 ------------------------------------------------------------------------- */
@@ -2529,6 +2593,15 @@ int compare_uint64(char *str1, int len1, char *str2, int len2)
   uint64_t *i2 = (uint64_t *) str2;
   if (*i1 < *i2) return -1;
   if (*i1 > *i2) return 1;
+  return 0;
+}
+
+int compare_uint64_reverse(char *str1, int len1, char *str2, int len2)
+{
+  uint64_t *i1 = (uint64_t *) str1;
+  uint64_t *i2 = (uint64_t *) str2;
+  if (*i1 < *i2) return 1;
+  if (*i1 > *i2) return -1;
   return 0;
 }
 
@@ -2545,6 +2618,15 @@ int compare_float(char *str1, int len1, char *str2, int len2)
   return 0;
 }
 
+int compare_float_reverse(char *str1, int len1, char *str2, int len2)
+{
+  float *i1 = (float *) str1;
+  float *i2 = (float *) str2;
+  if (*i1 < *i2) return 1;
+  if (*i1 > *i2) return -1;
+  return 0;
+}
+
 /* ----------------------------------------------------------------------
    compare 2 doubles
 ------------------------------------------------------------------------- */
@@ -2558,6 +2640,15 @@ int compare_double(char *str1, int len1, char *str2, int len2)
   return 0;
 }
 
+int compare_double_reverse(char *str1, int len1, char *str2, int len2)
+{
+  double *i1 = (double *) str1;
+  double *i2 = (double *) str2;
+  if (*i1 < *i2) return 1;
+  if (*i1 > *i2) return -1;
+  return 0;
+}
+
 /* ----------------------------------------------------------------------
    compare 2 NULL-terminated strings
 ------------------------------------------------------------------------- */
@@ -2567,6 +2658,11 @@ int compare_str(char *str1, int len1, char *str2, int len2)
   return strcmp(str1,str2);
 }
 
+int compare_str_reverse(char *str1, int len1, char *str2, int len2)
+{
+  return -strcmp(str1,str2);
+}
+
 /* ----------------------------------------------------------------------
    compare 2 non-NULL terminated strings via strncmp on shorter length
 ------------------------------------------------------------------------- */
@@ -2574,6 +2670,11 @@ int compare_str(char *str1, int len1, char *str2, int len2)
 int compare_strn(char *str1, int len1, char *str2, int len2)
 {
   return strncmp(str1,str2,MIN(len1,len2));
+}
+
+int compare_strn_reverse(char *str1, int len1, char *str2, int len2)
+{
+  return -strncmp(str1,str2,MIN(len1,len2));
 }
 
 /* ----------------------------------------------------------------------
