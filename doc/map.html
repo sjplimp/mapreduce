@@ -92,8 +92,9 @@ per file).  As with the previous variant, you also specify <I>nstr</I>,
 <I>strings</I>, <I>recurse</I>, and <I>readfile</I>.  This generates a list of
 filenames, the same as in the previous variant.  The only difference
 is that no <I>self</I> setting is allowed, because only processor 0 does
-this.  The specified <I>nmap</I> must be >= the number of files in the
-generated list.
+this.  The specified <I>nmap</I> should be >= the number of files in the
+generated list; it is reset to the number of files if that is not the
+case.
 </P>
 <P>For the third set of variants you specify a separation character
 <I>sepchar</I>.  For the fourth set of variants, you specify a separation

@@ -7,7 +7,7 @@
 
 MapReduce scan() method :h3
 
-uint64_t MapReduce::scan(void (*myscan)(uint64_t, char *, int, char *, int, void *), void *ptr)
+uint64_t MapReduce::scan(void (*myscan)(char *, int, char *, int, void *), void *ptr)
 uint64_t MapReduce::scan(void (*myscan)(char *, int, char *, int, int *, void *), void *ptr) :pre
 
 This calls the scan() method of a MapReduce object, passing it a

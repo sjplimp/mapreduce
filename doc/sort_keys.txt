@@ -23,16 +23,19 @@ For the second variant, you can select one of several pre-defined
 compare functions, so you do not have to write the compare function
 yourself:
 
-flag = 1 : compare 2 integers
-flag = 2 : compare 2 64-bit unsigned integers
-flag = 3 : compare 2 floats
-flag = 4 : compare 2 doubles
-flag = 5 : compare 2 NULL-terminated strings via strcmp()
-flag = 6 : compare 2 arbitrary strings via strncmp() :tb(s=:,ea=c)
+flag = +/- 1 : compare 2 integers
+flag = +/- 2 : compare 2 64-bit unsigned integers
+flag = +/- 3 : compare 2 floats
+flag = +/- 4 : compare 2 doubles
+flag = +/- 5 : compare 2 NULL-terminated strings via strcmp()
+flag = +/- 6 : compare 2 arbitrary strings via strncmp() :tb(s=:,ea=c)
 
-For the flag = 6 case, the 2 strings do not have to be NULL-terminated
-since only the first N characters are compared, where N is the shorter
-of the 2 string lengths.
+If the flag is positive, the sorting is done is ascending order; if
+the flag is negative, the sorting is done is descending order.
+
+For the flag = +/- 6 case, the 2 strings do not have to be
+NULL-terminated since only the first N characters are compared, where
+N is the shorter of the 2 string lengths.
 
 This method is used to sort key/value pairs by key before a KeyValue
 object is transformed into a KeyMultiValue object, e.g. via the

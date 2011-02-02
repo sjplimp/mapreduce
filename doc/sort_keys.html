@@ -26,17 +26,20 @@ compare functions, so you do not have to write the compare function
 yourself:
 </P>
 <DIV ALIGN=center><TABLE  BORDER=1 >
-<TR ALIGN="center"><TD >flag = 1 </TD><TD > compare 2 integers</TD></TR>
-<TR ALIGN="center"><TD >flag = 2 </TD><TD > compare 2 64-bit unsigned integers</TD></TR>
-<TR ALIGN="center"><TD >flag = 3 </TD><TD > compare 2 floats</TD></TR>
-<TR ALIGN="center"><TD >flag = 4 </TD><TD > compare 2 doubles</TD></TR>
-<TR ALIGN="center"><TD >flag = 5 </TD><TD > compare 2 NULL-terminated strings via strcmp()</TD></TR>
-<TR ALIGN="center"><TD >flag = 6 </TD><TD > compare 2 arbitrary strings via strncmp() 
+<TR ALIGN="center"><TD >flag = +/- 1 </TD><TD > compare 2 integers</TD></TR>
+<TR ALIGN="center"><TD >flag = +/- 2 </TD><TD > compare 2 64-bit unsigned integers</TD></TR>
+<TR ALIGN="center"><TD >flag = +/- 3 </TD><TD > compare 2 floats</TD></TR>
+<TR ALIGN="center"><TD >flag = +/- 4 </TD><TD > compare 2 doubles</TD></TR>
+<TR ALIGN="center"><TD >flag = +/- 5 </TD><TD > compare 2 NULL-terminated strings via strcmp()</TD></TR>
+<TR ALIGN="center"><TD >flag = +/- 6 </TD><TD > compare 2 arbitrary strings via strncmp() 
 </TD></TR></TABLE></DIV>
 
-<P>For the flag = 6 case, the 2 strings do not have to be NULL-terminated
-since only the first N characters are compared, where N is the shorter
-of the 2 string lengths.
+<P>If the flag is positive, the sorting is done is ascending order; if
+the flag is negative, the sorting is done is descending order.
+</P>
+<P>For the flag = +/- 6 case, the 2 strings do not have to be
+NULL-terminated since only the first N characters are compared, where
+N is the shorter of the 2 string lengths.
 </P>
 <P>This method is used to sort key/value pairs by key before a KeyValue
 object is transformed into a KeyMultiValue object, e.g. via the
