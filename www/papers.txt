@@ -5,10 +5,15 @@
 
 MapReduce-MPI Papers :h3
 
-We're working on a couple of papers which implement MapReduce
-algorithms for informatics problems, using the MR-MPI library.
-They'll be posted here when available.  Until then, please cite the
-"MapReduce-MPI WWW site"_mws, if you use the library in a paper.
+We have submitted a paper which describes the MR-MPI library
+and several MapReudce graph algorithms for informatics problems:
+
+[MapReduce in MPI for Large-Scale Graph Algorithms], Steven
+J. Plimpton and Karen D. Devine, to a special issue of Parallel
+Computing.  Hopefully it will appear early in 2011.
+
+Until then, please cite the "MapReduce-MPI WWW site"_mws, if you use
+the library in a paper.
 
 :line
 
