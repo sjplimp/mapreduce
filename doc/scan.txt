@@ -36,7 +36,7 @@ pairs are deleted by this action, and replaced with new KV pairs which
 you generate.
 
 You can give this method a pointer (void *ptr) which will be returned
-to your myscan() function.  See the "Technical Details"_technical.html
+to your myscan() function.  See the "Technical Details"_Technical.html
 section for why this can be useful.  Just specify a NULL if you don't
 need this.
 
@@ -69,7 +69,7 @@ void MapReduce::multivalue_block_select(int which) :pre
 See the "reduce()"_reduce.html method doc page for details.
 
 See the "Settings"_settings.html and "Technical
-Details"_technical.html sections for details on the byte-alignment of
+Details"_Technical.html sections for details on the byte-alignment of
 keys and values that are passed to your myscan() function.  Note that
 only the first value of a multi-value (or of each block of values)
 passed to your myscan() function will be aligned to the {valuealign}

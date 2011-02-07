@@ -32,7 +32,7 @@ proceeding with the rest of a MapReduce operation, e.g. with a
 
 You can give this method a pointer (void *ptr) which will be returned
 to your mycompress() function.  See the "Technical
-Details"_technical.html section for why this can be useful.  Just
+Details"_Technical.html section for why this can be useful.  Just
 specify a NULL if you don't need this.
 
 In this example the user function is called mycompress() and it must
@@ -122,7 +122,7 @@ this call is described on the doc page for the KeyValue
 integers, the compressed value might be the sum of those integers.
 
 See the "Settings"_settings.html and "Technical
-Details"_technical.html sections for details on the byte-alignment of
+Details"_Technical.html sections for details on the byte-alignment of
 keys and values that are passed to your mycompress() function and on
 those you register with the KeyValue "add()"_kv_add.html methods.
 Note that only the first value of a multi-value (or of each block of

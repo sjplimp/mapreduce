@@ -114,7 +114,7 @@ generate new key/value pairs from an existing set.
 
 You can give any of the map() methods a pointer (void *ptr) which will
 be returned to your mymap() function.  See the "Technical
-Details"_technical.html section for why this can be useful.  Just
+Details"_Technical.html section for why this can be useful.  Just
 specify a NULL if you don't need this.
 
 The meaning of the final {addflag} argument is as follows.
@@ -222,7 +222,7 @@ method of the KeyValue object.  The syntax for registration is
 described on the doc page of the KeyValue "add()"_kv_add.html method.
 
 See the "Settings"_settings.html and "Technical
-Details"_technical.html sections for details on the byte-alignment of
+Details"_Technical.html sections for details on the byte-alignment of
 keys and values you register with the KeyValue "add()"_kv_add.html
 methods or that are passed to your mymap() function.
 

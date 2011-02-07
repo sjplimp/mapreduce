@@ -28,7 +28,7 @@ number of new key/value pairs stored by all processors.
 
 You can give this method a pointer (void *ptr) which will be returned
 to your myreduce() function.  See the "Technical
-Details"_technical.html section for why this can be useful.  Just
+Details"_Technical.html section for why this can be useful.  Just
 specify a NULL if you don't need this.
 
 In this example the user function is called myreduce() and it must
@@ -115,7 +115,7 @@ registration is described on the doc page of the KeyValue
 can write information to an output file.
 
 See the "Settings"_settings.html and "Technical
-Details"_technical.html sections for details on the byte-alignment of
+Details"_Technical.html sections for details on the byte-alignment of
 keys and values that are passed to your myreduce() function and on
 those you register with the KeyValue "add()"_kv_add.html methods.
 Note that only the first value of a multi-value (or of each block of

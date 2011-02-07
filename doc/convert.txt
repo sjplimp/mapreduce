@@ -19,7 +19,7 @@ will be the number of unique keys in the KeyValue object.
 
 This operation creates a hash table to find duplicate keys
 efficiently.  More details are given in the "Technical
-Details"_technical.html section.
+Details"_Technical.html section.
 
 This method is an on-processor operation, requiring no communication.
 When run in parallel, each processor converts only the key/value pairs

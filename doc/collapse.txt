@@ -28,7 +28,7 @@ then the new KeyMultiValue object will contain a single key/value pair:
 This method can be used to collect a set of key/value pairs to use in
 a "reduce()"_reduce.html method so that it can all be passed to a
 single invocation of your myreduce() function for output.  See the
-"Technical Details"_technical.html section for details on how the
+"Technical Details"_Technical.html section for details on how the
 collapse() method affects the alignment of keys and values that may
 eventually be passed to your myreduce() function via the
 "reduce()"_reduce.html method.

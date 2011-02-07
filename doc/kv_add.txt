@@ -21,7 +21,7 @@ are all the same length.  The third version registers a set of N
 key/value pairs where the length of each key and of each value is
 specified.
 
-As explained "here"_program.html, from the perspective of the MR-MPI
+As explained "here"_Program.html, from the perspective of the MR-MPI
 library, keys and values are variable-length byte strings.  To
 register such strings, you must specify their length in bytes.  This
 is done via the keybytes and valuebytes arguments, either as a single
@@ -30,5 +30,5 @@ a text string, it should typically include a trailing "0" to terminate
 the string.
 
 See the "Settings"_settings.html and "Technical
-Details"_technical.html sections for details on the byte-alignment of
+Details"_Technical.html sections for details on the byte-alignment of
 keys and values you register with these add methods.

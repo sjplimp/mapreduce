@@ -14,7 +14,7 @@ second MapReduce object which is an exact copy of the first, including
 all "settings"_settings.html, and returns a pointer to the new copy.
 
 If the original MapReduce object contained a KeyValue or KeyMultiValue
-object, as discussed "here"_interface_c++.html, then the new MapReduce
+object, as discussed "here"_Interface_c++.html, then the new MapReduce
 object will contain a copy of it.  This means that all the key/value
 and/or key/multivalue pairs contained in the first MapReduce object
 are copied into the new MapReduce object.  Thus the first MapReduce
