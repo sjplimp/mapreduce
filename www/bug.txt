@@ -40,6 +40,16 @@ patch.
 :line
 :line
 
+[8 Feb 2011]
+
+Forgot a couple files in the OINK release yesterday, like the
+src/Makefile.
+
+This is the "list of changed files"_patches/files.8Feb11 from the 7
+Feb 2011 version.
+
+:line
+
 [7 Feb 2011]
 
 Release of OINK scripting framework which allows the MR-MPI library to
@@ -47,6 +57,9 @@ be called from simple input scripts, as well as new MapReduce
 algorithms to be written within OINK so that data can be passed from
 one command to another.  See the "OINK doc pages"_oinkdoc/Manual.html
 for more details.
+
+This release also changes the way the MR-MPI library is built to make
+it easier to build for different targets simultaneously.
 
 This is the "list of changed files"_patches/files.7Feb11 from the 27
 Jan 2011 version.
