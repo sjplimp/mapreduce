@@ -1,5 +1,9 @@
 # run this with OINK as
 # oink_machine < in.rmat
 
+variable t equal time
+variable p equal nprocs
+
 set verbosity 1
 rmat 10 8 0.25 0.25 0.25 0.25 0.0 12345 -o tmp.rmat NULL
+print "RMAT: $t secs on $p procs"

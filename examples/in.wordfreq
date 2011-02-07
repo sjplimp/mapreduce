@@ -1,6 +1,9 @@
 # run this with OINK as
 # oink_machine -var files *.cpp < in.wordfreq
 
+variable t equal time
+variable p equal nprocs
+
 set verbosity 1
 wordfreq 5 -i v_files -o NULL NULL
 print "WordFreq: $t secs on $p procs"
