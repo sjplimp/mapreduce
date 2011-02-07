@@ -5,10 +5,7 @@ CPP =		mpic++
 CCFLAGS =	-g -O -I../src -m64
 LINK =		mpic++
 LINKFLAGS =	-g -O -m64
-#USRLIB =	../src/libmrmpi.a 
-USRLIB =	-L../src -lmrmpi
+USRLIB =	../src/libmrmpi_mac64.a
 SYSLIB =
-
-LIB =		../src/libmrmpi.a
 
 include Makefile.common
