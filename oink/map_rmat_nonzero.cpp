@@ -3,14 +3,13 @@
 using namespace MAPREDUCE_NS;
 
 /* ----------------------------------------------------------------------
-   nonzero
-   enumerate nonzeroes in each row
-   input: one KMV per edge
+   rmat_nonzero
+   enumerate row index for each non-zero in RMAT matrix
    output: one KV per edge: key = row I, value = NULL
 ------------------------------------------------------------------------- */
 
-void nonzero(char *key, int keybytes, char *multivalue,
-	     int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
+void rmat_nonzero(uint64_t itask, char *key, int keybytes, char *value,
+		  int valuebytes, KeyValue *kv, void *ptr)
 {
   EDGE *edge = (EDGE *) key;
   kv->add((char *) &edge->vi,sizeof(VERTEX),NULL,0);
