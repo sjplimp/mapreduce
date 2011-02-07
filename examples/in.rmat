@@ -1,0 +1,5 @@
+# run this with OINK as
+# oink_machine < in.rmat
+
+set verbosity 1
+rmat 10 8 0.25 0.25 0.25 0.25 0.0 12345 -o tmp.rmat NULL
