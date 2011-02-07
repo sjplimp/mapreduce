@@ -70,13 +70,13 @@ void RMAT::run()
 
   if (statflag) {
     if (obj->permanent(mr)) mr = obj->copy_mr(mr);
-    mr->reduce(nonzero,NULL);
+    mr->map(mr,rmat_nonzero,NULL);
     mr->collate(NULL);
     mr->reduce(degree,NULL);
     mr->collate(NULL);
     mr->reduce(histo,NULL);
     mr->gather(1);
-    mr->sort_keys(1);
+    mr->sort_keys(-1);
     int total = 0;
     mr->map(mr,rmat_stats,&total);
     sprintf(msg,"RMAT: %d rows with 0 non-zeroes",rmat.order-total);
@@ -112,4 +112,3 @@ void RMAT::params(int narg, char **arg)
   srand48(seed+me);
   rmat.order = 1 << rmat.nlevels;
 }
-
