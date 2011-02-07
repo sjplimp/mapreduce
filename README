@@ -1,4 +1,4 @@
-This is the MapReduce-MPI (MR-MPI) library, version 15 March 2009.
+This is the MapReduce-MPI (MR-MPI) library.
 
 MapReduce is the operation popularized by Google for computing on
 large distributed data sets.  See the Wikipedia entry on MapReduce for

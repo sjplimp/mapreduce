@@ -1,0 +1,105 @@
+/* ----------------------------------------------------------------------
+   OINK - Mapreduce-MPI library application
+   http://www.sandia.gov/~sjplimp/mapreduce.html, Sandia National Laboratories
+   Steve Plimpton, sjplimp@sandia.gov
+
+   See the README file in the top-level MR-MPI directory.
+------------------------------------------------------------------------- */
+
+#include "mpi.h"
+#include "string.h"
+#include "stdlib.h"
+#include "wordfreq.h"
+#include "object.h"
+#include "style_map.h"
+#include "style_reduce.h"
+#include "style_scan.h"
+#include "error.h"
+
+#include "blockmacros.h"
+#include "mapreduce.h"
+#include "keyvalue.h"
+
+using namespace OINK_NS;
+using namespace MAPREDUCE_NS;
+
+struct Count {
+  int n,limit,flag;
+};
+
+/* ---------------------------------------------------------------------- */
+
+WordFreq::WordFreq(OINK *oink) : Command(oink)
+{
+  ninputs = 1;
+  noutputs = 1;
+}
+
+/* ---------------------------------------------------------------------- */
+
+void WordFreq::run()
+{
+  int me;
+  MPI_Comm_rank(MPI_COMM_WORLD,&me);
+
+  int nfiles;
+  MapReduce *mr = obj->input(1,read_words,&nfiles);
+  uint64_t nwords = mr->kv_stats(0);
+  uint64_t nfiles_all;
+  MPI_Allreduce(&nfiles,&nfiles_all,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+
+  mr->collate(NULL);
+  uint64_t nunique = mr->reduce(sum_count,NULL);
+
+  obj->output(1,mr,print_string_int,NULL);
+
+  if (ntop) {
+    MapReduce *mrcopy;
+    if (obj->permanent(mr)) MapReduce *mrcopy = obj->copy_mr(mr);
+    else mrcopy = mr;
+    mrcopy->sort_values(-1);
+
+    Count count;
+    count.n = 0;
+    count.limit = 10;
+    count.flag = 0;
+    mrcopy->map(mr,output,&count);
+
+    mrcopy->gather(1);
+    mrcopy->sort_values(-1);
+
+    count.n = 0;
+    count.limit = ntop;
+    count.flag = 1;
+    mrcopy->map(mr,output,&count);
+  }
+
+  char msg[128];
+  sprintf(msg,"WordFreq: %d files, %lu words, %lu unique",
+	  nfiles_all,nwords,nunique);
+  if (me == 0) error->message(msg);
+
+  obj->cleanup();
+}
+
+/* ---------------------------------------------------------------------- */
+
+void WordFreq::params(int narg, char **arg)
+{
+  if (narg != 1) error->all("Illegal wordfrea command");
+  ntop = atoi(arg[0]); 
+}
+
+/* ---------------------------------------------------------------------- */
+
+void WordFreq::output(uint64_t itask, char *key, int keybytes, char *value,
+		      int valuebytes, KeyValue *kv, void *ptr)
+{
+  Count *count = (Count *) ptr;
+  if (count->n >= count->limit) return;
+  count->n++;
+
+  int n = *(int *) value;
+  if (count->flag) printf("%d %s\n",n,key);
+  else kv->add(key,keybytes,(char *) &n,sizeof(int));
+}
