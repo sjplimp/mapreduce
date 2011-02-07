@@ -42,7 +42,7 @@ void WordFreq::run()
   int me;
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
 
-  int nfiles;
+  int nfiles = 0;
   MapReduce *mr = obj->input(1,read_words,&nfiles);
   uint64_t nwords = mr->kv_stats(0);
   int nfiles_all;
@@ -76,7 +76,7 @@ void WordFreq::run()
 
   char msg[128];
   sprintf(msg,"WordFreq: %d files, %lu words, %lu unique",
-	  nfiles_all,nwords,nunique);
+  	  nfiles_all,nwords,nunique);
   if (me == 0) error->message(msg);
 
   obj->cleanup();
