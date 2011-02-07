@@ -94,6 +94,13 @@ emit one KV per edge: key = edge, value = NULL<BR>
 </TD>
 </TR>
 <TR>
+<TD>rmat_nonzero</TD>
+<TD>
+enumerate row index for each non-zero in RMAT matrix<BR>
+output: one KV per edge: key = row I, value = NULL<BR>
+</TD>
+</TR>
+<TR>
 <TD>rmat_stats</TD>
 <TD>
 print # of rows with a specific # of nonzeroes<BR>
@@ -103,7 +110,7 @@ print # of rows with a specific # of nonzeroes<BR>
 
 :line
 
-Reduce() functions :link(3_2),h4
+Reduce() functions :link(3_1),h4
 
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1><TR>
 <TD>cull</TD>
@@ -130,14 +137,6 @@ output: one KV: key = # of nonzeroes, value = # of rows<BR>
 </TD>
 </TR>
 <TR>
-<TD>nonzero</TD>
-<TD>
-enumerate nonzeroes in each row<BR>
-input: one KMV per edge<BR>
-output: one KV per edge: key = row I, value = NULL<BR>
-</TD>
-</TR>
-<TR>
 <TD>sum_count</TD>
 <TD>
 compute count from nvalues<BR>
@@ -149,19 +148,19 @@ output: one KV per edge: key = edge, value = NULL<BR>
 
 :line
 
-Compare() functions :link(3_3),h4
+Compare() functions :link(3_1),h4
 
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1></TABLE></DIV>
 
 :line
 
-Hash() functions :link(3_4),h4
+Hash() functions :link(3_1),h4
 
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1></TABLE></DIV>
 
 :line
 
-Scan() functions :link(3_5),h4
+Scan() functions :link(3_1),h4
 
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1><TR>
 <TD>print_edge</TD>
