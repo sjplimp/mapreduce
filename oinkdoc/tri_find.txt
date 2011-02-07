@@ -1,0 +1,51 @@
+"MR-MPI WWW Site"_mws -"MR-MPI Documentation"_md - "OINK
+Documentation"_od - "OINK Commands"_oc :c
+
+:link(mws,http://www.sandia.gov/~sjplimp/mapreduce.html)
+:link(md,../doc/Manual.html)
+:link(od,Manual.html)
+:link(oc,Section_commands.html#comm)
+
+:line
+
+tri_find command :h3
+
+[Syntax:]
+
+tri_fine -i input1 -o out1.file out1.mr :pre
+
+input1 = graph edges: Key = Vi Vj, Value = NULL
+out1 = triangles: Key = Vi Vj Vk, Value = NULL :ul
+
+[Examples:]
+
+tri_find -i mre -o tri.list mtri
+
+[Description:]
+
+This is a named command which finds all the triangles in an undirected
+graph.  A triangle is a set of 3 vertices I,J,K for which the edges
+IJ, JK, IK all exist.
+
+See the "named command"_command.html doc page for various ways in which
+the -i inputs and -o outputs for a named command can be specified.
+
+Input1 stores a set of edges, assumed to have no duplicates or
+self-edges.  The input is unchanged by this command.
+
+The triangles are found via the MapReduce algorithm of
+"(Cohen)"_#Cohen dicussed in his paper and in the paper of
+"(Plimpton)"_#Plimpton.  Note that even small graphs can have large
+numbers of triangles if there are very high-degree vertices.
+
+Out1 will store the list of triangles.
+
+[Related commands:] none
+
+:line
+
+:link(Cohen)
+[(Cohen)] Cohen, "Graph Twiddling in a MapReduce World", IEEE (2009).
+
+:link(Plimpton) [(Plimpton)] Plimpton, "Large-Scale Graph Algorithm in
+MapReduce with MPI", to appear in Parallel Computing (2011).
