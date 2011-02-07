@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------
-   OINK - Mapreduce-MPI library application
+   OINK - scripting wrapper on MapReduce-MPI library
    http://www.sandia.gov/~sjplimp/mapreduce.html, Sandia National Laboratories
    Steve Plimpton, sjplimp@sandia.gov
 
