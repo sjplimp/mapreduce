@@ -40,6 +40,19 @@ patch.
 :line
 :line
 
+[7 Feb 2011]
+
+Release of OINK scripting framework which allows the MR-MPI library to
+be called from simple input scripts, as well as new MapReduce
+algorithms to be written within OINK so that data can be passed from
+one command to another.  See the "OINK doc pages"_oinkdoc/Manual.html
+for more details.
+
+This is the "list of changed files"_patches/files.7Feb11 from the 27
+Jan 2011 version.
+
+:line
+
 [27 Jan 2011]
 
 Added a "scan()"_doc/scan.html method to the MR-MPI library to
