@@ -45,7 +45,9 @@ Out1 will store the list of triangles.
 :line
 
 :link(Cohen)
-[(Cohen)] Cohen, "Graph Twiddling in a MapReduce World", IEEE (2009).
+[(Cohen)] Cohen, "Graph Twiddling in a MapReduce World", Computing in
+Science and Engineering, 11, 29-41 (2009).
 
-:link(Plimpton) [(Plimpton)] Plimpton, "Large-Scale Graph Algorithm in
-MapReduce with MPI", to appear in Parallel Computing (2011).
+:link(Plimpton) 
+[(Plimpton)] Plimpton and Devine, "MapReduce in MPI for Large-Scale
+Graph Algorithms", to appear in Parallel Computing (2011).
