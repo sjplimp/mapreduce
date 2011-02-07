@@ -45,7 +45,7 @@ void WordFreq::run()
   int nfiles;
   MapReduce *mr = obj->input(1,read_words,&nfiles);
   uint64_t nwords = mr->kv_stats(0);
-  uint64_t nfiles_all;
+  int nfiles_all;
   MPI_Allreduce(&nfiles,&nfiles_all,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
 
   mr->collate(NULL);
