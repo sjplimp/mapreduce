@@ -17,7 +17,7 @@
 
 MapReduce-MPI (MR-MPI) Library Documentation :h2,c
 
-Version info:
+Version info: :h4
 
 The MR-MPI "version" is the date when it was released, such as 1 May
 2010.  MR-MPI is updated continuously.  Whenever we fix a bug or add a
