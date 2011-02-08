@@ -14,7 +14,7 @@ Documentation"_od - "OINK Commands"_oc :c
 :link(mws,http://www.sandia.gov/~sjplimp/mapreduce.html)
 :link(md,../doc/Manual.html)
 :link(od,Manual.html)
-:link(oc,Section_commands.html#comm)
+:link(oc,Section_script.html#comm)
 
 :line
 
