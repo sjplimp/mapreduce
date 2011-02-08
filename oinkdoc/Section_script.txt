@@ -159,7 +159,7 @@ Here is a list of all OINK input script commands alphabetically:
 "label"_label.html,
 "log"_log.html,
 "mr"_mr.html,
-"MR-MPI library commands"_mrmpi.html,
+"library commands"_mrmpi.html,
 "named commands"_command.html,
 "next"_next.html,
 "output"_output.html,

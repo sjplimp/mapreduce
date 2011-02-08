@@ -9,7 +9,7 @@ Documentation"_od - "OINK Commands"_oc :c
 
 :line
 
-MR-MPI library commands :h3
+library commands :h3
 
 [Syntax:]
 
@@ -30,7 +30,7 @@ edge set timer 1
 
 [Description:]
 
-Invoke a MR-MPI library functions directly on a previously created
+Invoke a MR-MPI library function directly on a previously created
 MR-MPI objects.  In OINK, an MR-MPI object is a thin wrapper on a
 MapReduce object created via the "MR-MPI library"_md.  They can be
 created by the "mr"_mr.html command or can be output by a "named
