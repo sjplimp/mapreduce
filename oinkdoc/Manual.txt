@@ -53,7 +53,7 @@ doc pages"_md.
 The name OINK is meant to evoke the aroma of the "Apache Pig"_pig
 platform which wraps the "Hadoop"_hadoop MapReduce capabilities with
 its high-level Pig Latin language.  Since OINK has only a small
-fraction of Pig's capability, it is more the sound of a pig, than a
+fraction of Pig's capability, it is more the sound of a pig, than the
 pig itself.
 
 Source code for OINK and the MR-MPI library were developed at Sandia
