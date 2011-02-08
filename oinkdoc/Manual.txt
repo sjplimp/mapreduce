@@ -52,7 +52,7 @@ doc pages"_md.
 
 The name OINK is meant to evoke the aroma of the "Apache Pig"_pig
 platform which wraps the "Hadoop"_hadoop MapReduce capabilities with
-its high-level Pig Latin language.  Since OINK has only a tiny
+its high-level Pig Latin language.  Since OINK has only a small
 fraction of Pig's capability, it is more the sound of a pig, than a
 pig itself.
 
@@ -73,6 +73,8 @@ at sandia.gov.
 :link(sjp,http://www.cs.sandia.gov/~sjplimp)
 :link(mrmpi,http://www.cs.sandia.gov/~sjplimp/mapreduce.html)
 :link(bug,http://www.sandia.gov/~sjplimp/mapreduce/bug.html)
+:link(pig,http://pig.apache.org)
+:link(hadoop,http://hadoop.apache.org)
 
 :line
  
