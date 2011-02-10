@@ -40,6 +40,14 @@ patch.
 :line
 :line
 
+[11 Feb 2011]
+
+Insure the OINK version stays current with MR-MPI version in
+two source files, at each patch.
+
+This is the "list of changed files"_patches/files.11Feb11 from the 10
+Feb 2011 version.
+
 [10 Feb 2011]
 
 Fixed a bug with edge ordering in the "tri_find"_oinkdoc/tri_find.html
