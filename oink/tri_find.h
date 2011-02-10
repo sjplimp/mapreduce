@@ -31,6 +31,8 @@ class TriFind : public Command {
   static void read(int, char *, KeyValue *, void *);
   static void print(char *, int, char *, int, void *);
 
+  static void flip_edge(uint64_t, char *, int, char *, int,
+			KeyValue *, void *);
   static void map_edge_vert(uint64_t, char *, int, char *, int,
 			    KeyValue *, void *);
   static void reduce_first_degree(char *, int, char *, int, int *, 
