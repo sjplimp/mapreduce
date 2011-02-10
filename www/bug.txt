@@ -40,6 +40,17 @@ patch.
 :line
 :line
 
+[10 Feb 2011]
+
+Fixed a bug with edge ordering in the "tri_find"_oinkdoc/tri_find.html
+command in OINK, causing the finder to miss about half the triangles
+when the input Eij didn't have Vi < Vj.
+
+This is the "list of changed files"_patches/files.10Feb11 from the 8
+Feb 2011 version.
+
+:line
+
 [8 Feb 2011]
 
 Forgot a couple files in the OINK release yesterday, like the
