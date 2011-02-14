@@ -15,7 +15,7 @@ algorithms for informatics problems.
 [MapReduce in MPI for Large-Scale Graph Algorithms], S. J. Plimpton
 and K. D. Devine, accepted for a special issue of Parallel Computing.
 To appear in 2011. ("abstract"_../abstracts/pc11.html)
-("preprint"_../pdf/pc11.pdf)
+("preprint"_../papers/pc11.pdf)
 
 :line
 
@@ -28,7 +28,7 @@ If you use MR-MPI for something interesting, we'd like to hear about
 it. :ulb,l
 
 If you write a paper using the MR-MPI library, we can post a citation
-to it on this page. :ulb,l
+to it on this page. :l
 
 If you write a MapReduce program which calls the library, that others
 would be interested in, you can send it and we'll include it in the
