@@ -5,15 +5,17 @@
 
 MapReduce-MPI Papers :h3
 
-We have submitted a paper which describes the MR-MPI library
-and several MapReudce graph algorithms for informatics problems:
+If you use the MR-MPI library in one of your publications, please cite
+the following paper and also list the URL of the "MR-MPI WWW
+site"_mws, namely http://www.sandia.gov/~sjplimp/mapreduce.html.
 
-[MapReduce in MPI for Large-Scale Graph Algorithms], Steven
-J. Plimpton and Karen D. Devine, to a special issue of Parallel
-Computing.  Hopefully it will appear early in 2011.
+This paper describes the MR-MPI library and several MapReudce graph
+algorithms for informatics problems.
 
-Until then, please cite the "MapReduce-MPI WWW site"_mws, if you use
-the library in a paper.
+[MapReduce in MPI for Large-Scale Graph Algorithms], S. J. Plimpton
+and K. D. Devine, accepted for a special issue of Parallel Computing.
+To appear in 2011. ("abstract"_../abstracts/pc11.html)
+("preprint"_../pdf/pc11.pdf)
 
 :line
 
@@ -24,6 +26,9 @@ You can send us email regarding any of these issues:
 
 If you use MR-MPI for something interesting, we'd like to hear about
 it. :ulb,l
+
+If you write a paper using the MR-MPI library, we can post a citation
+to it on this page. :ulb,l
 
 If you write a MapReduce program which calls the library, that others
 would be interested in, you can send it and we'll include it in the
