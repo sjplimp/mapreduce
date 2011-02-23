@@ -145,13 +145,14 @@ vector from the previous iteration.  A few additional dot product and
 norm computations per iteration are also required.
 
 The algorithm in Figure~\ref{fig:pr2} performs these iterations, using
-linear-algebra concepts implemented in a MapReduce framework, with
-data stored in four MapReduce objects: $A$, $MT$, $x$, and $y$.  $A$
-stores the matrix; $MT$ stores the row index of ``empty'' rows of $A$; 
-and $x$ and $y$ are
-vectors of length $|V|$.  The nonzeros of matrix $A$ are initialized
-as described above; the PageRank vector $x$ is initialized uniformly.
-A MapReduce object $MT$ contains the indices of all-zero rows of $A$,
+linear-algebra concepts implemented in a MapReduce framework.  Related
+algorithms, each with their own optimizations, are discussed in
+\cite{Kang09,Lin10}.  In this version data is stored in four MapReduce
+objects: $A$, $MT$, $x$, and $y$.  $A$ stores the matrix; $MT$ stores
+the row index of ``empty'' rows of $A$; and $x$ and $y$ are vectors of
+length $|V|$.  The nonzeros of matrix $A$ are initialized as described
+above; the PageRank vector $x$ is initialized uniformly.  A MapReduce
+object $MT$ contains the indices of all-zero rows of $A$,
 corresponding to vertices with no outlinks.  The PageRank algorithm is
 made more efficient by invoking the {\it aggregate()} operation once
 on each of these MapReduce objects before the PageRank iterations
@@ -159,11 +160,11 @@ begin.  Since the objects are all keyed by vertex, pre-aggregating
 them moves all KV pairs with a given key to the same processor.  Many
 of the subsequent PageRank operations then become local operations,
 replacing a {\it collate()} (which is equivalent to an {\it
-aggregate()} followed by {\it convert()}) with simply a {\it
-convert()}.  In Figure~\ref{fig:pr2}, steps where {\it convert()} is
+  aggregate()} followed by {\it convert()}) with simply a {\it
+  convert()}.  In Figure~\ref{fig:pr2}, steps where {\it convert()} is
 substituted for {\it collate()} are marked with an asterisk.  This
 strategy of pre-aggregating to improve data locality is useful in many
-MapReduce algorithms, but assumes that identical keys in different
+MapReduce algorithms; it assumes that identical keys in different
 MapReduce objects can be mapped to the same processor.
 
 \begin{figure}[htb]
@@ -379,17 +380,18 @@ a triplet key.
 
 \subsection{Connected component labeling}
 
-A connected component of a graph is a set of vertices where all pairs
-of vertices in the set are connected by a path of edges.  A sparse
-graph may contain many such components.  Figure~\ref{fig:cc} outlines
-a MapReduce algorithm that labels each vertex in a graph with a
-component ID.  All vertices in the same component are labeled with
+A connected component (CC) of a graph is a set of vertices where all
+pairs of vertices in the set are connected by a path of edges.  A
+sparse graph may contain many such components.  Figure~\ref{fig:cc}
+outlines a MapReduce algorithm that labels each vertex in a graph with
+a component ID.  All vertices in the same component are labeled with
 the same ID, which is the ID of some vertex in the component.  We
-assume an input graph $E$ of undirected edges $(V_i,V_j)$.  This
-exposition follows the connected-component algorithm presented
-in~\cite{Cohen09}, with the addition of logic that load-balances data
-across processors, which is important when one or a few giant
-components exist in the graph.
+assume an input graph $E$ of undirected edges $(V_i,V_j)$.  Kang
+et.~al.~\cite{Kang09} propose a MapReduce CC algorithm based on a
+matrix-vector multiplication kernel.  This exposition follows the CC
+algorithm presented in~\cite{Cohen09}, with the addition of logic that
+load-balances data across processors, which is important when one or a
+few giant components exist in the graph.
 
 \begin{figure}[htb]
  \begin{center}\fbox{\begin{minipage}{\textwidth} \begin{tabbing}
@@ -457,9 +459,9 @@ shared edges, a winner is chosen (the smaller zone ID), and vertices
 in the losing zone are reassigned to the winning zone.  When the
 iterations complete, each zone has become a fully connected component
 and the MR object $V$ holds the zone assignment for every vertex.  The
-algorithm thus finds all connected components in the graph
-simultaneously.  The number of iterations required depends on the
-largest diameter of any component in the graph.
+algorithm thus finds all CCs in the graph simultaneously.  The number
+of iterations required depends on the largest diameter of any
+component in the graph.
 
 The first {\it map()} uses MapReduce object $E$ as input to the empty
 MapReduce object $W$ to emit the vertices in each edge as keys, with

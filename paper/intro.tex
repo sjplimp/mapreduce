@@ -36,21 +36,21 @@ scripts or in other languages.
 More recently, MapReduce formulations of traditional number-crunching
 kinds of scientific computational tasks have been described, such as
 post-processing analysis of simulation data~\cite{Tu08}, graph
-algorithmics~\cite{Cohen09}, and linear algebra
-operations~\cite{Ekanayake09}.  The paper by Tu et al.~\cite{Tu08} was
-particularly insightful to us, because it described how MapReduce
-could be implemented on top of the ubiquitous distributed-memory
-message-passing interface (MPI), and how the intermediate data-shuffle
-operation is conceptually identical to the familiar MPI\_Alltoall
-operation.  Their implementation of MapReduce was within a Python
-wrapper to simplify the writing of user programs.  The paper motivated
-us to develop our own C++ library built on top of MPI for use in graph
-analytics, which we initially released as open-source software in
-mid-2009.  We have since worked to optimize several of the library's
-underlying algorithms and to enable its operation in out-of-core mode
-for larger data sets.  These algorithmic improvements are described in
-this paper and are part of the current downloadable version; see
-Section~\ref{sec:thanks} for details.
+algorithmics~\cite{Cohen09,Kang09,Lin10}, and linear algebra
+operations~\cite{Ekanayake09}.  The paper by Tu et
+al.~\cite{Tu08} was particularly insightful to us, because it
+described how MapReduce could be implemented on top of the ubiquitous
+distributed-memory message-passing interface (MPI), and how the
+intermediate data-shuffle operation is conceptually identical to the
+familiar MPI\_Alltoall operation.  Their implementation of MapReduce
+was within a Python wrapper to simplify the writing of user programs.
+The paper motivated us to develop our own C++ library built on top of
+MPI for use in graph analytics, which we initially released as
+open-source software in mid-2009.  We have since worked to optimize
+several of the library's underlying algorithms and to enable its
+operation in out-of-core mode for larger data sets.  These algorithmic
+improvements are described in this paper and are part of the current
+downloadable version; see Section~\ref{sec:thanks} for details.
 
 The MapReduce-MPI (MR-MPI) library described in this paper is a
 simple, lightweight implementation of basic MapReduce functionality,

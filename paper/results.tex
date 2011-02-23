@@ -405,14 +405,14 @@ XMT/C  & 32 &  37 secs.\\
 
 To give a rough sense of the effort involved to implement the various
 MapReduce algorithms described in this section, we list the line
-counts of the C++ codes used to perform the benchmarks.  Each code
-makes calls to the MR-MPI library and implements the algorithm in the
-indicated figure.  The line counts exclude comments and blank lines
-which typically add about 30\% to the total.  They also exclude the
-routines used to generate the R-MAT matrix input (except in the case
-of the two R-MAT algorithms themselves) or process it into
-upper-triangular form, since that is common to several of the
-benchmarks.
+counts of the C++ codes used to perform the benchmarks in
+Table~\ref{t:linecount}.  Each code makes calls to the MR-MPI library
+and implements the algorithm in the indicated figure.  The line counts
+exclude comments and blank lines which typically add about 30\% to the
+total.  They also exclude the routines used to generate the R-MAT
+matrix input (except in the case of the two R-MAT algorithms
+themselves) or process it into upper-triangular form, since that is
+common to several of the benchmarks.
 
 \begin{table}
 \begin{center}
@@ -426,7 +426,7 @@ Figure & \ref{fig:rmat} & \ref{fig:rmat2} & \ref{fig:pr2} & \ref{fig:tri} & \ref
 \end{tabular}
 \caption{Lines of code to implement each of the graph
   algorithms in the associated figures.}
-\label{t:rmat}
+\label{t:linecount}
 \end{center}
 \end{table}
 
