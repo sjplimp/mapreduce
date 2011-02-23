@@ -456,12 +456,12 @@ large Linux cluster with 3.6 {GHz} dual-core Intel EM64T processors
 connected by an Infiniband network.  Because these systems do not have
 local disks for each processor, we selected a data set and page sizes
 that fit in memory, so out-of-core operations were not needed.  For
-these experiments, we used two R-MAT data sets with with $2^{25}$
-vertices and $2^{28}$ edges, with parameters given in
-Table~\ref{t:rmat}.  The ``nice'' parameters produce a less-skewed
-sparsity pattern in the matrix than the ``nasty'' parameters, as
-indicated by the maximum degree metric.  We ran both the PageRank and
-Connected Components algorithms on these matrices.
+these experiments, we used two R-MAT data sets with $2^{25}$ vertices
+and $2^{28}$ edges, with parameters given in Table~\ref{t:rmat}.  The
+``nice'' parameters produce a less-skewed sparsity pattern in the
+matrix than the ``nasty'' parameters, as indicated by the maximum
+degree metric.  We ran both the PageRank and Connected Components
+algorithms on these matrices.
 
 \begin{table}
 \begin{center}
