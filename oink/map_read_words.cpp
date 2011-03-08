@@ -6,8 +6,8 @@ using namespace MAPREDUCE_NS;
 
 /* ----------------------------------------------------------------------
    rmat_generate
-   generate RMAT matrix entries
-   emit one KV per edge: key = edge, value = NULL
+   read words from file, separated by whitespace
+   output: key = word, value = NULL
 ------------------------------------------------------------------------- */
 
 void read_words(int itask, char *file, KeyValue *kv, void *ptr)

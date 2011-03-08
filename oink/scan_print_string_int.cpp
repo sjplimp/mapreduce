@@ -2,9 +2,8 @@
 
 /* ----------------------------------------------------------------------
    print_string_int
-   print out string and int
-   input: one KMV per edge, MV has multiple entries if duplicates exist
-   output: one KV per edge: key = edge, value = NULL
+   print out string and int to FILE in ptr
+   input: key = string, value = int
 ------------------------------------------------------------------------- */
 
 void print_string_int(char *key, int keybytes, 

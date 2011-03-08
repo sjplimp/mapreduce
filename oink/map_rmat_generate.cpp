@@ -6,8 +6,9 @@ using namespace MAPREDUCE_NS;
 
 /* ----------------------------------------------------------------------
    rmat_generate
-   generate RMAT matrix entries
-   emit one KV per edge: key = edge, value = NULL
+   generate graph edges via recursive R-MAT algorithm
+   input: # to generated & R-MAT params extracted from RMAT_struct in ptr
+   output: key = Vi Vj, value = NULL
 ------------------------------------------------------------------------- */
 
 void rmat_generate(int itask, KeyValue *kv, void *ptr)

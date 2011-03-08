@@ -6,11 +6,19 @@
    See the README file in the top-level MR-MPI directory.
 ------------------------------------------------------------------------- */
 
+#ifndef OINK_RMAT_GENERATE_H
+#define OINK_RMAT_GENERATE_H
+
+#include "stdint.h"
+
 // data structure for RMAT parameters
 
 struct RMAT_struct {
-  int nlevels,order;
+  uint64_t order;
+  uint64_t ngenerate;
+  int nlevels;
   int nnonzero;
-  int ngenerate;
   double a,b,c,d,fraction;
 };
+
+#endif

@@ -28,6 +28,3 @@ typedef void (*ReduceFnPtr)(char *, int, char *, int, int *,
 			    KeyValue *, void *);
 typedef void (*ScanKVFnPtr)(char *, int, char *, int, void *);
 typedef void (*ScanKMVFnPtr)(char *, int, char *, int, int *, void *);
-
-
-

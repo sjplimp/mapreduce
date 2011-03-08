@@ -30,7 +30,6 @@ class RMAT : public Command {
 
  private:
   RMAT_struct rmat;
-  int statflag;
 };
 
 }

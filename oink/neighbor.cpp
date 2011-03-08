@@ -11,6 +11,7 @@
 #include "neighbor.h"
 #include "typedefs.h"
 #include "object.h"
+#include "style_map.h"
 #include "error.h"
 
 #include "blockmacros.h"
@@ -40,7 +41,7 @@ void Neighbor::run()
 
   // MRe = Eij : NULL
 
-  MapReduce *mre = obj->input(1,read,NULL);
+  MapReduce *mre = obj->input(1,read_edge,NULL);
   MapReduce *mrn = obj->create_mr();
 
   mrn->map(mre,map1,NULL);
@@ -57,21 +58,6 @@ void Neighbor::run()
 void Neighbor::params(int narg, char **arg)
 {
   if (narg != 0) error->all("Illegal sgi_prune command");
-}
-
-/* ---------------------------------------------------------------------- */
-
-void Neighbor::read(int itask, char *file, KeyValue *kv, void *ptr)
-{
-  char line[MAXLINE];
-  EDGE edge;
-
-  FILE *fp = fopen(file,"r");
-  while (fgets(line,MAXLINE,fp)) {
-    sscanf(line,"%lu %lu",&edge.vi,&edge.vj);
-    kv->add((char *) &edge,sizeof(EDGE),NULL,0);
-  }
-  fclose(fp);
 }
 
 /* ---------------------------------------------------------------------- */

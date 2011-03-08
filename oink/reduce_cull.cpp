@@ -1,15 +1,20 @@
+#include "mapreduce.h"
 #include "keyvalue.h"
 using namespace MAPREDUCE_NS;
 
 /* ----------------------------------------------------------------------
    cull
-   eliminate duplicate edges
-   input: one KMV per edge, MV has multiple entries if duplicates exist
-   output: one KV per edge: key = edge, value = NULL
+   eliminate duplicate values
+   input: KMV with key and one or more values (assumed to be duplicates)
+   output: key = unchanged, value = first value
 ------------------------------------------------------------------------- */
 
 void cull(char *key, int keybytes, char *multivalue,
 	  int nvalues, int *valuebytes, KeyValue *kv, void *ptr) 
 {
-  kv->add(key,keybytes,NULL,0);
+  if (!multivalue) {
+    MapReduce *mr = (MapReduce *) valuebytes;
+    mr->multivalue_block(0,&multivalue,&valuebytes);
+  }
+  kv->add(key,keybytes,multivalue,valuebytes[0]);
 }

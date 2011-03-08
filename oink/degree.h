@@ -28,10 +28,7 @@ class Degree : public Command {
   void params(int, char **);
 
  private:
-  static void read(int, char *, KeyValue *, void *);
   static void print(char *, int, char *, int, void *);
-  static void map1(uint64_t, char *, int, char *, int, KeyValue *, void *);
-  static void reduce1(char *, int, char *, int, int *, KeyValue *, void *);
 };
 
 }

@@ -3,9 +3,8 @@
 
 /* ----------------------------------------------------------------------
    print_edge
-   print out an edge
-   input: one KMV per edge, MV has multiple entries if duplicates exist
-   output: one KV per edge: key = edge, value = NULL
+   print out an edge to FILE in ptr
+   input: key = Vi Vj, value = NULL
 ------------------------------------------------------------------------- */
 
 void print_edge(char *key, int keybytes, char *value, int valuebytes, void *ptr) 

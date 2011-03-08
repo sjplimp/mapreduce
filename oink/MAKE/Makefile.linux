@@ -7,10 +7,10 @@ SHELL = /bin/sh
 # specify flags and libraries needed for your compiler and MPI installation
 
 CC =		g++
-CCFLAGS =	-O -I../../src -DMPICH_IGNORE_CXX_SEEK 
+CCFLAGS =	-g -O -I../../src -DMPICH_IGNORE_CXX_SEEK 
 DEPFLAGS =	-M
 LINK =		g++
-LINKFLAGS =	-O -L../../src
+LINKFLAGS =	-g -O -L../../src
 LIB =           -lmrmpi_linux -lmpich -lpthread
 ARCHIVE =	ar
 ARFLAGS =	-rc

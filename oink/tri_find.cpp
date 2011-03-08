@@ -11,6 +11,7 @@
 #include "tri_find.h"
 #include "typedefs.h"
 #include "object.h"
+#include "style_map.h"
 #include "error.h"
 
 #include "blockmacros.h"
@@ -48,13 +49,8 @@ void TriFind::run()
 
   // MRe = Eij : NULL
 
-  MapReduce *mre = obj->input(1,read,NULL);
+  MapReduce *mre = obj->input(1,read_edge,NULL);
   MapReduce *mrt = obj->create_mr();
-  MapReduce *mreupper = obj->create_mr();
-
-  // MReupper = Eij : NULL, with Vi < Vj
-
-  mreupper->map(mre,flip_edge,NULL);
 
   // augment edges with degree of each vertex
   // mrt = (Eij,(Di,Dj))
@@ -74,7 +70,7 @@ void TriFind::run()
   mrt->map(mrt,map_low_degree,NULL);
   mrt->collate(NULL);
   mrt->reduce(reduce_nsq_angles,NULL);
-  mrt->add(mreupper);
+  mrt->add(mre);
   mrt->collate(NULL);
   uint64_t ntri = mrt->reduce(reduce_emit_triangles,NULL);
 
@@ -91,22 +87,7 @@ void TriFind::run()
 
 void TriFind::params(int narg, char **arg)
 {
-  if (narg != 0) error->all("Illegal sgi_prune command");
-}
-
-/* ---------------------------------------------------------------------- */
-
-void TriFind::read(int itask, char *file, KeyValue *kv, void *ptr)
-{
-  char line[MAXLINE];
-  EDGE edge;
-
-  FILE *fp = fopen(file,"r");
-  while (fgets(line,MAXLINE,fp)) {
-    sscanf(line,"%lu %lu",&edge.vi,&edge.vj);
-    kv->add((char *) &edge,sizeof(EDGE),NULL,0);
-  }
-  fclose(fp);
+  if (narg != 0) error->all("Illegal tri_find command");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -120,23 +101,6 @@ void TriFind::print(char *key, int keybytes,
 }
 
 /* ---------------------------------------------------------------------- */
-/* ---------------------------------------------------------------------- */
-
-void TriFind::flip_edge(uint64_t itask, char *key, int keybytes, 
-			char *value, int valuebytes, 
-			KeyValue *kv, void *ptr)
-{
-  EDGE *edge = (EDGE *) key;
-
-  if (edge->vi < edge->vj) kv->add(key,keybytes,NULL,0);
-  else {
-    EDGE newedge;
-    newedge.vi = edge->vj;
-    newedge.vj = edge->vi;
-    kv->add((char *) &newedge,sizeof(EDGE),NULL,0);
-  }
-}
-
 /* ---------------------------------------------------------------------- */
 
 void TriFind::map_edge_vert(uint64_t itask, char *key, int keybytes, 

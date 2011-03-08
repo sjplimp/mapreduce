@@ -49,7 +49,7 @@ void WordFreq::run()
   MPI_Allreduce(&nfiles,&nfiles_all,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
 
   mr->collate(NULL);
-  uint64_t nunique = mr->reduce(sum_count,NULL);
+  uint64_t nunique = mr->reduce(count,NULL);
 
   obj->output(1,mr,print_string_int,NULL);
 
