@@ -82,19 +82,27 @@ script operations that can be performed on them directly.
 
 <P>Each input definition <I>inputN</I> is one of three things.
 </P>
-<P>First, it can be the path name of a file or directory.  Second, it can
-be a variable defined elsewhere in the OINK input script that contains
-one or more strings.  In this case <I>inputN</I> should be specified as
-v_name, where name is the name of the variable.  All the different
-styles of variables (except equal-style) store strings; see the
-<A HREF = "variable.html">variable</A> command for details.  Also note that there is
-a <A HREF = "Section_build.txt#1_4">command-line option</A> -var or -v which can be
-specified when OINK is executed to store a list of strings in an
-index-style variable.  The strings are treated as a list of file or
-directory names.  Thus in both the first or second case the effect is
-that a list of one or more file/directory names is passed to the
-command.  The command creates a temporary, unnamed MR-MPI object and
-invokes a map() method within it, as specified in the code of the
+<P>First, it can be the ID of an existing MR-MPI object, which wraps a
+MapReduce object which contains key/value pairs.  If <I>inputN</I> matches
+such an ID, then the second or third options are not considered.  In
+this case, it is assumed that the data stored within the MapReduce
+object is already in the form that would be produced by the map()
+method that would read the input from one or more file or directory
+names.
+</P>
+<P>Second, the <I>inputN</I> can be the path name of a file or directory.
+Third, it can be a variable defined elsewhere in the OINK input script
+that contains one or more strings.  In the third case <I>inputN</I> should
+be specified as v_name, where name is the name of the variable.  All
+the different styles of variables (except equal-style) store strings;
+see the <A HREF = "variable.html">variable</A> command for details.  Also note that
+there is a <A HREF = "Section_build.txt#1_4">command-line option</A> -var or -v
+which can be specified when OINK is executed to store a list of
+strings in an index-style variable.  The strings are treated as a list
+of file or directory names.  Thus in both the first or second case the
+effect is that a list of one or more file/directory names is passed to
+the command.  The command creates a temporary, unnamed MR-MPI object
+and invokes a map() method within it, as specified in the code of the
 command class, using the list of file/directory names as input.
 </P>
 <P>There are several options available which influence how the list of
@@ -102,16 +110,6 @@ strings specified in the input script are converted into actual
 file/directory paths passed to the map() method.  This include
 wildcard charcters "%" and "*".  See the <A HREF = "input.html">input</A> command
 for details.
-</P>
-<P>The third option is that an input definition <I>inputN</I> can be specified
-as the ID of an existing MR-MPI object, which wraps a MapReduce object
-which contains key/value pairs.  This <I>inputN</I> argument is first
-checked against the list of named MR-MPI objects first to determine if
-this is the case.  If it is, then no further input processing is done.
-It is assumed that the data stored within the MapReduce object wrapped
-by the MR-MPI object is already in the form that would be produced by
-the map() method that would be invoked if the input definition were
-one or more file or directory names.
 </P>
 <HR>
 
@@ -139,7 +137,9 @@ MapReduce object.  The code in the command class will have created or
 altered the MR-MPI object and its associated MapReduce object and
 populated it with data.  As a final step, the specified ID is assigned
 to that MR-MPI object.  If the ID is already in use, then the name is
-removed from the other MR-MPI object.
+removed from the other MR-MPI object.  In particular, if an
+<I>outputN.ID</I> is the same as an <I>inputN</I> to the command then output
+will effectively overwrite that input.
 </P>
 <P>When the command completes, named MR-MPI objects persist so that they
 can be used in subsequent input script commands.  All unnamed MR-MPI

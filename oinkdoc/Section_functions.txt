@@ -80,30 +80,59 @@ appear in the right columns.
 Map() functions :link(3_1),h4
 
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1><TR>
-<TD>rmat_generate</TD>
+<TD>edge_to_vertices</TD>
 <TD>
-generate RMAT matrix entries<BR>
-emit one KV per edge: key = edge, value = NULL<BR>
+emit 1 vertex for each edge, just first one<BR>
+input: key = Vi Vj, value = NULL<BR>
+output: key = Vi, value = NULL<BR>
+</TD>
+</TR>
+<TR>
+<TD>edge_to_vertices</TD>
+<TD>
+emit 2 vertices for each edge<BR>
+input: key = Vi Vj, value = NULL<BR>
+output:<BR>
+key = Vi, value = NULL<BR>
+key = Vj, value = NULL<BR>
+</TD>
+</TR>
+<TR>
+<TD>edge_upper</TD>
+<TD>
+emit each edge with Vi < Vj, drop self-edges with Vi = Vj<BR>
+input: key = Vi Vj, value = NULL<BR>
+output: key = Vi Vj, value = NULL, with Vi < Vj<BR>
+</TD>
+</TR>
+<TR>
+<TD>invert</TD>
+<TD>
+invert key and value<BR>
+input: key, value<BR>
+output: key = value, value = key<BR>
+</TD>
+</TR>
+<TR>
+<TD>read_edge</TD>
+<TD>
+read edges from file, formatted with 2 vertices per line<BR>
+output: key = Vi Vj, value = NULL<BR>
 </TD>
 </TR>
 <TR>
 <TD>rmat_generate</TD>
 <TD>
-generate RMAT matrix entries<BR>
-emit one KV per edge: key = edge, value = NULL<BR>
+read words from file, separated by whitespace<BR>
+output: key = word, value = NULL<BR>
 </TD>
 </TR>
 <TR>
-<TD>rmat_nonzero</TD>
+<TD>rmat_generate</TD>
 <TD>
-enumerate row index for each non-zero in RMAT matrix<BR>
-output: one KV per edge: key = row I, value = NULL<BR>
-</TD>
-</TR>
-<TR>
-<TD>rmat_stats</TD>
-<TD>
-print # of rows with a specific # of nonzeroes<BR>
+generate graph edges via recursive R-MAT algorithm<BR>
+input: # to generated & R-MAT params extracted from RMAT_struct in ptr<BR>
+output: key = Vi Vj, value = NULL<BR>
 </TD>
 </TR>
 </TABLE></DIV>
@@ -113,35 +142,19 @@ print # of rows with a specific # of nonzeroes<BR>
 Reduce() functions :link(3_1),h4
 
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1><TR>
+<TD>count</TD>
+<TD>
+count number of values associated with key<BR>
+input: KMV with key and one or more values<BR>
+output: key = unchanged, value = count<BR>
+</TD>
+</TR>
+<TR>
 <TD>cull</TD>
 <TD>
-eliminate duplicate edges<BR>
-input: one KMV per edge, MV has multiple entries if duplicates exist<BR>
-output: one KV per edge: key = edge, value = NULL<BR>
-</TD>
-</TR>
-<TR>
-<TD>degree</TD>
-<TD>
-count nonzeroes in each row<BR>
-input: one KMV per row, MV has entry for each nonzero<BR>
-output: one KV: key = # of nonzeroes, value = NULL<BR>
-</TD>
-</TR>
-<TR>
-<TD>histo</TD>
-<TD>
-count rows with same # of nonzeroes<BR>
-input: one KMV per nonzero count, MV has entry for each row<BR>
-output: one KV: key = # of nonzeroes, value = # of rows<BR>
-</TD>
-</TR>
-<TR>
-<TD>sum_count</TD>
-<TD>
-compute count from nvalues<BR>
-input: one KMV per edge, MV has multiple entries if duplicates exist<BR>
-output: one KV per edge: key = edge, value = NULL<BR>
+eliminate duplicate values<BR>
+input: KMV with key and one or more values (assumed to be duplicates)<BR>
+output: key = unchanged, value = first value<BR>
 </TD>
 </TR>
 </TABLE></DIV>
@@ -165,17 +178,15 @@ Scan() functions :link(3_1),h4
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1><TR>
 <TD>print_edge</TD>
 <TD>
-print out an edge<BR>
-input: one KMV per edge, MV has multiple entries if duplicates exist<BR>
-output: one KV per edge: key = edge, value = NULL<BR>
+print out an edge to FILE in ptr<BR>
+input: key = Vi Vj, value = NULL<BR>
 </TD>
 </TR>
 <TR>
 <TD>print_string_int</TD>
 <TD>
-print out string and int<BR>
-input: one KMV per edge, MV has multiple entries if duplicates exist<BR>
-output: one KV per edge: key = edge, value = NULL<BR>
+print out string and int to FILE in ptr<BR>
+input: key = string, value = int<BR>
 </TD>
 </TR>
 </TABLE></DIV>

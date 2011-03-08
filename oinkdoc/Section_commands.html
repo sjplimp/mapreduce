@@ -428,30 +428,45 @@ object:
 </PRE>
 <P>There are two reasons to create new and copied MapReduce objects
 via these calls, rather than direcly invoking MR-MPI library calls
-within your run() method, e.g. do this
+within your run() method, e.g. do one of these:
 </P>
-<P>MapReduce *mr = obj->create_mr();
-MapReduce *mr2 = obj->copy(mr);
+<PRE>MapReduce *mr = obj->create_mr();
+MapReduce *mr2 = obj->copy(mr); 
+</PRE>
+<P>instead of one of these:
 </P>
-<P>instead of this:
-</P>
-<P>MapReduce *mr = new MapReduce();
-MapReduce *mr2 = mr->copy();
-</P>
-<P>The first reason is that OINK will now manage the memory associated
-with the new MR-MPI objects and free them for you at the end of your
-run() method; see the cleanup() method discussion below.  The second
-is that you can assign an ID to these temporary MR-MPI objects via the
+<PRE>MapReduce *mr = new MapReduce();
+MapReduce *mr2 = mr->copy(); 
+</PRE>
+<P>The first reason is that OINK will manage the memory associated with
+the new MR-MPI objects and free them for you at the end of your run()
+method; see the cleanup() method discussion below.  The second is that
+you can assign an ID to these temporary MR-MPI objects via the
 output() calls discussed above, which you cannot do if you create the
-MapReduce object yourself.  I.e. you cannot pass a pointer to output()
-of a MapReduce object that you created yourself if that operation will
-assign an ID to the MR-MPI object that was specified in your input
-script.
+MapReduce object directly yourself.  I.e. you cannot pass to an
+output() method a pointer to a MapReduce object that you allocated
+yourself if that operation will assign an ID (specified in your input
+script) to the MR-MPI object.
 </P>
 <P>You are of course free to create additional MapReduce objects yourself
 via direct calls to the MR-MPI library.  In this case you should
-insure you free the objects explicitly before the run() method ends,
-so as not to leak memory.
+insure you free the objects yourself before the run() method ends, so
+as not to leak memory.
+</P>
+<P>One additional point is that it is fine to do this within your run()
+method:
+</P>
+<PRE>mr = obj->copy(mr); 
+</PRE>
+<P>whereas you should not do this:
+</P>
+<PRE>mr = mr->copy(); 
+</PRE>
+<P>The former simply overwrites the local mr pointer, but OINK will
+manage and free the memory for the underlying MapReduce objects
+associated with both the original and new mr pointers. The latter will
+leak memory since the underlying MapReduce object associated with the
+original mr pointer is lost.
 </P>
 <P>This call is useful for checking whether a MR-MPI object has
 been assigned a name or not, when it was used for input or output:

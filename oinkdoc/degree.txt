@@ -12,9 +12,9 @@ degree command :h3
 
 [Syntax:]
 
-degree -i input1 -o out1.file out1.mr :pre
+degree -i in1 -o out1.file out1.mr :pre
 
-input1 = graph edges: Key = Vi Vj, Value = NULL
+in1 = graph edges: Key = Vi Vj, Value = NULL
 out1 = degree of each vertex: Key = Vi, Value = degree :ul
 
 [Examples:]
@@ -30,13 +30,13 @@ See the "named command"_command.html doc page for various ways in
 which the -i inputs and -o outputs for a named command can be
 specified.
 
-Input1 stores a set of edges, assumed to have no duplicates or
-self-edges.  The input is unchanged by this command.
-
-A count of the number of edges containing each vertex is calculated.
+In1 stores a set of edges, assumed to have no duplicates or self
+edges.  This means that either (Vi,Vj) or (Vj,Vi) appears, but not
+both.  Also (Vi,Vi) does not appear.  The input is unchanged by this
+command.
 
 Out1 will store the degree count of each vertex.
 
 [Related commands:]
 
-"neighbor"_neighbor.html
+"neighbor"_neighbor.html, "degree_stats"_degree_stats.html

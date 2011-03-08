@@ -12,31 +12,32 @@ tri_find command :h3
 
 [Syntax:]
 
-tri_fine -i input1 -o out1.file out1.mr :pre
+tri_find -i in1 -o out1.file out1.mr :pre
 
-input1 = graph edges: Key = Vi Vj, Value = NULL
+in1 = graph edges: Key = Vi Vj, Value = NULL
 out1 = triangles: Key = Vi Vj Vk, Value = NULL :ul
 
 [Examples:]
 
-tri_find -i mre -o tri.list mtri
+tri_find -i mre -o tri.list mtri :pre
 
 [Description:]
 
-This is a named command which finds all the triangles in an undirected
-graph.  A triangle is a set of 3 vertices I,J,K for which the edges
-IJ, JK, IK all exist.
+This is a named command which enumerates all the triangles in an
+undirected graph.  A triangle is a set of 3 vertices I,J,K for which
+the edges IJ, JK, IK all exist.  The triangles are found via the
+MapReduce algorithm of "(Cohen)"_#Cohen discussed in his paper and in
+the paper of "(Plimpton)"_#Plimpton.  Note that even small graphs can
+have large numbers of triangles if there are very high-degree
+vertices.
 
 See the "named command"_command.html doc page for various ways in which
 the -i inputs and -o outputs for a named command can be specified.
 
-Input1 stores a set of edges, assumed to have no duplicates or
-self-edges.  The input is unchanged by this command.
-
-The triangles are found via the MapReduce algorithm of
-"(Cohen)"_#Cohen dicussed in his paper and in the paper of
-"(Plimpton)"_#Plimpton.  Note that even small graphs can have large
-numbers of triangles if there are very high-degree vertices.
+In1 stores a set of edges, assumed to have no duplicates or
+self-edges.  This means that either (Vi,Vj) or (Vj,Vi) appears, but
+not both.  Also (Vi,Vi) does not appear.  The input is unchanged by
+this command.
 
 Out1 will store the list of triangles.
 

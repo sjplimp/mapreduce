@@ -12,9 +12,9 @@ neighbor command :h3
 
 [Syntax:]
 
-neighbor -i input1 -o out1.file out1.mr :pre
+neighbor -i in1 -o out1.file out1.mr :pre
 
-input1 = graph edges: Key = Vi Vj, Value = NULL
+in1 = graph edges: Key = Vi Vj, Value = NULL
 out1 = neighbors of each vertex: Key = Vi, Value = Vj Vk ... :ul
 
 [Examples:]
@@ -24,23 +24,23 @@ degree -i mrv -o degree.list NULL
 [Description:]
 
 This is a named command which calculates the list of neighbors of each
-vertex in an undirected graph.
+vertex in an undirected graph.  A list of all the vertices each vertex
+shares an edge with is calculated.  These are the first neighbors of
+each vertex.
 
 See the "named command"_command.html doc page for various ways in
 which the -i inputs and -o outputs for a named command can be
 specified.
 
-Input1 stores a set of edges, assumed to have no duplicates or
-self-edges.  The input is unchanged by this command.
+In1 stores a set of edges, assumed to have no duplicates or
+self-edges.  This means that either (Vi,Vj) or (Vj,Vi) appears, but
+not both.  Also (Vi,Vi) does not appear.  The input is unchanged by
+this command.
 
-A list of all the vertices each vertex shares an edge with is
-calculated.  These are the first neighbors of each vertex.
-
-Out1 will store the list of neighbor vertices for each vertex.  Thi
+Out1 will store the list of neighbor vertices for each vertex.  The
 list is a single value in a key/value pair which is a vector of vertex
 IDs, one after the other.
 
 [Related commands:]
 
 "degree"_degree.html, "neigh_tri"_neigh_tri.html
-
