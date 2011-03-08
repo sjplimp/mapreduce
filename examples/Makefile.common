@@ -1,6 +1,6 @@
 # Targets
 
-all:	wordfreq cwordfreq rmat crmat rmat2
+all:	wordfreq cwordfreq rmat crmat
 
 wordfreq:	wordfreq.o $(USRLIB)
 	$(LINK) $(LINKFLAGS) wordfreq.o $(USRLIB) $(SYSLIB) -o wordfreq
