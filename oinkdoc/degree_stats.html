@@ -1,0 +1,57 @@
+<HTML>
+<CENTER><A HREF = "http://www.sandia.gov/~sjplimp/mapreduce.html">MR-MPI WWW Site</A> -<A HREF = "../doc/Manual.html">MR-MPI Documentation</A> - <A HREF = "Manual.html">OINK
+Documentation</A> - <A HREF = "Section_script.html#comm">OINK Commands</A> 
+</CENTER>
+
+
+
+
+
+
+
+
+<HR>
+
+<H3>degree_stats command 
+</H3>
+<P><B>Syntax:</B>
+</P>
+<PRE>degree_stats dupflag -i in1 
+</PRE>
+<P>dupflag = 1/2 for counting edge once/twice
+in1 = graph edges: Key = Vi Vj, Value = NULL
+</P>
+<P><B>Examples:</B>
+</P>
+<PRE>degree_stats 2 -i edges 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>This is a named command which summarizes and prints out the degree
+statistics of an undirected graph.  For each degree d, one line is
+printed to the screen with the number of vertices of degree d.  This
+is done in sorted order.
+</P>
+<P>If the dupflag is 2, then each edge increments the degree of both of
+its vertices.  If the dupflag is 1, then each edge only increments the
+degree of the first of its vertices.  This can be useful if the graph
+represents a sparse matrix and you want the statistics on non-zeroes
+in each row of the matrix.
+</P>
+<P>See the <A HREF = "command.html">named command</A> doc page for various ways in
+which the -i inputs and -o outputs for a named command can be
+specified.
+</P>
+<P>In1 stores a set of edges, assumed to have no duplicates or self
+edges.  This means that either (Vi,Vj) or (Vj,Vi) appears, but not
+both.  Also (Vi,Vi) does not appear.  The input is unchanged by this
+command.
+</P>
+<P>This command produces no output, other than what is written to the
+screen.
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "degree.html">degree</A>
+</P>
+</HTML>
