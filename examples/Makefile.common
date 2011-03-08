@@ -14,11 +14,8 @@ rmat:	rmat.o $(USRLIB)
 crmat:	crmat.o $(USRLIB)
 	$(LINK) $(LINKFLAGS) crmat.o $(USRLIB) $(SYSLIB) -o crmat
 
-rmat2:	rmat2.o $(USRLIB)
-	$(LINK) $(LINKFLAGS) rmat2.o $(USRLIB) $(SYSLIB) -o rmat2
-
 clean:
-	rm *.o wordfreq cwordfreq rmat crmat rmat2
+	rm *.o wordfreq cwordfreq rmat crmat
 
 # Rules
 

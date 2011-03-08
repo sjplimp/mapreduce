@@ -48,6 +48,9 @@ struct RMAT {            // RMAT params
   FILE *fp;
 };
 
+// NOTE: 32-bit vertex IDs, unlike in.rmat for OINK
+// other formatting code below would need to be changed for 64-bit vertex IDs
+
 typedef int VERTEX;      // vertex ID
 
 typedef struct {         // edge = 2 vertices
