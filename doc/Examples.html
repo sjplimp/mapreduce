@@ -32,6 +32,18 @@ the MR-MPI library) by typing
 Makefiles.  As with the library itself, you may need to edit one of
 the Makefiles to create a new version appropriate to your machine.
 </P>
+<P>The examples directory also includes input scripts for the scripting
+interface to MR-MPI called OINK.  There are scripts for word frequency
+(in.wordfreq), R-MAT generation (in.rmat) and various graph algorithms
+(in.cc, in.tri, in.luby, in.sssp, in.pagerank), described in the paper
+by <A HREF = "#Plimpton">Plimpton and Devine</A>.
+</P>
+<P>OINK has its own <A HREF = "../oinkdoc/Manual.html">manual and doc pages</A>.
+To run these scripts you will need to build OINK, and then
+run one of the scripts as follows:
+</P>
+<PRE>oink_machine < in.rmat 
+</PRE>
 <HR>
 
 <A NAME = "word"></A><H4>Word frequency example 
@@ -123,5 +135,10 @@ programs.
 Model for Graph Mining", if Proceedings of the SIAM Conference on Data
 Mining (2004), available at
 http://www.cs.cmu.edu/~deepay/mywww/papers/siam04.pdf.
+</P>
+<A NAME = "Plimpton"></A>
+
+<P><B>(Plimpton)</B> Plimpton and Devine, "MapReduce in MPI for Large-Scale
+Graph Algorithms", to appear in Parallel Computing (2011).
 </P>
 </HTML>
