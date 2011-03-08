@@ -46,7 +46,8 @@ void DegreeStats::run()
   MapReduce *mr = obj->create_mr();
   uint64_t nedge = mre->kv_stats(0);
 
-  mr->map(mre,edge_to_vertices,NULL);
+  if (duplicate == 1) mr->map(mre,edge_to_vertex,NULL);
+  else mr->map(mre,edge_to_vertices,NULL);
   mr->collate(NULL);
   uint64_t nvert = mr->reduce(count,NULL);
   mr->map(mr,invert,NULL);
@@ -67,7 +68,9 @@ void DegreeStats::run()
 
 void DegreeStats::params(int narg, char **arg)
 {
-  if (narg != 0) error->all("Illegal degree_stats command");
+  if (narg != 1) error->all("Illegal degree_stats command");
+
+  duplicate = atoi(arg[0]);
 }
 
 /* ---------------------------------------------------------------------- */

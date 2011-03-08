@@ -27,6 +27,9 @@ class DegreeStats : public Command {
   void run();
   void params(int, char **);
 
+ private:
+  int duplicate;
+
   static void print(char *, int, char *, int, void *);
 };
 
