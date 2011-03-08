@@ -1,1 +1,1 @@
-#define MRMPI_VERSION "11 Feb 2011"
+#define MRMPI_VERSION "8 Mar 2011"
