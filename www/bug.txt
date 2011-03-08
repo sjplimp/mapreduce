@@ -40,6 +40,25 @@ patch.
 :line
 :line
 
+[8 Mar 2011]
+
+Added some files and commands to OINK, which are implementations
+of the graph algorithms described in the new paper listed on 
+the "publications"_papers.html page of the WWW site.
+
+These include algorithms for R-MAT matrix generation, connected
+component finding, triangle finding, and maximal independent set
+identification.  Algorithms for PageRank and single-source
+shortest-path will soon follow.
+
+We also added OINK input scripts to test these commands in the
+examples directory.
+
+This is the "list of changed files"_patches/files.8Mar11 from the 11
+Feb 2011 version.
+
+:line
+
 [11 Feb 2011]
 
 Insure the OINK version stays current with MR-MPI version in
