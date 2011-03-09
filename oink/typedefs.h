@@ -8,9 +8,13 @@
 
 // typedefs used by various classes
 
+#ifndef OINK_TYPEDEFS_H
+#define OINK_TYPEDEFS_H
+
+#define __STDC_LIMIT_MACROS
 #include "stdint.h"
-#include "mapreduce.h"
-using namespace MAPREDUCE_NS;
+#include "keyvalue.h"
+using MAPREDUCE_NS::KeyValue;
 
 typedef uint64_t VERTEX;
 typedef struct {
@@ -28,3 +32,5 @@ typedef void (*ReduceFnPtr)(char *, int, char *, int, int *,
 			    KeyValue *, void *);
 typedef void (*ScanKVFnPtr)(char *, int, char *, int, void *);
 typedef void (*ScanKMVFnPtr)(char *, int, char *, int, int *, void *);
+
+#endif

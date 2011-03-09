@@ -6,12 +6,12 @@
    See the README file in the top-level MR-MPI directory.
 ------------------------------------------------------------------------- */
 
+#include "typedefs.h"
 #include "mpi.h"
 #include "stdio.h"
 #include "string.h"
 #include "stdlib.h"
 #include "rmat2.h"
-#include "typedefs.h"
 #include "object.h"
 #include "style_map.h"
 #include "style_reduce.h"

@@ -16,8 +16,6 @@ CommandStyle(degree_stats,DegreeStats)
 #define OINK_DEGREE_STATS_H
 
 #include "command.h"
-#include "mapreduce.h"
-using namespace MAPREDUCE_NS;
 
 namespace OINK_NS {
 

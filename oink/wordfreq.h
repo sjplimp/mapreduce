@@ -16,8 +16,8 @@ CommandStyle(wordfreq,WordFreq)
 #define OINK_WORD_FREQ_H
 
 #include "command.h"
-#include "mapreduce.h"
-using namespace MAPREDUCE_NS;
+#include "keyvalue.h"
+using MAPREDUCE_NS::KeyValue;
 
 namespace OINK_NS {
 

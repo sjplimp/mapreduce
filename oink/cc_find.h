@@ -17,7 +17,7 @@ CommandStyle(cc_find,CCFind)
 
 #include "command.h"
 #include "mapreduce.h"
-using namespace MAPREDUCE_NS;
+using MAPREDUCE_NS::KeyValue;
 
 namespace OINK_NS {
 

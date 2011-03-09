@@ -16,8 +16,6 @@ CommandStyle(edge_upper,EdgeUpper)
 #define OINK_EDGE_UPPER_H
 
 #include "command.h"
-#include "mapreduce.h"
-using namespace MAPREDUCE_NS;
 
 namespace OINK_NS {
 

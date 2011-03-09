@@ -1,5 +1,5 @@
-#include "string.h"
 #include "typedefs.h"
+#include "string.h"
 #include "keyvalue.h"
 using namespace MAPREDUCE_NS;
 

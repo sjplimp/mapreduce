@@ -6,10 +6,10 @@
    See the README file in the top-level MR-MPI directory.
 ------------------------------------------------------------------------- */
 
+#include "typedefs.h"
 #include "string.h"
 #include "stdlib.h"
 #include "cc_find.h"
-#include "typedefs.h"
 #include "object.h"
 #include "style_map.h"
 #include "error.h"
@@ -21,13 +21,9 @@
 using namespace OINK_NS;
 using namespace MAPREDUCE_NS;
 
-// for some machines/compilers, LL may need to be changed to L
-
-#define INT64MAX 0x7FFFFFFFFFFFFFFFLL
-#define HIBIT 0x8000000000000000LL
-#define ALLBITS 0xFFFFFFFFFFFFFFFFLL
-
-#define MAXLINE 1024
+#define ALLBITS UINT64_MAX
+#define INT64MAX INT64_MAX
+#define HIBIT UINT64_MAX-INT64_MAX
 
 /* ---------------------------------------------------------------------- */
 

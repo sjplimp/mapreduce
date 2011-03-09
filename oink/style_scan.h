@@ -8,9 +8,6 @@ ScanStyle(print_string_int)
 
 #else
 
-#include "keyvalue.h"
-using namespace MAPREDUCE_NS;
-
 void print_edge(char *key, int keybytes, char *value, int valuebytes, void *ptr);
 void print_string_int(char *key, int keybytes, 
 		      char *value, int valuebytes, void *ptr);

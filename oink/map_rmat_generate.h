@@ -9,7 +9,7 @@
 #ifndef OINK_RMAT_GENERATE_H
 #define OINK_RMAT_GENERATE_H
 
-#include "stdint.h"
+#include "typedefs.h"
 
 // data structure for RMAT parameters
 

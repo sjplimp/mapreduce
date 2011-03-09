@@ -16,8 +16,8 @@ CommandStyle(tri_find,TriFind)
 #define OINK_TRI_FIND_H
 
 #include "command.h"
-#include "mapreduce.h"
-using namespace MAPREDUCE_NS;
+#include "keyvalue.h"
+using MAPREDUCE_NS::KeyValue;
 
 namespace OINK_NS {
 

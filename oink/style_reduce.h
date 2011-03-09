@@ -6,7 +6,7 @@ ReduceStyle(cull)
 #else
 
 #include "keyvalue.h"
-using namespace MAPREDUCE_NS;
+using MAPREDUCE_NS::KeyValue;
 
 void count(char *key, int keybytes, char *multivalue,
 	   int nvalues, int *valuebytes, KeyValue *kv, void *ptr);

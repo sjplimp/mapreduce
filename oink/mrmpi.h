@@ -9,11 +9,8 @@
 #ifndef OINK_MRMPI_H
 #define OINK_MRMPI_H
 
-#include "stdint.h"
-#include "pointers.h"
 #include "typedefs.h"
-#include "mapreduce.h"
-using namespace MAPREDUCE_NS;
+#include "pointers.h"
 
 namespace OINK_NS {
 

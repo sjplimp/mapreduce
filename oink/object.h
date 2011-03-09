@@ -11,7 +11,8 @@
 
 #include "pointers.h"
 #include "mapreduce.h"
-using namespace MAPREDUCE_NS;
+using MAPREDUCE_NS::MapReduce;
+using MAPREDUCE_NS::KeyValue;
 
 namespace OINK_NS {
 

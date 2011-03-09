@@ -86,7 +86,7 @@ void WordFreq::run()
 
 void WordFreq::params(int narg, char **arg)
 {
-  if (narg != 1) error->all("Illegal wordfrea command");
+  if (narg != 1) error->all("Illegal wordfreq command");
   ntop = atoi(arg[0]); 
 }
 

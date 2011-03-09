@@ -1,5 +1,5 @@
-#include "stdio.h"
 #include "typedefs.h"
+#include "stdio.h"
 
 /* ----------------------------------------------------------------------
    print_edge

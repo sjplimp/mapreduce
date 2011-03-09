@@ -16,8 +16,8 @@ CommandStyle(luby_find,LubyFind)
 #define OINK_LUBY_FIND_H
 
 #include "command.h"
-#include "mapreduce.h"
-using namespace MAPREDUCE_NS;
+#include "keyvalue.h"
+using MAPREDUCE_NS::KeyValue;
 
 namespace OINK_NS {
 

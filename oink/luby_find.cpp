@@ -6,10 +6,10 @@
    See the README file in the top-level MR-MPI directory.
 ------------------------------------------------------------------------- */
 
+#include "typedefs.h"
 #include "string.h"
 #include "stdlib.h"
 #include "luby_find.h"
-#include "typedefs.h"
 #include "object.h"
 #include "style_map.h"
 #include "error.h"
@@ -40,9 +40,6 @@ typedef struct {
   uint64_t vj;
   double rj;
 } ERAND;
-
-#define INTMAX 0x7FFFFFFF
-#define MAXLINE 1024
 
 /* ---------------------------------------------------------------------- */
 

@@ -17,8 +17,6 @@ CommandStyle(rmat2,RMAT2)
 
 #include "command.h"
 #include "map_rmat_generate.h"
-#include "mapreduce.h"
-using namespace MAPREDUCE_NS;
 
 namespace OINK_NS {
 

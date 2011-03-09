@@ -1,5 +1,5 @@
-#include "stdlib.h"
 #include "typedefs.h"
+#include "stdlib.h"
 #include "map_rmat_generate.h"
 #include "keyvalue.h"
 using namespace MAPREDUCE_NS;

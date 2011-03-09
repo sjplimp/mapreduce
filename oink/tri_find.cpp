@@ -6,10 +6,10 @@
    See the README file in the top-level MR-MPI directory.
 ------------------------------------------------------------------------- */
 
+#include "typedefs.h"
 #include "string.h"
 #include "stdlib.h"
 #include "tri_find.h"
-#include "typedefs.h"
 #include "object.h"
 #include "style_map.h"
 #include "error.h"

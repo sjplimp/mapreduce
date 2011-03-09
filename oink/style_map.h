@@ -19,8 +19,9 @@ MapStyle(invert)
 
 #else
 
-#include "keyvalue.h"
-using namespace MAPREDUCE_NS;
+#include "mapreduce.h"
+using MAPREDUCE_NS::MapReduce;
+using MAPREDUCE_NS::KeyValue;
 
 void rmat_generate(int itask, KeyValue *kv, void *ptr);
 void read_edge(int itask, char *file, KeyValue *kv, void *ptr);

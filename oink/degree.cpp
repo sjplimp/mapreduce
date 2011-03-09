@@ -6,11 +6,11 @@
    See the README file in the top-level MR-MPI directory.
 ------------------------------------------------------------------------- */
 
+#include "typedefs.h"
 #include "mpi.h"
 #include "string.h"
 #include "stdlib.h"
 #include "degree.h"
-#include "typedefs.h"
 #include "object.h"
 #include "style_map.h"
 #include "style_reduce.h"
@@ -22,8 +22,6 @@
 
 using namespace OINK_NS;
 using namespace MAPREDUCE_NS;
-
-#define MAXLINE 1024
 
 /* ---------------------------------------------------------------------- */
 

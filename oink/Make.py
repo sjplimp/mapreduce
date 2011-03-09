@@ -157,8 +157,9 @@ for file in files:
     print >>fp,"MapStyle(%s)" % funcname[0]
 
 print >>fp,"\n#else\n"
-print >>fp,'#include "keyvalue.h"'
-print >>fp,"using namespace MAPREDUCE_NS;\n"
+print >>fp,'#include "mapreduce.h"'
+print >>fp,"using MAPREDUCE_NS::MapReduce;"
+print >>fp,"using MAPREDUCE_NS::KeyValue;\n"
 
 for hit in hitlist:
   print >>fp,"%s;" % hit
@@ -196,7 +197,7 @@ for file in files:
 
 print >>fp,"\n#else\n"
 print >>fp,'#include "keyvalue.h"'
-print >>fp,"using namespace MAPREDUCE_NS;\n"
+print >>fp,"using MAPREDUCE_NS::KeyValue;\n"
 
 for hit in hitlist:
   print >>fp,"%s;" % hit
@@ -247,8 +248,6 @@ for file in files:
     print >>fp,"ScanStyle(%s)" % funcname[0]
 
 print >>fp,"\n#else\n"
-print >>fp,'#include "keyvalue.h"'
-print >>fp,"using namespace MAPREDUCE_NS;\n"
 
 for hit in hitlist:
   print >>fp,"%s;" % hit
