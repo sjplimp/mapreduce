@@ -73,7 +73,7 @@ void DegreeWeight::print(char *key, int keybytes,
 {
   FILE *fp = (FILE *) ptr;
   EDGE *e = (EDGE *) key;
-  double weight = *(double *) value;
+  WEIGHT weight = *(WEIGHT *) value;
   fprintf(fp,"%lu %lu %g\n",e->vi,e->vj,weight);
 }
 
@@ -104,7 +104,7 @@ void DegreeWeight::inverse_degree(char *key, int keybytes,
   END_BLOCK_LOOP
 
   int degree = *(int *) value;
-  double weight = 1.0/degree;
+  WEIGHT weight = 1.0/degree;
   edge.vi = *(VERTEX *) key;
 
   // emit one KV per edge with weight = one/degree as value
@@ -115,7 +115,7 @@ void DegreeWeight::inverse_degree(char *key, int keybytes,
   for (int i = 0; i < nvalues; i++) {
     if (valuebytes[i] != sizeof(int)) {
       edge.vj = *(VERTEX *) value;
-      kv->add((char *) &edge,sizeof(EDGE),(char *) &weight,sizeof(double));
+      kv->add((char *) &edge,sizeof(EDGE),(char *) &weight,sizeof(WEIGHT));
     }
     value += valuebytes[i];
   }

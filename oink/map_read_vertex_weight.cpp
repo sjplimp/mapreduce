@@ -16,12 +16,12 @@ void read_vertex_weight(int itask, char *file, KeyValue *kv, void *ptr)
 {
   char line[MAXLINE];
   VERTEX v;
-  double weight;
+  WEIGHT weight;
 
   FILE *fp = fopen(file,"r");
   while (fgets(line,MAXLINE,fp)) {
     sscanf(line,"%lu %g",&v,&weight);
-    kv->add((char *) &v,sizeof(VERTEX),(char *) &weight,sizeof(double));
+    kv->add((char *) &v,sizeof(VERTEX),(char *) &weight,sizeof(WEIGHT));
   }
   fclose(fp);
 }

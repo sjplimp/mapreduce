@@ -16,6 +16,7 @@
 #include "keyvalue.h"
 using MAPREDUCE_NS::KeyValue;
 
+typedef double WEIGHT;
 typedef uint64_t VERTEX;
 typedef struct {
   VERTEX vi,vj;

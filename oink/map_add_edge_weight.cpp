@@ -1,4 +1,5 @@
 #include "keyvalue.h"
+#include "typedefs.h"
 using namespace MAPREDUCE_NS;
 
 /* ----------------------------------------------------------------------
@@ -10,6 +11,6 @@ using namespace MAPREDUCE_NS;
 void add_edge_weight(uint64_t itask, char *key, int keybytes, char *value,
 		     int valuebytes, KeyValue *kv, void *ptr)
 {
-  double one = 1.0;
-  kv->add(key,keybytes,(char *) &one,sizeof(double));
+  WEIGHT one = 1.0;
+  kv->add(key,keybytes,(char *) &one,sizeof(WEIGHT));
 }
