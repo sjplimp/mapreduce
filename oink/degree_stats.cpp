@@ -40,7 +40,7 @@ void DegreeStats::run()
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
   MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 
-  // mre = graph edges
+  // MRe = Eij : NULL
 
   MapReduce *mre = obj->input(1,read_edge,NULL);
   MapReduce *mr = obj->create_mr();
@@ -50,6 +50,7 @@ void DegreeStats::run()
   else mr->map(mre,edge_to_vertices,NULL);
   mr->collate(NULL);
   uint64_t nvert = mr->reduce(count,NULL);
+
   mr->map(mr,invert,NULL);
   mr->collate(NULL);
   mr->reduce(count,NULL);
