@@ -6,6 +6,7 @@
 #include "luby_find.h"
 #include "neigh_tri.h"
 #include "neighbor.h"
+#include "pagerank.h"
 #include "rmat.h"
 #include "rmat2.h"
 #include "sssp.h"
