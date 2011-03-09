@@ -24,13 +24,14 @@ Documentation</A> - <A HREF = "Section_script.html#comm">OINK Commands</A>
 </UL>
 <P><B>Examples:</B>
 </P>
-<P>edge map/task 100 mymap
+<PRE><A HREF = "mr.html">mr</A> edge
+edge map/task 100 mymap
 edge map/task 100 mymap 1
 edge collate NULL
 edge reduce myreduce
 edge kv_stats 1
-edge set timer 1
-</P>
+edge set timer 1 
+</PRE>
 <P><B>Description:</B>
 </P>
 <P>Invoke a MR-MPI library function directly on a previously created
@@ -167,6 +168,8 @@ information to the user callback map() or reduce() function.  We are
 still thinking about the best way to do this, at least in some limited
 fashion, from an OINK input script.
 </P>
+<HR>
+
 <P>When any MR-MPI library command is executed, its elapsed execution
 time is stored internally by OINK.  This value can be accessed by the
 keyword "time" in an <A HREF = "variable.html">equal-style variable</A> and printed

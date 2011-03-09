@@ -21,12 +21,13 @@ args = arguments to library function :ul
 
 [Examples:]
 
+"mr"_mr.html edge
 edge map/task 100 mymap
 edge map/task 100 mymap 1
 edge collate NULL
 edge reduce myreduce
 edge kv_stats 1
-edge set timer 1
+edge set timer 1 :pre
 
 [Description:]
 
@@ -161,6 +162,8 @@ language, such as C++ or C, this is powerful option for passing extra
 information to the user callback map() or reduce() function.  We are
 still thinking about the best way to do this, at least in some limited
 fashion, from an OINK input script.
+
+:line
 
 When any MR-MPI library command is executed, its elapsed execution
 time is stored internally by OINK.  This value can be accessed by the
