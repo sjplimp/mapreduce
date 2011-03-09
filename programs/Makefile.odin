@@ -8,7 +8,6 @@ LINK =		mpic++ -m64
 LINKFLAGS =	-O2 $(OUTOFCORE)
 USRLIB =	-L../src -lmrmpi
 SYSLIB =	
-LIB =		../src/libmrmpi.a
 DEPFLAGS =      -M
 
 include Makefile.common
