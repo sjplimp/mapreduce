@@ -30,7 +30,6 @@ typedef struct {
 } TRI;
 
 #define INTMAX 0x7FFFFFFF
-#define MAXLINE 1024
 
 /* ---------------------------------------------------------------------- */
 

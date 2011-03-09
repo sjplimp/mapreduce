@@ -8,5 +8,6 @@
 #include "neighbor.h"
 #include "rmat.h"
 #include "rmat2.h"
+#include "sssp.h"
 #include "tri_find.h"
 #include "wordfreq.h"
