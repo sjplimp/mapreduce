@@ -44,7 +44,7 @@ void SSSP::run()
   MapReduce *mrv = obj->create_mr();
   MapReduce *mrdist = obj->create_mr();
 
-  // MRv = list of vertices in the graph
+  // MRv = list of vertices in the undirected graph
   
   mrv->map(mre,edge_to_vertices,NULL);
   mrv->collate(NULL);

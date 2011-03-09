@@ -44,7 +44,7 @@ void PageRank::run()
   MapReduce *mrv = obj->create_mr();
   MapReduce *mrr = obj->create_mr();
 
-  // MRv = list of vertices in the graph
+  // MRv = list of vertices in the directed graph
   
   mrv->map(mre,edge_to_vertices,NULL);
   mrv->collate(NULL);
