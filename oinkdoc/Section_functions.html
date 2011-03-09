@@ -42,20 +42,20 @@ the structure pointed to.  Instead, your caller should create the
 minimial data structure that the callback function needs to operate,
 and store the structure in a map_*.h file that corresponds to the
 specific map_*.cpp file that contains the function (or reduce_*.h or
-scan_*.h).  See the file oink/map_rmat.h file as an example.  It
-contains the definition of an RMAT_params structure, which is used by
-both the <A HREF = "rmat.txt">rmat command</A> and the map() methods it uses, listed
-in map_rmat.cpp.  Both the rmap.cpp and map_rmat.cpp files include the
-map_rmat.h header file to accomplish this.  Other commands or callback
-functions could use the same data structure by including that header
-file.
+scan_*.h).  See the file oink/map_rmat_generate.h file as an example.
+It contains the definition of an RMAT_params structure, which is used
+by both the <A HREF = "rmat.txt">rmat command</A> and the map() methods it uses,
+listed in map_rmat_generate.cpp.  Both the rmat.h and
+map_rmat_generate.cpp files include the map_rmat_generate.h header
+file to accomplish this.  Other commands or callback functions could
+use the same data structure by including that header file.
 </P>
 <P>The following sections list the various callback function currently
 included in OINK, and a brief explanation of what each of them does.
 </P>
 <P>Note that map() functions come in 4 flavors, depending on what MR-MPI
 library <A HREF = "../doc/map.html">map() method</A> is being used.  Similarly,
-scan() functions come in 2 flavors, as documented on the <A HREF = "..doc/scan.html">scan()
+scan() functions come in 2 flavors, as documented on the <A HREF = "../doc/scan.html">scan()
 method</A> page.  Map_*.cpp and scan_*.cpp files within
 OINK can contain any of the 4 or 2 flavors of map() and scan()
 methods.

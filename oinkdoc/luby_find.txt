@@ -48,7 +48,8 @@ Out1 will store the list of vertices in the MIS.
 :line
 
 :link(Luby) 
-[(Luby)] Luby, "Foo", J Foo, 32, 100-104 (2011).
+[(Luby)] Luby, "A Simple Parallel Algorithm for the Maximal
+Independent Set Problem", SIAM J Computing, 15, 1036-1055 (1986).
 
 :link(Plimpton) 
 [(Plimpton)] Plimpton and Devine, "MapReduce in MPI for Large-Scale
