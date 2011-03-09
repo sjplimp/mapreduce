@@ -34,17 +34,19 @@ is done in sorted order.
 </P>
 <P>If the dupflag is 2, then each edge increments the degree of both of
 its vertices.  If the dupflag is 1, then each edge only increments the
-degree of the first of its vertices.  This can be useful if the graph
-represents a sparse matrix and you want the statistics on non-zeroes
-in each row of the matrix.
+degree of the first of its vertices.  The former is usually more
+approrpriate for undirected graphs; the latter for directed graphs, in
+which case the out-degree of each vertex is being calculated.  The
+latter can also be useful if the graph represents a sparse matrix and
+you want the statistics on non-zeroes in each row of the matrix.
 </P>
 <P>See the <A HREF = "command.html">named command</A> doc page for various ways in
 which the -i inputs and -o outputs for a named command can be
 specified.
 </P>
-<P>In1 stores a set of edges, assumed to have no duplicates or self
-edges.  This means that either (Vi,Vj) or (Vj,Vi) appears, but not
-both.  Also (Vi,Vi) does not appear.  The input is unchanged by this
+<P>In1 stores a set of edges.  No assumption is made about duplicates or
+self edges, i.e. (Vi,Vj) may appear multiple times, both (Vi,Vj) or
+(Vj,Vi) may appear, as may (Vi,Vi).  The input is unchanged by this
 command.
 </P>
 <P>This command produces no output, other than what is written to the
