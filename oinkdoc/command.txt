@@ -133,8 +133,8 @@ MapReduce object.  The code in the command class will have created or
 altered the MR-MPI object and its associated MapReduce object and
 populated it with data.  As a final step, the specified ID is assigned
 to that MR-MPI object.  If the ID is already in use, then the name is
-removed from the other MR-MPI object.  In particular, if an
-{outputN.ID} is the same as an {inputN} to the command then output
+removed from the other MR-MPI object.  This means that if an
+{outputN.ID} is the same as an {inputN} to the command then the output
 will effectively overwrite that input.
 
 When the command completes, named MR-MPI objects persist so that they

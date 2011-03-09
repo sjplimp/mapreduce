@@ -454,7 +454,7 @@ insure you free the objects yourself before the run() method ends, so
 as not to leak memory.
 </P>
 <P>One additional point is that it is fine to do this within your run()
-method:
+method, where mr is a pointer returned by obj->create_mr():
 </P>
 <PRE>mr = obj->copy(mr); 
 </PRE>
