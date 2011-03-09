@@ -40,6 +40,16 @@ patch.
 :line
 :line
 
+[9 Mar 2011]
+
+Tweaked some header files in the OINK scripting framework to allow for
+more portable 64-bit integer usage.
+
+This is the "list of changed files"_patches/files.9Mar11 from the 8
+Mar 2011 version.
+
+:line
+
 [8 Mar 2011]
 
 Added some files and commands to OINK, which are implementations
