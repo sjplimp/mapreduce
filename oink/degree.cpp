@@ -53,6 +53,7 @@ void Degree::run()
 
   char msg[128];
   sprintf(msg,"Degree: %d vertices, %d edges",nvert,nedge);
+  if (me == 0) error->message(msg);
 
   obj->cleanup();
 }

@@ -2,6 +2,7 @@
 #include "cc_stats.h"
 #include "degree.h"
 #include "degree_stats.h"
+#include "degree_weight.h"
 #include "edge_upper.h"
 #include "luby_find.h"
 #include "neigh_tri.h"

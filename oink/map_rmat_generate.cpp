@@ -15,24 +15,25 @@ void rmat_generate(int itask, KeyValue *kv, void *ptr)
 {
   RMAT_struct *rmat = (RMAT_struct *) ptr;
 
+  uint64_t order = rmat->order;
+  uint64_t ngenerate = rmat->ngenerate;
   int nlevels = rmat->nlevels;
-  int order = rmat->order;
-  int ngenerate = rmat->ngenerate;
   double a = rmat->a;
   double b = rmat->b;
   double c = rmat->c;
   double d = rmat->d;
   double fraction = rmat->fraction;
 
-  int i,j,ilevel,delta;
+  uint64_t i,j,delta;
+  int ilevel;
   double a1,b1,c1,d1,total,rn;
   EDGE edge;
 
-  for (int m = 0; m < ngenerate; m++) {
+  for (uint64_t m = 0; m < ngenerate; m++) {
     delta = order >> 1;
     a1 = a; b1 = b; c1 = c; d1 = d;
     i = j = 0;
-    
+
     for (ilevel = 0; ilevel < nlevels; ilevel++) {
       rn = drand48();
       if (rn < a1) {

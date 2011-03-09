@@ -54,13 +54,12 @@ void PageRank::run()
 
   for (int iterate = 0; iterate < maxiter; iterate++) {
 
-
-
   }
 
   // MRr = Vi : rank
 
   //obj->output(1,mrr,print,NULL);
+  obj->output(1,mre,print,NULL);
 
   obj->cleanup();
 }
