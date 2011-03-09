@@ -3,7 +3,7 @@
 using namespace MAPREDUCE_NS;
 
 /* ----------------------------------------------------------------------
-   edge_to_vertices
+   edge_to_vertex
    emit 1 vertex for each edge, just first one
    input: key = Vi Vj, value = NULL
    output: key = Vi, value = NULL
