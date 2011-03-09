@@ -16,7 +16,7 @@ CommandStyle(cc_find,CCFind)
 #define OINK_CC_FIND_H
 
 #include "command.h"
-#include "mapreduce.h"
+#include "keyvalue.h"
 using MAPREDUCE_NS::KeyValue;
 
 namespace OINK_NS {
