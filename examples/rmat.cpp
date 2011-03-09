@@ -103,7 +103,7 @@ int main(int narg, char **args)
   rmat.order = 1 << rmat.nlevels;
 
   MapReduce *mr = new MapReduce(MPI_COMM_WORLD);
-  mr->verbosity = 2;
+  mr->verbosity = 0;
   mr->timer = 1;
 
   // loop until desired number of unique nonzero entries
@@ -123,6 +123,7 @@ int main(int narg, char **args)
     if (nunique == ntotal) break;
     mr->reduce(&cull,&rmat);
     nremain = ntotal - nunique;
+std::cout << "KDDKDD " << ntotal << " " << nunique << " " << nremain << std::endl;
   }
 
   MPI_Barrier(MPI_COMM_WORLD);

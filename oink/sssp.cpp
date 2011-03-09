@@ -25,11 +25,18 @@ using namespace MAPREDUCE_NS;
 
 #define MAX_NUM_EXPERIMENTS 50
 
+#ifdef NOISY
+#define HELLO {std::cout << "KDD " << __func__ << std::endl;}
+#else
+#define HELLO 
+#endif
+
 uint64_t SSSP::NVtxLabeled = 0;
 
 /////////////////////////////////////////////////////////////////////////////
 SSSP::SSSP(OINK *oink) : Command(oink)
-{
+{ HELLO
+
   MPI_Comm_rank(MPI_COMM_WORLD, &me);
   MPI_Comm_size(MPI_COMM_WORLD, &np);
   ninputs = 1;
@@ -38,7 +45,7 @@ SSSP::SSSP(OINK *oink) : Command(oink)
 
 /////////////////////////////////////////////////////////////////////////////
 void SSSP::run()
-{
+{ HELLO
   int me;
   MPI_Comm_rank(MPI_COMM_WORLD,&me);
 
@@ -76,7 +83,7 @@ void SSSP::run()
   MPI_Barrier(MPI_COMM_WORLD);
   double tstart = MPI_Wtime();
 
-  for (int cnt = 0; cnt < ncnt; ncnt++) {
+  for (int cnt = 0; cnt < ncnt; cnt++) {
     VERTEX source;
     if (!get_next_source(&source, cnt))
       break;
@@ -178,7 +185,7 @@ void SSSP::run()
 void SSSP::reorganize_edges(uint64_t itask, char *key, int keybytes, 
                             char *value, int valuebytes, 
                             KeyValue *kv, void *ptr)
-{
+{ HELLO
   EDGE *e = (EDGE *) key;
   VERTEX v = e->vi;
   EDGEVALUE ev;
@@ -194,7 +201,7 @@ void SSSP::reorganize_edges(uint64_t itask, char *key, int keybytes,
 // Map:    Input:   randomly selected vertex in [1:N] for source.
 //         Output:  One key-value pair for the source.
 void SSSP::add_source(int nmap, KeyValue *kv, void *ptr)
-{
+{ HELLO
   VERTEX *v = (VERTEX *) ptr;
   DISTANCE d;
   d.e.wt = 0;  // Distance from source to itself is zero.
@@ -210,7 +217,7 @@ void SSSP::add_source(int nmap, KeyValue *kv, void *ptr)
 void SSSP::move_to_new_mr(uint64_t itask, char *key, int keybytes, 
                           char *value, int valuebytes, 
                           KeyValue *kv, void *ptr)
-{
+{ HELLO
   MapReduce *mr = (MapReduce *) ptr;
   mr->kv->add(key, keybytes, value, valuebytes);
 }
@@ -222,7 +229,7 @@ void SSSP::move_to_new_mr(uint64_t itask, char *key, int keybytes,
 void SSSP::initialize_vertex_distances(uint64_t itask, char *key, int keybytes, 
                                        char *value, int valuebytes, 
                                        KeyValue *kv, void *ptr)
-{
+{ HELLO
   DISTANCE d;
   kv->add(key, keybytes, (char *) &d, sizeof(DISTANCE));
 }
@@ -235,7 +242,7 @@ void SSSP::initialize_vertex_distances(uint64_t itask, char *key, int keybytes,
 void SSSP::pick_shortest_distances(char *key, int keybytes, char *multivalue,
                                    int nvalues, int *valuebytes, 
                                    KeyValue *kv, void *ptr)
-{
+{ HELLO
   MapReduce *mrpath = (MapReduce *) ptr;
 
   uint64_t total_nvalues;
@@ -290,7 +297,7 @@ void SSSP::pick_shortest_distances(char *key, int keybytes, char *multivalue,
 void SSSP::update_adjacent_distances(char *key, int keybytes, char *multivalue,
                                      int nvalues, int *valuebytes, 
                                      KeyValue *kv, void *ptr)
-{
+{ HELLO
   MapReduce *mrpath = (MapReduce *) ptr;
   VERTEX *vi = (VERTEX *) key;
   bool found = false;
@@ -354,7 +361,7 @@ void SSSP::update_adjacent_distances(char *key, int keybytes, char *multivalue,
 void SSSP::get_good_sources(char *key, int keybytes, char *multivalue,
                             int nvalues, int *valuebytes, 
                             KeyValue *kv, void *ptr)
-{
+{ HELLO
 class SSSP *ths = (class SSSP *) ptr;
 
   // Check whether already have enough sources.
@@ -371,31 +378,31 @@ bool SSSP::get_next_source(
   VERTEX *source,
   int cnt
 )
-{
-  source = 0;
+{ HELLO
+  *source = 0;
   if (me == 0) {
     if (cnt < sourcelist.size())
       *source = sourcelist[cnt];
   }
   MPI_Bcast(source, sizeof(VERTEX), MPI_BYTE, 0, MPI_COMM_WORLD);
-  return(source != 0);
+  return(*source != 0);
 }
 
 /* ---------------------------------------------------------------------- */
 
 void SSSP::params(int narg, char **arg)
-{
+{ HELLO
   if (narg != 2) error->all("Illegal sssp command");
 
-  ncnt = atoi(arg[0]);
-  seed = atoi(arg[1]);
+  ncnt = atoi(arg[0]);  std::cout << "PARAM ncnt=" << ncnt << std::endl;
+  seed = atoi(arg[1]);  std::cout << "PARAM seed=" << seed << std::endl;
 }
 
 /* ---------------------------------------------------------------------- */
 
 void SSSP::print(char *key, int keybytes, 
 		 char *value, int valuebytes, void *ptr) 
-{
+{ HELLO
   FILE *fp = (FILE *) ptr;
   VERTEX *v = (VERTEX *) key;
   DISTANCE *d = (DISTANCE *) value;

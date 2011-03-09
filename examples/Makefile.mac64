@@ -3,7 +3,7 @@
 CC =		mpicc 
 CPP =		mpic++ 
 CCFLAGS =	-g -O -I../src -m64
-LINK =		mpic++
+LINK =		mpic++ -m64
 LINKFLAGS =	-g -O -m64
 USRLIB =	../src/libmrmpi_mac64.a
 SYSLIB =
