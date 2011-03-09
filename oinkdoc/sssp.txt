@@ -29,11 +29,11 @@ sssp2 10 12345 -i mre -o sssp.dist mrdist :pre
 [Description:]
 
 These are named commands which compute the shortest path to each
-vertex from a source vertex, which is called a single-source
-shortest-path (SSSP) calculation.  The source vertex is selected
-randomly.  Each edge in the graph has a weight.  The shortest-path
-distance to any other vertex is the walk along the path of edges
-connecting the two vertices that has the minimum summed weight.
+vertex from a source vertex in an undirected graph.  This is called a
+single-source shortest-path (SSSP) calculation.  The source vertex is
+selected randomly.  Each edge in the graph has a weight.  The
+shortest-path distance to any other vertex is the minimum summed
+weight of a list of consecutive edges that connect the two vertices.
 
 This calculation involves a breadth-first search on the graph.  The
 MapReduce algorithms used for performing the SSSP calculation are
