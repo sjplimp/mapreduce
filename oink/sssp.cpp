@@ -42,6 +42,7 @@ void SSSP::run()
 
   MapReduce *mre = obj->input(1,read_edge_weight,NULL);
   MapReduce *mrv = obj->create_mr();
+  MapReduce *mrdist = obj->create_mr();
 
   // MRv = list of vertices in the graph
   
@@ -57,9 +58,9 @@ void SSSP::run()
 
   }
 
-  // assuming here that MRv will contain Vi:distance at end ??
+  // MRdist = Vi : distance Vprev
 
-  obj->output(1,mrv,print,NULL);
+  //obj->output(1,mrdist,print,NULL);
 
   obj->cleanup();
 }
@@ -82,7 +83,8 @@ void SSSP::print(char *key, int keybytes,
   FILE *fp = (FILE *) ptr;
   VERTEX v = *(VERTEX *) key;
   double weight = *(double *) value;
-  fprintf(fp,"%lu %g\n",v,weight);
+  VERTEX vprev = *(VERTEX *) &value[sizeof(double)];
+  fprintf(fp,"%lu %lu %g\n",v,weight,vprev);
 }
 
 /* ---------------------------------------------------------------------- */
