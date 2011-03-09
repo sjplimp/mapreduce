@@ -9,10 +9,12 @@ Documentation"_od - "OINK Commands"_oc :c
 :line
 
 sssp command :h3
+sssp2 command :h3
 
 [Syntax:]
 
 sssp N seed -i in1 -o out1.file out1.mr :pre
+sssp2 N seed -i in1 -o out1.file out1.mr :pre
 
 N = # of random starting vertices to choose
 seed = random number seed (positive integer)
@@ -21,11 +23,12 @@ out1 = distance to each vertex: Key = Vi, Value = distance :ul
 
 [Examples:]
 
-sssp 10 12345 -i mre -o sssp.dist mrdist :pre
+sssp 10 12345 -i mre -o sssp.dist mrdist
+sssp2 10 12345 -i mre -o sssp.dist mrdist :pre
 
 [Description:]
 
-This is a named command which computes the shortest path to each
+These are named commands which compute the shortest path to each
 vertex from a source vertex, which is called a single-source
 shortest-path (SSSP) calculation.  The source vertex is selected
 randomly.  Each edge in the graph has a weight.  The shortest-path
@@ -33,21 +36,21 @@ distance to any other vertex is the walk along the path of edges
 connecting the two vertices that has the minimum summed weight.
 
 This calculation involves a breadth-first search on the graph.  The
-MapReduce version of the SSSP algorithm is described in the paper of
-"(Plimpton)"_#Plimpton.  The sssp command implements the first of the
-two algorithms discussed in the paper.  The sssp2 command implements
-the second of the two algorithms.
+MapReduce algorithms used for performing the SSSP calculation are
+described in the paper of "(Plimpton)"_#Plimpton.  The sssp command
+implements the first of the two algorithms discussed in the paper.
+The sssp2 command implements the second of the two algorithms.
 
 See the "named command"_command.html doc page for various ways in which
 the -i inputs and -o outputs for a named command can be specified.
 
-In1 stores a set of edges, assumed to have no duplicates or
-self-edges.  This means that either (Vi,Vj) or (Vj,Vi) appears, but
-not both.  Also (Vi,Vi) does not appear.  The input is unchanged by
-this command.
+In1 stores a set of edges with floating point weights, assumed to have
+no duplicates or self-edges.  This means that either (Vi,Vj) or
+(Vj,Vi) appears, but not both.  Also (Vi,Vi) does not appear.  The
+input is unchanged by this command.
 
 Out1 will store the list of vertices and the distance to each vertex.
-If the input N > 1, then this will be the SSSP result for only the
+If the specified N > 1, then this will be the SSSP result for only the
 last source vertex randomly selected.
 
 [Related commands:] none

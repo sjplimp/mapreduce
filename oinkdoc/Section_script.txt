@@ -182,5 +182,7 @@ send it to us and we can include it in the distribution.
 "neighbor"_neighbor.html,
 "rmat"_rmat.html,
 "rmat2"_rmat.html,
+"sssp"_sssp.html,
+"sssp2"_sssp.html,
 "tri_find"_tri_find.html,
 "wordfreq"_wordfreq.html :tb(c=2,ea=c)

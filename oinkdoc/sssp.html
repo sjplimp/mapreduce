@@ -14,9 +14,13 @@ Documentation</A> - <A HREF = "Section_script.html#comm">OINK Commands</A>
 
 <H3>sssp command 
 </H3>
+<H3>sssp2 command 
+</H3>
 <P><B>Syntax:</B>
 </P>
 <PRE>sssp N seed -i in1 -o out1.file out1.mr 
+</PRE>
+<PRE>sssp2 N seed -i in1 -o out1.file out1.mr 
 </PRE>
 <UL><LI>N = # of random starting vertices to choose
 <LI>seed = random number seed (positive integer)
@@ -25,11 +29,12 @@ Documentation</A> - <A HREF = "Section_script.html#comm">OINK Commands</A>
 </UL>
 <P><B>Examples:</B>
 </P>
-<PRE>sssp 10 12345 -i mre -o sssp.dist mrdist 
+<PRE>sssp 10 12345 -i mre -o sssp.dist mrdist
+sssp2 10 12345 -i mre -o sssp.dist mrdist 
 </PRE>
 <P><B>Description:</B>
 </P>
-<P>This is a named command which computes the shortest path to each
+<P>These are named commands which compute the shortest path to each
 vertex from a source vertex, which is called a single-source
 shortest-path (SSSP) calculation.  The source vertex is selected
 randomly.  Each edge in the graph has a weight.  The shortest-path
@@ -37,21 +42,21 @@ distance to any other vertex is the walk along the path of edges
 connecting the two vertices that has the minimum summed weight.
 </P>
 <P>This calculation involves a breadth-first search on the graph.  The
-MapReduce version of the SSSP algorithm is described in the paper of
-<A HREF = "#Plimpton">(Plimpton)</A>.  The sssp command implements the first of the
-two algorithms discussed in the paper.  The sssp2 command implements
-the second of the two algorithms.
+MapReduce algorithms used for performing the SSSP calculation are
+described in the paper of <A HREF = "#Plimpton">(Plimpton)</A>.  The sssp command
+implements the first of the two algorithms discussed in the paper.
+The sssp2 command implements the second of the two algorithms.
 </P>
 <P>See the <A HREF = "command.html">named command</A> doc page for various ways in which
 the -i inputs and -o outputs for a named command can be specified.
 </P>
-<P>In1 stores a set of edges, assumed to have no duplicates or
-self-edges.  This means that either (Vi,Vj) or (Vj,Vi) appears, but
-not both.  Also (Vi,Vi) does not appear.  The input is unchanged by
-this command.
+<P>In1 stores a set of edges with floating point weights, assumed to have
+no duplicates or self-edges.  This means that either (Vi,Vj) or
+(Vj,Vi) appears, but not both.  Also (Vi,Vi) does not appear.  The
+input is unchanged by this command.
 </P>
 <P>Out1 will store the list of vertices and the distance to each vertex.
-If the input N > 1, then this will be the SSSP result for only the
+If the specified N > 1, then this will be the SSSP result for only the
 last source vertex randomly selected.
 </P>
 <P><B>Related commands:</B> none
