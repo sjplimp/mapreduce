@@ -186,6 +186,7 @@ send it to us and we can include it in the distribution.
 "sssp"_sssp.html,
 "sssp2"_sssp.html,
 "tri_find"_tri_find.html,
+"vertex_extract"_vertex_extract.html,
 "wordfreq"_wordfreq.html :tb(c=2,ea=c)
 
 Here is a link to the MR-MPI library commands that can be invoked
