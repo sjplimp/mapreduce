@@ -87,7 +87,15 @@ output: key = Vi Vj, value = NULL<BR>
 </TD>
 </TR>
 <TR>
-<TD>edge_to_vertices</TD>
+<TD>add_label</TD>
+<TD>
+add a default label to each key, key could be vertex or edge<BR>
+input: key = anything, value = NULL<BR>
+output: key = unchanged, value = 1<BR>
+</TD>
+</TR>
+<TR>
+<TD>edge_to_vertex</TD>
 <TD>
 emit 1 vertex for each edge, just first one<BR>
 input: key = Vi Vj, value = NULL<BR>
@@ -218,6 +226,13 @@ input: key = Vi Vj, value = NULL<BR>
 <TD>
 print out string and int to FILE in ptr<BR>
 input: key = string, value = int<BR>
+</TD>
+</TR>
+<TR>
+<TD>print_vertex</TD>
+<TD>
+print out an vertex to FILE in ptr<BR>
+input: key = Vi, value = NULL<BR>
 </TD>
 </TR>
 </TABLE></DIV>
