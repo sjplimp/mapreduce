@@ -15,6 +15,7 @@
 #include "style_reduce.h"
 #include "error.h"
 
+#include <iostream>
 #include "blockmacros.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
@@ -22,6 +23,7 @@
 
 using namespace OINK_NS;
 using namespace MAPREDUCE_NS;
+using namespace std;
 
 #define MAX_NUM_EXPERIMENTS 50
 
