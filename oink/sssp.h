@@ -18,6 +18,7 @@ CommandStyle(sssp,SSSP)
 #include "command.h"
 #include "keyvalue.h"
 #include "float.h"
+#include "typedefs.h"
 #include <vector>
 
 using MAPREDUCE_NS::KeyValue;
