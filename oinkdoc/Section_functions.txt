@@ -80,18 +80,19 @@ appear in the right columns.
 Map() functions :link(3_1),h4
 
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1><TR>
-<TD>add_edge_weight</TD>
+<TD>add_label</TD>
 <TD>
-read edges from file, formatted with 2 vertices per line<BR>
-output: key = Vi Vj, value = NULL<BR>
+add a default integer label to each key, key could be vertex or edge<BR>
+input: key = anything, value = NULL<BR>
+output: key = unchanged, value = 1<BR>
 </TD>
 </TR>
 <TR>
-<TD>add_label</TD>
+<TD>add_weight</TD>
 <TD>
-add a default label to each key, key could be vertex or edge<BR>
+add a default floating point weight to each key, key could be vertex or edge<BR>
 input: key = anything, value = NULL<BR>
-output: key = unchanged, value = 1<BR>
+output: key = unchanged, value = 1.0<BR>
 </TD>
 </TR>
 <TR>
@@ -144,11 +145,27 @@ output: key = Vi Vj, value = NULL<BR>
 </TD>
 </TR>
 <TR>
+<TD>read_edge_label</TD>
+<TD>
+read edges and labels from file<BR>
+file format = 2 vertices and integer label per line<BR>
+output: key = Vi Vj, value = label<BR>
+</TD>
+</TR>
+<TR>
 <TD>read_edge_weight</TD>
 <TD>
 read edges and weights from file<BR>
 file format = 2 vertices and floating point weight per line<BR>
 output: key = Vi Vj, value = weight<BR>
+</TD>
+</TR>
+<TR>
+<TD>read_vertex_label</TD>
+<TD>
+read vertices and labels from file<BR>
+file format = vertex and integer label per line<BR>
+output: key = Vi, value = label<BR>
 </TD>
 </TR>
 <TR>
@@ -217,21 +234,21 @@ Scan() functions :link(3_1),h4
 <DIV ALIGN=center><TABLE WIDTH="0%" BORDER=1><TR>
 <TD>print_edge</TD>
 <TD>
-print out an edge to FILE in ptr<BR>
+print out an edge to a file<BR>
 input: key = Vi Vj, value = NULL<BR>
 </TD>
 </TR>
 <TR>
 <TD>print_string_int</TD>
 <TD>
-print out string and int to FILE in ptr<BR>
+print out key as string and value as int, to a file<BR>
 input: key = string, value = int<BR>
 </TD>
 </TR>
 <TR>
 <TD>print_vertex</TD>
 <TD>
-print out an vertex to FILE in ptr<BR>
+print out an vertex to a file<BR>
 input: key = Vi, value = NULL<BR>
 </TD>
 </TR>
