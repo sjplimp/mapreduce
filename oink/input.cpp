@@ -426,6 +426,7 @@ int Input::execute_command()
 
   // process command arguments and invoke the command
   // look for -i and -o switches and their corresponding args
+  // call cmd->inputs and cmd->outputs even if no -i or -o for error checking
 
   if (cmd) {
     int iarg = 0;
@@ -433,20 +434,27 @@ int Input::execute_command()
 	   strcmp(arg[iarg],"-i") != 0 && strcmp(arg[iarg],"-o") != 0) iarg++;
     cmd->params(iarg,arg);
 
+    int iswitch = 0;
+    int oswitch = 0;
     while (iarg < narg) {
       if (strcmp(arg[iarg],"-i") == 0) {
 	int jarg = iarg+1;
 	while (jarg < narg && strcmp(arg[jarg],"-o") != 0) jarg++;
 	cmd->inputs(jarg-iarg-1,&arg[iarg+1]);
+	iswitch = 1;
 	iarg = jarg;
       } else if (strcmp(arg[iarg],"-o") == 0) {
 	int jarg = iarg+1;
 	while (jarg < narg && strcmp(arg[jarg],"-i") != 0) jarg++;
 	cmd->outputs(jarg-iarg-1,&arg[iarg+1]);
+	oswitch = 1;
 	iarg = jarg;
       } else error->all("Invalid command switch");
     }
     
+    if (!iswitch) cmd->inputs(0,NULL);
+    if (!oswitch) cmd->outputs(0,NULL);
+
     MPI_Barrier(MPI_COMM_WORLD);
     double tstart = MPI_Wtime();
 

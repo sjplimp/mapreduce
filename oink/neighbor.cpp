@@ -21,8 +21,6 @@
 using namespace OINK_NS;
 using namespace MAPREDUCE_NS;
 
-#define MAXLINE 1024
-
 /* ---------------------------------------------------------------------- */
 
 Neighbor::Neighbor(OINK *oink) : Command(oink)

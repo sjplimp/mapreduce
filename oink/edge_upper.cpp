@@ -24,8 +24,6 @@
 using namespace OINK_NS;
 using namespace MAPREDUCE_NS;
 
-#define MAXLINE 1024
-
 /* ---------------------------------------------------------------------- */
 
 EdgeUpper::EdgeUpper(OINK *oink) : Command(oink)

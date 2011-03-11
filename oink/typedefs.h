@@ -16,11 +16,16 @@
 #include "keyvalue.h"
 using MAPREDUCE_NS::KeyValue;
 
-typedef double WEIGHT;
+// if change these defs, check that heterogeneous structs
+// containing these datums are zeroed via memset() if used as keys
+
 typedef uint64_t VERTEX;
 typedef struct {
   VERTEX vi,vj;
 } EDGE;
+typedef int LABEL;
+typedef double WEIGHT;
+typedef uint64_t ULONG;
 
 typedef int (*HashFnPtr)(char *, int);
 typedef int (*CompareFnPtr)(char *, int, char *, int);

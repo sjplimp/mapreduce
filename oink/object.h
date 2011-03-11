@@ -98,10 +98,14 @@ class Object : protected Pointers {
   MRwrap **mrwrap;     // wrapped MR objects
 
   struct Global {      // global settings for all commands
-    int verbosity;     // setting for each MapReduce object created
+    int verbosity;     // default setting for each MapReduce object created
     int timer;         // ditto
     int memsize;       // ditto
     int outofcore;     // ditto
+    int minpage;       // ditto
+    int maxpage;       // ditto
+    int freepage;      // ditto
+    int zeropage;      // ditto
     char *scratch;     // ditto
     char *prepend;     // str to prepend to dir/file paths for scratch/in/out
     int substitute;    // substitution rule on % for scratch/in/out paths

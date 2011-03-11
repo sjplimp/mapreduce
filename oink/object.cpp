@@ -58,6 +58,10 @@ Object::Object(OINK *oink) : Pointers(oink)
   global.verbosity = 0;
   global.timer = 0;
   global.outofcore = 0;
+  global.minpage = 0;
+  global.maxpage = 0;
+  global.freepage = 1;
+  global.zeropage = 0;
   global.scratch = NULL;
   global.prepend = NULL;
   global.substitute = 0;
@@ -718,6 +722,14 @@ void Object::set(int narg, char **arg)
       global.memsize = atoi(arg[iarg+1]);
     } else if (strcmp(arg[iarg],"outofcore") == 0) {
       global.outofcore = atoi(arg[iarg+1]);
+    } else if (strcmp(arg[iarg],"minpage") == 0) {
+      global.minpage = atoi(arg[iarg+1]);
+    } else if (strcmp(arg[iarg],"maxpage") == 0) {
+      global.maxpage = atoi(arg[iarg+1]);
+    } else if (strcmp(arg[iarg],"freepage") == 0) {
+      global.freepage = atoi(arg[iarg+1]);
+    } else if (strcmp(arg[iarg],"zeropage") == 0) {
+      global.zeropage = atoi(arg[iarg+1]);
     } else if (strcmp(arg[iarg],"scratch") == 0) {
       delete [] global.scratch;
       int n = strlen(arg[iarg+1]) + 1;
@@ -789,6 +801,11 @@ MapReduce *Object::allocate_mr(int verbosity, int timer,
   mr->timer = timer;
   mr->memsize = memsize;
   mr->outofcore = outofcore;
+
+  mr->minpage = global.minpage;
+  mr->maxpage = global.maxpage;
+  mr->freepage = global.freepage;
+  mr->zeropage = global.zeropage;
 
   if (global.scratch) {
     char sdir[MAXLINE];
