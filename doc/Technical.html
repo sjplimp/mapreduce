@@ -45,13 +45,46 @@ and then correctly interpret the byte string.  For example, either of
 these lines could be used:
 </P>
 <PRE>int *iptr = (int *) key;
-int myvalue = *((int *) key); 
+int myvalue = *(int *) key; 
 </PRE>
 <P>If the key or value is a variable-length text string, you may want to
 terminate it with a "0", and include the trailing "0" in the byte
 count, so that C-library-style string functions can later be invoked
 on it.  If a key or value is a complex data structure, your function
 must be able to decode it.
+</P>
+<P>IMPORTANT NOTE: An eaay way to encapsulate several datums as a key (or
+value) is to create a C struct that includes each of them.  Then the
+sizeof() function gives the byte count of the struct and the compiler
+takes care of data alignment issues, as described below.  If you do
+this for creating a key, then be aware that your individual datums may
+not use up all the bytes returned by the sizeof() function.  Again
+this is due to alignment constraints imposed by the compiler.
+Normally this isn't something your code would worry about since you
+only acces the datums, but if the struct is used as a key, and some
+bytes in the key are never intialized (by you filling in the datums),
+then when that key is hashed by the MR-MPI library. e.g. to perform a
+<A HREF = "collate.html">collate()</A> operation, those uninitialized bytes will
+also be hashed.  Since the uninitialed bytes may contain random
+garbage, this means 2 keys with identical datums, might not hash
+identically, and thus their values would not be combined as you expect
+into a single KeyMultiValue.  The only solution for this is for you to
+initialize the struct before setting its datums, e.g.
+</P>
+<PRE>typedef struct <I>
+  double x;
+  int i;
+</I> Tuple;
+Tuple tuple;
+memset(&tuple,0,sizeof(Tuple));
+tuple.x = 1.0;
+tuple.i = 1; 
+</PRE>
+<P>The memset() function initializes the entire tuple to 0.  Note that in
+this case sizeof(Tuple) is likely 16 bytes, but the x and i datums
+will only set 12 of the 16 bytes, leaving the last 4 uninitialized.
+Also note that this whole discussion is irrelevant if the struct is
+used only as a value, since only keys are hashed.
 </P>
 <P>A related issue with keys and values is the byte-alignment of integer
 or floating point values they include.  For example, it is usually a
@@ -88,7 +121,8 @@ quantities in a 16-byte value string.  Another solution is to create a
 struct to store the integer and double and use the sizeof() function
 to determine the length of the struct and use that as the length of
 your "value".  The compiler should then guarantee proper alignment of
-each structure member.
+each structure member.  If you use such a struct as a key, be aware of
+the "IMPORTANT NOTE" explained above.
 </P>
 <P>(b) Your callback function can always copy the bytes of a key or value
 into a local data structure with the proper alignment, e.g. using the
