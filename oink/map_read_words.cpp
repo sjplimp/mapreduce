@@ -5,7 +5,7 @@ using namespace MAPREDUCE_NS;
 #define MAXLINE 1024
 
 /* ----------------------------------------------------------------------
-   rmat_generate
+   read_words
    read words from file, separated by whitespace
    output: key = word, value = NULL
 ------------------------------------------------------------------------- */
