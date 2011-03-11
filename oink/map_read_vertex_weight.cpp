@@ -20,7 +20,7 @@ void read_vertex_weight(int itask, char *file, KeyValue *kv, void *ptr)
 
   FILE *fp = fopen(file,"r");
   while (fgets(line,MAXLINE,fp)) {
-    sscanf(line,"%lu %g",&v,&weight);
+    sscanf(line,"%lu %lg",&v,&weight);
     kv->add((char *) &v,sizeof(VERTEX),(char *) &weight,sizeof(WEIGHT));
   }
   fclose(fp);

@@ -96,8 +96,13 @@ void CCFind::run()
   mrv->map(mrv,map_strip,NULL);
   obj->output(1,mrv,print,NULL);
 
+  // count # of unique CCs
+
+  mrz->map(mrv,invert,NULL);
+  uint64_t ncc = mrz->collate(NULL);
+
   char msg[128];
-  sprintf(msg,"CC_find: %lu components in %d iterations",0,niterate);
+  sprintf(msg,"CC_find: %lu components in %d iterations",ncc,niterate);
   if (me == 0) error->message(msg);
 
   obj->cleanup();

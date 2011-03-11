@@ -45,7 +45,7 @@ void CCStats::run()
   MapReduce *mr = obj->create_mr();
 
   uint64_t nvert = mr->map(mrv,invert,NULL);
-  mr->collate(NULL);
+  uint64_t ncc = mr->collate(NULL);
   mr->reduce(count,NULL);
   mr->map(mr,invert,NULL);
   mr->collate(NULL);
@@ -54,7 +54,7 @@ void CCStats::run()
   mr->sort_keys(-1);
 
   char msg[128];
-  sprintf(msg,"CCStats: %d vertices",nvert);
+  sprintf(msg,"CCStats: %lu components, %lu vertices",ncc,nvert);
   if (me == 0) error->message(msg);
   mr->scan(print,NULL);
 
@@ -90,5 +90,5 @@ void CCStats::print(char *key, int keybytes, char *value,
 {
   uint64_t nsize = *(uint64_t *) key;
   uint64_t ncc = *(uint64_t *) value;
-  printf("  %d CCs with %d vertices\n",ncc,nsize);
+  printf("  %lu CCs with %lu vertices\n",ncc,nsize);
 }

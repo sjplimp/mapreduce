@@ -58,7 +58,7 @@ void DegreeStats::run()
   mr->sort_keys(-1);
 
   char msg[128];
-  sprintf(msg,"DegreeStats: %d vertices, %d edges",nvert,nedge);
+  sprintf(msg,"DegreeStats: %lu vertices, %lu edges",nvert,nedge);
   if (me == 0) error->message(msg);
   mr->scan(print,NULL);
 

@@ -133,6 +133,7 @@ int Object::permanent(MapReduce *mr)
   for (int index = 0; index < nmr; index++)
     if (mrwrap[index]->mr == mr) return mrwrap[index]->mode;
   error->all("Object permanent() called for unknown MR object");
+  return 0;
 }
 
 /* ----------------------------------------------------------------------

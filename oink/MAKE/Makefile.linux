@@ -6,10 +6,10 @@ SHELL = /bin/sh
 # compiler/linker settings
 # specify flags and libraries needed for your compiler and MPI installation
 
-CC =		g++
+CC =		g++4
 CCFLAGS =	-g -O -I../../src -DMPICH_IGNORE_CXX_SEEK 
 DEPFLAGS =	-M
-LINK =		g++
+LINK =		g++4
 LINKFLAGS =	-g -O -L../../src
 LIB =           -lmrmpi_linux -lmpich -lpthread
 ARCHIVE =	ar

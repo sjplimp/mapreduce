@@ -53,7 +53,7 @@ void DegreeWeight::run()
   obj->output(1,mrewt,print,NULL);
 
   char msg[128];
-  sprintf(msg,"DegreeWeight: %d vertices, %d edges",nvert,nedge);
+  sprintf(msg,"DegreeWeight: %lu vertices, %lu edges",nvert,nedge);
   if (me == 0) error->message(msg);
 
   obj->cleanup();

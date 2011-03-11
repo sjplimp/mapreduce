@@ -48,8 +48,8 @@ void RMAT2::run()
   // loop until desired number of unique nonzero entries
 
   int niterate = 0;
-  int ntotal = rmat.order * rmat.nnonzero;
-  int nremain = ntotal;
+  uint64_t ntotal = rmat.order * rmat.nnonzero;
+  uint64_t nremain = ntotal;
 
   while (nremain) {
     niterate++;

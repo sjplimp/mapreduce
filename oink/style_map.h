@@ -17,6 +17,7 @@ MapStyle(read_words)
 #elif defined MAP_MR_STYLE
 
 MapStyle(add_label)
+MapStyle(add_weight)
 MapStyle(edge_to_vertex)
 MapStyle(edge_to_vertex_pair)
 MapStyle(edge_to_vertices)
@@ -38,6 +39,8 @@ void read_vertex_weight(int itask, char *file, KeyValue *kv, void *ptr);
 void read_words(int itask, char *file, KeyValue *kv, void *ptr);
 void add_label(uint64_t itask, char *key, int keybytes, char *value,
 	       int valuebytes, KeyValue *kv, void *ptr);
+void add_weight(uint64_t itask, char *key, int keybytes, char *value,
+		int valuebytes, KeyValue *kv, void *ptr);
 void edge_to_vertex(uint64_t itask, char *key, int keybytes, char *value,
 		    int valuebytes, KeyValue *kv, void *ptr);
 void edge_to_vertex_pair(uint64_t itask, char *key, int keybytes, char *value,
