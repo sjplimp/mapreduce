@@ -38,10 +38,6 @@ class EDGEVALUE{
 public:
   VERTEX v;
   WEIGHT wt;
-  friend std::ostream& operator<<(std::ostream& output, const EDGEVALUE& e) {
-    output << e.v << " " << e.wt;
-    return output;
-  };
   friend bool operator!=(const EDGEVALUE& lhs, const EDGEVALUE& rhs) {
     if ((lhs.wt != rhs.wt) || (lhs.v != rhs.v)) return true;
     return false;
