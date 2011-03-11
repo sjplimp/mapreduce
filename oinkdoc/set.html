@@ -20,14 +20,20 @@ Documentation</A> - <A HREF = "Section_script.html#comm">OINK Commands</A>
 </PRE>
 <UL><LI>one or more keyword/value pairs may be appended 
 
-keyword = <I>verbosity</I> or <I>timer</I> or <I>memsize</I> or <I>outofcore</I> or <I>scratch</I> or <I>prepend</I> or <I>substitute</I>
-  <I>verbosity</I> value = setting for creation of MapReduce objects
-  <I>timer</I> value = setting for creation of MapReduce objects
-  <I>memsize</I> value = setting for creation of MapReduce objects
-  <I>outofcore</I> value = setting for creation of MapReduce objects
-  <I>scratch</I> value = setting for creation of MapReduce objects
+<LI>keyword = <I>verbosity</I> or <I>timer</I> or <I>memsize</I> or <I>outofcore</I> or <I>scratch</I> or <I>prepend</I> or <I>substitute</I> 
+
+<PRE>  <I>verbosity</I> value = setting for created MapReduce objects
+  <I>timer</I> value = setting for created MapReduce objects
+  <I>memsize</I> value = setting for created MapReduce objects
+  <I>outofcore</I> value = setting for created MapReduce objects
+  <I>minpage</I> value = setting for created MapReduce objects
+  <I>maxpage</I> value = setting for created MapReduce objects
+  <I>freepage</I> value = setting for created MapReduce objects
+  <I>zeropage</I> value = setting for created MapReduce objects
+  <I>scratch</I> value = setting for created MapReduce objects
   <I>prepend</I> value = string to prepend to file/directory path names
-  <I>substitute</I> value = 0 or 1 = how to substitute for "%" in path name
+  <I>substitute</I> value = 0 or 1 = how to substitute for "%" in path name 
+</PRE>
 
 </UL>
 <P><B>Examples:</B>
@@ -45,16 +51,17 @@ that many of these setting names have the same meaning they do in the
 MR-MPI library themselves, as discussed on <A HREF = "../doc/settings.html">this doc
 page</A>.
 </P>
-<P>The settings for the <I>verbosity</I>, <I>timer</I>, <I>memsize</I>. and <I>outofcore</I>
-keywords are used when the <A HREF = "mr.html">mr</A> command creates a MapReduce
-object, unless the <A HREF = "mr.html">mr</A> command itself overrides these global
-defaults.
+<P>The settings for the <I>verbosity</I>, <I>timer</I>, <I>memsize</I>. <I>outofcore</I>,
+<I>minpage</I>, <I>maxpage</I>, <I>freepage</I>, and <I>zeropage</I> keywords are used by
+the <A HREF = "mr.html">mr</A> command creates a MapReduce object to set its
+attributes.  Note that the <A HREF = "mr.html">mr</A> command itself can override
+several of these global settings.
 </P>
 <P><A HREF = "command.html">Named commands</A> can also create MapReduce objects,
 either when inputting and outputting data, or when the run() method in
 the named command class invokes certain methods, like create_mr() or
 copy_mr().  Each time a new MapReduce object is created, these same
-global settings for the 4 keywords are applied to it.  See <A HREF = "Section_commands.html">this doc
+global settings are applied to it.  See <A HREF = "Section_commands.html">this doc
 page</A> for more discussion of the input/output
 options and these methods.
 </P>
@@ -107,7 +114,9 @@ commands</A>, <A HREF = "mrmpi.html">MR-MPI library commands</A>,
 </P>
 <P><B>Defaults:</B>
 </P>
-<P>The setting defaults are verbosity = 0, timer = 0, memsize = 64,
-outofcore = 0, scratch = ".", prepend = NULL, and substitute = 0.
+<P>The setting defaults are the same as for the MR-MPI library itself,
+namely verbosity = 0, timer = 0, memsize = 64, outofcore = 0, minpage
+= 0, maxpage = 0, freepage = 1, zeropage = 0, scratch = ".".  There
+are additional default values: prepend = NULL, and substitute = 0.
 </P>
 </HTML>

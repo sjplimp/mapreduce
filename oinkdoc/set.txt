@@ -15,14 +15,18 @@ set command :h3
 set keyword value ... :pre
 
 one or more keyword/value pairs may be appended :ulb,l
-keyword = {verbosity} or {timer} or {memsize} or {outofcore} or {scratch} or {prepend} or {substitute}
-  {verbosity} value = setting for creation of MapReduce objects
-  {timer} value = setting for creation of MapReduce objects
-  {memsize} value = setting for creation of MapReduce objects
-  {outofcore} value = setting for creation of MapReduce objects
-  {scratch} value = setting for creation of MapReduce objects
+keyword = {verbosity} or {timer} or {memsize} or {outofcore} or {scratch} or {prepend} or {substitute} :l
+  {verbosity} value = setting for created MapReduce objects
+  {timer} value = setting for created MapReduce objects
+  {memsize} value = setting for created MapReduce objects
+  {outofcore} value = setting for created MapReduce objects
+  {minpage} value = setting for created MapReduce objects
+  {maxpage} value = setting for created MapReduce objects
+  {freepage} value = setting for created MapReduce objects
+  {zeropage} value = setting for created MapReduce objects
+  {scratch} value = setting for created MapReduce objects
   {prepend} value = string to prepend to file/directory path names
-  {substitute} value = 0 or 1 = how to substitute for "%" in path name
+  {substitute} value = 0 or 1 = how to substitute for "%" in path name :pre
 :ule
 
 [Examples:]
@@ -40,16 +44,17 @@ that many of these setting names have the same meaning they do in the
 MR-MPI library themselves, as discussed on "this doc
 page"_../doc/settings.html.
 
-The settings for the {verbosity}, {timer}, {memsize}. and {outofcore}
-keywords are used when the "mr"_mr.html command creates a MapReduce
-object, unless the "mr"_mr.html command itself overrides these global
-defaults.
+The settings for the {verbosity}, {timer}, {memsize}. {outofcore},
+{minpage}, {maxpage}, {freepage}, and {zeropage} keywords are used by
+the "mr"_mr.html command creates a MapReduce object to set its
+attributes.  Note that the "mr"_mr.html command itself can override
+several of these global settings.
 
 "Named commands"_command.html can also create MapReduce objects,
 either when inputting and outputting data, or when the run() method in
 the named command class invokes certain methods, like create_mr() or
 copy_mr().  Each time a new MapReduce object is created, these same
-global settings for the 4 keywords are applied to it.  See "this doc
+global settings are applied to it.  See "this doc
 page"_Section_commands.html for more discussion of the input/output
 options and these methods.
 
@@ -102,5 +107,7 @@ commands"_command.html, "MR-MPI library commands"_mrmpi.html,
 
 [Defaults:]
 
-The setting defaults are verbosity = 0, timer = 0, memsize = 64,
-outofcore = 0, scratch = ".", prepend = NULL, and substitute = 0.
+The setting defaults are the same as for the MR-MPI library itself,
+namely verbosity = 0, timer = 0, memsize = 64, outofcore = 0, minpage
+= 0, maxpage = 0, freepage = 1, zeropage = 0, scratch = ".".  There
+are additional default values: prepend = NULL, and substitute = 0.
