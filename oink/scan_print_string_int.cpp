@@ -2,7 +2,7 @@
 
 /* ----------------------------------------------------------------------
    print_string_int
-   print out string and int to FILE in ptr
+   print out key as string and value as int, to a file
    input: key = string, value = int
 ------------------------------------------------------------------------- */
 
