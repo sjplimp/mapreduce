@@ -18,7 +18,6 @@
 #include "blockmacros.h"
 #include "mapreduce.h"
 #include "keyvalue.h"
-#include "keymultivalue.h"
 
 using namespace OINK_NS;
 using namespace MAPREDUCE_NS;
