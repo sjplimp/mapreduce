@@ -23,7 +23,7 @@ degree_stats 2 -i edges :pre
 
 [Description:]
 
-This is a named command which summarizes and prints out the degree
+This is a named command which calculates and prints out the degree
 statistics of an undirected graph.  For each degree d, one line is
 printed to the screen with the number of vertices of degree d.  This
 is done in sorted order.
@@ -45,7 +45,7 @@ self edges, i.e. (Vi,Vj) may appear multiple times, both (Vi,Vj) or
 (Vj,Vi) may appear, as may (Vi,Vi).  The input is unchanged by this
 command.
 
-This command produces no output
+This command produces no output.
 
 Statistics on the degree count of each vertex will be printed to the
 screen in sorted order.
