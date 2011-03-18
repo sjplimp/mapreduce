@@ -51,7 +51,7 @@ void Histo::run()
   mr->collate(NULL);
   uint64_t nunique = mr->reduce(count,NULL);
 
-  obj->output(1,mr,print_string_int,NULL);
+  obj->output(1,mr);
 
   // histogram stats
   // before processing it, make a copy of output MR if it is permanent

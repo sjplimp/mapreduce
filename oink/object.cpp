@@ -185,7 +185,7 @@ MapReduce *Object::input(int index,
 			 void *ptr)
 {
   if (index < 1 || index > ninput)
-    error->all("Object input() invoked with invalid index");
+    error->all("Command input invoked with invalid index");
   index--;
   Input *in = inputs[index];
 
@@ -212,12 +212,12 @@ MapReduce *Object::input(int index,
 
   } else if (map1) {
     if (in->mmode != 0)
-      error->all("Object input() map function does not match input mode");
+      error->all("Command input map function does not match input mode");
     mr->map(in->nstr,in->strings,in->self,in->recurse,in->readfile,map1,ptr);
 
   } else if (map2) {
     if (in->mmode == 0)
-      error->all("Object input() map function does not match input mode");
+      error->all("Comand input map function does not match input mode");
     if (in->mmode == 1)
       mr->map(in->nmap,in->nstr,in->strings,
 	      in->recurse,in->readfile,in->sepchar,in->delta,map2,ptr);
@@ -225,7 +225,7 @@ MapReduce *Object::input(int index,
       mr->map(in->nmap,in->nstr,in->strings,
 	      in->recurse,in->readfile,in->sepstr,in->delta,map2,ptr);
 
-  } else error->all("Object input() with no map function");
+  } else error->all("Command input not allowed from file");
 
   return mr;
 }
@@ -302,7 +302,7 @@ void Object::output(int index, MapReduce *mr,
 		    void *ptr, int disallow)
 {
   if (index < 1 || index > noutput)
-    error->all("Object output() invoked with invalid index");
+    error->all("Command output invoked with invalid index");
   index--;
   Output *out = outputs[index];
 
@@ -310,12 +310,12 @@ void Object::output(int index, MapReduce *mr,
   // change any other MR object with same name to temporary
 
   if (out->mode == MR || out->mode == BOTH) {
-    if (disallow) error->all("Object output() as MR object not allowed");
+    if (disallow) error->all("Command output as MR object not allowed");
     int index;
     for (index = 0; index < nmr; index++)
       if (mrwrap[index]->mr == mr) break;
     if (index == nmr) 
-      error->all("Object output() called for unknown MR object");
+      error->all("Command output called with unknown MR object");
     delete [] mrwrap[index]->name;
     int n = strlen(out->name) + 1;
     mrwrap[index]->name = new char[n];
@@ -338,7 +338,7 @@ void Object::output(int index, MapReduce *mr,
     FILE *fp = fopen(out->procfile,"w");
     if (fp == NULL) {
       char str[256];
-      sprintf(str,"Could not open output file %s for output object()",
+      sprintf(str,"Command output could not open output file %s",
 	      out->procfile);
       error->one(str);
     }
@@ -350,14 +350,16 @@ void Object::output(int index, MapReduce *mr,
       two.fp = fp;
       two.ptr = ptr;
       if (scankv) mr->scan(scankv,&two);
-      if (scankmv) mr->scan(scankmv,&two);
-      if (map) mr->map(mr,map,&two,1);
-      if (reduce) mr->reduce(reduce,&two);
+      else if (scankmv) mr->scan(scankmv,&two);
+      else if (map) mr->map(mr,map,&two,1);
+      else if (reduce) mr->reduce(reduce,&two);
+      else error->all("Command input not allowed to file");
     } else {
       if (scankv) mr->scan(scankv,fp);
-      if (scankmv) mr->scan(scankmv,fp);
-      if (map) mr->map(mr,map,fp,1);
-      if (reduce) mr->reduce(reduce,fp);
+      else if (scankmv) mr->scan(scankmv,fp);
+      else if (map) mr->map(mr,map,fp,1);
+      else if (reduce) mr->reduce(reduce,fp);
+      else error->all("Command input not allowed to file");
     }
     fclose(fp);
   }
