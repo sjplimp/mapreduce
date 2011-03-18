@@ -50,7 +50,7 @@ void WordFreq::run()
   int nfiles_all;
   MPI_Allreduce(&nfiles,&nfiles_all,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
 
-  // count unique words
+  // unique words and their count
   // before processing it, make a copy of input MR if it is permanent
 
   if (obj->permanent(mr)) mr = obj->copy_mr(mr);
