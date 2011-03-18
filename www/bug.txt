@@ -40,6 +40,16 @@ patch.
 :line
 :line
 
+[18 Mar 2011]
+
+Added a "histo"_oinkdoc/histo.html command to OINK, to calculate a
+frequency count of unique keys in a set of key/value pairs.
+
+This is the "list of changed files"_patches/files.9Mar11 from the 9
+Mar 2011 version.
+
+:line
+
 [9 Mar 2011]
 
 Tweaked some header files in the OINK scripting framework to allow for
