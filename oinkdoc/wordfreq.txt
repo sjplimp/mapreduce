@@ -21,7 +21,7 @@ out1 = frequency count of each word: Key = word, Value = count :ul
 [Examples:]
 
 wordfreq 10 -i v_files -o full.list NULL
-wordfreq 10 -i v_files -o NULL NULL
+wordfreq 10 -i v_files -o NULL NULL :pre
 
 [Description:]
 
@@ -32,25 +32,25 @@ See the "named command"_command.html doc page for various ways in
 which the -i inputs and -o outputs for a named command can be
 specified.
 
-Input1 stores a set of words.  The input is changed by the command as
-it is processed further.
+Input1 stores a set of words.  The input is unchanged by this command.
 
-If the input is one or more files then
-the files are read and each "word" is defined as separated by
-whitespace.  Note that you can pass a list of files as the input
-argument after the "-i" argument by using a variable, which in 
-turn can be initialized with a command-line argument to OINK.
-E.g. this line would work with the first example above:
+If the input is one or more files then the files are read and each
+"word" is defined as separated by whitespace.  Note that you can pass
+a list of files as the input argument after the "-i" argument by using
+a variable, which in turn can be initialized with a command-line
+argument to OINK.  E.g. this line would work with the first example
+above:
 
 oink_linux -var files *.cpp < in.script :pre
 
 See "this section"_Section_build.html#1_4 of the manual and the
 "variable"_variable.html doc page for more details.
 
-A count of the number of times each word occurs is calculated.
-The highest frequency {Ntop} occurrences are printed to the
-screen with their count.  If {Ntop} is 0, nothing is printed.
-
 Out1 will store the frequency count of all unique words.
+
+Additional statistics can be generated and printed via the {Ntop}
+setting.  The highest frequency {Ntop} words will be printed to the
+screen with their count, in sorted order.  If {Ntop} is 0, nothing is
+printed.
 
 [Related commands:] none

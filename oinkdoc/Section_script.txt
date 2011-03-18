@@ -178,6 +178,7 @@ send it to us and we can include it in the distribution.
 "degree_stats"_degree_stats.html,
 "degree_weight"_degree_weight.html,
 "edge_upper"_edge_upper.html,
+"histo"_histo.html,
 "luby_find"_luby_find.html,
 "neigh_tri"_neigh_tri.html,
 "neighbor"_neighbor.html,

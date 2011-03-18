@@ -426,9 +426,9 @@ object:
 </P>
 <PRE>MapReduce *Object::copy_mr(MapReduce *mr); 
 </PRE>
-<P>There are two reasons to create new and copied MapReduce objects
-via these calls, rather than direcly invoking MR-MPI library calls
-within your run() method, e.g. do one of these:
+<P>There are two reasons to create new and copied MapReduce objects via
+these calls, rather than direcly invoking MR-MPI library calls within
+your run() method.  I.e. two reasons to do one of these:
 </P>
 <PRE>MapReduce *mr = obj->create_mr();
 MapReduce *mr2 = obj->copy(mr); 
@@ -463,10 +463,10 @@ method, where mr is a pointer returned by obj->create_mr():
 <PRE>mr = mr->copy(); 
 </PRE>
 <P>The former simply overwrites the local mr pointer, but OINK will
-manage and free the memory for the underlying MapReduce objects
-associated with both the original and new mr pointers. The latter will
-leak memory since the underlying MapReduce object associated with the
-original mr pointer is lost.
+manage and free the memory if necessary for the underlying MapReduce
+objects associated with both the original and new mr pointers. The
+latter will leak memory since the underlying MapReduce object
+associated with the original mr pointer is lost.
 </P>
 <P>This call is useful for checking whether a MR-MPI object has
 been assigned a name or not, when it was used for input or output:

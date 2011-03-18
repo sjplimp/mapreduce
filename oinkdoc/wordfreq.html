@@ -24,9 +24,9 @@ Documentation</A> - <A HREF = "Section_script.html#comm">OINK Commands</A>
 </UL>
 <P><B>Examples:</B>
 </P>
-<P>wordfreq 10 -i v_files -o full.list NULL
-wordfreq 10 -i v_files -o NULL NULL
-</P>
+<PRE>wordfreq 10 -i v_files -o full.list NULL
+wordfreq 10 -i v_files -o NULL NULL 
+</PRE>
 <P><B>Description:</B>
 </P>
 <P>This is a named command which calculates the frequency of word
@@ -36,26 +36,26 @@ occurrence in an input data set, which is typically a set of files.
 which the -i inputs and -o outputs for a named command can be
 specified.
 </P>
-<P>Input1 stores a set of words.  The input is changed by the command as
-it is processed further.
+<P>Input1 stores a set of words.  The input is unchanged by this command.
 </P>
-<P>If the input is one or more files then
-the files are read and each "word" is defined as separated by
-whitespace.  Note that you can pass a list of files as the input
-argument after the "-i" argument by using a variable, which in 
-turn can be initialized with a command-line argument to OINK.
-E.g. this line would work with the first example above:
+<P>If the input is one or more files then the files are read and each
+"word" is defined as separated by whitespace.  Note that you can pass
+a list of files as the input argument after the "-i" argument by using
+a variable, which in turn can be initialized with a command-line
+argument to OINK.  E.g. this line would work with the first example
+above:
 </P>
 <PRE>oink_linux -var files *.cpp < in.script 
 </PRE>
 <P>See <A HREF = "Section_build.html#1_4">this section</A> of the manual and the
 <A HREF = "variable.html">variable</A> doc page for more details.
 </P>
-<P>A count of the number of times each word occurs is calculated.
-The highest frequency <I>Ntop</I> occurrences are printed to the
-screen with their count.  If <I>Ntop</I> is 0, nothing is printed.
-</P>
 <P>Out1 will store the frequency count of all unique words.
+</P>
+<P>Additional statistics can be generated and printed via the <I>Ntop</I>
+setting.  The highest frequency <I>Ntop</I> words will be printed to the
+screen with their count, in sorted order.  If <I>Ntop</I> is 0, nothing is
+printed.
 </P>
 <P><B>Related commands:</B> none
 </P>

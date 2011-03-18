@@ -45,8 +45,10 @@ self edges, i.e. (Vi,Vj) may appear multiple times, both (Vi,Vj) or
 (Vj,Vi) may appear, as may (Vi,Vi).  The input is unchanged by this
 command.
 
-This command produces no output, other than what is written to the
-screen.
+This command produces no output
+
+Statistics on the degree count of each vertex will be printed to the
+screen in sorted order.
 
 [Related commands:]
 
