@@ -12,10 +12,10 @@ wordfreq command :h3
 
 [Syntax:]
 
-wordfreq Ntop -i input1 -o out1.file out1.mr :pre
+wordfreq Ntop -i in1 -o out1.file out1.mr :pre
 
 Ntop = print Ntop of the most frequently occurring words to screen
-input1 = words: Key = word, Value = NULL
+in1 = words: Key = word, Value = NULL
 out1 = frequency count of each word: Key = word, Value = count :ul
 
 [Examples:]
@@ -32,7 +32,7 @@ See the "named command"_command.html doc page for various ways in
 which the -i inputs and -o outputs for a named command can be
 specified.
 
-Input1 stores a set of words.  The input is unchanged by this command.
+In1 stores a set of words.  The input is unchanged by this command.
 
 If the input is one or more files then the files are read and each
 "word" is defined as separated by whitespace.  Note that you can pass
