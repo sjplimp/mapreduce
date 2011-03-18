@@ -16,7 +16,7 @@ using namespace OINK_NS;
 
 /* ---------------------------------------------------------------------- */
 
-RanMars::RanMars(OINK *lmp, int seed) : Pointers(oink)
+RanMars::RanMars(OINK *oink, int seed) : Pointers(oink)
 {
   int ij,kl,i,j,k,l,ii,jj,m;
   double s,t;
