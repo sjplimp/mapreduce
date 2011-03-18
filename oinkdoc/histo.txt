@@ -12,7 +12,7 @@ histo command :h3
 
 [Syntax:]
 
-histo -i in1 :pre
+histo -i in1 -o out1.file out1.mr :pre
 
 in1 = anthing: Key = key, Value = value
 out1 = frequency count of each key: Key = key, Value = count :ul
