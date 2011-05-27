@@ -244,8 +244,11 @@ void MapReduce::defaults()
   kv = NULL;
   kmv = NULL;
 
-  if (sizeof(uint64_t) != 8 || sizeof(char *) != 8)
-    error->all("Not compiled for 8-byte integers and pointers");
+  if (sizeof(uint64_t) != 8) error->all("Not compiled for 8-byte integers");
+
+  if (sizeof(char *) != 8 && me == 0)
+    error->warning("Not compiled for 8-byte pointers, "
+		   "be sure to limit your memory usage to less than 4 Gb");
 
   int mpisize;
   MPI_Type_size(MRMPI_BIGINT,&mpisize);
