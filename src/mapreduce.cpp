@@ -81,6 +81,8 @@ int compare_strn_reverse(char *, int, char *, int);
 
 enum{KVFILE,KMVFILE,SORTFILE,PARTFILE,SETFILE};
 
+//#define MEMORY_DEBUG 1   // set if want debug output from memory requests
+
 /* ----------------------------------------------------------------------
    construct using caller's MPI communicator
    perform no MPI_init() and no MPI_Finalize()
@@ -3253,6 +3255,11 @@ char *MapReduce::mem_request(int n, uint64_t &size, int &tag)
 {
   int i,j,ok;
 
+#ifdef MEMORY_DEBUG    
+  printf("MEMORY REQUEST for %d pages on proc %d\n",n,me);
+  memory_debug(me);
+#endif
+
   // satisfy request out of first unused chunk of exactly size N
 
   for (i = 0; i < npage; i++) {
@@ -3289,6 +3296,12 @@ char *MapReduce::mem_request(int n, uint64_t &size, int &tag)
 
   tagmax++;
   for (j = 0; j < n; j++) memusage[i+j] = tagmax;
+
+#ifdef MEMORY_DEBUG    
+  printf("MEMORY RETURN with %d pages on proc %d\n",n,me);
+  memory_debug(me);
+#endif
+
   tag = tagmax;
   size = n*pagesize;
   return memptr[i];
