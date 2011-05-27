@@ -36,6 +36,13 @@ describe the version you have. :ule,l
 :line
 :line
 
+[29 May 2011]
+
+Added some memory allocation debugging code.
+
+This is the "list of changed files"_patches/files.29May11 from the 28
+May 2011 version.
+
 [28 May 2011]
 
 Updated the PDF manuals.
