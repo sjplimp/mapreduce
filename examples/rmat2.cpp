@@ -119,9 +119,7 @@ int main(int narg, char **args)
 
   // loop until desired number of unique nonzero entries
   MapReduce *mrnew = new MapReduce(MPI_COMM_WORLD);
-#ifdef FOR_TIMING
-  mrnew->timer = 1;
-#endif
+  mrnew->timer = 0;
   MapReduce *mr = NULL;
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -142,9 +140,7 @@ int main(int narg, char **args)
     else {
       mr = mrnew;
       mrnew = new MapReduce(MPI_COMM_WORLD);
-#ifdef FOR_TIMING
-      mrnew->timer = 1;
-#endif
+      mrnew->timer = 0;
     }
     uint64_t nunique = mr->convert();
     nremain = ntotal - nunique;
@@ -156,9 +152,6 @@ int main(int narg, char **args)
     mr->reduce(&cull,&rmat);
   }
   delete mrnew;
-#ifdef FOR_TIMING
-  mr->timer = 0;
-#endif
 
   MPI_Barrier(MPI_COMM_WORLD);
   double tstop = MPI_Wtime();
@@ -194,7 +187,6 @@ int main(int narg, char **args)
     std::cout << ntotal << " nonzeroes in matrix" << std::endl;
   }
 
-#ifdef KDDKDD
   mr->reduce(&nonzero,NULL);
   mr->collate(NULL);
   mr->reduce(&degree,NULL);
@@ -206,7 +198,6 @@ int main(int narg, char **args)
   mr->map(mr,&stats,&total);
   if (me == 0) 
     std::cout << rmat.order-total << " rows with 0 nonzeroes\n" << std::endl;
-#endif
 
   if (me == 0)
     std::cout << tstop-tstart << " secs to generate matrix on "
