@@ -36,6 +36,20 @@ describe the version you have. :ule,l
 :line
 :line
 
+[20 Jun 2011]
+
+A couple users found some bugs with the memory allocation logic that
+manages pages of allocated/deallocated memory within the library,
+which could lead to memory corruption issues.  This patch should fix
+it.
+
+This is the "list of changed files"_patches/files.20Jun11 from the 30
+May 2011 version.
+
+Thanks to Holger Teutsch and John Wehle for identifying the problems.
+
+:line
+
 [30 May 2011]
 
 Added some memory allocation debugging code.
