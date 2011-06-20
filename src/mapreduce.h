@@ -149,6 +149,8 @@ class MapReduce {
   uint64_t pagesize;        // pagesize for KVs and KMVs
   char **memptr;            // ptrs to each page of memory
   int *memusage;            // 0 if unused, else tag returned to requestor
+                            // multiple pages marked same if requested together
+                            // request may be smaller than entire alloc
   int *memcount;            // # of pages alloced starting with this page
                             // 0 if in middle of a contiguous alloc
   int npage;                // total # of pages currently allocated
@@ -248,7 +250,7 @@ class MapReduce {
   void mem_unmark(int);
   void mem_cleanup();
   int mem_query(int &, int &);
-  void mem_debug(int);
+  void memory_debug(int);
   void hiwater(int, uint64_t);
 };
 

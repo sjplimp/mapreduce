@@ -3233,6 +3233,9 @@ void MapReduce::allocate_page(int n)
   char *ptr = (char *) memory->smalloc_align(n*pagesize,ALIGNFILE,"MR:page");
   if (zeropage) memset(ptr,0,n*pagesize);
 
+  // set memcount = N for 1st allocated page, 0 for others
+  // set memusage = 0 for all allocated pages (caller will reset)
+
   for (int i = 0; i < n; i++) {
     memptr[npage+i] = ptr + i*pagesize;
     memusage[npage+i] = 0;
@@ -3273,7 +3276,7 @@ char *MapReduce::mem_request(int n, uint64_t &size, int &tag)
     }
   }
 
-  // else first unused chunk of size N (even if within larger chunk)
+  // else first unused chunk of size N, even if within larger chunk
 
   if (i == npage) {
     for (i = 0; i < npage; i++) {
@@ -3285,7 +3288,7 @@ char *MapReduce::mem_request(int n, uint64_t &size, int &tag)
     }
   }
 
-  // else allocate new page(s) if maxpage allows
+  // else allocate N new pages if maxpage allows
   // else throw error
 
   if (i == npage) {
@@ -3293,6 +3296,8 @@ char *MapReduce::mem_request(int n, uint64_t &size, int &tag)
       error->one("Cannot allocate requested memory page(s)");
     allocate_page(n);
   }
+
+  // mark all N pages with same memusage flag = returned tag
 
   tagmax++;
   for (j = 0; j < n; j++) memusage[i+j] = tagmax;
@@ -3314,14 +3319,12 @@ char *MapReduce::mem_request(int n, uint64_t &size, int &tag)
 void MapReduce::mem_unmark(int tag)
 {
   for (int i = 0; i < npage; i++)
-    if (memusage[i] == tag) {
-      for (int j = 0; j < memcount[i]; j++) memusage[i+j] = 0;
-      break;
-    }
+    if (memusage[i] == tag) memusage[i] = 0;
 }
 
 /* ----------------------------------------------------------------------
    free unused pages and compact page lists
+   cannot free/compact if unused pages are subset of contiguous allocation
 ------------------------------------------------------------------------- */
 
 void MapReduce::mem_cleanup()
@@ -3333,17 +3336,20 @@ void MapReduce::mem_cleanup()
     // do not free if in use
 
     if (memusage[i]) continue;
-
-    // ok = 1 if no page in contiguous chunk is in use
-    // if not ok, do not free
-    // else free and compact remaining pages
+ 
+    // check if unused page is part of larger contiguous allocation chunk
+    // ok = 1 if ok to free
+    // if it is not 1st page, previous pages are in use, so cannot free it
+    // if it is 1st page of chunk, and no other pages are used, can free chunk
+    // if free, then compact remaining pages
 
     ok = 1;
     n = memcount[i];
+    if (n == 0) ok = 0;
     for (j = i+1; j < i+n; j++)
       if (memusage[j]) ok = 0;
-    if (!ok) i += n-1;
-    else {
+
+    if (ok) {
       memory->sfree(memptr[i]);
       msize -= n*pagesize;
       for (j = i+n; j < npage; j++) {
@@ -3391,7 +3397,7 @@ int MapReduce::mem_query(int &maxcontig, int &max)
    else only iproc prints
 ------------------------------------------------------------------------- */
 
-void MapReduce::mem_debug(int iproc)
+void MapReduce::memory_debug(int iproc)
 {
   if (iproc >= 0 && iproc != me) return; 
   printf("MEMORY PAGES: %d on proc %d\n",npage,me);
