@@ -19,7 +19,7 @@ To appear in 2011. ("abstract"_../abstracts/pc11.html)
 
 :line
 
-The authors of the library are "Steve Plimpton"_sjp (sjplimp at
+The authors of the MR-MPI library are "Steve Plimpton"_sjp (sjplimp at
 sandia.gov) and "Karen Devine"_kdd (kddevin at sandia.gov).
 
 You can send us email regarding any of these issues:
@@ -36,3 +36,17 @@ distribution. :l
 
 If you enhance the library itself or have ideas for doing so, we can
 discuss including the improvements in future releases. :l,ule
+
+:line
+
+This is a paper by Seung-Jin Sul and Andrey Tovchigrechko (J Craig
+Venter Institute) on using the MR-MPI library to parallelize two
+computation biology algorithms: BLAST and a neural network approach
+called SOM.  They've run successfully on up to 1024 processors of the
+U Texas Ranger machine.
+
+[Parallelizing BLAST and SOM algorithms with MapReduce-MPI library],
+S.-J. Sul and A. Tovchigrechko, IEEE International Parallel &
+Distributed Processing HICOMB Symposium, (2011).
+("abstract"_../abstracts/hicomb11.html) (download paper from "HICOMB
+2011 proceedings site"_http://www.hicomb.org/proceedings.html)
