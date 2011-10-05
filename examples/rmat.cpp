@@ -28,6 +28,8 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 
+#include <iostream>
+
 using namespace MAPREDUCE_NS;
 
 void generate(int, KeyValue *, void *);
