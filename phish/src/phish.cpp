@@ -63,11 +63,7 @@ char *sptr;
 void phish_init(const char *name, int nrecvmax, int nsendmax, 
 		int *nargptr, char ***argsptr)
 {
-  int foo = 0;
-  MPI_Init(&foo,NULL);
-  //printf("PREINIT %d %s %s %s\n",*nargptr,
-  //	 (*argsptr)[0],(*argsptr)[1],(*argsptr)[2]);
-  //MPI_Init(nargptr,argsptr);
+  MPI_Init(nargptr,argsptr);
 
   world = MPI_COMM_WORLD;
   MPI_Comm_rank(world,&me);
