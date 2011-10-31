@@ -1,7 +1,7 @@
 # word count from files
 
-sp 1 filegen.py ${files}
-sp 2 print
+sp 1 ../apps/filegen.py ${files}
+sp 2 ../apps/print
 
 connect 1 one2one 2
 

@@ -1,7 +1,9 @@
-sp 1 readgraph tmp.graph
-sp 1 rmatgen 10 a b c d frac seed
-sp 2 graph
-sp 3 trigger tmp.trigger # could be every 10 secs
+# CC algorithm
+
+sp 1 ../apps/readgraph tmp.graph
+sp 1 ../apps/rmatgen 10 a b c d frac seed
+sp 2 ../apps/graph
+sp 3 ../apps/trigger tmp.trigger # could be every 10 secs
 
 connect 1 one2many/direct 2
 connect 2 ring 2

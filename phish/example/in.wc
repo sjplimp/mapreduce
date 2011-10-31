@@ -1,10 +1,10 @@
 # word count from files
 
-sp 1 filegen ${files}
-sp 2 file2words.py
-sp 3 count
-sp 4 sort 10
-sp 5 print
+sp 1 ../apps/filegen ${files}
+sp 2 ../apps/file2words.py
+sp 3 ../apps/count
+sp 4 ../apps/sort 10
+sp 5 ../apps/print
 
 connect 1 one2many/rr 2
 connect 2 many2many 3
