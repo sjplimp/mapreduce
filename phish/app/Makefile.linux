@@ -1,0 +1,28 @@
+# Makefile for PHISH apps
+
+CC =		g++
+CCFLAGS =	-g -O -DMPICH_IGNORE_CXX_SEEK -I../src
+LINK =		g++
+LINKFLAGS =	-g -O 
+LIB =		../src/libphish.a
+SYSLIB =	-lmpich -lmpl -lpthread
+ARCHIVE =	ar
+ARFLAGS =	-rc
+SIZE =		size
+
+# PHISH SPs and stand-alone programs
+
+include Makefile.common
+
+# Clean
+
+clean:
+	@rm -f *.o
+
+# Rules
+
+%.o:%.cpp
+	$(CC) $(CCFLAGS) -c $<
+
+%.o:%.c
+	$(CC) $(CCFLAGS) -c $<

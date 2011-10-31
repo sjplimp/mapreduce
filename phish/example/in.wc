@@ -1,0 +1,18 @@
+# word count from files
+
+sp 1 filegen ${files}
+sp 2 file2words.py
+sp 3 count
+sp 4 sort 10
+sp 5 print
+
+connect 1 one2many/rr 2
+connect 2 many2many 3
+connect 3 many2one 4
+connect 4 one2one 5
+
+layout 1 1
+layout 2 5
+layout 3 3
+layout 4 1
+layout 5 1

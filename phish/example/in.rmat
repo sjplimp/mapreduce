@@ -1,0 +1,9 @@
+# edge generation from an RMAT distribution
+
+sp 1 rmat $n 40 0.25 0.25 0.25 0.25 0.0 12345
+sp 2 print -f tmp
+
+connect 1 one2one 2
+
+layout 1 1
+layout 2 1

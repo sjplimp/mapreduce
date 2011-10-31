@@ -1,0 +1,15 @@
+# test MPI backup due to slowdown in receiver
+
+sp 1 filegen ${files}
+sp 2 file2words
+sp 3 slowdown 0.5
+sp 4 print
+
+connect 1 one2many/rr 2
+connect 2 many2one 3
+connect 3 one2one 4
+
+layout 1 1
+layout 2 5
+layout 3 1
+layout 4 1

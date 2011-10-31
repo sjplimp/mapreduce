@@ -1,0 +1,28 @@
+# Makefile for PHISH library
+
+CC =		g++
+CCFLAGS =	-g -O -DMPICH_IGNORE_CXX_SEEK
+LINK =		g++
+LINKFLAGS =	-g -O 
+LIB =		libphish.a
+SYSLIB =	-lmpich -lpthread -lrt
+ARCHIVE =	ar
+ARFLAGS =	-rc
+SIZE =		size
+
+# PHISH library
+
+phish:	phish.o hash.o
+	$(ARCHIVE) $(ARFLAGS) libphish.a phish.o hash.o
+
+clean:
+	@rm -f *.o
+	@rm -f libphish.a
+
+# Rules
+
+%.o:%.cpp
+	$(CC) $(CCFLAGS) -c $<
+
+%.o:%.c
+	$(CC) $(CCFLAGS) -c $<

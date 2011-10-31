@@ -1,0 +1,9 @@
+# test writing to a pipe
+
+sp 1 filegen ${files}
+sp 2 wrapsink ./reverse
+
+connect 1 one2one 2
+
+layout 1 1
+layout 2 1

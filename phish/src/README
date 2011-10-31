@@ -1,0 +1,335 @@
+Todo:
+
+still to do in latest PHISH version:
+  wrapsource, wrapss, wrapsomefile, rare via domainstats,
+  Python wrappers are out of date,
+  document everything, basic one-proc CC,
+  add tagged message types to ports
+
+issue with Python wrapper not being able to MPI_Init()
+  with &narg,&args 
+
+performance test on data2rare streaming MR:
+  read 530 Mb per proc, 1 core per node, 1 disk per node (not all 4)
+  these are scaled speed-up results
+  verified that # of records processed was identical
+  OINK = regular MR
+  timed it with "time" command
+P  CPU
+1  15
+2  19
+4  19
+8  19
+16 28
+  PHISH = streaming MR, only a tiny different in -byslot vs -bynode
+  timed with non-safe message setting in phish.cpp
+  would be slower with safe setting I think
+  these are -bynode results
+P  CPU
+1  31
+2  51
+4  105
+8  111
+16 120
+  should also check how my STL hash tables are performing as size grows
+  there is also considerable load impbalance in domain and user stages
+
+allow for wildcards in proc output names to add processor UD
+  e.g. from print SP
+
+add an MPI_Wtimer to overall code
+  possibly between launch and done on SPs that have no downstream output
+
+save vs unsafe setting - can crash MPICH on my box with an MPI
+  error about too many unexpected messages if overload a receiver
+  safe mode seems to prevent it, but is slower
+  safe mode does MPI_Ssend()
+  Brian B suggests something inbetween using MPI_Issend()
+    so that sender can have a queue of items going to each receiver
+    that it sends to
+
+how to tailor what nodes/cores processes are launched on 
+  important for both OpenMPI and MPICH, but mechanism is different
+  probably needs to be some specification with layout command in script
+
+could make domain and user be same SP sending messages to
+  itself with a hash - just recv them on a different port
+  need to be able to set callbacks for different ports for incoming
+    messages
+  use MPI TAG for port, with special one for 
+  need to error check that user doesn't run in mode that expects
+    a message that will never come due to unused port in
+    connectivity graph
+  is it required that an SP have a done function handler?
+    at least if has upstream data coming in
+
+should trap Ctrl-C from MPI when a job is running
+  trigger a DONE msg on each app with no inputs (sources)
+
+rename SP to app?
+
+data2rare tasks:
+  use QK instead of my SPs, as much as possible
+  include date in kids, to break up rare by date
+  allow for many2many on self SPs, with hash
+  need 2nd half of alg = user stats
+  allow for tagging of message so domainstats SP
+    can process 2 kinds of incoming datums
+
+connection patterns to support:
+  N going to N in a one2one manner, as opposed
+    to a hashed many2many manner
+  N going to self N (with hash or w/out hash)
+    in addition to a connection downstream
+    this lets an SP process its own data a 2nd time
+    like in rare alg
+
+layout command needs to be smarter when want multiple
+  SPs on same physical proc
+
+need to generate correct config file for MPICH vs OpenMPI
+
+doc: hostfile syntax for MPICH vs OpenMPI
+  nb08 slots=4  in OpenMPI
+  mpirun -hostfile hostfile    (check out --bynode option on mpirun)
+
+  nb08:4        in MPICH
+  mpirun -machinefile hostfile
+  
+what sockets should do that MPI already does:
+  throttle, no dropped messages
+  insure start-up is clean with no dropped messages
+  allow tagging of message with an int
+  allow message with any content
+  do all MPI actually do this?
+
+message types:
+  all encoded in tag
+  port #: DATA vs DONE vs other ports of DATA
+    have callback for different ports
+  RAW vs LINE vs STRUCTURE vs LABEL
+
+distinction between messaging vs message-passing
+
+how to start up processes on remote machine
+
+layout commands to tie processes to physical procs
+
+additional parsing functions for QK output:
+  could put in another SP
+
+  int nlabel = 0;
+  int maxlabel = 0;
+  char **labels = NULL;
+  char **datums = NULL;
+  int n;
+
+  while (1) {
+    eof = fgets(line,MAXLINE,fp);
+    if (eof == NULL) break;
+    n = strlen(line);
+    line[n-1] = '\0';
+    phish_send(line,n);
+    //nlabel = line_parse(line,&maxlabel,&labels,&datums);
+    //key = line_match("E1",nlabel,labels,datums);
+    //if (key) kv->add(key,strlen(key)+1,NULL,0);
+  }
+
+  pclose(fp);
+  free(labels);
+  free(datums);
+
+int line_parse(char *line, int *pmaxlabel, char ***plabels, char ***pdatums)
+{
+  int maxlabel = *pmaxlabel;
+  char **labels = *plabels;
+  char **datums = *pdatums;
+
+  int nlabel = 0;
+  char *ptr = strtok(line,"[");
+  while (ptr) {
+    if (nlabel == maxlabel) {
+      maxlabel++;
+      labels = (char **) realloc(labels,maxlabel*sizeof(char *));
+      datums = (char **) realloc(datums,maxlabel*sizeof(char *));
+      *pmaxlabel = maxlabel;
+      *plabels = labels;
+      *pdatums = datums;
+    }
+    labels[nlabel++] = ptr;
+    ptr = strtok(NULL,"[");
+  }
+
+  for (int i = 0; i < nlabel; i++) {
+    ptr = strtok(labels[i],"]");
+    datums[i] = strtok(NULL,":\n");
+  }
+
+  return nlabel;
+}
+
+char *line_match(char *label, int nlabel, char **labels, char **datums)
+{
+  for (int i = 0; i < nlabel; i++)
+    if (strcmp(label,labels[i]) == 0) return datums[i];
+  return NULL;
+}
+
+way to generalize an SP so it
+  can emit keyed data or just raw data so can be connected
+  in different ways?
+  or error check that it is not connected in wrong way?
+
+generalize filegen to work on files of files, or dirs of files
+
+how can I put a Python script as an SP
+  it would have to wrap the PHISH lib?
+  Py for GProtoBufs exist, probalby for sockets and ZMQ as well
+
+send styles:
+  how to have 2 sending patterns
+    message goes thru one of them due to tag on message?
+  do I want to override one2many if many = 1?
+  
+fanin/fanout problems:
+  dropping messages at beginning
+    intermediate section of manual should fix this
+  dropping done messages as end (sleep for 1 sec fixed this?)
+    could be overflowing
+    could be closing sender too quickly
+      in 2.0, avoid this by sleep at end
+      in 2.1, should be fixed, may want to try this
+  add timings of this to mapreduce/Notes page
+    also try it on nebula
+
+figure out how to do shmem pingpong on-box
+  use IPC protocol?
+  or ask Karl, since QK may do this
+
+phish_send vs phish_send_key
+  SP doesn't know which is needed since that is specified by
+    connection
+
+can wrap PHISH lib in Python so can write SPs in Python
+
+does callback to done() ever need args?
+
+good to have a tool or SPs to help with debugging
+  e.g. flag to turn on statistics logging to file per SP
+    or to one master file
+    stats = # of datums recv/sent
+    would be cool to monitor that in real time for all SPs
+  might need to be an external SP that pings the other SPs for
+    that info?
+  or a script that collects output files from all the others
+
+tagging of messages needed in 2 modes:
+  a) connecting output of an SP to input of different SPs
+     this could be handled by phish.py
+     use colon syntax in connect command, e.g. out:2
+  b) an SP wants to receive different kinds of datums
+     could be routed to different methods (via setting callback)
+     or one routine could check the tag of the message
+  
+have a phish_loop() variant that alternates
+  calls to receive incoming datums with calls
+  to user function that just generates datums
+  limit of this could be no datums incoming
+  other limit is just looping on datums forever
+  how to not block on datums that haven't arrived
+  could be just one phish_loop() that has settings
+    for 2 sources of input
+  may need to poll for datums instead of do hard recv?
+  indicator there is no recv datums is ninput = 0
+  indicator there is self-generated datums is setting a callback fn()
+
+count SP and general lib feature:
+  need hash table that works as true O(1) hash table
+  lets any string of bytes be put into it
+  allows iteration over it
+  could keep track of largest entry
+  for KMV could allow items to be added in linked list to hash entry
+
+count could be more general if it would count anything
+  someway to specify what is key
+
+sort could be more general if it would sort on anything
+  how to identify what to sort on
+  could have flag for ascending/descending
+  could sort on-the-fly as entries come in
+
+data structure that is just linked pages of memory
+  either for KMV (many linked list)
+  or just one big linked list
+  maybe do this thru STL?
+  put qsort in lib as well?
+
+5 example problems:
+  pingpong
+  wordcount
+  data2rare
+  Jon/Cindy CC graph alg in X-stream model
+  wrap QK for fanin/fanout (e.g. wordcount)
+
+how to lock down processes on cores/nodes so don't migrate
+  MPI solves this issue
+  might be important for efficiency
+
+how to wrap QK inside a standalone sp
+
+send call to lib from app:
+  send(int tag,char *key,int keybytes,char *value,int valuebytes);
+  ability to pre-define what is key, just send again and again
+
+recv call to lib from app:
+  need to query size first (then insure long enough):
+  or could just get ptrs to message, decode myself
+    how to tell zeromq when done with data?
+    need another func call for that
+  tag = recv_size(int &keybytes, int &valuebytes);
+  recv(char *key, char *value);
+
+how to send/recv a message with special tag
+how to send/recv to different input/outputs
+  both in input script and in source code
+how to add/detect label on a datum
+how to specify what field(s) is the key for hashing
+
+datum:
+  how to include alignment in lengths
+  length (of payload including recursion, skip ahead by length)
+  type (int, double, str, -3 = 3-tuple)
+  label (32-bit mask, includes done/ping)
+  payload (length # of bytes)
+
+can all SPs have one input socket (conneceted to many things)
+can all SPs have one or more output sockets?
+how can app sanity check that will receive str/int or str/str
+do I want transport layer for special messages, e.g. done,
+  intermediate, stop, CRTL-C, etc
+user program could do:
+  phish_init(&narg,&args);
+  phish_run(run,special,stop,break,ptr);
+    any of those can be NULL
+how to insure nothing is dropped in forensic mode
+how to gather/dump stats when debugging
+how can a remote process print?  does it need a local log file  
+  do I need way to collect remote logfiles and output?
+  do I need lib command to print to local log file?
+how to wrap QK in a SP
+have an MPI interface and a ZMQ interface (sockets)
+how to have a hash option on many2many or one2many
+maybe when N dones are coming in,
+  PHISH interface should count up to N before emitting it
+need library function of adding to hash for big multivalues
+option to put a particular process (single one) on a specific proc
+how to run continuously
+how to read from a separate trigger to output current status
+can a sp have multiple inputs and/or outputs
+how to route output to different places
+should datums have a tag on them?
+how to process different datatypes (e.g. print)
+one to many or one to one?
+should datums have labels (32-bit mask?)
+should datums have datatypes (int, uint, uint64, int64, float,
+  double, bytes, char)

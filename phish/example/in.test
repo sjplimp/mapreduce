@@ -1,0 +1,7 @@
+# test phish.py syntax processing
+
+variable foo f1 f2 f3
+set verbosity 1
+set makefile Makefile.foo
+sp sp1 read_file 4 arg1 arg2 -i infoo -o outfoo
+connect c2 fanin sp1 sp2
