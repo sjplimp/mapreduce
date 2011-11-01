@@ -1,7 +1,8 @@
 # edge generation from an RMAT distribution
 
 sp 1 ../apps/rmat $n 40 0.25 0.25 0.25 0.25 0.0 12345
-sp 2 ../apps/print -f tmp
+#sp 2 ../apps/print -f tmp
+sp 2 ../apps/print
 
 connect 1 one2one 2
 

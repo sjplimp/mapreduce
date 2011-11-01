@@ -1,7 +1,8 @@
 # word count from files
 
 sp 1 ../apps/filegen ${files}
-sp 2 ../apps/file2words.py
+#sp 2 ../apps/file2words.py
+sp 2 ../apps/file2words
 sp 3 ../apps/count
 sp 4 ../apps/sort 10
 sp 5 ../apps/print
