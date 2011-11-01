@@ -13,6 +13,7 @@ void ping(int);
 
 int main(int narg, char **args)
 {
+  printf("PING %d %s %s %s %s\n",narg,args[0],args[1],args[2],args[5]);
   phish_init("ping",1,1,&narg,&args);
   phish_callback_datum(ping);
 

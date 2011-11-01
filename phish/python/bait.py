@@ -232,7 +232,9 @@ for iconn,connect in enumerate(connects):
 
 fp = open("configfile","w")
 
-if mpi == "openmpi": print >>fp,"mpirun -hostfile hfile",
+if mpi == "openmpi":
+  if hostfile: print >>fp,"mpirun -hostfile hfile",
+  else: print >>fp,"mpirun",
 
 for isp,sp in enumerate(sps):
   procstr = "-n %d %s" % (sp.nprocs,sp.style)
@@ -274,4 +276,3 @@ if mpi == "mpich":
   print "mpiexec -configfile %s" % configfile
 elif mpi == "openmpi":
   print "invoke %s from shell" % configfile
-         
