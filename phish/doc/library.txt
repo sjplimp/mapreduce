@@ -1,0 +1,234 @@
+This is the API to the PHISH library that minnow applications call.
+Apps can be written in any language, e.g. C, C++, Fortran, Python.
+There is a C-style API and a Python API, which are essentially
+identical, but have a slightly different calling syntax.
+
+** C interface:
+
+* void phish_init(char *name, int *nargptr, char ***argsptr)
+
+1st call that app makes, to initialize PHISH library
+must be called before any other phish function
+
+name = name of application
+nargptr = ptr to nargs
+argsptr = ptr to args
+
+looks for args of the following form and strips them off
+modifies narg and args to only have args following -args
+
+-recv Iport Nset style first count style first count ...
+  Iport = which input port is being defined
+  Nset = sets of input coming into that port
+         follwed by Nset sets of style,first,count
+  style = single or paired or hashed or roundrobin or chain or ring
+  first = proc ID of first sender in set
+  count = # of procs (with successive proc IDs) in list of senders
+-send Oport style first count
+  Oport = which output port is being defined
+  style = single or paired or hashed or roundrobin or chain or ring
+  first = proc ID of first receiver in set
+  count = # of procs (with successive proc IDs) in list of receivers
+-args arg1 arg2 ... = args for the app itself
+
+* void phish_exit()
+
+shut down the PHISH library
+must be last call to any phish function
+
+* void phish_error(char *str)
+
+print error string and shut down PHISH library
+for MPI, calls MPI_Abort()
+
+* void phish_input(int portID, void (*process)(int), void (*done)(), reqflag)
+
+call once for each input port the app defines
+cannot call after phish_check()
+
+portID = port ID, 0 to Nport-1
+process = app function that will be called when a datum is recv by port
+          process() is passed the number of fields in the datum
+	  process can be NULL if don't wish to process datums
+done = app function that will be called when port is closed
+         by receiving DONE messages from all senders
+       done can be NULL
+reqflag = 1 if input port must be used by PHISH script, else 0
+
+* void phish_output(int nport)
+
+set # of output ports the app defines
+cannot call after phish_check()
+
+no required flag since can use app without connecting to a
+  downstream app
+
+* void phish_check()
+
+checks that input/output ports defined by app are consistent
+  with the way it is used in the PHISH input script
+call after phish_input() and phish_output() are called for all ports
+
+* double phish_timer()
+
+wrapper on MPI_Wtime()
+returns current time
+can compute elapsed time between two phish_timer() calls
+
+* void phish_callback(int flag, void (*callback)())
+
+set a callback function
+flag = PHISH_PROBE or PHISH_DONE
+callback = app function that will be called
+           for PROBE, is called when no datum has been received,
+	     so app can do more work
+           for DONE, is called when all input ports have been closed
+
+* void phish_loop()
+
+continuous loop, waiting for input datums
+if datum arrives on an input port, the port process() is called
+if port is closed, the port done() is called
+when all ports are closed, calls PHISH_DONE callback, and exits
+
+* void phish_probe()
+
+same as phish_loop(), except that incoming datums are
+  probed for in non-blocking manner
+if no message is available, and a PHISHPROBE callback is defined,
+  then it returns to caller, so it can do more work
+
+* void phish_close(portID)
+
+close an output port with portID
+sends DONE message to all downstream receivers
+no-op if port is already closed
+
+* void phish_close_all()
+
+close all output ports
+sends DONE message to all downstream receivers of each open port
+
+STILL NEED TO REWORK the send,pack,unpack calls for ports
+  and raw vs typed messages
+
+void phish_send(char *buf, int nbytes)
+
+send buf of nbytes to one or more other procs
+
+one2one and many2one = send to sendfirst
+one2many/rr = send to sendfirst
+  NOTE: shouldn't this do the round robin ?
+one2many and many2many = error (need to use phish_send_key())
+
+void phish_send_key(char *buf, int nbytes, char *key, int keybytes)
+
+send buf of nbytes to one or more other proc, based on key
+
+one2one and many2one = send to sendfirst
+one2many and many2many = hash the key, divide hash result across sendprocs,
+  send to specific proc
+one2many/rr = send to sendfirst + sendoffset, then increment sendoffset
+
+** Python interface:
+
+
+def init(arguments=sys.argv):
+  """Initializes phish and returns a context object for communicating with the
+  rest of the school.  Takes the process argv (which may be modified) as its
+  sole argument."""
+
+
+class context:
+  """Abstract interface for a Phish context, which is used for communication by
+  individual minnows."""
+
+  def name(self):
+    """Returns the human-readable name for this minnow."""
+
+  def input_ports(self):
+    """Returns a list of connected input ports.  Note that this list is kept
+    up-to-date as input ports are closed."""
+
+  def output_ports(self):
+    """Returns a list of connected output ports.  Note that this list is
+    kept up-to-date as output ports are closed."""
+
+  def enable_input_port(self, port, message_callback, closed_callback=None, optional=False):
+    """Specifies an input port to be enabled, along with a callback to be
+    called when a message is received on the port, an optional callback to be
+    called when the port is closed (i.e. all connections to the port are
+    closed), and a flag specifying whether the port is optional (i.e. whether
+    it is an error condition if there are no connections to this port)."""
+
+  def enable_output_port(self, port):
+    """Specifies an output port to be enabled.  It is an error to attempt
+    sending a message on a port that hasn't been enabled, or to make a
+    connection to such a port."""
+
+  def set_last_port_closed_callback(self, callback):
+    """Specifies a callback to be called exactly once when every input port has
+    been closed.  Note: this callback will never be called for minnows that
+    have no input ports."""
+
+  def loop(self):
+    """Called to begin an event loop that will receive messages and invoke
+    registered callbacks.  Loops cannot be nested, so subsequent calls to
+    loop() before calling loop_complete() will be ignored."""
+
+  def loop_complete(self):
+    """Called to exit an event loop started with loop().  Note that multiple
+    calls to loop_complete() and calls to loop_complete() before calling loop()
+    will be ignored."""
+
+  def send(self, message, output_port=0):
+    """Sends a message to a single minnow connected to the given output
+    port, choosing recipients in round-robin order."""
+
+  def send_all(self, message, output_port=0):
+    """Sends a message to every minnow connected to the given output
+    port."""
+
+  def send_hashed(self, key, value, output_port=0):
+    """Sends a key-value pair to a single minnow connected to the given
+    output port, choosing recipients based on a hash of the key."""
+
+  def close_port(self, output_port):
+    """Notifies downstream minnows that the given output port has been closed."""
+
+  def close(self):
+    """Closes the context and releases any resources allocated by the library.
+    Note that this also implicitly closes any open output ports and completes
+    any running loop."""
+
+
+def school(backend="zmq"):
+  """Factory function for creating school objects.  The backend argument is
+  used to specify the backend to use for communications.  Currently, only "zmq"
+  is supported as a backend."""
+
+
+class school:
+  """Abstract interface for managing a collection of minnow processes."""
+
+  def create_minnows(self, name, arguments, count=1, hosts=None):
+    """Starts one-or-more minnow processes, using the given command-line
+    arguments, count of processes to create, and optional list of hosts where
+    processes should be run, returning a list containing handles to the new
+    minnows.  The hosts parameter must either be a single host, in which case
+    all the new minnow processes will be run on that host (useful to put I/O
+    minnows close to disk hardware, for example); or, the hosts parameter must
+    be a list of host names, one-per-minnow."""
+
+  def all_to_all(self, output_minnows, output_port, input_port, input_minnows):
+    """Creates all-to-all connections from the output ports on one set of
+    minnows to the input ports of another."""
+
+  def one_to_one(self, output_minnows, output_port, input_port, input_minnows):
+    """Connects an output port from one minnow to the input port of the
+    corresponding minnow, for two equal sets of minnows."""
+
+  def start(self):
+    """Notifies the school that all minnows have been created / connected, and
+    processing may begin."""
+
