@@ -5,7 +5,7 @@ identical, but have a slightly different calling syntax.
 
 ** C interface:
 
-* void phish_init(char *name, int *nargptr, char ***argsptr)
+* void phish_init(int *nargptr, char ***argsptr)
 
 1st call that app makes, to initialize PHISH library
 must be called before any other phish function
@@ -103,11 +103,6 @@ if no message is available, and a PHISHPROBE callback is defined,
 close an output port with portID
 sends DONE message to all downstream receivers
 no-op if port is already closed
-
-* void phish_close_all()
-
-close all output ports
-sends DONE message to all downstream receivers of each open port
 
 STILL NEED TO REWORK the send,pack,unpack calls for ports
   and raw vs typed messages
