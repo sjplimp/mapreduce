@@ -10,13 +10,17 @@ identical, but have a slightly different calling syntax.
 1st call that app makes, to initialize PHISH library
 must be called before any other phish function
 
-name = name of application
 nargptr = ptr to nargs
 argsptr = ptr to args
 
 looks for args of the following form and strips them off
 modifies narg and args to only have args following -args
 
+-id IDstr N Nprev
+  IDstr = ID string of this app in PHISH input script
+  N = how many of this app exist
+  Nprev = how many processes exist preceding this app
+  note that arg[0] also has executable name of app
 -recv Iport Nset style first count style first count ...
   Iport = which input port is being defined
   Nset = sets of input coming into that port
@@ -33,12 +37,15 @@ modifies narg and args to only have args following -args
 
 * void phish_exit()
 
-shut down the PHISH library
+free memory for PHISH library
 must be last call to any phish function
+closes all output ports if still unclosed
 
 * void phish_error(char *str)
 
-print error string and shut down PHISH library
+print error string
+does not close output ports
+free memory for PHISH library
 for MPI, calls MPI_Abort()
 
 * void phish_input(int portID, void (*process)(int), void (*done)(), reqflag)
@@ -48,7 +55,7 @@ cannot call after phish_check()
 
 portID = port ID, 0 to Nport-1
 process = app function that will be called when a datum is recv by port
-          process() is passed the number of fields in the datum
+          process() is passed the number of fields in the received datum
 	  process can be NULL if don't wish to process datums
 done = app function that will be called when port is closed
          by receiving DONE messages from all senders
@@ -69,61 +76,76 @@ checks that input/output ports defined by app are consistent
   with the way it is used in the PHISH input script
 call after phish_input() and phish_output() are called for all ports
 
-* double phish_timer()
-
-wrapper on MPI_Wtime()
-returns current time
-can compute elapsed time between two phish_timer() calls
-
-* void phish_callback(int flag, void (*callback)())
-
-set a callback function
-flag = PHISH_PROBE or PHISH_DONE
-callback = app function that will be called
-           for PROBE, is called when no datum has been received,
-	     so app can do more work
-           for DONE, is called when all input ports have been closed
-
-* void phish_loop()
-
-continuous loop, waiting for input datums
-if datum arrives on an input port, the port process() is called
-if port is closed, the port done() is called
-when all ports are closed, calls PHISH_DONE callback, and exits
-
-* void phish_probe()
-
-same as phish_loop(), except that incoming datums are
-  probed for in non-blocking manner
-if no message is available, and a PHISHPROBE callback is defined,
-  then it returns to caller, so it can do more work
-
 * void phish_close(portID)
 
 close an output port with portID
 sends DONE message to all downstream receivers
 no-op if port is already closed
 
-STILL NEED TO REWORK the send,pack,unpack calls for ports
-  and raw vs typed messages
+* void phish_done(void (*done)())
 
-void phish_send(char *buf, int nbytes)
+set a callback function to invoke when all input ports are closed
 
-send buf of nbytes to one or more other procs
+* void phish_loop()
 
-one2one and many2one = send to sendfirst
-one2many/rr = send to sendfirst
-  NOTE: shouldn't this do the round robin ?
-one2many and many2many = error (need to use phish_send_key())
+continuous loop, waiting for input datums
+if datum arrives on an input port, the port process() is called
+if port is closed, the port done() is called
+when all ports are closed, calls all_done callback, exits
 
-void phish_send_key(char *buf, int nbytes, char *key, int keybytes)
+* void phish_probe(void (*probe)())
 
-send buf of nbytes to one or more other proc, based on key
+same as phish_loop(), except that incoming datums are
+  probed for in non-blocking manner
+if no message is available,
+  then probe() function in invoked so app can do more work
 
-one2one and many2one = send to sendfirst
-one2many and many2many = hash the key, divide hash result across sendprocs,
-  send to specific proc
-one2many/rr = send to sendfirst + sendoffset, then increment sendoffset
+* double phish_timer()
+
+wrapper on MPI_Wtime()
+returns current time
+can compute elapsed time between two phish_timer() calls
+
+* void phish_send(int oport)
+
+send a packed datum to output port oport
+
+* void phish_send_key(int oport, char *key, int nbytes)
+
+send a packed datum to output port oport
+  in a hashed manner using key of length nbytes
+  to determine who receiver is
+
+* void phish_pack_raw(char *buf, int n)
+* void phish_pack_byte(char cvalue)
+* void phish_pack_int(int ivalue)
+* void phish_pack_uint64(uint64_t uvalue)
+* void phish_pack_double(double dvalue)
+* void phish_pack_string(char *str)
+* void phish_pack_int_array(int *ivec, int n)
+* void phish_pack_uint64_array(uint64_t *uvec, int n)
+* void phish_pack_double_array(int *dvec, int n)
+
+pack raw buf of length N into send datum
+pack cvalue into send datum
+pack ivalue into send datum
+pack uvalue into send datum
+pack dvalue into send datum
+pack str with its trailing NULL into send datum
+pack N integers in ivec into send datum
+pack N uint64s in uvec into send datum
+pack N doubles in dvec into send datum
+
+* int phish_unpack(char **buf, int *len)
+
+return next field in the received datum
+returned int value = style of field = PHISH_RAW, PHISH_INT, etc
+buf = ptr to start of field
+len = # of values in field
+  for PHISH_RAW, len = # of bytes
+  for PHISH_BYTE, PHISH_INT, PHISH_UINT64, PHISH_DOUBLE, PHISH_STRING, len = 1
+  for PHISH_INT_ARRAY, PHISH_UINT64_ARRAY, PHISH_DOUBLE_ARRAY, 
+    len = # of array values
 
 ** Python interface:
 

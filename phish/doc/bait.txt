@@ -2,20 +2,25 @@ This describes the bait.py Python tool that pre-processes a PHISH
 input script into a form that can be executed by launching an MPI or
 socket-based job.
 
+** Script syntax:
+
 * parsing rules
 
 blank lines OK
 comment char = #, delete all trailing
 continuation char = &, with nothing following (including spaces)
 
-* variable substutution:
+* variable substitution:
 
-what are rules for this, LAMMPS like ???
+what are rules for this?
+should probably be $a for single-char variable, ${abc} for multichar
 
-* bait.py -switch values ...
+** Launch syntax:
 
--np N = processor count
-  N
+bait.py -switch values ...
+
+-np Np
+  Np = process count
   default = 1
 -var ID str1 str2 ...
   assign strings to a variable ID
@@ -43,9 +48,14 @@ many switches have allowed abbreviations:
 -path or -p
 -mode or -m
 
+** Allowed input script commands:
+
 * set keyword value
 
-keyword = verbosity or makefile
+nothing defined yet
+could duplicate command-line switches to allow them
+  to be set in input script
+could also allow verbosity or makefile
   verbosity = 0 or 1 (default = 0) = currently not used
   makefile = filename (default = Makefile) = currently not used
     should be used to build EXE files
@@ -54,11 +64,11 @@ keyword = verbosity or makefile
 
 assign one or more strings to a variable ID
 
-* sp ID style args
+* minnow ID style args
 
-define a stream process with ID
-style = name of associated stand-alone executable
-args = args that will be passed to executable when launched
+define a minnow with ID
+style = stand-alone executable
+args = args passed to executable when launched
 
 * connect ID1:oport style ID2:iport
 
@@ -100,3 +110,4 @@ ports, either from one app or multiple apps
 zero or more keyword/value pairs can be appended
 possible keywords = host
   host value = machine name
+  need to define this syntax more clearly
