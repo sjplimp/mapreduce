@@ -1,0 +1,60 @@
+# All targets
+
+all:	cc count file2fields file2words filegen ping pong print \
+	readgraph rmat slowdown sort wrapsink wrapsource wrapss \
+	echo reverse
+
+# Phish SPs
+
+cc:     cc.o $(LIB)
+	$(LINK) $(LINKFLAGS) cc.o $(LIB) $(SYSLIB) -o cc
+
+count:	count.o $(LIB)
+	$(LINK) $(LINKFLAGS) count.o $(LIB) $(SYSLIB) -o count
+
+file2fields:	file2fields.o $(LIB)
+	$(LINK) $(LINKFLAGS) file2fields.o $(LIB) $(SYSLIB) -o file2fields
+
+file2words:	file2words.o $(LIB)
+	$(LINK) $(LINKFLAGS) file2words.o $(LIB) $(SYSLIB) -o file2words
+
+filegen:	filegen.o $(LIB)
+	$(LINK) $(LINKFLAGS) filegen.o $(LIB) $(SYSLIB) -o filegen
+
+ping:	ping.o $(LIB)
+	$(LINK) $(LINKFLAGS) ping.o $(LIB) $(SYSLIB) -o ping
+
+pong:	pong.o $(LIB)
+	$(LINK) $(LINKFLAGS) pong.o $(LIB) $(SYSLIB) -o pong
+
+print:	print.o $(LIB)
+	$(LINK) $(LINKFLAGS) print.o $(LIB) $(SYSLIB) -o print
+
+rmat:	rmat.o $(LIB)
+	$(LINK) $(LINKFLAGS) rmat.o $(LIB) $(SYSLIB) -o rmat
+
+readgraph:	readgraph.o $(LIB)
+	$(LINK) $(LINKFLAGS) readgraph.o $(LIB) $(SYSLIB) -o readgraph
+
+slowdown:	slowdown.o $(LIB)
+	$(LINK) $(LINKFLAGS) slowdown.o $(LIB) $(SYSLIB) -o slowdown
+
+sort:	sort.o $(LIB)
+	$(LINK) $(LINKFLAGS) sort.o $(LIB) $(SYSLIB) -o sort
+
+wrapsink:	wrapsink.o $(LIB)
+	$(LINK) $(LINKFLAGS) wrapsink.o $(LIB) $(SYSLIB) -o wrapsink
+
+wrapsource:	wrapsource.o $(LIB)
+	$(LINK) $(LINKFLAGS) wrapsource.o $(LIB) $(SYSLIB) -o wrapsource
+
+wrapss:	wrapss.o $(LIB)
+	$(LINK) $(LINKFLAGS) wrapss.o $(LIB) $(SYSLIB) -o wrapss
+
+# Stand-alone programs
+
+echo:	echo.o
+	$(LINK) $(LINKFLAGS) echo.o -o echo
+
+reverse:	reverse.o
+	$(LINK) $(LINKFLAGS) reverse.o -o reverse
