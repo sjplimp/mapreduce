@@ -4,13 +4,16 @@
 #         -np P = # of procs
 #         -var vname value1 value2 ... = set a variable vname to set of strings 
 #         -hostfile filename = list of processors to run on
-#         -mpi flavor = flavor of MPI = "mpich" or "openmpi"
-# abbrevs: -np can also be -n or -p
-#          -var can also be -v
-#          -hostfile can also be -h
-#          -mpi can also be -m
+#         -configfile filename = MPI configfile to create
+#         -path path1:path2:path3:... = paths to prepend to apps
+#         -mode style = mpich or openmpi or socket
+# abbrevs: -np = -n
+#          -var = -v
+#          -hostfile = -h
+#          -configfile = -c
+#          -mode = -m
 
-import sys,re
+import sys,re,os
 
 # print error message and quit
 
@@ -59,6 +62,17 @@ def next_command(lines):
   words = line.split()
   return words[0],words[1:]
   
+# set a global setting via command in input script
+
+#def set(args):
+#  global verbosity,makefile
+#  if len(args) != 2: error("Illegal set command");
+#  if args[0] == "verbosity":
+#    verbosity = int(args[1])
+#  elif args[0] == "makefile":
+#    makefile = args[1]
+#  else: error("Unrecognized set parameter %s" % arg[0])
+
 # create a variable via variable command in input script
 
 def variable(args):
@@ -66,30 +80,19 @@ def variable(args):
   if args[0] in variables: error("Variable %s already in use" % args[0]);
   variables[args[0]] = args[1:]
 
-# set a global setting via command in input script
+# MINNOW class instantiated by minnow command in input script
 
-def set(args):
-  global verbosity,makefile
-  if len(args) != 2: error("Illegal set command");
-  if args[0] == "verbosity":
-    verbosity = int(args[1])
-  elif args[0] == "makefile":
-    makefile = args[1]
-  else: error("Unrecognized set parameter %s" % arg[0])
-
-# SP class instantiated by sp command in input script
-
-class sp:
+class minnow:
   def __init__(self,args):
     narg = len(args)
-    if narg < 2: error("Invalid sp command")
+    if narg < 2: error("Invalid minnow command")
     self.id = args[0]
-    self.style = args[1]
+    self.exe = args[1]
     self.args = args[2:]
     self.send = []
     self.recv = []
-    ids = [sp.id for sp in sps]
-    if self.id in ids: error("SP ID %s already in use" % self.id)
+    ids = [minnow.id for minnow in minnows]
+    if self.id in ids: error("Minnow ID %s already defined" % self.id)
 
 # CONNECT class instantiated by connect command in input script
 
@@ -100,21 +103,96 @@ class connect:
     self.sender = args[0]
     if ':' in self.sender:
       self.sender,self.sendport = self.sender.split(':',1)
-    else: self.sendport = 1
+    else: self.sendport = 0
     self.style = args[1]
     self.receiver = args[2]
     if ':' in self.receiver:
       self.receiver,self.recvport = self.receiver.split(':',1)
-    else: self.recvport = 1
-
+    else: self.recvport = 0
+    ids = [minnow.id for minnow in minnows]
+    if self.sender not in ids:
+      error("Unrecognized connect ID %s" % self.sender)
+    if self.receiver not in ids:
+      error("Unrecognized connect ID %s" % self.receiver)
+    
 # LAYOUT class instantiated by layout command in input script
 
 class layout:
   def __init__(self,args):
     narg = len(args)
     if narg < 2: error("Invalid layout command")
-    self.sp = args[0]
+    self.id = args[0]
     self.nprocs = int(args[1])
+    ids = [layout.id for layout in layouts]
+    if self.id in ids: error("Layout ID %s already defined" % self.id)
+    # process additional layout args here
+
+# mode-dependent output
+
+def output_mpich():
+  fp = open("configfile","w")
+  for iminnow,minnow in enumerate(minnows):
+    procstr = "-n %d %s" % (minnow.nprocs,minnow.pathexe)
+    infostr = " -info %s %s %d %d" % \
+        (minnow.exe,minnow.id,minnow.nprocs,minnow.procstart)
+    recvstr = ""
+    for recv in minnow.recv:
+      recvstr += " -recv %d %d %d %s %d %d %d" % \
+          (minnows[recv[0]].nprocs,minnows[recv[0]].procstart,
+           int(connects[recv[1]].sendport),
+           connects[recv[1]].style,
+           minnows[recv[2]].nprocs,minnows[recv[2]].procstart,
+           int(connects[recv[1]].recvport))
+    sendstr = ""
+    for send in minnow.send:
+      sendstr += " -send %d %d %d %s %d %d %d" % \
+          (minnows[send[0]].nprocs,minnows[send[0]].procstart,
+           int(connects[send[1]].sendport),
+           connects[send[1]].style,
+           minnows[send[2]].nprocs,minnows[send[2]].procstart,
+           int(connects[send[1]].recvport))
+    launchstr = procstr + infostr + recvstr + sendstr
+    if minnow.args: launchstr += " -args " + " ".join(minnow.args)
+    print >>fp,launchstr
+  fp.close()
+
+def output_openmpi():
+  fp = open("configfile","w")
+  if hostfile: print >>fp,"mpirun -hostfile hfile",
+  else: print >>fp,"mpirun",
+
+  for iminnow,minnow in enumerate(minnows):
+    procstr = "-n %d %s" % (minnow.nprocs,minnow.pathexe)
+    infostr = " -info %s %s %d %d" % \
+        (minnow.exe,minnow.id,minnow.nprocs,minnow.procstart)
+    recvstr = ""
+    for recv in minnow.recv:
+      recvstr += " -recv %d %d %d %s %d %d %d" % \
+          (minnows[recv[0]].nprocs,minnows[recv[0]].procstart,
+           int(connects[recv[1]].sendport),
+           connects[recv[1]].style,
+           minnows[recv[2]].nprocs,minnows[recv[2]].procstart,
+           int(connects[recv[1]].recvport))
+    sendstr = ""
+    for send in minnow.send:
+      sendstr += " -send %d %d %d %s %d %d %d" % \
+          (minnows[send[0]].nprocs,minnows[send[0]].procstart,
+           int(connects[send[1]].sendport),
+           connects[send[1]].style,
+           minnows[send[2]].nprocs,minnows[send[2]].procstart,
+           int(connects[send[1]].recvport))
+    launchstr = procstr + infostr + recvstr + sendstr
+    if minnow.args: launchstr += " -args " + " ".join(minnow.args)
+    print >>fp,launchstr,
+    if iminnow < len(minnows)-1: print >>fp,":",
+    else: print >>fp
+  fp.close()
+
+def output_socket():
+  return
+
+# ---------------------------------------------------------------------------
+# MAIN program
 
 # parse command-line args to override default settings
 
@@ -125,11 +203,12 @@ nprocs = 1
 variables = {}
 hostfile = ""
 configfile = "configfile"
-mpi = "mpich"
+pathlist = "."
+mode = "mpich"
 
 iarg = 1
 while iarg < narg:
-  if args[iarg] == "-np" or args[iarg] == "-n" or args[iarg] == "-p":
+  if args[iarg] == "-np" or args[iarg] == "-n":
     if iarg+2 > narg: error("Invalid command line args")
     nprocs = int(args[iarg+1])
     iarg += 2
@@ -147,21 +226,30 @@ while iarg < narg:
     if iarg+2 > narg: error("Invalid command line args")
     configfile = args[iarg+1]
     iarg += 2
-  elif args[iarg] == "-mpi" or args[iarg] == "-m":
+  elif args[iarg] == "-path" or args[iarg] == "-p":
     if iarg+2 > narg: error("Invalid command line args")
-    mpi = args[iarg+1]
-    if mpi != "mpich" and mpi != "openmpi": error("Invalid mpi setting");
+    pathlist = args[iarg+1]
+    iarg += 2
+  elif args[iarg] == "-mode" or args[iarg] == "-m":
+    if iarg+2 > narg: error("Invalid command line args")
+    mode = args[iarg+1]
+    if mode != "mpich" and mode != "openmpi" and mode != "socket":
+      error("Invalid command line args");
     iarg += 2
   else: error("Invalid command line args")
 
+paths = pathlist.split(':')
+
+if mode == "socket": error("Socket mode not yet supported")
+
 # defaults for variables specfied by set command
 
-verbosity = 0
-makefile = "Makefile"
+#verbosity = 0
+#makefile = "Makefile"
 
-# initialize data structures for kids, connects, layouts
+# initialize data structures for minnows, connects, layouts
 
-sps = []
+minnows = []
 connects = []
 layouts = []
 
@@ -171,108 +259,85 @@ lines = sys.stdin.readlines()
 while lines:
   command,args = next_command(lines)
   if not command: break
+  #elif command == "set": set(args)
   elif command == "variable": variable(args)
-  elif command == "set": set(args)
-  elif command == "sp": sps.append(sp(args))
+  elif command == "minnow": minnows.append(minnow(args))
   elif command == "connect": connects.append(connect(args))
   elif command == "layout": layouts.append(layout(args))
   else: error("Unrecognized command %s" % command)
 
-# add fields to each SP based on layout and connect params
+# add fields to each minnow based on layout and connect params
 # check that connections are consistent with layout
   
-spids = [sp.id for sp in sps]
-layids = [layout.sp for layout in layouts]
+minnowids = [minnow.id for minnow in minnows]
+layoutids = [layout.id for layout in layouts]
 
 nprocs = 0
-for sp in sps:
-  if sp.id not in layids: sp.nprocs = 1
-  elif layids.count(sp.id) > 1: error("More than one layout for SP ID %s" % sp.id)
+for minnow in minnows:
+  if minnow.id not in layoutids: minnow.nprocs = 1
   else:
-    index = layids.index(sp.id)
-    sp.nprocs = layouts[index].nprocs
-  sp.procstart = nprocs
-  nprocs += sp.nprocs
+    index = layoutids.index(minnow.id)
+    minnow.nprocs = layouts[index].nprocs
+  minnow.procstart = nprocs
+  nprocs += minnow.nprocs
 
-for iconn,connect in enumerate(connects):
-  if connect.sender not in spids:
-    error("Unknown connect SP ID %s" % connect.sender)
-  if connect.receiver not in spids:
-    error("Unknown connect SP ID %s" % connect.receiver)
-    
-  sendindex = spids.index(connect.sender)
-  recvindex = spids.index(connect.receiver)
-  sps[sendindex].send.append([sendindex,iconn,recvindex])
-  sps[recvindex].recv.append([sendindex,iconn,recvindex])
+for iconnect,connect in enumerate(connects):
+  sendindex = minnowids.index(connect.sender)
+  recvindex = minnowids.index(connect.receiver)
+  minnows[sendindex].send.append([sendindex,iconnect,recvindex])
+  minnows[recvindex].recv.append([sendindex,iconnect,recvindex])
 
-  npsend = sps[sendindex].nprocs
-  nprecv = sps[recvindex].nprocs
-  sid = sps[sendindex].id
-  rid = sps[recvindex].id
+  npsend = minnows[sendindex].nprocs
+  nprecv = minnows[recvindex].nprocs
+  sid = minnows[sendindex].id
+  rid = minnows[recvindex].id
   
-  if connect.style == "one2one":
-    if npsend != 1 or nprecv != 1:
-      error("Connect between %s and %s not consistent with layout" % (sid,rid));
-  elif connect.style == "one2many":
-    if npsend != 1:
-      error("Connect between %s and %s not consistent with layout" % (sid,rid));
-  elif connect.style == "one2many/rr":
-    if npsend != 1:
-      error("Connect between %s and %s not consistent with layout" % (sid,rid));
-  elif connect.style == "many2one":
+  if connect.style == "single":
     if nprecv != 1:
       error("Connect between %s and %s not consistent with layout" % (sid,rid));
-  elif connect.style == "many2many/one":
+  elif connect.style == "paired":
     if npsend != nprecv:
       error("Connect between %s and %s not consistent with layout" % (sid,rid));
+  elif connect.style == "hashed":
+    continue
+  elif connect.style == "roundrobin":
+    continue
+  elif connect.style == "chain":
+    if sid != rid or npsend == 1:
+      error("Connect between %s and %s not consistent with layout" % (sid,rid));
+  elif connect.style == "ring":
+    if sid != rid or npsend == 1:
+      error("Connect between %s and %s not consistent with layout" % (sid,rid));
+  else:
+    error("Unrecognized connect style %s" % connect.style);
 
-# build executable SPs using Makefile
+# generate full executable names using pathlist
 
-# create configfile for flavor of MPI
+for minnow in minnows:
+  flag = 0
+  for path in paths:
+    pathexe = path + '/' + minnow.exe
+    if os.path.isfile(pathexe):
+      if not os.access(pathexe,os.X_OK):
+        error("Minnow %s is not executable" % pathexe)
+      minnow.pathexe = pathexe
+      flag = 1
+  if not flag: error("Minnow %s could not be found in path list" % minnow.exe)
 
-fp = open("configfile","w")
+# create output depending on mode
 
-if mpi == "openmpi":
-  if hostfile: print >>fp,"mpirun -hostfile hfile",
-  else: print >>fp,"mpirun",
-
-for isp,sp in enumerate(sps):
-  procstr = "-n %d %s" % (sp.nprocs,sp.style)
-  recv = sp.recv
-  recvstr = "-recv %d" % len(recv)
-  for partner in recv:
-    recvstr += " %s %d %d %d %d %d %d" % \
-        (connects[partner[1]].style,
-         sps[partner[0]].nprocs,sps[partner[0]].procstart,
-         int(connects[partner[1]].sendport),
-         sp.nprocs,sp.procstart,int(connects[partner[1]].recvport))
-  send = sp.send
-  sendstr = "-send %d" % len(send)
-  for partner in send:
-    sendstr += " %s %d %d %d %d %d %d" % \
-        (connects[partner[1]].style,
-         sp.nprocs,sp.procstart,int(connects[partner[1]].sendport),
-         sps[partner[2]].nprocs,sps[partner[2]].procstart,
-         int(connects[partner[1]].recvport))
-  launchstr = procstr + " " + recvstr + " " + sendstr
-  if sp.args: launchstr += " -args " + " ".join(sp.args)
-  if mpi == "mpich":
-    print >>fp,launchstr
-  elif mpi == "openmpi":
-    print >>fp,launchstr,
-    if isp < len(sps)-1: print >>fp,":",
-    else: print >>fp
-  
-fp.close()
+if mode == "mpich": output_mpich()
+elif mode == "mpich": output_openmpi()
+elif mode == "socket": output_socket()
 
 # print stats
 
-print "# of SPs =",len(sps)
+print "# of minnows =",len(minnows)
 print "# of processes =",nprocs
 
 # prompt for how to invoke launch script for flavor of MPI
 
-if mpi == "mpich":
+if mode == "mpich":
   print "mpiexec -configfile %s" % configfile
-elif mpi == "openmpi":
+elif mode == "openmpi":
   print "invoke %s from shell" % configfile
