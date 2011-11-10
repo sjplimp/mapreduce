@@ -7,7 +7,7 @@ minnow 4 print
 
 connect 1 roundrobin 2
 connect 2 single 3
-connect 3 paired 4
+connect 3 single 4
 
 layout 1 1
 layout 2 5

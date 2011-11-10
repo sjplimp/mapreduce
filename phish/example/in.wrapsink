@@ -3,7 +3,7 @@
 minnow 1 filegen ${files}
 minnow 2 wrapsink ./reverse
 
-connect 1 paired 2
+connect 1 single 2
 
 layout 1 1
 layout 2 1

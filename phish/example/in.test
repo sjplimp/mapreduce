@@ -1,4 +1,4 @@
-# test phish.py syntax processing
+# test syntax processing of bait.py
 
 variable foo f1 f2 f3
 set verbosity 1

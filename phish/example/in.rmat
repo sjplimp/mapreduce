@@ -4,7 +4,7 @@ minnow 1 rmat $n 40 0.25 0.25 0.25 0.25 0.0 12345
 #minnow 2 print -f tmp
 minnow 2 print
 
-connect 1 paired 2
+connect 1 single 2
 
 layout 1 1
 layout 2 1

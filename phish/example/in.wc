@@ -10,7 +10,7 @@ minnow 5 print
 connect 1 roundrobin 2
 connect 2 hashed 3
 connect 3 single 4
-connect 4 paired 5
+connect 4 single 5
 
 layout 1 1
 layout 2 5
