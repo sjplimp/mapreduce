@@ -5,16 +5,16 @@ identical, but have a slightly different calling syntax.
 
 ** C interface:
 
-* void phish_init(int *nargptr, char ***argsptr)
+* void phish_init(int *pnarg, char ***pargs)
 
 1st call that app makes, to initialize PHISH library
 must be called before any other phish function
 
-nargptr = ptr to nargs
-argsptr = ptr to args
+pnarg = ptr to narg
+pargs = ptr to args
 
 looks for args of the following form and strips them off
-modifies narg and args to only have args following -args
+modifies narg and args to only have args that follow -args
 
 -id IDstr N Nprev
   IDstr = ID string of this app in PHISH input script
@@ -35,18 +35,24 @@ modifies narg and args to only have args following -args
   count = # of procs (with successive proc IDs) in list of receivers
 -args arg1 arg2 ... = args for the app itself
 
+* int phish_init_python(int *narg, char **args)
+
+wrapper on phish_init() to allow calling from Python
+
+* int phish_world(int *pme, int *pnprocs)
+
+return MPI_Comm
+return ID of this process in MPI sense (me = 0 to nprocs-1)
+return # of processes in MPI sense (nprocs)
+
 * void phish_exit()
 
 free memory for PHISH library
 must be last call to any phish function
 closes all output ports if still unclosed
 
-* void phish_error(char *str)
 
-print error string
-does not close output ports
-free memory for PHISH library
-for MPI, calls MPI_Abort()
+
 
 * void phish_input(int portID, void (*process)(int), void (*done)(), reqflag)
 
@@ -76,15 +82,15 @@ checks that input/output ports defined by app are consistent
   with the way it is used in the PHISH input script
 call after phish_input() and phish_output() are called for all ports
 
+* void phish_done(void (*done)())
+
+set callback function done() to invoke when all input ports are closed
+
 * void phish_close(portID)
 
 close an output port with portID
 sends DONE message to all downstream receivers
 no-op if port is already closed
-
-* void phish_done(void (*done)())
-
-set a callback function to invoke when all input ports are closed
 
 * void phish_loop()
 
@@ -99,12 +105,6 @@ same as phish_loop(), except that incoming datums are
   probed for in non-blocking manner
 if no message is available,
   then probe() function in invoked so app can do more work
-
-* double phish_timer()
-
-wrapper on MPI_Wtime()
-returns current time
-can compute elapsed time between two phish_timer() calls
 
 * void phish_send(int oport)
 
@@ -146,6 +146,19 @@ len = # of values in field
   for PHISH_BYTE, PHISH_INT, PHISH_UINT64, PHISH_DOUBLE, PHISH_STRING, len = 1
   for PHISH_INT_ARRAY, PHISH_UINT64_ARRAY, PHISH_DOUBLE_ARRAY, 
     len = # of array values
+
+* void phish_error(char *str)
+
+print error string
+does not close output ports
+free memory for PHISH library
+for MPI, calls MPI_Abort()
+
+* double phish_timer()
+
+wrapper on MPI_Wtime()
+returns current time
+can compute elapsed time between two phish_timer() calls
 
 ** Python interface:
 
