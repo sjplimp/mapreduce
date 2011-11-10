@@ -1,5 +1,7 @@
 Todo:
 
+can we in-line some func calls in phish lib?
+
 still to do in latest PHISH version:
   wrapsource, wrapss, wrapsomefile, rare via domainstats,
   Python wrappers are out of date,
@@ -51,6 +53,7 @@ save vs unsafe setting - can crash MPICH on my box with an MPI
 how to tailor what nodes/cores processes are launched on 
   important for both OpenMPI and MPICH, but mechanism is different
   probably needs to be some specification with layout command in script
+  make it part of layout command
 
 could make domain and user be same SP sending messages to
   itself with a hash - just recv them on a different port

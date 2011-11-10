@@ -3,6 +3,63 @@ Apps can be written in any language, e.g. C, C++, Fortran, Python.
 There is a C-style API and a Python API, which are essentially
 identical, but have a slightly different calling syntax.
 
+** Format of a datum sent between 2 processes:
+
+A datum is a chunk of bytes.  This describes what
+is in the chunk, which is the same whether the
+message is sent via MPI or sockets.
+
+# of fields in datum (int)
+type of 1st field (int)
+size of 1st field (optional int)
+data for 1st field (bytes)
+type of 2nd field (int)
+size of 2nd field (optional int)
+data for 2nd field (bytes)
+...
+type of Nth field (int)
+size of Nth field (optional int)
+data for Nth field (bytes)
+
+The "type" values are one of these values, defined in src/phish.h
+
+#define PHISH_RAW 0
+#define PHISH_BYTE 1
+#define PHISH_INT 2
+#define PHISH_UINT64 3
+#define PHISH_DOUBLE 4
+#define PHISH_STRING 5
+#define PHISH_INT_ARRAY 6
+#define PHISH_UINT64_ARRAY 7
+#define PHISH_DOUBLE_ARRAY 8
+
+PHISH_RAW is a list of raw bytes, which can be of any length, and
+which the user can format in any manner.  PHISH_BYTE is a single byte.
+PHISH_STRING is a NULL-terminated C-style string.  The NULL is
+included in the datum.  The ARRAYS are contiguous lists of int, uint64
+or double values.
+
+The "size" values are only included for PHISH_RAW (# of bytes),
+PHISH_STRING (# of bytes including NULL), and the ARRAY types (# of
+values).
+
+The field data is packed into the datum in a contiguous manner.
+
+NOTE: what about alignment with mix of int/double, or when
+single PHISH_BYTE are packed?
+
+The maximum allowed size of a datum (in bytes) is set by MAXBUF in
+src/phish.cpp, which defaults to 1 Mb.
+
+Additionally, MPI flags the messages with a "tag".  This tag encodes
+the receiver's port and also a "done" flag.  If it is not a done
+message, the tag is the receiver port (0 to Nport-1).  For a done
+message a value of DONETAG=100 (defined at the top of phish.cpp) is
+added to the tag.
+
+MPI also allows the receiver to query the byte size of the message,
+which is used for the "full" pack/unpack calls below.
+
 ** C interface:
 
 * void phish_init(int *pnarg, char ***pargs)
@@ -50,9 +107,6 @@ return # of processes in MPI sense (nprocs)
 free memory for PHISH library
 must be last call to any phish function
 closes all output ports if still unclosed
-
-
-
 
 * void phish_input(int portID, void (*process)(int), void (*done)(), reqflag)
 
@@ -116,6 +170,7 @@ send a packed datum to output port oport
   in a hashed manner using key of length nbytes
   to determine who receiver is
 
+* void phish_pack_datum(char *buf, int n)
 * void phish_pack_raw(char *buf, int n)
 * void phish_pack_byte(char cvalue)
 * void phish_pack_int(int ivalue)
@@ -126,7 +181,10 @@ send a packed datum to output port oport
 * void phish_pack_uint64_array(uint64_t *uvec, int n)
 * void phish_pack_double_array(int *dvec, int n)
 
-pack raw buf of length N into send datum
+pack an entire datum of N bytes,
+  including its field delimiters (see phish_datum() function)
+  must be the 1st and only pack call before sending ??  can we check this?
+pack raw buf of N bytes into send datum
 pack cvalue into send datum
 pack ivalue into send datum
 pack uvalue into send datum
@@ -140,12 +198,33 @@ pack N doubles in dvec into send datum
 
 return next field in the received datum
 returned int value = style of field = PHISH_RAW, PHISH_INT, etc
-buf = ptr to start of field
+buf = ptr to start of field data
 len = # of values in field
   for PHISH_RAW, len = # of bytes
-  for PHISH_BYTE, PHISH_INT, PHISH_UINT64, PHISH_DOUBLE, PHISH_STRING, len = 1
+  for PHISH_STRING, len = # of bytes including NULL
+  for PHISH_BYTE, PHISH_INT, PHISH_UINT64, PHISH_DOUBLE, len = 1
   for PHISH_INT_ARRAY, PHISH_UINT64_ARRAY, PHISH_DOUBLE_ARRAY, 
     len = # of array values
+
+NOTE: These only return a ptr to the field data, so if you
+want the data to persist when the next datum is received by
+the minnow (e.g. during a phish_loop() or phish_probe()) then
+you must make a copy.  It is OK to unpack several fields from
+the same datum without making copies of each field.
+
+* void phish_datum(char **buf, int *len)
+
+return info for entire received datum, including its field delimiters
+buf = ptr to start of datum
+len = byte length of entire datum, including field delimiters
+
+Using this call allows the minnow to do whatever it wishes with the
+datum, including send it along intact to another minnow.  See
+the phish_pack_datum() function.
+
+This call does not conflict with the phish_unpack functions that
+unpack the datum, field by field.  Those can still be used to process
+the same datum.
 
 * void phish_error(char *str)
 
@@ -162,12 +241,10 @@ can compute elapsed time between two phish_timer() calls
 
 ** Python interface:
 
-
 def init(arguments=sys.argv):
   """Initializes phish and returns a context object for communicating with the
   rest of the school.  Takes the process argv (which may be modified) as its
   sole argument."""
-
 
 class context:
   """Abstract interface for a Phish context, which is used for communication by
@@ -231,12 +308,10 @@ class context:
     Note that this also implicitly closes any open output ports and completes
     any running loop."""
 
-
 def school(backend="zmq"):
   """Factory function for creating school objects.  The backend argument is
   used to specify the backend to use for communications.  Currently, only "zmq"
   is supported as a backend."""
-
 
 class school:
   """Abstract interface for managing a collection of minnow processes."""

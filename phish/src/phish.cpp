@@ -1,4 +1,4 @@
-// PHISH library
+// MPI-based version of PHISH library
 
 #include "mpi.h"
 #include "stdio.h"
@@ -8,19 +8,25 @@
 #include "phish.h"
 #include "hash.h"
 
-//#define PHISH_SSEND 1      // uncomment for safer/slower MPI_Ssend()
+// definitions
+
+//#define PHISH_SAFE_SEND 1      // uncomment for safer/slower MPI_Ssend()
+
+enum{ONE2ONE,ONE2MANY,ONE2MANY_RR,MANY2ONE,MANY2MANY,MANY2MANY_ONE};
+
+#define MAXBUF 1024*1024
+#define DONETAG 100
 
 typedef void (DoneFunc)();
 typedef void (DatumFunc)(int);
-typedef void (ProbeFunc)();
+
+// variables local to single PHISH instance
 
 MPI_Comm world;
 int me,nprocs;
 
-char *spname;
-DatumFunc *datumfunc = NULL;
+char *appname;
 DoneFunc *donefunc = NULL;
-ProbeFunc *probefunc = NULL;
 
 struct Recv {
   int activated;
@@ -39,14 +45,12 @@ struct Recv *precv;
 struct Send *psend;
 int nrecv,nsend;
 
+DatumFunc *datumfunc = NULL;
+
 int sendwhich = 0;
 
 int donelimit;
 int donecount = 0;
-
-enum{ONE2ONE,ONE2MANY,ONE2MANY_RR,MANY2ONE,MANY2MANY,MANY2MANY_ONE};
-
-#define MAXBUF 1024*1024
 
 char rbuf[MAXBUF];
 int nrbuf;
@@ -56,19 +60,17 @@ char sbuf[MAXBUF];
 int nsbuf;
 char *sptr;
 
-#define DONETAG 100
-
 /* ---------------------------------------------------------------------- */
 
-void phish_init(const char *name, int nrecvmax, int nsendmax, 
-		int *nargptr, char ***argsptr)
+void phish_init(int *pnarg, char ***pargs)
 {
-  MPI_Init(nargptr,argsptr);
+  MPI_Init(pnarg,pargs);
 
   world = MPI_COMM_WORLD;
   MPI_Comm_rank(world,&me);
   MPI_Comm_size(world,&nprocs);
 
+  /*
   int n = strlen(name) + 1;
   spname = new char[n];
   strcpy(spname,name);
@@ -178,26 +180,16 @@ void phish_init(const char *name, int nrecvmax, int nsendmax,
 
   sptr = sbuf + sizeof(int);
   nsbuf = 0;
+  */
 }
 
 /* ---------------------------------------------------------------------- */
 
-int phish_init_python(char *name, int nrecvmax, int nsendmax,
-		      int narg, char **args)
+int phish_init_python(int narg, char **args)
 {
   int narg_start = narg;
-  phish_init(name,nrecvmax,nsendmax,&narg,&args);
+  phish_init(&narg,&args);
   return narg_start-narg;
-}
-
-/* ---------------------------------------------------------------------- */
-
-void phish_close()
-{
-  delete [] spname;
-  delete [] precv;
-  delete [] psend;
-  MPI_Finalize();
 }
 
 /* ---------------------------------------------------------------------- */
@@ -211,40 +203,91 @@ int phish_world(int *pme, int *pnprocs)
 
 /* ---------------------------------------------------------------------- */
 
-void phish_error(const char *str)
+void phish_exit()
 {
-  printf("ERROR: %s\n",str);
-  MPI_Abort(world,1);
-}
-
-/* ---------------------------------------------------------------------- */
-
-double phish_timer()
-{
-  return MPI_Wtime();
+  delete [] appname;
+  delete [] precv;
+  delete [] psend;
+  MPI_Finalize();
 }
 
 /* ----------------------------------------------------------------------
-   set callback functions
+   setup input port
 ------------------------------------------------------------------------- */
 
-void phish_callback_done(void (*callback)())
+void phish_input(int portID, void (*process)(int), void (*done)(), int reqflag)
 {
-  donefunc = callback;
-}
-
-void phish_callback_datum(void (*callback)(int))
-{
-  datumfunc = callback;
-}
-
-void phish_callback_probe(void (*callback)())
-{
-  probefunc = callback;
+  //donefunc = callback;
 }
 
 /* ----------------------------------------------------------------------
-   infinite loop on incoming messages
+   setup output ports
+------------------------------------------------------------------------- */
+
+void phish_output(int nport)
+{
+}
+
+/* ----------------------------------------------------------------------
+   check consistency of input args with ports
+------------------------------------------------------------------------- */
+
+void phish_check()
+{
+}
+
+/* ----------------------------------------------------------------------
+   set done callback function
+------------------------------------------------------------------------- */
+
+void phish_done(void (*done)())
+{
+  donefunc = done;
+}
+
+/* ----------------------------------------------------------------------
+   close output port iport
+------------------------------------------------------------------------- */
+
+void phish_close(int iport)
+{
+  for (int isend = 0; isend < nsend; isend++) {
+    struct Send *s = &psend[isend];
+    if (!s->activated) continue;
+    switch (s->style) {
+    case ONE2ONE:
+    case MANY2ONE:
+#ifdef PHISH_SAFE_SEND
+      MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst,DONETAG,world);
+#else
+      MPI_Send(NULL,0,MPI_BYTE,s->recvfirst,DONETAG,world);
+#endif
+      break;
+    case ONE2MANY:
+    case ONE2MANY_RR:
+    case MANY2MANY:
+      for (int i = 0; i < s->recvprocs; i++)
+#ifdef PHISH_SAFE_SEND
+        MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst + i,DONETAG,world);
+#else
+        MPI_Send(NULL,0,MPI_BYTE,s->recvfirst + i,DONETAG,world);
+#endif
+      break;
+    case MANY2MANY_ONE:
+#ifdef PHISH_SAFE_SEND
+      MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst + (me - s->sendfirst),
+		DONETAG,world);
+#else
+      MPI_Send(NULL,0,MPI_BYTE,s->recvfirst + (me - s->sendfirst),
+	       DONETAG,world);
+#endif
+      break;
+    }
+  }
+}
+
+/* ----------------------------------------------------------------------
+   infinite loop on incoming datums
    blocking MPI_Recv() for a message
    check for DONE messages, when N = recvprocs are received, call donefunc()
    else call datumfunc() with each message
@@ -264,7 +307,7 @@ void phish_loop()
     }
     MPI_Get_count(&status,MPI_BYTE,&nrbuf);
     rptr = rbuf + sizeof(int);
-    if (datumfunc) (*datumfunc)(*(int *) rbuf);
+    //if (datumfunc) (*datumfunc)(*(int *) rbuf);
   }
 }
 
@@ -276,7 +319,7 @@ void phish_loop()
    if no message, return to caller via probefunc() so app can do work
 ------------------------------------------------------------------------- */
 
-void phish_probe()
+void phish_probe(void (*probe)())
 {
   int flag;
   MPI_Status status;
@@ -293,44 +336,91 @@ void phish_probe()
       }
       MPI_Get_count(&status,MPI_BYTE,&nrbuf);
       rptr = rbuf + sizeof(int);
-      if (datumfunc) (*datumfunc)(*(int *) rbuf);
+      //if (datumfunc) (*datumfunc)(*(int *) rbuf);
     }
-    if (probefunc) (*probefunc)();
+    (*probe)();
   }
 }
 
 /* ----------------------------------------------------------------------
-   process the rbuf, one value at a time
-   return value type
-   also return ptr to value and its len to caller
+   send sbuf to a downstream processor
 ------------------------------------------------------------------------- */
 
-int phish_unpack_next(char **buf, int *len)
+void phish_send(int oport)
 {
-  if (rptr - rbuf == nrbuf) phish_error("Recv buffer empty");
+  if (sendwhich < 0 || sendwhich > nsend-1 || !psend[sendwhich].activated)
+    phish_error("Invalid send protocol in phish_send");
 
-  int type = *(int *) rptr;
-  rptr += sizeof(int);
-  *buf = rptr;
+  struct Send *s = &psend[sendwhich];
+  *(int *) sbuf = nsbuf;
+  int nbuf = sptr - sbuf;
 
-  if (type == PHISH_BYTE) *len = 1;
-  else if (type == PHISH_INT) *len = sizeof(int);
-  else if (type == PHISH_UINT64) *len = sizeof(uint64_t);
-  else if (type == PHISH_DOUBLE) *len = sizeof(double);
-  else if (type == PHISH_STRING) {
-    *len = strlen(rptr);
-    rptr++;  // this is a kludge for trailing NULL byte
+  switch (s->style) {
+  case ONE2ONE:
+  case MANY2ONE:
+#ifdef PHISH_SAFE_SEND
+    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst,0,world);
+#else
+    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst,0,world);
+#endif
+    break;
+  case ONE2MANY_RR:
+#ifdef PHISH_SAFE_SEND
+    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + s->offset,0,world);
+#else
+    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + s->offset,0,world);
+#endif
+    s->offset++;
+    if (s->offset == s->recvprocs) s->offset = 0;
+    break;
+  case ONE2MANY:
+  case MANY2MANY:
+    phish_error("Cannot phish_send() when hashing is required");
+    break;
+  case MANY2MANY_ONE:
+#ifdef PHISH_SAFE_SEND
+    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + (me - s->sendfirst),0,world);
+#else
+    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + (me - s->sendfirst),0,world);
+#endif
+    break;
   }
 
-  rptr += *len;
-
-  return type;
+  sptr = sbuf + sizeof(int);
+  nsbuf = 0;
 }
 
-void phish_unpack_raw(char **buf, int *len)
+/* ----------------------------------------------------------------------
+   send sbuf to a downstream processor based on hash of key
+------------------------------------------------------------------------- */
+
+void phish_send_key(int oport, char *key, int keybytes)
 {
-  *buf = rbuf;
-  *len = nrbuf;
+  if (sendwhich < 0 || sendwhich > nsend-1 || !psend[sendwhich].activated) 
+    phish_error("Invalid send protocol in phish_send_key");
+
+  struct Send *s = &psend[sendwhich];
+  *(int *) sbuf = nsbuf;
+  int nbuf = sptr - sbuf;
+
+  switch (s->style) {
+  case ONE2MANY:
+  case MANY2MANY:
+    {
+      int index = hashlittle(key,keybytes,s->recvprocs) % s->recvprocs;
+#ifdef PHISH_SAFE_SEND
+      MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + index,0,world);
+#else
+      MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + index,0,world);
+#endif
+    }
+    break;
+  default:
+    phish_send(oport);
+  }
+
+  sptr = sbuf + sizeof(int);
+  nsbuf = 0;
 }
 
 /* ----------------------------------------------------------------------
@@ -339,6 +429,26 @@ void phish_unpack_raw(char **buf, int *len)
    second field (only for arrays) = # of values
    third field = value(s)
 ------------------------------------------------------------------------- */
+
+void phish_pack_datum(char *buf, int len)
+{
+  if (sptr + sizeof(int) + len - sbuf > MAXBUF)
+    phish_error("Send buffer overflow");
+
+  memcpy(sptr,buf,len);
+  sptr = sbuf + len;
+  nsbuf++;
+}
+
+void phish_pack_raw(char *buf, int len)
+{
+  if (sptr + sizeof(int) + len - sbuf > MAXBUF)
+    phish_error("Send buffer overflow");
+
+  memcpy(sptr,buf,len);
+  sptr = sbuf + len;
+  nsbuf++;
+}
 
 void phish_pack_byte(char value)
 {
@@ -401,158 +511,107 @@ void phish_pack_string(char *str)
   nsbuf++;
 }
 
-void phish_pack_raw(int nvalues, char *buf, int len)
+void phish_pack_int_array(int *vec, int n)
 {
-  if (sptr + sizeof(int) + len - sbuf > MAXBUF)
+  if (sptr + 2*sizeof(int) - sbuf > MAXBUF)
     phish_error("Send buffer overflow");
 
-  memcpy(sbuf,buf,len);
-  sptr = sbuf + len;
-  nsbuf = nvalues;
+  *(int *) sptr = PHISH_INT;
+  sptr += sizeof(int);
+  *(int *) sptr = vec[0];
+  sptr += sizeof(int);
+  nsbuf++;
+}
+
+void phish_pack_uint64_array(uint64_t *vec, int n)
+{
+  if (sptr + 2*sizeof(int) - sbuf > MAXBUF)
+    phish_error("Send buffer overflow");
+
+  *(int *) sptr = PHISH_INT;
+  sptr += sizeof(int);
+  *(int *) sptr = vec[0];
+  sptr += sizeof(int);
+  nsbuf++;
+}
+
+void phish_pack_double_array(double *vec, int n)
+{
+  if (sptr + 2*sizeof(int) - sbuf > MAXBUF)
+    phish_error("Send buffer overflow");
+
+  *(int *) sptr = PHISH_INT;
+  sptr += sizeof(int);
+  *(int *) sptr = vec[0];
+  sptr += sizeof(int);
+  nsbuf++;
 }
 
 /* ----------------------------------------------------------------------
-   send sbuf to a downstream processor
+   process the rbuf, one value at a time
+   return value type
+   also return ptr to value and its len to caller
 ------------------------------------------------------------------------- */
 
-void phish_send()
+int phish_unpack(char **buf, int *len)
 {
-  if (sendwhich < 0 || sendwhich > nsend-1 || !psend[sendwhich].activated)
-    phish_error("Invalid send protocol in phish_send");
+  if (rptr - rbuf == nrbuf) phish_error("Recv buffer empty");
 
-  struct Send *s = &psend[sendwhich];
-  *(int *) sbuf = nsbuf;
-  int nbuf = sptr - sbuf;
+  int type = *(int *) rptr;
+  rptr += sizeof(int);
+  *buf = rptr;
 
-  switch (s->style) {
-  case ONE2ONE:
-  case MANY2ONE:
-#ifdef PHISH_SSEND
-    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst,0,world);
-#else
-    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst,0,world);
-#endif
-    break;
-  case ONE2MANY_RR:
-#ifdef PHISH_SSEND
-    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + s->offset,0,world);
-#else
-    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + s->offset,0,world);
-#endif
-    s->offset++;
-    if (s->offset == s->recvprocs) s->offset = 0;
-    break;
-  case ONE2MANY:
-  case MANY2MANY:
-    phish_error("Cannot phish_send() when hashing is required");
-    break;
-  case MANY2MANY_ONE:
-#ifdef PHISH_SSEND
-    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + (me - s->sendfirst),0,world);
-#else
-    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + (me - s->sendfirst),0,world);
-#endif
-    break;
+  if (type == PHISH_BYTE) *len = 1;
+  else if (type == PHISH_INT) *len = sizeof(int);
+  else if (type == PHISH_UINT64) *len = sizeof(uint64_t);
+  else if (type == PHISH_DOUBLE) *len = sizeof(double);
+  else if (type == PHISH_STRING) {
+    *len = strlen(rptr);
+    rptr++;  // this is a kludge for trailing NULL byte
   }
 
-  sptr = sbuf + sizeof(int);
-  nsbuf = 0;
+  rptr += *len;
+
+  return type;
 }
 
 /* ----------------------------------------------------------------------
-   send buf of nbytes to a downstream processor
-   use send protocol iwhichsend
----------------------------------------------------------------- */
-
-void phish_send_type(int iwhich)
-{
-  sendwhich = iwhich-1;
-  phish_send();
-  sendwhich = 0;
-}
-
-/* ----------------------------------------------------------------------
-   send sbuf to a downstream processor based on hash of key
+   return the entire received datum
+   return ptr to datum and its byte len to caller
 ------------------------------------------------------------------------- */
 
-void phish_send_key(char *key, int keybytes)
+void phish_datum(char **buf, int *len)
 {
-  if (sendwhich < 0 || sendwhich > nsend-1 || !psend[sendwhich].activated) 
-    phish_error("Invalid send protocol in phish_send_key");
+  if (rptr - rbuf == nrbuf) phish_error("Recv buffer empty");
 
-  struct Send *s = &psend[sendwhich];
-  *(int *) sbuf = nsbuf;
-  int nbuf = sptr - sbuf;
+  int type = *(int *) rptr;
+  rptr += sizeof(int);
+  *buf = rptr;
 
-  switch (s->style) {
-  case ONE2MANY:
-  case MANY2MANY:
-    {
-      int index = hashlittle(key,keybytes,s->recvprocs) % s->recvprocs;
-#ifdef PHISH_SSEND
-      MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + index,0,world);
-#else
-      MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + index,0,world);
-#endif
-    }
-    break;
-  default:
-    phish_send();
+  if (type == PHISH_BYTE) *len = 1;
+  else if (type == PHISH_INT) *len = sizeof(int);
+  else if (type == PHISH_UINT64) *len = sizeof(uint64_t);
+  else if (type == PHISH_DOUBLE) *len = sizeof(double);
+  else if (type == PHISH_STRING) {
+    *len = strlen(rptr);
+    rptr++;  // this is a kludge for trailing NULL byte
   }
 
-  sptr = sbuf + sizeof(int);
-  nsbuf = 0;
+  rptr += *len;
 }
 
-/* ----------------------------------------------------------------------
-   send buf of nbytes to a downstream processor based on hash of key
-   use send protocol iwhich
-------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------- */
 
-void phish_send_key_type(char *key, int keybytes, int iwhich)
+void phish_error(const char *str)
 {
-  sendwhich = iwhich-1;
-  phish_send_key(key,keybytes);
-  sendwhich = 0;
+  printf("ERROR: %s\n",str);
+  MPI_Abort(world,1);
 }
 
-/* ----------------------------------------------------------------------
-   send DONE message to all processors downstream of me
-------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------- */
 
-void phish_send_done()
+double phish_timer()
 {
-  for (int isend = 0; isend < nsend; isend++) {
-    struct Send *s = &psend[isend];
-    if (!s->activated) continue;
-    switch (s->style) {
-    case ONE2ONE:
-    case MANY2ONE:
-#ifdef PHISH_SSEND
-      MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst,DONETAG,world);
-#else
-      MPI_Send(NULL,0,MPI_BYTE,s->recvfirst,DONETAG,world);
-#endif
-      break;
-    case ONE2MANY:
-    case ONE2MANY_RR:
-    case MANY2MANY:
-      for (int i = 0; i < s->recvprocs; i++)
-#ifdef PHISH_SSEND
-        MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst + i,DONETAG,world);
-#else
-        MPI_Send(NULL,0,MPI_BYTE,s->recvfirst + i,DONETAG,world);
-#endif
-      break;
-    case MANY2MANY_ONE:
-#ifdef PHISH_SSEND
-      MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst + (me - s->sendfirst),
-		DONETAG,world);
-#else
-      MPI_Send(NULL,0,MPI_BYTE,s->recvfirst + (me - s->sendfirst),
-	       DONETAG,world);
-#endif
-      break;
-    }
-  }
+  return MPI_Wtime();
 }
+
