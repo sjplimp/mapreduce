@@ -1,13 +1,13 @@
 # test MPI backup due to slowdown in receiver
 
-sp 1 ../apps/filegen ${files}
-sp 2 ../apps/file2words
-sp 3 ../apps/slowdown 0.5
-sp 4 ../apps/print
+minnow 1 filegen ${files}
+minnow 2 file2words
+minnow 3 slowdown 0.5
+minnow 4 print
 
-connect 1 one2many/rr 2
-connect 2 many2one 3
-connect 3 one2one 4
+connect 1 roundrobin 2
+connect 2 single 3
+connect 3 paired 4
 
 layout 1 1
 layout 2 5

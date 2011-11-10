@@ -1,9 +1,9 @@
 # test writing to a pipe
 
-sp 1 ../apps/filegen ${files}
-sp 2 ../apps/wrapsink ./reverse
+minnow 1 filegen ${files}
+minnow 2 wrapsink ./reverse
 
-connect 1 one2one 2
+connect 1 paired 2
 
 layout 1 1
 layout 2 1

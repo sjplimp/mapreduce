@@ -1,12 +1,12 @@
 # reverse each filename in a list of filenames
 
-sp 1 ../apps/filegen ${files}
-#sp 2 ../apps/wrapss ./reverse
-sp 2 ../apps/wrapss ./echo
-sp 3 ../apps/print
+minnow 1 filegen ${files}
+#minnow 2 wrapss ./reverse
+minnow 2 wrapss ./echo
+minnow 3 print
 
-connect 1 one2many/rr 2
-connect 2 many2one 3
+connect 1 roundrobin 2
+connect 2 single 3
 
 layout 1 1
 layout 2 1
