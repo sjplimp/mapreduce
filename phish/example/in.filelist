@@ -1,0 +1,11 @@
+# generate list of files
+# provide list of files or dirs as -v files command-line arg
+
+#minnow 1 filegen.py ${files}
+minnow 1 filegen ${files}
+minnow 2 print
+
+connect 1 single 2
+
+layout 1 1
+layout 2 1
