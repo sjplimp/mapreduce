@@ -1,4 +1,5 @@
 # word count from files
+# provide list of files or dirs as -v files command-line arg
 
 minnow 1 filegen ${files}
 #minnow 2 file2words.py

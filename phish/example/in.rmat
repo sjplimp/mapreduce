@@ -1,4 +1,5 @@
 # edge generation from an RMAT distribution
+# provide # of edges as -v n command-line arg
 
 minnow 1 rmat $n 40 0.25 0.25 0.25 0.25 0.0 12345
 #minnow 2 print -f tmp

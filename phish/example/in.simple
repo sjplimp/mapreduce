@@ -1,9 +1,0 @@
-# word count from files
-
-minnow 1 filegen.py ${files}
-minnow 2 print
-
-connect 1 single 2
-
-layout 1 1
-layout 2 1
