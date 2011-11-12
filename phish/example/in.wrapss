@@ -1,8 +1,10 @@
-# reverse each filename in a list of filenames
+# test of writing and reading to a duplex pipe via wrapss
+# echo or reverse each filename in a list of filenames
+# provide list of files or dirs as -v files command-line arg
 
 minnow 1 filegen ${files}
-#minnow 2 wrapss ./reverse
-minnow 2 wrapss ./echo
+#minnow 2 wrapss ../minnow/reverse
+minnow 2 wrapss ../minnow/echo
 minnow 3 print
 
 connect 1 roundrobin 2
