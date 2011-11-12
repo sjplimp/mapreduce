@@ -21,35 +21,32 @@ class Phish:
     PROBEFUNC = CFUNCTYPE(c_void_p)
     self.probe_def = PROBEFUNC(self.probe_callback)
     
-  def init(self,name,nrecvmax,nsendmax,args):
+  def init(self,args):
     narg = len(args)
     cargs = (c_char_p*narg)(*args)
-    n = self.lib.phish_init_python(name,nrecvmax,nsendmax,narg,cargs)
+    n = self.lib.phish_init_python(narg,cargs)
     return args[n:]
-  
-  def close(self):
-    self.lib.phish_close()
 
-  def status(self):
+  def world(self):
     me = c_int()
     nprocs = c_int()
-    world = c_int()
-    world = self.lib.phish_status(byref(me),byref(nprocs))
-    self.me = me.value
-    self.nprocs = nprocs.value
-    self.world = world.value
+    world = self.lib.phish_world(byref(me),byref(nprocs))
+    return me.value,nprocs.value,world
+
+  def exit(self):
+    self.lib.phish_exit()
+
     
-  def error(self,str):
-    self.lib.phish_error(str)
 
-  def timer(self):
-    return self.lib.phish_timer()
+    
+  def done(self,donefunc):
+    self.done_callback = donefunc
+    self.lib.phish_callback(self.done_def)
 
-  def callback_done(self,func):
-      self.done_caller = func
-      self.lib.phish_callback(self.done_def)
 
-  def callback_datum(self,func):
+
+    
+  def callback_datum(self,datumfunc):
     self.datum_caller = func
     self.lib.phish_callback(self.datum_def)
 
@@ -69,6 +66,9 @@ class Phish:
   def probe_callback(self):
     self.probe_caller()
 
+
+
+    
   def pack_int(self,value):
     cint = c_int(value)
     self.lib.phish_pack_int(cint)
@@ -90,3 +90,15 @@ class Phish:
 
   def send_done(self):
     self.lib.phish_send_done()
+
+
+
+    
+  def error(self,str):
+    self.lib.phish_error(str)
+
+  def warn(self,str):
+    self.lib.phish_warn(str)
+
+  def timer(self):
+    return self.lib.phish_timer()
