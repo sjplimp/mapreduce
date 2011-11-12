@@ -13,5 +13,8 @@ int main(int narg, char **args)
   char line[MAXLINE];
   char *ptr;
 
-  while (ptr = fgets(line,MAXLINE,stdin)) printf("%s",line);
+  while (ptr = fgets(line,MAXLINE,stdin)) {
+    fprintf(stderr,"ECHO %s\n",line);
+    printf("%s",line);
+  }
 }

@@ -20,24 +20,24 @@ should probably be $a for single-char variable, ${abc} for multichar
 bait.py -switch values ...
 
 -np Np
- Np = process count
- default = 1
+  Np = process count
+  default = 1
 -var ID str1 str2 ...
- assign strings to a variable ID
- default = no variables defined
+  assign strings to a variable ID
+  default = no variables defined
 -hostfile filename
- file with list of processors to run on
- default = ""
+  file with list of processors to run on
+  default = ""
 -configfile filename
- filename = MPI config file to create
- default = "configfile"
+  filename = MPI config file to create
+  default = "configfile"
 -path path1:path2:path3:...
- colon-seperated paths to prepend to app executable names
- default = "."
+  colon-seperated paths to prepend to app executable names
+  default = "."
 -mode style
- manner in which PHISH job will be launched
- style = "mpich" or "openmpi" or "socket"
- default = "mpich"
+  manner in which PHISH job will be launched
+  style = "mpich" or "openmpi" or "socket"
+  default = "mpich"
 
 switches have allowed abbreviations:
 
@@ -82,7 +82,7 @@ style = single or paired or hashed or roundrobin or chain or ring
  paired = N senders and N receivers, senders and receivers
    are paired so that each sender sends to one receiver, N = 1 is OK
  hashed = N senders and M receivers, each sender hashes datum on a key
-   to decide with of M receivers to send to, N and/or M = 1 is OK
+   to decide which of M receivers to send to, N and/or M = 1 is OK
  roundrobin = N senders and M receivers, each sender sends datums
    to each of M receivers in round-robin fashion, N and/or M = 1 is OK
  chain = N procs, N > 1 is required, procs are connected

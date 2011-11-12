@@ -32,7 +32,7 @@ int main(int narg, char **args)
 {
   phish_init(&narg,&args);
   phish_input(0,writepipe,close,1);
-  phish_output(1);
+  phish_output(0);
   phish_check();
 
   if (narg < 1) phish_error("Wrapss syntax: wrapss program");
@@ -41,7 +41,7 @@ int main(int narg, char **args)
   // would be better if there was exactly one arg
   // but mpiexec strips quotes from quoted args
 
-  char program[1024];
+  char program[1024] = "";
   for (int i = 0; i < narg; i++) {
     strcat(program,args[i]);
     if (i < narg-1) strcat(program," ");
@@ -172,6 +172,9 @@ void readpipe()
     nbuf += n;
     buf[nbuf] = '\0';
     n = 0;
+
+    printf("WSS: %d %s\n",nbuf,buf);
+
     line = strtok(buf,"\n");
     while (line) {
       nbytes = strlen(line);
@@ -180,6 +183,7 @@ void readpipe()
 	strcpy(buf,line);
       } else {
 	n += nbytes+1;
+	printf("PACKSTR %d %s\n",strlen(line),line);
 	phish_pack_string(line);
 	phish_send(0);
       }

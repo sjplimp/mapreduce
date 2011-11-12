@@ -133,27 +133,31 @@ def output_mpich():
   fp = open("configfile","w")
   for iminnow,minnow in enumerate(minnows):
     procstr = "-n %d %s" % (minnow.nprocs,minnow.pathexe)
-    infostr = " -info %s %s %d %d" % \
+    appstr = " -app %s %s %d %d" % \
         (minnow.exe,minnow.id,minnow.nprocs,minnow.procstart)
-    recvstr = ""
+    instr = ""
     for recv in minnow.recv:
-      recvstr += " -recv %d %d %d %s %d %d %d" % \
+      instr += " -in %d %d %d %s %d %d %d" % \
           (minnows[recv[0]].nprocs,minnows[recv[0]].procstart,
            int(connects[recv[1]].sendport),
            connects[recv[1]].style,
            minnows[recv[2]].nprocs,minnows[recv[2]].procstart,
            int(connects[recv[1]].recvport))
-    sendstr = ""
+    outstr = ""
     for send in minnow.send:
-      sendstr += " -send %d %d %d %s %d %d %d" % \
+      outstr += " -out %d %d %d %s %d %d %d" % \
           (minnows[send[0]].nprocs,minnows[send[0]].procstart,
            int(connects[send[1]].sendport),
            connects[send[1]].style,
            minnows[send[2]].nprocs,minnows[send[2]].procstart,
            int(connects[send[1]].recvport))
-    launchstr = procstr + infostr + recvstr + sendstr
+    launchstr = procstr + appstr + instr + outstr
     if minnow.args: launchstr += " -args " + " ".join(minnow.args)
-    print >>fp,launchstr
+    # should just need following line, but MPICH has a configfile bug
+    # print >>fp,launchstr
+    print >>fp,launchstr,
+    if iminnow < len(minnows)-1: print >>fp,":"
+    else: print >>fp
   fp.close()
 
 def output_openmpi():
@@ -163,25 +167,25 @@ def output_openmpi():
 
   for iminnow,minnow in enumerate(minnows):
     procstr = "-n %d %s" % (minnow.nprocs,minnow.pathexe)
-    infostr = " -info %s %s %d %d" % \
+    appstr = " -app %s %s %d %d" % \
         (minnow.exe,minnow.id,minnow.nprocs,minnow.procstart)
-    recvstr = ""
+    instr = ""
     for recv in minnow.recv:
-      recvstr += " -recv %d %d %d %s %d %d %d" % \
+      instr += " -in %d %d %d %s %d %d %d" % \
           (minnows[recv[0]].nprocs,minnows[recv[0]].procstart,
            int(connects[recv[1]].sendport),
            connects[recv[1]].style,
            minnows[recv[2]].nprocs,minnows[recv[2]].procstart,
            int(connects[recv[1]].recvport))
-    sendstr = ""
+    outstr = ""
     for send in minnow.send:
-      sendstr += " -send %d %d %d %s %d %d %d" % \
+      outstr += " -out %d %d %d %s %d %d %d" % \
           (minnows[send[0]].nprocs,minnows[send[0]].procstart,
            int(connects[send[1]].sendport),
            connects[send[1]].style,
            minnows[send[2]].nprocs,minnows[send[2]].procstart,
            int(connects[send[1]].recvport))
-    launchstr = procstr + infostr + recvstr + sendstr
+    launchstr = procstr + appstr + instr + outstr
     if minnow.args: launchstr += " -args " + " ".join(minnow.args)
     print >>fp,launchstr,
     if iminnow < len(minnows)-1: print >>fp,":",
@@ -203,7 +207,7 @@ nprocs = 1
 variables = {}
 hostfile = ""
 configfile = "configfile"
-pathlist = "."
+pathlist = ""
 mode = "mpich"
 
 iarg = 1
@@ -238,7 +242,7 @@ while iarg < narg:
     iarg += 2
   else: error("Invalid command line args")
 
-paths = pathlist.split(':')
+paths = [""] + pathlist.split(':')
 
 if mode == "socket": error("Socket mode not yet supported")
 
@@ -294,20 +298,20 @@ for iconnect,connect in enumerate(connects):
   
   if connect.style == "single":
     if nprecv != 1:
-      error("Connect between %s and %s not consistent with layout" % (sid,rid));
+      error("Invalid connection between %s and %s" % (sid,rid));
   elif connect.style == "paired":
     if npsend != nprecv:
-      error("Connect between %s and %s not consistent with layout" % (sid,rid));
+      error("Invalid connection between %s and %s" % (sid,rid));
   elif connect.style == "hashed":
     continue
   elif connect.style == "roundrobin":
     continue
   elif connect.style == "chain":
     if sid != rid or npsend == 1:
-      error("Connect between %s and %s not consistent with layout" % (sid,rid));
+      error("Invalid connection between %s and %s" % (sid,rid));
   elif connect.style == "ring":
     if sid != rid or npsend == 1:
-      error("Connect between %s and %s not consistent with layout" % (sid,rid));
+      error("Invalid connection between %s and %s" % (sid,rid));
   else:
     error("Unrecognized connect style %s" % connect.style);
 
@@ -316,12 +320,14 @@ for iconnect,connect in enumerate(connects):
 for minnow in minnows:
   flag = 0
   for path in paths:
-    pathexe = path + '/' + minnow.exe
+    if not path: pathexe = minnow.exe
+    else: pathexe = path + '/' + minnow.exe
     if os.path.isfile(pathexe):
       if not os.access(pathexe,os.X_OK):
         error("Minnow %s is not executable" % pathexe)
       minnow.pathexe = pathexe
       flag = 1
+      break
   if not flag: error("Minnow %s could not be found in path list" % minnow.exe)
 
 # create output depending on mode

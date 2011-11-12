@@ -12,7 +12,7 @@ void launch(int);
 
 /* ---------------------------------------------------------------------- */
 
-char program[MAXLINE];
+char program[MAXLINE] = "";
 
 /* ---------------------------------------------------------------------- */
 
@@ -30,7 +30,7 @@ int main(int narg, char **args)
     fileflag = 1;
   }
 
-  phish_output(1);
+  phish_output(0);
   phish_check();
 
   // combine remaining args into one string to launch with popen()
@@ -64,7 +64,7 @@ void launch(int nvalues)
     int type = phish_unpack(&buf,&len);
     if (type != PHISH_STRING) phish_error("Wrapsource processes string values");
     sprintf(cmd,program,buf);
-  } else phish_error("Count processes one-value datums");
+  } else phish_error("Wrapsource processes one-value datums");
 
   // launch child process
 

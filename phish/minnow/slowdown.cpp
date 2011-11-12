@@ -19,7 +19,7 @@ int main(int narg, char **args)
 {
   phish_init(&narg,&args);
   phish_input(0,send,NULL,1);
-  phish_output(1);
+  phish_output(0);
   phish_check();
 
   if (narg != 1) phish_error("Slowdown syntax: slowdown delta");

@@ -1,5 +1,30 @@
 Todo:
 
+style CHAIN
+  is not yet correct for done messages
+  this is because unlike RING, there is a proc on end
+  with no connection to another proc
+  so how does that guy tell the 1st proc its DONE?
+    i.e. if done trigger starts in middle of chain
+    or does it always have to start at front of chain
+  maybe logic for done messages needs to be like a ring
+    even when the procs are a chain?
+
+style RING
+  do done messages keep looping infinitely?
+  need rule about who can initiate a done message?
+
+do I really need input connections stored as list?
+  i.e the InConnect data struct within an input port
+  its values are not currently used
+  maybe should keep it for debugging?
+  input ports don't really care how many connections,
+    the data is all the same, not matter where it comes from
+
+should I error check for a send or pack or unpack being done
+  before check() has been called?
+  or before datum buffers are prepped?
+
 can we in-line some func calls in phish lib?
 
 still to do in latest PHISH version:

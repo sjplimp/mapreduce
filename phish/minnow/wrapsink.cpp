@@ -29,7 +29,7 @@ int main(int narg, char **args)
   // would be better if there was exactly one arg
   // but mpiexec strips quotes from quoted args
 
-  char program[1024];
+  char program[1024] = "";
   for (int i = 0; i < narg; i++) {
     strcat(program,args[i]);
     if (i < narg-1) strcat(program," ");

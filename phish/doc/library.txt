@@ -71,26 +71,36 @@ pnarg = ptr to narg
 pargs = ptr to args
 
 looks for args of the following form and strips them off
+note that -in and -out may appear multiple times in arg list
 modifies narg and args to only have args that follow -args
 
--id IDstr N Nprev
-  IDstr = ID string of this app in PHISH input script
-  N = how many of this app exist
+-app exe ID N Nprev
+  exe = name of executable file for this app (e.g. count or count.py)
+  ID = ID string of this app in PHISH input script
+  N = how many instances of this app were launched
   Nprev = how many processes exist preceding this app
-  note that arg[0] also has executable name of app
--recv Iport Nset style first count style first count ...
-  Iport = which input port is being defined
-  Nset = sets of input coming into that port
-         follwed by Nset sets of style,first,count
+-in sprocs sfirst sport style rprocs rfirst rport
+  one connection between pair of ports for incoming datums I receive
+  sprocs = # of procs on sender side
+  sfirst = first proc on sender side
+  sport = port ID on sender
   style = single or paired or hashed or roundrobin or chain or ring
-  first = proc ID of first sender in set
-  count = # of procs (with successive proc IDs) in list of senders
--send Oport style first count
-  Oport = which output port is being defined
+  rprocs = # of procs on receiver side, including me
+  rfirst = first proc on receiver side
+  rport = port ID I receive on
+-in sprocs sfirst sport style rprocs rfirst rport
+  one connection between pair of ports for outgoing datums I send
+  sprocs = # of procs on sender side, including me
+  sfirst = first proc on sender side
+  sport = port ID I send on
   style = single or paired or hashed or roundrobin or chain or ring
-  first = proc ID of first receiver in set
-  count = # of procs (with successive proc IDs) in list of receivers
+  rprocs = # of procs on receiver side
+  rfirst = first proc on receiver side
+  rport = port ID on receiver
 -args arg1 arg2 ... = args for the app itself
+
+each specified input port is set to CLOSED instead of UNUSED
+each specified output port is set to CLOSED instead of UNUSED
 
 * int phish_init_python(int *narg, char **args)
 
@@ -104,45 +114,55 @@ return # of processes in MPI sense (nprocs)
 
 * void phish_exit()
 
+warns if any input ports still open
+closes all output ports if still unclosed
 free memory for PHISH library
 must be last call to any phish function
-closes all output ports if still unclosed
 
-* void phish_input(int portID, void (*process)(int), void (*done)(), reqflag)
+* void phish_input(int iport, void (*datumfunc)(int),
+                   void (*donefunc)(), reqflag)
 
-call once for each input port the app defines
+call once for each input port the app uses
 cannot call after phish_check()
 
-portID = port ID, 0 to Nport-1
-process = app function that will be called when a datum is recv by port
-          process() is passed the number of fields in the received datum
-	  process can be NULL if don't wish to process datums
-done = app function that will be called when port is closed
-         by receiving DONE messages from all senders
-       done can be NULL
+iport = port ID (0 to MAXPORT-1)
+datumfunc = app function that will be called when a datum is recv by port,
+            datumfunc(is passed the number of fields in the received datum
+	    datumfunc can be NULL if don't wish to process datums
+donefunc = app function that will be called when port is closed
+             by receiving DONE messages from all senders
+           donefunc can be NULL
 reqflag = 1 if input port must be used by PHISH script, else 0
 
-* void phish_output(int nport)
+error if input script uses input port not setup by phish_input()
+error if input script does not use a required port
+OK if input script does not use a non-required port
 
-set # of output ports the app defines
+* void phish_output(int iport)
+
+call once for each output port the app uses
 cannot call after phish_check()
 
-no required flag since can use app without connecting to a
-  downstream app
+iport = port ID (0 to MAXPORT-1)
+all output ports are non-required
+OK if input script does not use a port
 
 * void phish_check()
 
 checks that input/output ports defined by app are consistent
-  with the way it is used in the PHISH input script
+  with usage in PHISH input script
 call after phish_input() and phish_output() are called for all ports
+
+changes all CLOSED output ports requested by input script to OPEN
+  cannot be done in phish_output() since may not be called
 
 * void phish_done(void (*done)())
 
 set callback function done() to invoke when all input ports are closed
 
-* void phish_close(portID)
+* void phish_close(int iport)
 
-close an output port with portID
+close an output port with portID iport
 sends DONE message to all downstream receivers
 no-op if port is already closed
 
@@ -197,7 +217,7 @@ pack N doubles in dvec into send datum
 * int phish_unpack(char **buf, int *len)
 
 return next field in the received datum
-returned int value = style of field = PHISH_RAW, PHISH_INT, etc
+return value e of field = PHISH_RAW, PHISH_INT, etc
 buf = ptr to start of field data
 len = # of values in field
   for PHISH_RAW, len = # of bytes
@@ -210,7 +230,7 @@ NOTE: These only return a ptr to the field data, so if you
 want the data to persist when the next datum is received by
 the minnow (e.g. during a phish_loop() or phish_probe()) then
 you must make a copy.  It is OK to unpack several fields from
-the same datum without making copies of each field.
+the same datum before before copies of thefieldss.
 
 * void phish_datum(char **buf, int *len)
 
@@ -230,8 +250,11 @@ the same datum.
 
 print error string
 does not close output ports
-free memory for PHISH library
 for MPI, calls MPI_Abort()
+
+* void phish_error(char *str)
+
+print warning string
 
 * double phish_timer()
 

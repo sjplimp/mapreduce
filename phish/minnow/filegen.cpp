@@ -26,7 +26,7 @@ char **files = NULL;
 int main(int narg, char **args)
 {
   phish_init(&narg,&args);
-  phish_output(1);
+  phish_output(0);
   phish_check();
 
   if (narg < 1) phish_error("Filegen syntax: filegen file1 file2 ...");
@@ -41,6 +41,9 @@ int main(int narg, char **args)
     phish_pack_string(files[i]);
     phish_send(0);
   }
+
+  for (int i = 0; i < nfile; i++) delete [] files[i];
+  free(files);
 
   phish_exit();
 }

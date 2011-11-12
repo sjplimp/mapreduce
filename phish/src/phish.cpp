@@ -1,3 +1,16 @@
+/* ----------------------------------------------------------------------
+   MR-MPI = MapReduce-MPI library
+   http://www.cs.sandia.gov/~sjplimp/mapreduce.html
+   Steve Plimpton, sjplimp@sandia.gov, Sandia National Laboratories
+
+   Copyright (2009) Sandia Corporation.  Under the terms of Contract
+   DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+   certain rights in this software.  This software is distributed under 
+   the modified Berkeley Software Distribution (BSD) License.
+
+   See the README file in the top-level MapReduce directory.
+------------------------------------------------------------------------- */
+
 // MPI-based version of PHISH library
 
 #include "mpi.h"
@@ -8,165 +21,271 @@
 #include "phish.h"
 #include "hash.h"
 
+/* ---------------------------------------------------------------------- */
 // definitions
 
 //#define PHISH_SAFE_SEND 1      // uncomment for safer/slower MPI_Ssend()
 
-enum{ONE2ONE,ONE2MANY,ONE2MANY_RR,MANY2ONE,MANY2MANY,MANY2MANY_ONE};
+enum{SINGLE,PAIRED,HASHED,ROUNDROBIN,CHAIN,RING};     // connection styles
+enum{UNUSED_PORT,OPEN_PORT,CLOSED_PORT};              // port status
 
-#define MAXBUF 1024*1024
-#define DONETAG 100
+#define MAXBUF 1024*1024               // max datum length
+#define MAXPORT 16                     // max # of input or output ports
 
+typedef void (DatumFunc)(int);         // callback prototypes
 typedef void (DoneFunc)();
-typedef void (DatumFunc)(int);
 
+/* ---------------------------------------------------------------------- */
 // variables local to single PHISH instance
 
-MPI_Comm world;
-int me,nprocs;
+MPI_Comm world;           // MPI communicator
+int me,nprocs;            // MPI rank and total # of procs
 
-char *appname;
-DoneFunc *donefunc = NULL;
+int initflag;             // 1 if phish_init has been called
+int checkflag;            // 1 if phish_check has been called
 
-struct Recv {
-  int activated;
-  int style;
-  int sendprocs,sendfirst,sendport;
-  int recvprocs,recvfirst,recvport;
+char *appname;            // name of app executable
+char *appid;              // ID of app via minnow command
+int appcount;             // # of instances of this app via layout command
+int appprev;              // # of processes launched prior to this app
+
+// input ports
+// each can have multiple connections from output ports of other apps
+
+struct InConnect {        // inbound connection from output port of another app
+  int style;              // SINGLE, HASHED, etc
+  int nsend;              // # of procs that send to me on this connection
 };
-struct Send {
-  int activated;
-  int style;
-  int sendprocs,sendfirst,sendport;
-  int recvprocs,recvfirst,recvport;
-  int offset;
+
+struct InputPort {        // one input port
+  int status;             // UNUSED or OPEN or CLOSED
+  int donecount;          // # of done messages received on this port
+  int donemax;            // # of done messages that will close this port
+  int nconnect;           // # of connections to this port
+  InConnect *connects;    // list of connections
+  DatumFunc *datumfunc;   // callback when receive datum on this port
+  DoneFunc *donefunc;     // callback when this port closes
 };
-struct Recv *precv;
-struct Send *psend;
-int nrecv,nsend;
 
-DatumFunc *datumfunc = NULL;
+InputPort *inports;       // list of input ports
+int ninports;             // # of used input ports
+int donecount;            // # of closed input ports
+DoneFunc *alldonefunc;    // callback when all input ports closed
 
-int sendwhich = 0;
+// output ports
+// each can have multiple connections to input ports of other apps
 
-int donelimit;
-int donecount = 0;
+struct OutConnect {        // outbound connection to input port of another app
+  int style;               // SINGLE, HASHED, etc
+  int nrecv;               // # of procs that receive from me
+  int recvone;             // single proc ID I send to (nrecv = 1)
+  int recvfirst;           // 1st proc ID I send to (nrecv > 1)
+  int offset;              // offset from 1st proc for roundrobin
+  int recvport;            // port to send to on receivers
+};
 
-char rbuf[MAXBUF];
-int nrbuf;
-char *rptr;
+struct OutPort {           // one output port
+  int status;              // UNUSED or OPEN or CLOSED
+  int nconnect;            // # of connections from this port
+  OutConnect *connects;    // list of connections
+};
 
-char sbuf[MAXBUF];
-int nsbuf;
-char *sptr;
+OutPort *outports;         // list of output ports
+int noutports;             // # of used output ports
+
+// send/receive buffers that hold a datum
+
+char *sbuf;                // buffer to hold datum to send
+int nsbytes;               // total size of send datum
+char *sptr;                // ptr to current loc in sbuf for packing
+int npack;                 // # of fields packed thus far into sbuf
+
+char *rbuf;                // buffer to hold received datum
+int nrbytes;               // total size of received datum
+int nrfields;              // # of fields in received datum
+char *rptr;                // ptr to current loc in rbuf for unpacking
+int nunpack;               // # of fields unpacked thus far from rbuf
+
+// local function prototypes
+
+void send(OutConnect *);
 
 /* ---------------------------------------------------------------------- */
 
 void phish_init(int *pnarg, char ***pargs)
 {
+  initflag = 1;
+  checkflag = 0;
+
   MPI_Init(pnarg,pargs);
 
   world = MPI_COMM_WORLD;
   MPI_Comm_rank(world,&me);
   MPI_Comm_size(world,&nprocs);
 
-  /*
-  int n = strlen(name) + 1;
-  spname = new char[n];
-  strcpy(spname,name);
+  // memory allocation/initialization for ports and datum buffers
 
-  nrecv = nrecvmax;
-  nsend = nsendmax;
-  precv = new Recv[nrecv];
-  psend = new Send[nsend];
-  for (int i = 0; i < nrecv; i++) precv[i].activated = 0;
-  for (int i = 0; i < nsend; i++) psend[i].activated = 0;
+  inports = new InputPort[MAXPORT];
+  for (int i = 0; i < MAXPORT; i++) {
+    inports[i].status = UNUSED_PORT;
+    inports[i].donecount = 0;
+    inports[i].donemax = 0;
+    inports[i].nconnect = 0;
+    inports[i].connects = NULL;
+  }
+  alldonefunc = NULL;
 
-  char **args = *argsptr;
-  int narg = *nargptr;
+  outports = new OutPort[MAXPORT];
+  for (int i = 0; i < MAXPORT; i++) {
+    outports[i].status = UNUSED_PORT;
+    outports[i].nconnect = 0;
+    outports[i].connects = NULL;
+  }
+
+  sbuf = (char *) malloc(MAXBUF*sizeof(char));
+  rbuf = (char *) malloc(MAXBUF*sizeof(char));
+
+  if (!sbuf || !rbuf) phish_error("Malloc of datum buffers failed");
+
+  // parse input args and setup communication port data structs
+
+  char **args = *pargs;
+  int narg = *pnarg;
   int argstart = narg;
-
+  
   int iarg = 1;
   while (iarg < narg) {
-    if (strcmp(args[iarg],"-recv") == 0) {
-      int n = atoi(args[iarg+1]);
+    if (strcmp(args[iarg],"-app") == 0) {
+      int n = strlen(args[iarg+1]) + 1;
+      appname = new char[n];
+      strcpy(appname,args[iarg+1]);
+      n = strlen(args[iarg+2]) + 1;
+      appid = new char[n];
+      strcpy(appid,args[iarg+2]);
+      appcount = atoi(args[iarg+3]);
+      appprev = atoi(args[iarg+4]);
+      iarg += 5;
 
-      iarg += 2;
-      for (int m = 0; m < n; m++) {
-	int style;
-	if (strcmp(args[iarg],"one2one") == 0) style = ONE2ONE;
-	else if (strcmp(args[iarg],"one2many") == 0) style = ONE2MANY;
-	else if (strcmp(args[iarg],"one2many/rr") == 0) style = ONE2MANY_RR;
-	else if (strcmp(args[iarg],"many2one") == 0) style = MANY2ONE;
-	else if (strcmp(args[iarg],"many2many") == 0) style = MANY2MANY;
-	else if (strcmp(args[iarg],"many2many/one") == 0) style = MANY2MANY_ONE;
-	else phish_error("Unrecognized recv style");
+    } else if (strcmp(args[iarg],"-in") == 0) {
+      int style;
+      int sprocs,sfirst,sport,rprocs,rfirst,rport;
 
-	int sendprocs = atoi(args[iarg+1]);
-	int sendfirst = atoi(args[iarg+2]);
-	int sendport = atoi(args[iarg+3]);
-	int recvprocs = atoi(args[iarg+4]);
-	int recvfirst = atoi(args[iarg+5]);
-	int recvport = atoi(args[iarg+6]);
+      sprocs = atoi(args[iarg+1]);
+      sfirst = atoi(args[iarg+2]);
+      sport = atoi(args[iarg+3]);
+      if (strcmp(args[iarg+4],"single") == 0) style = SINGLE;
+      else if (strcmp(args[iarg+4],"paired") == 0) style = PAIRED;
+      else if (strcmp(args[iarg+4],"hashed") == 0) style = HASHED;
+      else if (strcmp(args[iarg+4],"roundrobin") == 0) style = ROUNDROBIN;
+      else if (strcmp(args[iarg+4],"chain") == 0) style = CHAIN;
+      else if (strcmp(args[iarg+4],"ring") == 0) style = RING;
+      else phish_error("Unrecognized in style");
+      rprocs = atoi(args[iarg+5]);
+      rfirst = atoi(args[iarg+6]);
+      rport = atoi(args[iarg+7]);
 
-	if (recvport > nrecvmax) phish_error("Recv port exceeds nrecvmax");
-	int iport = recvport - 1;
+      if (rport > MAXPORT)
+	phish_error("Invalid input port ID in phish_init");
+      InputPort *ip = &inports[rport];
+      ip->status = CLOSED_PORT;
+      ip->nconnect++;
+      ip->connects = (InConnect *) 
+	realloc(ip->connects,ip->nconnect*sizeof(InConnect));
+      InConnect *ic = &ip->connects[ip->nconnect-1];
 
-	precv[iport].activated = 1;
-	precv[iport].style = style;
-	precv[iport].sendprocs = sendprocs;
-	precv[iport].sendfirst = sendfirst;
-	precv[iport].sendport = sendport;
-	precv[iport].recvprocs = recvprocs;
-	precv[iport].recvfirst = recvfirst;
-	precv[iport].recvport = recvport;
+      ic->nsend = sprocs;
+      ic->style = style;
 
-	if (style == ONE2ONE) donelimit++;
-	else if (style == ONE2MANY) donelimit++;
-	else if (style == ONE2MANY_RR) donelimit++;
-	else if (style == MANY2ONE) donelimit += sendprocs;
-	else if (style == MANY2MANY) donelimit += sendprocs;
-	else if (style == MANY2MANY_ONE) donelimit++;
-
-	iarg += 7;
+      switch (style) {
+      case SINGLE:
+      case HASHED:
+      case ROUNDROBIN:
+	ip->donemax += sprocs;
+	break;
+      case PAIRED:
+      case CHAIN:
+      case RING:
+	ip->donemax++;
+	break;
       }
 
-    } else if (strcmp(args[iarg],"-send") == 0) {
-      int n = atoi(args[iarg+1]);
+      iarg += 8;
 
-      iarg += 2;
-      for (int m = 0; m < n; m++) {
-	int style;
-	if (strcmp(args[iarg],"one2one") == 0) style = ONE2ONE;
-	else if (strcmp(args[iarg],"one2many") == 0) style = ONE2MANY;
-	else if (strcmp(args[iarg],"one2many/rr") == 0) style = ONE2MANY_RR;
-	else if (strcmp(args[iarg],"many2one") == 0) style = MANY2ONE;
-	else if (strcmp(args[iarg],"many2many") == 0) style = MANY2MANY;
-	else if (strcmp(args[iarg],"many2many/one") == 0) style = MANY2MANY_ONE;
-	else phish_error("Unrecognized send style");
+    } else if (strcmp(args[iarg],"-out") == 0) {
+      int style;
+      int sprocs,sfirst,sport,rprocs,rfirst,rport;
 
-	int sendprocs = atoi(args[iarg+1]);
-	int sendfirst = atoi(args[iarg+2]);
-	int sendport = atoi(args[iarg+3]);
-	int recvprocs = atoi(args[iarg+4]);
-	int recvfirst = atoi(args[iarg+5]);
-	int recvport = atoi(args[iarg+6]);
+      sprocs = atoi(args[iarg+1]);
+      sfirst = atoi(args[iarg+2]);
+      sport = atoi(args[iarg+3]);
+      if (strcmp(args[iarg+4],"single") == 0) style = SINGLE;
+      else if (strcmp(args[iarg+4],"paired") == 0) style = PAIRED;
+      else if (strcmp(args[iarg+4],"hashed") == 0) style = HASHED;
+      else if (strcmp(args[iarg+4],"roundrobin") == 0) style = ROUNDROBIN;
+      else if (strcmp(args[iarg+4],"chain") == 0) style = CHAIN;
+      else if (strcmp(args[iarg+4],"ring") == 0) style = RING;
+      else phish_error("Unrecognized out style");
+      rprocs = atoi(args[iarg+5]);
+      rfirst = atoi(args[iarg+6]);
+      rport = atoi(args[iarg+7]);
 
-	if (sendport > nsendmax) phish_error("Send port exceeds nsendmax");
-	int iport = sendport - 1;
+      if (sport > MAXPORT)
+	phish_error("Invalid output port ID in phish_init");
+      OutPort *op = &outports[sport];
+      op->status = CLOSED_PORT;
+      op->nconnect++;
+      op->connects = (OutConnect *) 
+	realloc(op->connects,op->nconnect*sizeof(OutConnect));
+      OutConnect *oc = &op->connects[op->nconnect-1];
 
-	psend[iport].activated = 1;
-	psend[iport].style = style;
-	psend[iport].sendprocs = sendprocs;
-	psend[iport].sendfirst = sendfirst;
-	psend[iport].sendport = sendport;
-	psend[iport].recvprocs = recvprocs;
-	psend[iport].recvfirst = recvfirst;
-	psend[iport].recvport = recvport;
-	psend[iport].offset = 0;
+      oc->recvport = rport;
+      oc->style = style;
 
-	iarg += 7;
+      switch (style) {
+      case SINGLE:
+	oc->nrecv = 1;
+	oc->recvone = rfirst;
+	oc->recvfirst = -1;
+	oc->offset = -1;
+	break;
+      case PAIRED:
+	oc->nrecv = 1;
+	oc->recvone = rfirst + me - sfirst;
+	oc->recvfirst = -1;
+	oc->offset = -1;
+	break;
+      case HASHED:
+	oc->nrecv = rprocs;
+	oc->recvone = -1;
+	oc->recvfirst = rfirst;
+	oc->offset = -1;
+	break;
+      case ROUNDROBIN:
+	oc->nrecv = rprocs;
+	oc->recvone = -1;
+	oc->recvfirst = rfirst;
+	oc->offset = 0;
+	break;
+      case CHAIN:
+	oc->nrecv = 1;
+	oc->recvone = me + 1;
+	if (me-sfirst == sprocs-1) {
+	  oc->nrecv = 0;
+	  oc->recvone = -1;
+	}
+	oc->recvfirst = -1;
+	oc->offset = -1;
+	break;
+      case RING:
+	oc->nrecv = 1;
+	oc->recvone = me + 1;
+	if (me-sfirst == sprocs-1) oc->recvone = rfirst;
+	oc->recvfirst = -1;
+	oc->offset = -1;
+	break;
       }
+
+      iarg += 8;
 
     } else if (strcmp(args[iarg],"-args") == 0) {
       argstart = iarg+1;
@@ -174,13 +293,16 @@ void phish_init(int *pnarg, char ***pargs)
     }
   }
 
-  *nargptr = narg-argstart;
-  if (*nargptr > 0) *argsptr = &args[argstart];
-  else *argsptr = NULL;
+  // strip off PHISH args, leaving app args for app to use
+
+  *pnarg = narg-argstart;
+  if (*pnarg > 0) *pargs = &args[argstart];
+  else *pargs = NULL;
+
+  // setup send buffer for initial datum
 
   sptr = sbuf + sizeof(int);
-  nsbuf = 0;
-  */
+  npack = 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -196,6 +318,8 @@ int phish_init_python(int narg, char **args)
 
 int phish_world(int *pme, int *pnprocs)
 {
+  if (!initflag) phish_error("Phish_init has not been called");
+
   *pme = me;
   *pnprocs = nprocs;
   return world;
@@ -205,44 +329,131 @@ int phish_world(int *pme, int *pnprocs)
 
 void phish_exit()
 {
+  if (!initflag) phish_error("Phish_init has not been called");
+
+  // warn if any input port is still open
+
+  for (int i = 0; i < MAXPORT; i++)
+    if (inports[i].status == OPEN_PORT)
+      phish_warn("Exiting with input port still open");
+
+  // close all output ports
+
+  for (int i = 0; i < MAXPORT; i++) phish_close(i);
+
+  // free datum buffers
+
+  free(sbuf);
+  free(rbuf);
+
+  // free port memory
+
+  for (int i = 0; i < MAXPORT; i++)
+    if (inports[i].status != UNUSED_PORT) free(inports[i].connects);
+  delete [] inports;
+  for (int i = 0; i < MAXPORT; i++)
+    if (outports[i].status != UNUSED_PORT) free(outports[i].connects);
+  delete [] outports;
+
+  // free other PHISH memory
+
   delete [] appname;
-  delete [] precv;
-  delete [] psend;
+  delete [] appid;
+
+  // shut-down MPI
+
   MPI_Finalize();
+  initflag = checkflag = 0;
 }
 
 /* ----------------------------------------------------------------------
-   setup input port
+   setup single input port iport
+   reqflag = 1 if port must be used by input script
 ------------------------------------------------------------------------- */
 
-void phish_input(int portID, void (*process)(int), void (*done)(), int reqflag)
+void phish_input(int iport, void (*datumfunc)(int), 
+		 void (*donefunc)(), int reqflag)
 {
-  //donefunc = callback;
+  if (!initflag) phish_error("Phish_init has not been called");
+  if (checkflag) phish_error("Phish_check has already been called");
+
+  if (iport < 0 || iport > MAXPORT)
+    phish_error("Invalid port ID in phish_input");
+
+  if (reqflag && inports[iport].status == UNUSED_PORT)
+    phish_error("Input script does not use a required input port");
+
+  if (inports[iport].status == UNUSED_PORT) return;
+  inports[iport].status = OPEN_PORT;
+  inports[iport].datumfunc = datumfunc;
+  inports[iport].donefunc = donefunc;
 }
 
 /* ----------------------------------------------------------------------
-   setup output ports
+   setup single output port iport
+   no reqflag setting, since script does not have to use the port
 ------------------------------------------------------------------------- */
 
-void phish_output(int nport)
+void phish_output(int iport)
 {
+  if (!initflag) phish_error("Phish_init has not been called");
+  if (checkflag) phish_error("Phish_check has already been called");
+
+  if (iport < 0 || iport > MAXPORT)
+    phish_error("Invalid port count in phish_output");
+
+  if (outports[iport].status == UNUSED_PORT) return;
+  outports[iport].status = OPEN_PORT;
 }
 
 /* ----------------------------------------------------------------------
-   check consistency of input args with ports
+   check consistency of input args with ports setup by phish input/output
 ------------------------------------------------------------------------- */
 
 void phish_check()
 {
+  if (!initflag) phish_error("Phish_init has not been called");
+  if (checkflag) phish_error("Phish_check has already been called");
+  checkflag = 1;
+
+  // args processed by phish_init() requested various input ports
+  // flagged them as CLOSED, others as UNUSED
+  // phish_input() reset CLOSED ports to OPEN
+  // error if a port is CLOSED, since phish_input was not called
+  // set ninports = # of used input ports
+  // initialize donecount before datum exchanges begin
+
+  ninports = 0;
+  for (int i = 0; i < MAXPORT; i++) {
+    if (inports[i].status == CLOSED_PORT)
+      phish_error("Input script uses an undefined input port");
+    if (inports[i].status == OPEN_PORT) ninports++;
+  }
+  donecount = 0;
+
+  // args processed by phish_init() requested various output ports
+  // flagged them as CLOSED, others as UNUSED
+  // phish_output() reset CLOSED ports to OPEN
+  // error if a port is CLOSED, since phish_output was not called
+  // set noutports = # of used output ports
+
+  noutports = 0;
+  for (int i = 0; i < MAXPORT; i++) {
+    if (outports[i].status == CLOSED_PORT)
+      phish_error("Input script uses an undefined output port");
+    if (outports[i].status == OPEN_PORT) noutports++;
+  }
 }
 
 /* ----------------------------------------------------------------------
-   set done callback function
+   set callback function to invoke when all input ports are closed
 ------------------------------------------------------------------------- */
 
-void phish_done(void (*done)())
+void phish_done(void (*donefunc)())
 {
-  donefunc = done;
+  if (!initflag) phish_error("Phish_init has not been called");
+
+  alldonefunc = donefunc;
 }
 
 /* ----------------------------------------------------------------------
@@ -251,176 +462,283 @@ void phish_done(void (*done)())
 
 void phish_close(int iport)
 {
-  for (int isend = 0; isend < nsend; isend++) {
-    struct Send *s = &psend[isend];
-    if (!s->activated) continue;
-    switch (s->style) {
-    case ONE2ONE:
-    case MANY2ONE:
+  if (!checkflag) phish_error("Phish_check has not been called");
+
+  if (iport < 0 || iport >= MAXPORT)
+    phish_error("Invalid port ID for phish_close");
+  OutPort *op = &outports[iport];
+  if (op->status != OPEN_PORT) return;
+
+  // loop over connections
+  // loop over all receivers in connection
+  // send each receiver a done message to its appropriate input port
+
+  for (int iconnect = 0; iconnect < op->nconnect; iconnect++) {
+    OutConnect *oc = &op->connects[iconnect];
+    int tag = MAXPORT + oc->recvport;
+    switch (oc->style) {
+
+    case SINGLE:
+    case PAIRED:
+    case RING:
 #ifdef PHISH_SAFE_SEND
-      MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst,DONETAG,world);
+      MPI_Ssend(NULL,0,MPI_BYTE,oc->recvone,tag,world);
 #else
-      MPI_Send(NULL,0,MPI_BYTE,s->recvfirst,DONETAG,world);
+      MPI_Send(NULL,0,MPI_BYTE,oc->recvone,tag,world);
 #endif
       break;
-    case ONE2MANY:
-    case ONE2MANY_RR:
-    case MANY2MANY:
-      for (int i = 0; i < s->recvprocs; i++)
+
+    case HASHED:
+    case ROUNDROBIN:
+      for (int i = 0; i < oc->nrecv; i++)
 #ifdef PHISH_SAFE_SEND
-        MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst + i,DONETAG,world);
+        MPI_Ssend(NULL,0,MPI_BYTE,oc->recvfirst+i,tag,world);
 #else
-        MPI_Send(NULL,0,MPI_BYTE,s->recvfirst + i,DONETAG,world);
+        MPI_Send(NULL,0,MPI_BYTE,oc->recvfirst+i,tag,world);
 #endif
       break;
-    case MANY2MANY_ONE:
+
+    case CHAIN:
+      if (oc->nrecv) {
 #ifdef PHISH_SAFE_SEND
-      MPI_Ssend(NULL,0,MPI_BYTE,s->recvfirst + (me - s->sendfirst),
-		DONETAG,world);
+	MPI_Ssend(NULL,0,MPI_BYTE,oc->recvone,tag,world);
 #else
-      MPI_Send(NULL,0,MPI_BYTE,s->recvfirst + (me - s->sendfirst),
-	       DONETAG,world);
+	MPI_Send(NULL,0,MPI_BYTE,oc->recvone,tag,world);
 #endif
+      }
       break;
+    }
+  }
+
+  outports[iport].status = CLOSED_PORT;
+}
+
+/* ----------------------------------------------------------------------
+   infinite loop on incoming datums
+   blocking MPI_Recv() for a datum
+   check datum for DONE message, else callback to datumfunc()
+------------------------------------------------------------------------- */
+
+void phish_loop()
+{
+  int iport,doneflag;
+  MPI_Status status;
+
+  if (!checkflag) phish_error("Phish_check has not been called");
+
+  while (1) {
+    MPI_Recv(rbuf,MAXBUF,MPI_BYTE,MPI_ANY_SOURCE,MPI_ANY_TAG,world,&status);
+
+    doneflag = 0;
+    iport = status.MPI_TAG;
+    if (iport >= MAXPORT) {
+      iport -= MAXPORT;
+      doneflag = 1;
+    }
+    InputPort *ip = &inports[iport];
+    if (ip->status != OPEN_PORT)
+      phish_error("Received datum on closed or unused port");
+
+    if (doneflag) {
+      ip->donecount++;
+      if (ip->donecount == ip->donemax) {
+	ip->status = CLOSED_PORT;
+	if (ip->donefunc) (*ip->donefunc)();
+	donecount++;
+	if (donecount == ninports && alldonefunc) (*alldonefunc)();
+	return;
+      }
+    }
+
+    if (ip->datumfunc) {
+      MPI_Get_count(&status,MPI_BYTE,&nrbytes);
+      nrfields = *(int *) rbuf;
+      rptr = rbuf + sizeof(int);
+      nunpack = 0;
+      (*ip->datumfunc)(nrfields);
     }
   }
 }
 
 /* ----------------------------------------------------------------------
    infinite loop on incoming datums
-   blocking MPI_Recv() for a message
-   check for DONE messages, when N = recvprocs are received, call donefunc()
-   else call datumfunc() with each message
+   non-blocking MPI_Iprobe() for a datum
+   if no datum, return to caller via probefunc() so app can do work
+   if datum, check for DONE message, else callback to datumfunc()
 ------------------------------------------------------------------------- */
 
-void phish_loop()
+void phish_probe(void (*probefunc)())
 {
+  int flag,iport,doneflag;
   MPI_Status status;
 
-  while (1) {
-    MPI_Recv(rbuf,MAXBUF,MPI_BYTE,MPI_ANY_SOURCE,MPI_ANY_TAG,world,&status);
-    if (status.MPI_TAG == DONETAG) {
-      donecount++;
-      if (donecount < donelimit) continue;
-      if (donefunc) (*donefunc)();
-      return;
-    }
-    MPI_Get_count(&status,MPI_BYTE,&nrbuf);
-    rptr = rbuf + sizeof(int);
-    //if (datumfunc) (*datumfunc)(*(int *) rbuf);
-  }
-}
-
-/* ----------------------------------------------------------------------
-   infinite loop on incoming messages
-   non-blocking MPI_Iprobe() for a message
-   check for DONE messages, when N = recvprocs are received, call donefunc()
-   else call datumfunc() with each message
-   if no message, return to caller via probefunc() so app can do work
-------------------------------------------------------------------------- */
-
-void phish_probe(void (*probe)())
-{
-  int flag;
-  MPI_Status status;
+  if (!checkflag) phish_error("Phish_check has not been called");
 
   while (1) {
     MPI_Iprobe(MPI_ANY_SOURCE,MPI_ANY_TAG,world,&flag,&status);
     if (flag) {
       MPI_Recv(rbuf,MAXBUF,MPI_BYTE,MPI_ANY_SOURCE,MPI_ANY_TAG,world,&status);
-      if (status.MPI_TAG == DONETAG) {
-	donecount++;
-	if (donecount < donelimit) continue;
-	if (donefunc) (*donefunc)();
-	return;
+
+      doneflag = 0;
+      iport = status.MPI_TAG;
+      if (iport >= MAXPORT) {
+	iport -= MAXPORT;
+	doneflag = 1;
       }
-      MPI_Get_count(&status,MPI_BYTE,&nrbuf);
-      rptr = rbuf + sizeof(int);
-      //if (datumfunc) (*datumfunc)(*(int *) rbuf);
+      InputPort *ip = &inports[iport];
+      if (ip->status != OPEN_PORT)
+	phish_error("Received datum on closed or unused port");
+
+      if (doneflag) {
+	ip->donecount++;
+	if (ip->donecount == ip->donemax) {
+	  ip->status = CLOSED_PORT;
+	  if (ip->donefunc) (*ip->donefunc)();
+	  donecount++;
+	  if (donecount == ninports && alldonefunc) (*alldonefunc)();
+	  return;
+	}
+      }
+
+      if (ip->datumfunc) {
+	MPI_Get_count(&status,MPI_BYTE,&nrbytes);
+	nrfields = *(int *) rbuf;
+	rptr = rbuf + sizeof(int);
+	nunpack = 0;
+	(*ip->datumfunc)(nrfields);
+      }
     }
-    (*probe)();
+    (*probefunc)();
   }
 }
 
 /* ----------------------------------------------------------------------
-   send sbuf to a downstream processor
+   send datum packed in sbuf via output port iport to a downstream proc
 ------------------------------------------------------------------------- */
 
-void phish_send(int oport)
+void phish_send(int iport)
 {
-  if (sendwhich < 0 || sendwhich > nsend-1 || !psend[sendwhich].activated)
-    phish_error("Invalid send protocol in phish_send");
+  if (iport < 0 || iport >= MAXPORT) 
+    phish_error("Invalid port ID for phish_send");
+  OutPort *op = &outports[iport];
+  if (op->status == UNUSED_PORT) return;
+  if (op->status == CLOSED_PORT) 
+    phish_error("Using phish_send with closed port");
 
-  struct Send *s = &psend[sendwhich];
-  *(int *) sbuf = nsbuf;
-  int nbuf = sptr - sbuf;
+  // setup send buffer
 
-  switch (s->style) {
-  case ONE2ONE:
-  case MANY2ONE:
-#ifdef PHISH_SAFE_SEND
-    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst,0,world);
-#else
-    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst,0,world);
-#endif
-    break;
-  case ONE2MANY_RR:
-#ifdef PHISH_SAFE_SEND
-    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + s->offset,0,world);
-#else
-    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + s->offset,0,world);
-#endif
-    s->offset++;
-    if (s->offset == s->recvprocs) s->offset = 0;
-    break;
-  case ONE2MANY:
-  case MANY2MANY:
-    phish_error("Cannot phish_send() when hashing is required");
-    break;
-  case MANY2MANY_ONE:
-#ifdef PHISH_SAFE_SEND
-    MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + (me - s->sendfirst),0,world);
-#else
-    MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + (me - s->sendfirst),0,world);
-#endif
-    break;
-  }
+  *(int *) sbuf = npack;
+  nsbytes = sptr - sbuf;
+
+  // loop over connections
+  // send datum to connection receiver via send()
+
+  for (int iconnect = 0; iconnect < op->nconnect; iconnect++)
+    send(&op->connects[iconnect]);
+
+  // reset send buffer
 
   sptr = sbuf + sizeof(int);
-  nsbuf = 0;
+  npack = 0;
 }
 
 /* ----------------------------------------------------------------------
-   send sbuf to a downstream processor based on hash of key
+   send datum packed in sbuf via output port iport to a downstream proc
+   choose proc based on hash of key of length keybytes
 ------------------------------------------------------------------------- */
 
-void phish_send_key(int oport, char *key, int keybytes)
+void phish_send_key(int iport, char *key, int keybytes)
 {
-  if (sendwhich < 0 || sendwhich > nsend-1 || !psend[sendwhich].activated) 
-    phish_error("Invalid send protocol in phish_send_key");
+  if (iport < 0 || iport >= MAXPORT)
+    phish_error("Invalid port ID for phish_send_key");
+  OutPort *op = &outports[iport];
+  if (op->status == UNUSED_PORT) return;
+  if (op->status == CLOSED_PORT) 
+    phish_error("Using phish_send_key with closed port");
 
-  struct Send *s = &psend[sendwhich];
-  *(int *) sbuf = nsbuf;
-  int nbuf = sptr - sbuf;
+  // setup send buffer
 
-  switch (s->style) {
-  case ONE2MANY:
-  case MANY2MANY:
-    {
-      int index = hashlittle(key,keybytes,s->recvprocs) % s->recvprocs;
+  *(int *) sbuf = npack;
+  nsbytes = sptr - sbuf;
+
+  // loop over connections
+  // send datum to connection receiver via send()
+  // handle HASHED style here via hashing key into processor offset
+  // pass non-HASHED styles to send()
+
+  for (int iconnect = 0; iconnect < op->nconnect; iconnect++) {
+    OutConnect *oc = &op->connects[iconnect];
+
+    switch (oc->style) {
+    case HASHED:
+      {
+	int tag = oc->recvport;
+	int offset = hashlittle(key,keybytes,oc->nrecv) % oc->nrecv;
 #ifdef PHISH_SAFE_SEND
-      MPI_Ssend(sbuf,nbuf,MPI_BYTE,s->recvfirst + index,0,world);
+	MPI_Ssend(sbuf,nsbytes,MPI_BYTE,oc->recvfirst+offset,tag,world);
 #else
-      MPI_Send(sbuf,nbuf,MPI_BYTE,s->recvfirst + index,0,world);
+	MPI_Send(sbuf,nsbytes,MPI_BYTE,oc->recvfirst+offset,tag,world);
+#endif
+      }
+      break;
+      
+    default:
+      send(oc);
+    }
+  }
+
+  // reset send buffer
+
+  sptr = sbuf + sizeof(int);
+  npack = 0;
+}
+
+/* ----------------------------------------------------------------------
+   send datum packed in sbuf to a downstream proc
+------------------------------------------------------------------------- */
+
+void send(OutConnect *oc)
+{
+  int tag = oc->recvport;
+
+  // send datum to appropriate receiving proc depending on connection style
+
+  switch (oc->style) {
+
+  case SINGLE:
+  case PAIRED:
+  case RING:
+#ifdef PHISH_SAFE_SEND
+    MPI_Ssend(sbuf,nsbytes,MPI_BYTE,oc->recvone,tag,world);
+#else
+    MPI_Send(sbuf,nsbytes,MPI_BYTE,oc->recvone,tag,world);
+#endif
+    break;
+
+  case ROUNDROBIN:
+#ifdef PHISH_SAFE_SEND
+    MPI_Ssend(sbuf,nsbytes,MPI_BYTE,oc->recvfirst+oc->offset,tag,world);
+#else
+    MPI_Send(sbuf,nsbytes,MPI_BYTE,oc->recvfirst+oc->offset,tag,world);
+#endif
+    oc->offset++;
+    if (oc->offset == oc->nrecv) oc->offset = 0;
+    break;
+
+  case CHAIN:
+    if (oc->nrecv) {
+#ifdef PHISH_SAFE_SEND
+      MPI_Ssend(sbuf,nsbytes,MPI_BYTE,oc->recvone,tag,world);
+#else
+      MPI_Send(sbuf,nsbytes,MPI_BYTE,oc->recvone,tag,world);
 #endif
     }
     break;
-  default:
-    phish_send(oport);
-  }
 
-  sptr = sbuf + sizeof(int);
-  nsbuf = 0;
+  case HASHED:
+    phish_error("Cannot use phish_send() when hashing is required");
+    break;
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -432,34 +750,37 @@ void phish_send_key(int oport, char *key, int keybytes)
 
 void phish_pack_datum(char *buf, int len)
 {
-  if (sptr + sizeof(int) + len - sbuf > MAXBUF)
-    phish_error("Send buffer overflow");
+  if (len > MAXBUF) phish_error("Send buffer overflow");
 
-  memcpy(sptr,buf,len);
+  memcpy(sbuf,buf,len);
   sptr = sbuf + len;
-  nsbuf++;
+  npack = *(int *) sbuf;
 }
 
 void phish_pack_raw(char *buf, int len)
 {
-  if (sptr + sizeof(int) + len - sbuf > MAXBUF)
+  if (sptr + 2*sizeof(int) + len - sbuf > MAXBUF)
     phish_error("Send buffer overflow");
 
+  *(int *) sptr = PHISH_RAW;
+  sptr += sizeof(int);
+  *(int *) sptr = len;
+  sptr += sizeof(int);
   memcpy(sptr,buf,len);
-  sptr = sbuf + len;
-  nsbuf++;
+  sptr += len;
+  npack++;
 }
 
 void phish_pack_byte(char value)
 {
-  if (sptr + sizeof(int) + 1 - sbuf > MAXBUF)
+  if (sptr + sizeof(int) + sizeof(char) - sbuf > MAXBUF)
     phish_error("Send buffer overflow");
 
   *(int *) sptr = PHISH_BYTE;
   sptr += sizeof(int);
   *sptr = value;
-  sptr++;
-  nsbuf++;
+  sptr += sizeof(char);
+  npack++;
 }
 
 void phish_pack_int(int value)
@@ -471,7 +792,7 @@ void phish_pack_int(int value)
   sptr += sizeof(int);
   *(int *) sptr = value;
   sptr += sizeof(int);
-  nsbuf++;
+  npack++;
 }
 
 void phish_pack_uint64(uint64_t value)
@@ -483,7 +804,7 @@ void phish_pack_uint64(uint64_t value)
   sptr += sizeof(int);
   *(uint64_t *) sptr = value;
   sptr += sizeof(uint64_t);
-  nsbuf++;
+  npack++;
 }
 
 void phish_pack_double(double value)
@@ -495,117 +816,159 @@ void phish_pack_double(double value)
   sptr += sizeof(int);
   *(double *) sptr = value;
   sptr += sizeof(double);
-  nsbuf++;
+  npack++;
 }
 
 void phish_pack_string(char *str)
 {
-  int n = strlen(str);
-  if (sptr + sizeof(int) + n+1 - sbuf > MAXBUF)
+  int nbytes = strlen(str) + 1;
+  if (sptr + 2*sizeof(int) + nbytes - sbuf > MAXBUF)
     phish_error("Send buffer overflow");
 
   *(int *) sptr = PHISH_STRING;
   sptr += sizeof(int);
-  memcpy(sptr,str,n+1);
-  sptr += n+1;
-  nsbuf++;
+  *(int *) sptr = nbytes;
+  sptr += sizeof(int);
+  memcpy(sptr,str,nbytes);
+  sptr += nbytes;
+  npack++;
 }
 
 void phish_pack_int_array(int *vec, int n)
 {
-  if (sptr + 2*sizeof(int) - sbuf > MAXBUF)
+  int nbytes = n*sizeof(int);
+  if (sptr + 2*sizeof(int) + nbytes - sbuf > MAXBUF)
     phish_error("Send buffer overflow");
 
-  *(int *) sptr = PHISH_INT;
+  *(int *) sptr = PHISH_INT_ARRAY;
   sptr += sizeof(int);
-  *(int *) sptr = vec[0];
+  *(int *) sptr = n;
   sptr += sizeof(int);
-  nsbuf++;
+  memcpy(sptr,vec,nbytes);
+  sptr += nbytes;
+  npack++;
 }
 
 void phish_pack_uint64_array(uint64_t *vec, int n)
 {
-  if (sptr + 2*sizeof(int) - sbuf > MAXBUF)
+  int nbytes = n*sizeof(uint64_t);
+  if (sptr + 2*sizeof(int) + nbytes - sbuf > MAXBUF)
     phish_error("Send buffer overflow");
 
-  *(int *) sptr = PHISH_INT;
+  *(int *) sptr = PHISH_UINT64_ARRAY;
   sptr += sizeof(int);
-  *(int *) sptr = vec[0];
+  *(int *) sptr = n;
   sptr += sizeof(int);
-  nsbuf++;
+  memcpy(sptr,vec,nbytes);
+  sptr += nbytes;
+  npack++;
 }
 
 void phish_pack_double_array(double *vec, int n)
 {
-  if (sptr + 2*sizeof(int) - sbuf > MAXBUF)
+  int nbytes = n*sizeof(uint64_t);
+  if (sptr + 2*sizeof(int) + nbytes - sbuf > MAXBUF)
     phish_error("Send buffer overflow");
 
-  *(int *) sptr = PHISH_INT;
+  *(int *) sptr = PHISH_DOUBLE_ARRAY;
   sptr += sizeof(int);
-  *(int *) sptr = vec[0];
+  *(int *) sptr = n;
   sptr += sizeof(int);
-  nsbuf++;
+  memcpy(sptr,vec,nbytes);
+  sptr += nbytes;
+  npack++;
 }
 
 /* ----------------------------------------------------------------------
-   process the rbuf, one value at a time
-   return value type
-   also return ptr to value and its len to caller
+   process field rbuf, one field at a time
+   return value = field type
+   buf = ptr to field
+   len = byte count for RAW and STRING (including NULL)
+   len = 1 for BYTE, INT, UINT64, DOUBLE
+   len = # of array values for ARRAY types
 ------------------------------------------------------------------------- */
 
 int phish_unpack(char **buf, int *len)
 {
-  if (rptr - rbuf == nrbuf) phish_error("Recv buffer empty");
+  if (nunpack == nrfields) phish_error("Recv buffer empty");
 
   int type = *(int *) rptr;
   rptr += sizeof(int);
-  *buf = rptr;
 
-  if (type == PHISH_BYTE) *len = 1;
-  else if (type == PHISH_INT) *len = sizeof(int);
-  else if (type == PHISH_UINT64) *len = sizeof(uint64_t);
-  else if (type == PHISH_DOUBLE) *len = sizeof(double);
-  else if (type == PHISH_STRING) {
-    *len = strlen(rptr);
-    rptr++;  // this is a kludge for trailing NULL byte
+  int nbytes;
+  switch (type) {
+  case PHISH_RAW:
+    *len = nbytes = *(int *) rptr;
+    rptr += sizeof(int);
+    break;
+  case PHISH_BYTE:
+    *len = 1;
+    nbytes = sizeof(char);
+    break;
+  case PHISH_INT:
+    *len = 1;
+    nbytes = sizeof(int);
+    break;
+  case PHISH_UINT64:
+    *len = 1;
+    nbytes = sizeof(uint64_t);
+    break;
+  case PHISH_DOUBLE:
+    *len = 1;
+    nbytes = sizeof(double);
+    break;
+  case PHISH_STRING:
+    *len = nbytes = *(int *) rptr;
+    rptr += sizeof(int);
+    break;
+  case PHISH_INT_ARRAY:
+    *len = *(int *) rptr;
+    rptr += sizeof(int);
+    nbytes = *len * sizeof(int);
+    break;
+  case PHISH_UINT64_ARRAY:
+    *len = *(int *) rptr;
+    rptr += sizeof(int);
+    nbytes = *len * sizeof(uint64_t);
+    break;
+  case PHISH_DOUBLE_ARRAY:
+    *len = *(int *) rptr;
+    rptr += sizeof(int);
+    nbytes = *len * sizeof(double);
+    break;
   }
 
-  rptr += *len;
+  *buf = rptr;
+  rptr += nbytes;
 
   return type;
 }
 
 /* ----------------------------------------------------------------------
    return the entire received datum
-   return ptr to datum and its byte len to caller
+   buf = ptr to datum
+   len = total size of received datum
 ------------------------------------------------------------------------- */
 
 void phish_datum(char **buf, int *len)
 {
-  if (rptr - rbuf == nrbuf) phish_error("Recv buffer empty");
-
-  int type = *(int *) rptr;
-  rptr += sizeof(int);
-  *buf = rptr;
-
-  if (type == PHISH_BYTE) *len = 1;
-  else if (type == PHISH_INT) *len = sizeof(int);
-  else if (type == PHISH_UINT64) *len = sizeof(uint64_t);
-  else if (type == PHISH_DOUBLE) *len = sizeof(double);
-  else if (type == PHISH_STRING) {
-    *len = strlen(rptr);
-    rptr++;  // this is a kludge for trailing NULL byte
-  }
-
-  rptr += *len;
+  *buf = rbuf;
+  *len = nrbytes;
 }
 
 /* ---------------------------------------------------------------------- */
 
 void phish_error(const char *str)
 {
-  printf("ERROR: %s\n",str);
+  printf("ERROR: APP %s ID %s # %d: %s\n",appname,appid,me-appprev,str);
   MPI_Abort(world,1);
+}
+
+/* ---------------------------------------------------------------------- */
+
+void phish_warn(const char *str)
+{
+  printf("WARNING: APP %s ID %s # %d: %s\n",appname,appid,me-appprev,str);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -614,4 +977,3 @@ double phish_timer()
 {
   return MPI_Wtime();
 }
-

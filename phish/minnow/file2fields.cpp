@@ -24,7 +24,7 @@ int main(int narg, char **args)
 {
   phish_init(&narg,&args);
   phish_input(0,read_file,NULL,1);
-  phish_output(1);
+  phish_output(0);
   phish_check();
 
   if (narg < 1) phish_error("File2fields syntax: file2words n1 n2 ...");

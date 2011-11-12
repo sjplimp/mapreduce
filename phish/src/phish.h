@@ -51,6 +51,7 @@ int phish_unpack(char **, int *);
 void phish_datum(char **, int *);
 
 void phish_error(const char *);
+void phish_warn(const char *);
 double phish_timer();
 
 #ifdef __cplusplus

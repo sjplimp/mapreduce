@@ -12,7 +12,7 @@
 int main(int narg, char **args)
 {
   phish_init(&narg,&args);
-  phish_output(1);
+  phish_output(0);
   phish_check();
 
   if (narg != 8) phish_error("Rmat syntax: rmat N M a b c d fraction seed");
