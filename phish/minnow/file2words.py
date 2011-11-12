@@ -12,10 +12,7 @@ def read_file(nvalues):
     words = line.split()
     for word in words:
       phish.pack_string(word)
-      phish.send_key(word)
-
-def done():
-  phish.send_done()
+      phish.send_key(word,word)
 
 # -------------------------
   
@@ -24,15 +21,14 @@ from phish import Phish
 
 phish = Phish()
 
-args = phish.init("file2words",1,1,sys.argv)
-
-phish.callback_datum(read_file)
-phish.callback_done(done)
+args = phish.init(sys.argv)
+  phish.input(0,read_file,None,1)
+  phish.output(0)
+  phish.check()
 
 if len(args) != 0:
   print "File2words syntax: file2words"
   sys.exit()
 
 phish.loop()
-phish.close()
-
+phish.exit()

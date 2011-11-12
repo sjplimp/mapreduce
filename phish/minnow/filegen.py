@@ -5,7 +5,9 @@ from phish import Phish
 
 phish = Phish()
 
-args = phish.init("filegen",0,1,sys.argv)
+args = phish.init(sys.argv)
+phish.output(0);
+phish.check();
 
 if len(args) == 0:
   print "Filegen syntax: filegen.py file1 file2 ..."
@@ -19,7 +21,6 @@ for file in args:
 
 for file in files:
   phish.pack_string(file)
-  phish.send()
+  phish.send(0)
 
-phish.send_done()
-phish.close()
+phish.exit()
