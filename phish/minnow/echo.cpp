@@ -14,7 +14,7 @@ int main(int narg, char **args)
   char *ptr;
 
   while (ptr = fgets(line,MAXLINE,stdin)) {
-    fprintf(stderr,"ECHO %s\n",line);
+    fprintf(stderr,"ECHO %d %s",strlen(line),line);
     printf("%s",line);
   }
 }

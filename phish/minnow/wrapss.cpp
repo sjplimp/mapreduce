@@ -24,6 +24,7 @@ int fd1[2],fd2[2];                // duplex pipes between parent/child
 struct pollfd fdarray[1];         // polling data structure
 int doneflag = 0;                 // set to 1 when child exits
 char buf[MAXLINE];
+char copybuf[MAXLINE];
 int nbuf = 0;
 
 /* ---------------------------------------------------------------------- */
@@ -112,7 +113,7 @@ int main(int narg, char **args)
 }
 
 /* ----------------------------------------------------------------------
-   write a line to the child process
+   write a datum terminated by newline to the child process
 ------------------------------------------------------------------------- */
 
 void writepipe(int nvalues)
@@ -124,9 +125,13 @@ void writepipe(int nvalues)
   int type = phish_unpack(&buf,&len);
   if (type != PHISH_STRING) phish_error("Wrapss processes string values");
 
-  int n1 = write(fd1[1],buf,len);
+  // use len-1 to remove trailing NULL from STRING
+
+  printf("WRITEPIPE %d %s\n",len,buf);
+
+  int n1 = write(fd1[1],buf,len-1);
   int n2 = write(fd1[1],"\n",2);
-  if (n1 != len) {
+  if (n1 != len-1) {
     printf("write error\n");
     exit(1);
   }
@@ -134,6 +139,7 @@ void writepipe(int nvalues)
 
 /* ----------------------------------------------------------------------
    read one or more lines from the child process
+   send them downstream as datums, stripped of newline
 ------------------------------------------------------------------------- */
 
 void readpipe()
@@ -150,10 +156,11 @@ void readpipe()
   }
 
   // if data in pipe, read whatever is there into buf
-  // break into lines, phish_send() each line downstream
-  // retain last chunk of buf if not terminated by a newline
-  // NOTE: could poll again at end of loop and continue while pipe has data
-  //       would be analagous to MPI probe/read in phish_probe()
+  // break into lines, remove newline
+  // phish_send() each datum downstream as a NULL-terminated string
+  // if buf not terminated by a newline, retain last chunk for next call
+  // NOTE: could poll again at end of loop and continue processing
+  //       while pipe has data, analagous to MPI probe/read in phish_probe()
 
   if (fdarray[0].revents) {
     int n = read(fd2[0],&buf[nbuf],MAXLINE-1-nbuf);
@@ -173,23 +180,35 @@ void readpipe()
     buf[nbuf] = '\0';
     n = 0;
 
+    // n = ptr into buf
+    // nbytes = length of line w/out newline and w/out NULL
+    // strtok replaces newline with NULL
+    // do not send along empty lines/strings
+
     printf("WSS: %d %s\n",nbuf,buf);
 
     line = strtok(buf,"\n");
     while (line) {
       nbytes = strlen(line);
-      if (nbytes == 0) break;
-      else if (n + nbytes == nbuf) {
-	strcpy(buf,line);
-      } else {
+      if (nbytes) {
 	n += nbytes+1;
 	printf("PACKSTR %d %s\n",strlen(line),line);
 	phish_pack_string(line);
 	phish_send(0);
-      }
+      } else n++;
       line = strtok(NULL,"\n");
     }
 
+    // nbuf > n if last chunk of buf has no trailing newline
+    // use copybuf if strings overlap
+
+    if (nbuf > n) {
+      if (nbuf-n < n) strcpy(buf,&buf[n]);
+      else {
+	strcpy(copybuf,&buf[n]);
+	strcpy(buf,copybuf);
+      }
+    }
     nbuf -= n;
   }
 }
