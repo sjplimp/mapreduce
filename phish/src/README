@@ -6,6 +6,11 @@ finish Python wrappers:
     not all datatypes supported for pack/unpack, like byte, raw, array
   PHISH_STRING, etc need to be visible to Python app
   callbacks for multiple ports are clunky
+  print.py minnow does not yet write to file like print.cpp
+
+IMPORTANT: in.wc sometimes crashes with count.py error on 
+  start up
+  also does not always give same count values!
 
 use "ls *" in bait and minnow defs, but convert to ls * in bait.py
 debug wrapss (it and echo have debug statements)

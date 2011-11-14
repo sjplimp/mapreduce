@@ -1,5 +1,6 @@
 // count instances of strings
 
+#include "stdio.h"
 #include "phish.h"
 
 #include <string>
@@ -37,7 +38,10 @@ void count(int nvalues)
   char *buf;
   int len;
 
-  if (nvalues != 1) phish_error("Count processes one-value datums");
+  if (nvalues != 1) {
+    printf("Nvalues %d\n",nvalues);
+    phish_error("Count processes one-value datums");
+  }
   int type = phish_unpack(&buf,&len);
   if (type != PHISH_STRING) phish_error("Count processes string values");
   string str(buf,len);

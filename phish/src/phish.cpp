@@ -106,9 +106,15 @@ int nrfields;              // # of fields in received datum
 char *rptr;                // ptr to current loc in rbuf for unpacking
 int nunpack;               // # of fields unpacked thus far from rbuf
 
+// stats
+
+uint64_t rcount;           // # of datums received
+uint64_t scount;           // # of datums sent
+
 // local function prototypes
 
 void send(OutConnect *);
+void stats();
 
 /* ---------------------------------------------------------------------- */
 
@@ -332,6 +338,10 @@ void phish_exit()
 {
   if (!initflag) phish_error("Phish_init has not been called");
 
+  // generate stats
+
+  stats();
+
   // warn if any input port is still open
 
   for (int i = 0; i < MAXPORT; i++)
@@ -444,6 +454,10 @@ void phish_check()
       phish_error("Input script uses an undefined output port");
     if (outports[i].status == OPEN_PORT) noutports++;
   }
+
+  // stats
+
+  rcount = scount = 0;
 }
 
 /* ----------------------------------------------------------------------
@@ -551,6 +565,7 @@ void phish_loop()
       }
     }
 
+    rcount++;
     if (ip->datumfunc) {
       MPI_Get_count(&status,MPI_BYTE,&nrbytes);
       nrfields = *(int *) rbuf;
@@ -601,6 +616,7 @@ void phish_probe(void (*probefunc)())
 	}
       }
 
+      rcount++;
       if (ip->datumfunc) {
 	MPI_Get_count(&status,MPI_BYTE,&nrbytes);
 	nrfields = *(int *) rbuf;
@@ -625,6 +641,8 @@ void phish_send(int iport)
   if (op->status == UNUSED_PORT) return;
   if (op->status == CLOSED_PORT) 
     phish_error("Using phish_send with closed port");
+
+  scount++;
 
   // setup send buffer
 
@@ -656,6 +674,8 @@ void phish_send_key(int iport, char *key, int keybytes)
   if (op->status == UNUSED_PORT) return;
   if (op->status == CLOSED_PORT) 
     phish_error("Using phish_send_key with closed port");
+
+  scount++;
 
   // setup send buffer
 
@@ -961,7 +981,7 @@ void phish_datum(char **buf, int *len)
 
 void phish_error(const char *str)
 {
-  printf("ERROR: APP %s ID %s # %d: %s\n",appname,appid,me-appprev,str);
+  printf("ERROR: App %s ID %s # %d: %s\n",appname,appid,me-appprev,str);
   MPI_Abort(world,1);
 }
 
@@ -969,7 +989,7 @@ void phish_error(const char *str)
 
 void phish_warn(const char *str)
 {
-  printf("WARNING: APP %s ID %s # %d: %s\n",appname,appid,me-appprev,str);
+  printf("WARNING: App %s ID %s # %d: %s\n",appname,appid,me-appprev,str);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -977,4 +997,12 @@ void phish_warn(const char *str)
 double phish_timer()
 {
   return MPI_Wtime();
+}
+
+/* ---------------------------------------------------------------------- */
+
+void stats()
+{
+  printf("Stats: App %s ID %s # %d: %lu %lu datums recv/sent\n",
+	 appname,appid,me-appprev,rcount,scount);
 }
