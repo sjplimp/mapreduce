@@ -1,6 +1,12 @@
 Todo:
 
-finish Python wrappers
+finish Python wrappers:
+  not all funcs yet implemented:
+    send_key only works for string as key
+    not all datatypes supported for pack/unpack, like byte, raw, array
+  PHISH_STRING, etc need to be visible to Python app
+  callbacks for multiple ports are clunky
+
 use "ls *" in bait and minnow defs, but convert to ls * in bait.py
 debug wrapss (it and echo have debug statements)
 test old QK input scripts

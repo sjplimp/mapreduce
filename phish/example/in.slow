@@ -3,7 +3,8 @@
 
 minnow 1 filegen ${files}
 minnow 2 file2words
-minnow 3 slowdown 0.1
+#minnow 3 slowdown 0.1
+minnow 3 slowdown.py 0.0
 minnow 4 print
 
 connect 1 roundrobin 2

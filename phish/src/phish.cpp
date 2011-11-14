@@ -290,7 +290,8 @@ void phish_init(int *pnarg, char ***pargs)
     } else if (strcmp(args[iarg],"-args") == 0) {
       argstart = iarg+1;
       iarg = narg;
-    }
+
+    } else phish_error("Invalid command-line args in phish_init");
   }
 
   // strip off PHISH args, leaving app args for app to use

@@ -211,13 +211,13 @@ pack uvalue into send datum
 pack dvalue into send datum
 pack str with its trailing NULL into send datum
 pack N integers in ivec into send datum
-pack N uint64s in uvec into send datum
+pack N uint64s in uvec into send datum<
 pack N doubles in dvec into send datum
 
 * int phish_unpack(char **buf, int *len)
 
 return next field in the received datum
-return value e of field = PHISH_RAW, PHISH_INT, etc
+return value of field = PHISH_RAW, PHISH_INT, etc
 buf = ptr to start of field data
 len = # of values in field
   for PHISH_RAW, len = # of bytes
