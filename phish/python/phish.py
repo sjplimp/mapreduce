@@ -3,6 +3,18 @@
 import types
 from ctypes import *
 
+# these need to be made visible to Python minnow
+
+PHISH_RAW = 0
+PHISH_BYTE = 1
+PHISH_INT = 2
+PHISH_UINT64 = 3
+PHISH_DOUBLE = 4
+PHISH_STRING = 5
+PHISH_INT_ARRAY = 6
+PHISH_UINT64_ARRAY = 7
+PHISH_DOUBLE_ARRAY = 8
+
 class Phish:
   def __init__(self):
     try:
@@ -40,14 +52,16 @@ class Phish:
   def exit(self):
     self.lib.phish_exit()
 
+  # clunky: named callback for each port
+    
   def input(self,iport,datumfunc,donefunc,reqflag):
     if iport == 0:
-      self.datum_caller0 = datumfunc
-      self.done_caller0 = donefunc
+      self.datum0_caller = datumfunc
+      self.done0_caller = donefunc
       self.lib.phish_input(iport,self.datum0_def,self.done0_def,reqflag)
     if iport == 1:
-      self.datum_caller1 = datumfunc
-      self.done_caller1 = donefunc
+      self.datum1_caller = datumfunc
+      self.done1_caller = donefunc
       self.lib.phish_input(iport,self.datum1_def,self.done1_def,reqflag)
     
   def output(self,iport):
@@ -69,17 +83,24 @@ class Phish:
   def loop(self):
     self.lib.phish_loop()
 
-  def datum0_callback(self):
-    self.datum0_caller()
+  def probe(self,probefunc):
+    self.probe_caller = probefunc
+    self.lib.phish_probe(self.probe_def)
+
+  def probe_callback(self):
+    self.probe_caller()
+    
+  def datum0_callback(self,nvalues):
+    self.datum0_caller(nvalues)
 
   def done0_callback(self):
-    self.done0_caller()
+    if self.done0_caller: self.done0_caller()
 
-  def datum1_callback(self):
-    self.datum1_caller()
+  def datum1_callback(self,nvalues):
+    self.datum1_caller(nvalues)
 
   def done1_callback(self):
-    self.done1_caller()
+    if self.done1_caller: self.done1_caller()
 
   def send(self,oport):
     self.lib.phish_send(oport)
@@ -88,8 +109,17 @@ class Phish:
     ckey = c_char_p(key)
     self.lib.phish_send_key(oport,ckey,len(key))
 
+  # not all datatypes are supported yet for pack
+    
+  def pack_datum(self,ptr,len):
+    self.lib.phish_pack_datum(ptr,len)
+
   def pack_int(self,ivalue):
     cint = c_int(ivalue)
+    self.lib.phish_pack_int(cint)
+
+  def pack_uint64(self,ivalue):
+    cint = c_ulonglong(ivalue)
     self.lib.phish_pack_int(cint)
 
   def pack_double(self,dvalue):
@@ -99,9 +129,32 @@ class Phish:
   def pack_string(self,str):
     cstr = c_char_p(str)
     self.lib.phish_pack_string(cstr)
-    
 
+  # not all datatypes are supported yet for unpack
     
+  def unpack(self):
+    buf = c_char_p()
+    len = c_int()
+    type = self.lib.phish_unpack(byref(buf),byref(len))
+    if type == PHISH_INT:
+      ptr = cast(buf,POINTER(c_int))
+      return type,ptr[0],len.value
+    if type == PHISH_UINT64:
+      ptr = cast(buf,POINTER(c_ulonglong))
+      return type,ptr[0],len.value
+    if type == PHISH_DOUBLE:
+      ptr = cast(buf,POINTER(c_double))
+      return type,ptr[0],len.value
+    if type == PHISH_STRING:
+      return type,buf.value,len.value
+    self.lib.phish_error("Python phish_unpack did not recognize data type")
+
+  def datum(self):
+    buf = c_char_p()
+    len = c_int()
+    type = self.lib.phish_datum(byref(buf),byref(len))
+    return buf,len.value
+  
   def error(self,str):
     self.lib.phish_error(str)
 
