@@ -6,12 +6,10 @@ from phish import Phish
 phish = Phish()
 
 args = phish.init(sys.argv)
-phish.output(0);
-phish.check();
+phish.output(0)
+phish.check()
 
-if len(args) == 0:
-  print "Filegen syntax: filegen.py file1 file2 ..."
-  sys.exit()
+if len(args) == 0: phish.error("Filegen syntax: filegen.py file1 file2 ...")
 
 files = []
 
