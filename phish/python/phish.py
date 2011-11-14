@@ -10,14 +10,18 @@ class Phish:
     except:
       raise StandardError,"Could not load PHISH dynamic library"
 
-    self.DONE = 99
-    self.DATUM = 100
-    self.PROBE = 101
+    # setup callbacks
+
+    ALLDONEFUNC = CFUNCTYPE(c_void_p)
+    self.alldone_def = ALLDONEFUNC(self.alldone_callback)
     
-    DONEFUNC = CFUNCTYPE(c_void_p)
-    self.done_def = DONEFUNC(self.done_callback)
     DATUMFUNC = CFUNCTYPE(c_void_p,c_int)
-    self.datum_def = DATUMFUNC(self.datum_callback)
+    self.datum0_def = DATUMFUNC(self.datum0_callback)
+    self.datum1_def = DATUMFUNC(self.datum1_callback)
+    DONEFUNC = CFUNCTYPE(c_void_p)
+    self.done0_def = DONEFUNC(self.done0_callback)
+    self.done1_def = DONEFUNC(self.done1_callback)
+    
     PROBEFUNC = CFUNCTYPE(c_void_p)
     self.probe_def = PROBEFUNC(self.probe_callback)
     
@@ -36,62 +40,66 @@ class Phish:
   def exit(self):
     self.lib.phish_exit()
 
+  def input(self,iport,datumfunc,donefunc,reqflag):
+    if iport == 0:
+      self.datum_caller0 = datumfunc
+      self.done_caller0 = donefunc
+      self.lib.phish_input(iport,self.datum0_def,self.done0_def,reqflag)
+    if iport == 1:
+      self.datum_caller1 = datumfunc
+      self.done_caller1 = donefunc
+      self.lib.phish_input(iport,self.datum1_def,self.done1_def,reqflag)
     
+  def output(self,iport):
+    self.lib.phish_output(iport)
 
-    
+  def check(self):
+    self.lib.phish_check()
+
   def done(self,donefunc):
-    self.done_callback = donefunc
-    self.lib.phish_callback(self.done_def)
-
-
-
+    self.alldone_caller = donefunc
+    self.lib.phish_done(self.alldone_def)
     
-  def callback_datum(self,datumfunc):
-    self.datum_caller = func
-    self.lib.phish_callback(self.datum_def)
+  def alldone_callback(self):
+    self.alldone_caller()
 
-  def callback_probe(self,func):
-    self.probe_caller = func
-    self.lib.phish_callback(self.probe_def)
-      
+  def close(self,iport):
+    self.lib.phish_close(iport)
+
   def loop(self):
     self.lib.phish_loop()
 
-  def done_callback(self):
-    self.done_caller()
+  def datum0_callback(self):
+    self.datum0_caller()
 
-  def datum_callback(self,nvalues):
-    self.datum_caller(nvalues)
+  def done0_callback(self):
+    self.done0_caller()
 
-  def probe_callback(self):
-    self.probe_caller()
+  def datum1_callback(self):
+    self.datum1_caller()
 
+  def done1_callback(self):
+    self.done1_caller()
 
+  def send(self,oport):
+    self.lib.phish_send(oport)
 
-    
-  def pack_int(self,value):
-    cint = c_int(value)
+  def send_key(self,oport,key):
+    ckey = c_char_p(key)
+    self.lib.phish_send_key(oport,ckey,len(key))
+
+  def pack_int(self,ivalue):
+    cint = c_int(ivalue)
     self.lib.phish_pack_int(cint)
 
-  def pack_double(self,value):
-    cdouble = c_double(value)
+  def pack_double(self,dvalue):
+    cdouble = c_double(dvalue)
     self.lib.phish_pack_double(cdouble)
 
-  def pack_string(self,value):
-    cstr = c_char_p(value)
+  def pack_string(self,str):
+    cstr = c_char_p(str)
     self.lib.phish_pack_string(cstr)
-
-  def send(self):
-    self.lib.phish_send()
-
-  def send_key(self,key):
-    ckey = c_char_p(key)
-    self.lib.phish_send_key(ckey,len(key)+1)
-
-  def send_done(self):
-    self.lib.phish_send_done()
-
-
+    
 
     
   def error(self,str):
