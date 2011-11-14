@@ -1,5 +1,13 @@
 Todo:
 
+finish Python wrappers
+use "ls *" in bait and minnow defs, but convert to ls * in bait.py
+debug wrapss (it and echo have debug statements)
+test old QK input scripts
+add stats option to phish.cpp and bait.py
+work on J Berry CC app
+
+send Tim a why PHISH message (vs QK)
 style CHAIN
   is not yet correct for done messages
   this is because unlike RING, there is a proc on end

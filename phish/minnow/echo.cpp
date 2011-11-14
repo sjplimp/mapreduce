@@ -1,4 +1,4 @@
-// echo strings read from stdin, one line at a time, to stdout
+// echo strings read from stdin to stdout, one line at a time
 
 #include "stdlib.h"
 #include "string.h"
@@ -13,8 +13,5 @@ int main(int narg, char **args)
   char line[MAXLINE];
   char *ptr;
 
-  while (ptr = fgets(line,MAXLINE,stdin)) {
-    fprintf(stderr,"ECHO %d %s",strlen(line),line);
-    printf("%s",line);
-  }
+  while (ptr = fgets(line,MAXLINE,stdin)) printf("%s",line);
 }

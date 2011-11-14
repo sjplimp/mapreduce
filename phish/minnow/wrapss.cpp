@@ -125,13 +125,11 @@ void writepipe(int nvalues)
   int type = phish_unpack(&buf,&len);
   if (type != PHISH_STRING) phish_error("Wrapss processes string values");
 
-  // use len-1 to remove trailing NULL from STRING
+  // replace trailing NULL with a newline
 
-  printf("WRITEPIPE %d %s\n",len,buf);
-
-  int n1 = write(fd1[1],buf,len-1);
-  int n2 = write(fd1[1],"\n",2);
-  if (n1 != len-1) {
+  buf[len-1] = '\n';
+  int n = write(fd1[1],buf,len);
+  if (n != len) {
     printf("write error\n");
     exit(1);
   }
@@ -185,14 +183,11 @@ void readpipe()
     // strtok replaces newline with NULL
     // do not send along empty lines/strings
 
-    printf("WSS: %d %s\n",nbuf,buf);
-
     line = strtok(buf,"\n");
     while (line) {
       nbytes = strlen(line);
       if (nbytes) {
 	n += nbytes+1;
-	printf("PACKSTR %d %s\n",strlen(line),line);
 	phish_pack_string(line);
 	phish_send(0);
       } else n++;
