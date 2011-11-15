@@ -1,0 +1,15 @@
+# test MPI backup due to slowdown in receiver
+# generate RMAT matrix elements and print them, bottlenecked by slowdown
+# provide very large # of edges as -v n command-line arg
+
+minnow 1 rmat $n 40 0.25 0.25 0.25 0.25 0.0 12345
+minnow 2 slowdown 0.01
+#minnow 2 slowdown.py 0.0
+minnow 3 print
+
+connect 1 single 2
+connect 2 single 3
+
+layout 1 40
+layout 2 1
+layout 3 1
