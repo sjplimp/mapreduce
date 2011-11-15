@@ -4,21 +4,14 @@ finish Python wrappers:
   not all funcs yet implemented:
     send_key only works for string as key
     not all datatypes supported for pack/unpack, like byte, raw, array
-  PHISH_STRING, etc need to be visible to Python app
   callbacks for multiple ports are clunky
+    Tim says we can use closures to auto-write funcs on the fly
   print.py minnow does not yet write to file like print.cpp
-
-IMPORTANT: in.wc sometimes crashes with count.py error on 
-  start up
-  also does not always give same count values!
 
 use "ls *" in bait and minnow defs, but convert to ls * in bait.py
 debug wrapss (it and echo have debug statements)
 test old QK input scripts
-add stats option to phish.cpp and bait.py
-work on J Berry CC app
 
-send Tim a why PHISH message (vs QK)
 style CHAIN
   is not yet correct for done messages
   this is because unlike RING, there is a proc on end

@@ -545,12 +545,12 @@ void phish_loop()
   while (1) {
     MPI_Recv(rbuf,MAXBUF,MPI_BYTE,MPI_ANY_SOURCE,MPI_ANY_TAG,world,&status);
 
-    doneflag = 0;
     iport = status.MPI_TAG;
     if (iport >= MAXPORT) {
       iport -= MAXPORT;
       doneflag = 1;
-    }
+    } else doneflag = 0;
+
     InputPort *ip = &inports[iport];
     if (ip->status != OPEN_PORT)
       phish_error("Received datum on closed or unused port");
@@ -564,15 +564,16 @@ void phish_loop()
 	if (donecount == ninports && alldonefunc) (*alldonefunc)();
 	return;
       }
-    }
 
-    rcount++;
-    if (ip->datumfunc) {
-      MPI_Get_count(&status,MPI_BYTE,&nrbytes);
-      nrfields = *(int *) rbuf;
-      rptr = rbuf + sizeof(int);
-      nunpack = 0;
-      (*ip->datumfunc)(nrfields);
+    } else {
+      rcount++;
+      if (ip->datumfunc) {
+	MPI_Get_count(&status,MPI_BYTE,&nrbytes);
+	nrfields = *(int *) rbuf;
+	rptr = rbuf + sizeof(int);
+	nunpack = 0;
+	(*ip->datumfunc)(nrfields);
+      }
     }
   }
 }
@@ -597,12 +598,12 @@ void phish_probe(void (*probefunc)())
     if (flag) {
       MPI_Recv(rbuf,MAXBUF,MPI_BYTE,MPI_ANY_SOURCE,MPI_ANY_TAG,world,&status);
 
-      doneflag = 0;
       iport = status.MPI_TAG;
       if (iport >= MAXPORT) {
 	iport -= MAXPORT;
 	doneflag = 1;
-      }
+      } else doneflag = 0;
+
       InputPort *ip = &inports[iport];
       if (ip->status != OPEN_PORT)
 	phish_error("Received datum on closed or unused port");
@@ -616,18 +617,18 @@ void phish_probe(void (*probefunc)())
 	  if (donecount == ninports && alldonefunc) (*alldonefunc)();
 	  return;
 	}
-      }
 
-      rcount++;
-      if (ip->datumfunc) {
-	MPI_Get_count(&status,MPI_BYTE,&nrbytes);
-	nrfields = *(int *) rbuf;
-	rptr = rbuf + sizeof(int);
-	nunpack = 0;
-	(*ip->datumfunc)(nrfields);
+      } else {
+	rcount++;
+	if (ip->datumfunc) {
+	  MPI_Get_count(&status,MPI_BYTE,&nrbytes);
+	  nrfields = *(int *) rbuf;
+	  rptr = rbuf + sizeof(int);
+	  nunpack = 0;
+	  (*ip->datumfunc)(nrfields);
+	}
       }
-    }
-    (*probefunc)();
+    } else (*probefunc)();
   }
 }
 

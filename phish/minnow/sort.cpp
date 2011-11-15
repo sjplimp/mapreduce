@@ -50,8 +50,9 @@ void store(int nvalues)
   if (type1 != PHISH_INT) phish_error("Sort processes int/string datums");
   if (type2 != PHISH_STRING) phish_error("Sort processes int/string datums");
 
+  int icount = *(int *) count;
   string str(word,strlen(word));
-  list.push_back(make_pair(*(int *) count,str));
+  list.push_back(make_pair(icount,str));
 }
 
 /* ---------------------------------------------------------------------- */

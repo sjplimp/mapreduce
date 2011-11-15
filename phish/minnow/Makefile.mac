@@ -1,10 +1,10 @@
 # Makefile for PHISH apps
 
 CC =		mpic++
-CCFLAGS =	-g -O -DMPICH_IGNORE_CXX_SEEK
+CCFLAGS =	-g -O -DMPICH_IGNORE_CXX_SEEK -I../src
 LINK =		mpic++
 LINKFLAGS =	-g -O 
-LIB =		libphish.a
+LIB =		../src/libphish.a
 SYSLIB =
 ARCHIVE =	ar
 ARFLAGS =	-rc
