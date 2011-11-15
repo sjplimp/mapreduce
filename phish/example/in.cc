@@ -1,6 +1,6 @@
 # CC algorithm
 
-minnow 1 readgraph.py /home/sjplimp/cyber/cc/inp.test
+minnow 1 readgraph /home/sjplimp/cyber/cc/inp.test
 minnow 2 cc
 
 connect 1 single 2
