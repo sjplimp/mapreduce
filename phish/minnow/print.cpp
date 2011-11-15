@@ -44,11 +44,39 @@ void print(int nvalues)
 
   for (int i = 0; i < nvalues; i++) {
     int type = phish_unpack(&value,&len);
-    if (type == PHISH_STRING) fprintf(fp,"%s ",value);
-    else if (type == PHISH_INT) fprintf(fp,"%d ",*(int *) value);
-    else if (type == PHISH_UINT64) fprintf(fp,"%lu ",*(uint64_t *) value);
-    else if (type == PHISH_DOUBLE) fprintf(fp,"%g ",*(double *) value);
+    switch (type) {
+    case PHISH_RAW:
+      break;
+    case PHISH_BYTE:
+      fprintf(fp,"%c ",*value);
+      break;
+    case PHISH_INT:
+      fprintf(fp,"%d ",*(int *) value);
+      break;
+    case PHISH_UINT64:
+      fprintf(fp,"%lu ",*(uint64_t *) value);
+      break;
+    case PHISH_DOUBLE:
+      fprintf(fp,"%g ",*(double *) value);
+      break;
+    case PHISH_STRING:
+      fprintf(fp,"%s ",value);
+      break;
+    case PHISH_INT_ARRAY: {
+      int *ivec = (int *) value;
+      for (int j = 0; j < len; j++) fprintf(fp,"%d ",ivec[j]);
+    } break;
+    case PHISH_UINT64_ARRAY: {
+      uint64_t *lvec = (uint64_t *) value;
+      for (int j = 0; j < len; j++) fprintf(fp,"%lu ",lvec[j]);
+    } break;
+    case PHISH_DOUBLE_ARRAY: {
+      double *dvec = (double *) value;
+      for (int j = 0; j < len; j++) fprintf(fp,"%g ",dvec[j]);
+    } break;
+    }
   }
+
   fprintf(fp,"\n");
 }
 

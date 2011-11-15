@@ -956,7 +956,10 @@ void edge(int nvalues)
       pw = ibuf[3]; bbw = ibuf[4]; sizew = ibuf[5];
       time = ibuf[6];
 
-      cin >> pv >> bbv >> sizev >> pw >> bbw >> sizew >> time; 
+      // debug code
+      phish_pack_int_array(ibuf,6);
+      phish_send(0);
+
       printf("R: REFINE((%d,%d), (%d,%d), (%d,%d)\n",
 	     pv, pw, bbv, bbw, sizev, sizew, time);
       building_block *bv = bbmap[bbv];
