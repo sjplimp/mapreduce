@@ -1,7 +1,7 @@
 # All targets
 
 all:	cc count file2fields file2words filegen ping pong print \
-	rmat slowdown sort wrapsink wrapsource wrapss \
+	readgraph rmat slowdown sort wrapsink wrapsource wrapss \
 	echo reverse
 
 # Phish minnows
@@ -32,6 +32,9 @@ print:	print.o $(LIB)
 
 rmat:	rmat.o $(LIB)
 	$(LINK) $(LINKFLAGS) rmat.o $(LIB) $(SYSLIB) -o rmat
+
+readgraph:	readgraph.o $(LIB)
+	$(LINK) $(LINKFLAGS) readgraph.o $(LIB) $(SYSLIB) -o readgraph
 
 slowdown:	slowdown.o $(LIB)
 	$(LINK) $(LINKFLAGS) slowdown.o $(LIB) $(SYSLIB) -o slowdown
