@@ -42,6 +42,8 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "phish.h"
+
 #include <assert.h>
 #include <iostream>
 
@@ -65,6 +67,8 @@
      // that entry.
 
 using namespace std;
+
+void edge(int);
 
 bool spanning_tree_leaf(map<int,set<int>*>&, int&);
 bool no_spanning_tree_edge(map<int,set<int>*>&, int&);
@@ -343,6 +347,16 @@ typedef map<int, pair<int,int> > FosterEdgeMap;
           //           its foster edge list, sending the now-complete edge
           //           relabelings downstream.
           //            * TODO, describe this protocol
+
+
+// data structures visible in this file
+
+Graph primitive_edges;
+map<int,building_block*> prim_vertex2building_block;
+map<int, building_block*> refine_loading_dock;
+DJsets my_sets;
+BBmap bbmap;
+LoadingDock loading_dock;
 
 void new_building_block(int id, int size, DJsets& my_sets, 
                         BBmap& bbmap, bool already_have_djset=false)
@@ -857,88 +871,129 @@ void activation(BTSset& unfinished_block_transfers,
 
 int main(int narg, char **arg)
 {
-     // simulate filling processor
-     Graph primitive_edges;
-     map<int,building_block*> prim_vertex2building_block;
-     // ***************************************************************
-     // ** refine_loading_dock interacts with bbmap as follows: when
-     // ** a building block is refined away, we don't copy all of its
-     // ** edges to a loading dock, as that would be a non-constant time
-     // ** operation. Rather, we simply switch the block from bbmap to
-     // ** refine_loading_dock.  Whenever there is an empty basket, we
-     // ** pluck from the latter.
-     // ***************************************************************
-     map<int, building_block*> refine_loading_dock;
-     DJsets my_sets;
-     BBmap bbmap;
-     LoadingDock loading_dock;
-     char cmd;
-     int pv, bbv, sizev, pw, bbw, sizew, time;
+  phish_init(&narg,&arg);
+  phish_input(0,edge,NULL,1);
+  phish_output(0);
+  phish_check();
 
-     while (cin >> cmd) { 
-          cmd = toupper(cmd);
-          switch (cmd) {
-          case 'E': cin >> pv >> bbv >> sizev >> pw >> bbw >> sizew >> time; 
-                    printf("E: ADD EDGE((%d,%d), (%d,%d), (%d,%d): %d)\n",
-                           pv, pw, bbv, bbw, sizev, sizew, time);
-                    add_primitive_edge(pv,pw,bbv,bbw,sizev,sizew,time,
-                                       primitive_edges, 
-                                       prim_vertex2building_block, 
-                                       my_sets, bbmap);
-                    break;
-          case 'D': cin >> bbv >> time; 
-                    printf("D: DELETE BUILDING BLOCK(%d)\n", bbv);
-                    delete_leaf(bbmap[bbv], time, my_sets, bbmap, 
-                                          primitive_edges, loading_dock,
-                                          prim_vertex2building_block);
-                    break;
-          case 'P': { 
-                         printf("----------------------------------\n");
-                         BBmap::iterator blocks = bbmap.begin(); 
-                         for (; blocks != bbmap.end(); blocks++) { 
-                              building_block* b = (*blocks).second; 
-                              print_building_block(*b,
-                                                   prim_vertex2building_block); 
-                         }
-                         print_spanning_tree_leaves(prim_vertex2building_block);
-                         printf("----------------------------------\n");
-                    }
-                    printf("primitive edges (adj:timestamp)---\n");
-                    printf("----------------------------------\n");
-                    primitive_edges.print();
-                    printf("----------------------------------\n");
-                    break;
-          case 'R': {cin >> pv >> bbv >> sizev >> pw >> bbw >> sizew >> time; 
-                    printf("R: REFINE((%d,%d), (%d,%d), (%d,%d)\n",
-                           pv, pw, bbv, bbw, sizev, sizew, time);
-                    building_block *bv = bbmap[bbv];
-                    building_block *bw = bbmap[bbw];
-                    accept_refinement(pv, pw, bbv, bbw,
-                           sizev, sizew, time, 
-                           primitive_edges, 
-                           prim_vertex2building_block,
-                           my_sets, bbmap);
-                    }
-                    break; 
-          case 'S': cin >> pv >> bbv >> time; 
-                    printf("S: RESOLVE(%d,%d): %d\n",
-                           pv, bbv, time);
-                    resolve_primitive_vertex(pv, bbv, time,
-                           primitive_edges, 
-                           my_sets, bbmap, prim_vertex2building_block);
-                    break;
-          case 'M': printf("M: MESSAGES READY TO SEND\n");
-                    printf("----------------------------------\n");
-                    list<parcel>::iterator dockit = loading_dock.begin();
-                    for (; dockit!=loading_dock.end(); dockit++) {
-                         parcel& p = *dockit;
-                         p.print();
-                    }
-                    printf("----------------------------------\n");
-                    break;
-          }
-          activation(unfinished_block_transfers, loading_dock, 
-                     primitive_edges, bbmap);
-     }
-     return 0;
+  if (narg != 0) phish_error("Cc syntax: cc");
+
+  phish_loop();
+  phish_exit();
+}
+
+// ***************************************************************
+// ** process an in-bound edge:
+// ** refine_loading_dock interacts with bbmap as follows: when
+// ** a building block is refined away, we don't copy all of its
+// ** edges to a loading dock, as that would be a non-constant time
+// ** operation. Rather, we simply switch the block from bbmap to
+// ** refine_loading_dock.  Whenever there is an empty basket, we
+// ** pluck from the latter.
+// ***************************************************************
+
+void edge(int nvalues)
+{
+  char cmd;
+  int pv, bbv, sizev, pw, bbw, sizew, time;
+  
+  char *buf;
+  int *ibuf;
+  int len;
+
+  int type = phish_unpack(&buf,&len);
+  cmd = buf[0];
+  cmd = toupper(cmd);
+
+  switch (cmd) {
+  case 'E':
+    type = phish_unpack(&buf,&len);
+    ibuf = (int *) buf;
+    pv = ibuf[0]; bbv = ibuf[1]; sizev = ibuf[2];
+    pw = ibuf[3]; bbw = ibuf[4]; sizew = ibuf[5];
+    time = ibuf[6];
+
+    add_primitive_edge(pv,pw,bbv,bbw,sizev,sizew,time,
+		       primitive_edges, 
+		       prim_vertex2building_block, 
+		       my_sets, bbmap);
+    break;
+
+  case 'D':
+    type = phish_unpack(&buf,&len);
+    ibuf = (int *) buf;
+    bbv = ibuf[0]; time = ibuf[1];
+
+    printf("D: DELETE BUILDING BLOCK(%d)\n", bbv);
+    delete_leaf(bbmap[bbv], time, my_sets, bbmap, 
+		primitive_edges, loading_dock,
+		prim_vertex2building_block);
+    break;
+
+  case 'P':
+    {
+      printf("----------------------------------\n");
+      BBmap::iterator blocks = bbmap.begin(); 
+      for (; blocks != bbmap.end(); blocks++) { 
+	building_block* b = (*blocks).second; 
+	print_building_block(*b,
+			     prim_vertex2building_block); 
+      }
+      print_spanning_tree_leaves(prim_vertex2building_block);
+      printf("----------------------------------\n");
+    }
+    printf("primitive edges (adj:timestamp)---\n");
+    printf("----------------------------------\n");
+    primitive_edges.print();
+    printf("----------------------------------\n");
+    break;
+
+  case 'R':
+    {
+      type = phish_unpack(&buf,&len);
+      ibuf = (int *) buf;
+      pv = ibuf[0]; bbv = ibuf[1]; sizev = ibuf[2];
+      pw = ibuf[3]; bbw = ibuf[4]; sizew = ibuf[5];
+      time = ibuf[6];
+
+      cin >> pv >> bbv >> sizev >> pw >> bbw >> sizew >> time; 
+      printf("R: REFINE((%d,%d), (%d,%d), (%d,%d)\n",
+	     pv, pw, bbv, bbw, sizev, sizew, time);
+      building_block *bv = bbmap[bbv];
+      building_block *bw = bbmap[bbw];
+      accept_refinement(pv, pw, bbv, bbw,
+			sizev, sizew, time, 
+			primitive_edges, 
+			prim_vertex2building_block,
+			my_sets, bbmap);
+    }
+    break; 
+
+  case 'S':
+    type = phish_unpack(&buf,&len);
+    ibuf = (int *) buf;
+    pv = ibuf[0]; bbv = ibuf[1]; time = ibuf[2];
+
+    printf("S: RESOLVE(%d,%d): %d\n",
+	   pv, bbv, time);
+    resolve_primitive_vertex(pv, bbv, time,
+			     primitive_edges, 
+			     my_sets, bbmap, prim_vertex2building_block);
+    break;
+    
+  case 'M':
+    printf("M: MESSAGES READY TO SEND\n");
+    printf("----------------------------------\n");
+    list<parcel>::iterator dockit = loading_dock.begin();
+    for (; dockit!=loading_dock.end(); dockit++) {
+      parcel& p = *dockit;
+      p.print();
+    }
+    printf("----------------------------------\n");
+    break;
+    
+  }
+  
+  activation(unfinished_block_transfers, loading_dock, 
+	     primitive_edges, bbmap);
 }

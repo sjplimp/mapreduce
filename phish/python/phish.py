@@ -114,21 +114,29 @@ class Phish:
   def pack_datum(self,ptr,len):
     self.lib.phish_pack_datum(ptr,len)
 
-  def pack_int(self,ivalue):
-    cint = c_int(ivalue)
-    self.lib.phish_pack_int(cint)
+  def pack_byte(self,value):
+    cchar = c_char(value)
+    self.lib.phish_pack_byte(cchar)
 
-  def pack_uint64(self,ivalue):
-    cint = c_ulonglong(ivalue)
-    self.lib.phish_pack_int(cint)
+  def pack_int(self,value):
+    self.lib.phish_pack_int(value)
 
-  def pack_double(self,dvalue):
-    cdouble = c_double(dvalue)
+  def pack_uint64(self,value):
+    self.lib.phish_pack_uint64(value)
+
+  def pack_double(self,value):
+    cdouble = c_double(value)
     self.lib.phish_pack_double(cdouble)
 
   def pack_string(self,str):
     cstr = c_char_p(str)
     self.lib.phish_pack_string(cstr)
+
+  def pack_int_array(self,ivec):
+    n = len(ivec)
+    ptr = (c_int * n)()    # don't understand this syntax
+    for i in xrange(n): ptr[i] = ivec[i]
+    self.lib.phish_pack_int_array(ptr,n)
 
   # not all datatypes are supported yet for unpack
     
@@ -136,6 +144,9 @@ class Phish:
     buf = c_char_p()
     len = c_int()
     type = self.lib.phish_unpack(byref(buf),byref(len))
+    if type == PHISH_BYTE:
+      ptr = cast(buf,POINTER(c_char))
+      return type,ptr[0],len.value
     if type == PHISH_INT:
       ptr = cast(buf,POINTER(c_int))
       return type,ptr[0],len.value
@@ -147,6 +158,11 @@ class Phish:
       return type,ptr[0],len.value
     if type == PHISH_STRING:
       return type,buf.value,len.value
+    if type == PHISH_INT_ARRAY:
+      ptr = cast(buf,POINTER(c_int))
+      ivec = len.value * [0]
+      for i in xrange(len.value): ivec[i] = ptr[i]
+      return type,ivec,len.value
     self.lib.phish_error("Python phish_unpack did not recognize data type")
 
   def datum(self):

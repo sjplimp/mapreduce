@@ -1,16 +1,14 @@
 #!/usr/local/bin/python
 
+import sys
+from phish import Phish
+
 def myprint(nvalues):
   for i in range(nvalues):
     type,value,len = phish.unpack()
     print value,
   print
 
-# -------------------------
-
-import sys
-from phish import *
-  
 phish = Phish()
 
 args = phish.init(sys.argv)
