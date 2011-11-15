@@ -1,7 +1,7 @@
 #!/usr/local/bin/python
 
 import sys,time
-from phish import Phish
+import phish
 
 def send(nvalues):
   global time_previous,delta
@@ -11,8 +11,6 @@ def send(nvalues):
   phish.pack_datum(buf,len)
   phish.send(0)
   time_previous = phish.timer()
-
-phish = Phish()
 
 args = phish.init(sys.argv)
 phish.input(0,send,None,1)

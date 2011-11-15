@@ -1,9 +1,7 @@
 #!/usr/local/bin/python
 
 import sys,os,glob,copy
-from phish import Phish
-
-phish = Phish()
+import phish
 
 args = phish.init(sys.argv)
 phish.output(0)

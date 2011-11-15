@@ -337,6 +337,7 @@ int phish_world(int *pme, int *pnprocs)
 void phish_exit()
 {
   if (!initflag) phish_error("Phish_init has not been called");
+  if (!checkflag) phish_error("Phish_check has not been called");
 
   // generate stats
 
@@ -589,6 +590,7 @@ void phish_probe(void (*probefunc)())
   MPI_Status status;
 
   if (!checkflag) phish_error("Phish_check has not been called");
+  if (!probefunc) phish_error("Phish_probe callback cannot be NULL");
 
   while (1) {
     MPI_Iprobe(MPI_ANY_SOURCE,MPI_ANY_TAG,world,&flag,&status);

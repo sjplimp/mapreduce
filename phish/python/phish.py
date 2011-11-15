@@ -3,179 +3,228 @@
 import types
 from ctypes import *
 
-# these need to be made visible to Python minnow
+# same data type defs as in src/phish.h
 
-PHISH_RAW = 0
-PHISH_BYTE = 1
-PHISH_INT = 2
-PHISH_UINT64 = 3
-PHISH_DOUBLE = 4
-PHISH_STRING = 5
-PHISH_INT_ARRAY = 6
-PHISH_UINT64_ARRAY = 7
-PHISH_DOUBLE_ARRAY = 8
+RAW = 0
+BYTE = 1
+INT = 2
+UINT64 = 3
+DOUBLE = 4
+STRING = 5
+INT_ARRAY = 6
+UINT64_ARRAY = 7
+DOUBLE_ARRAY = 8
 
-class Phish:
-  def __init__(self):
-    try:
-      self.lib = CDLL("_phish.so")
-    except:
-      raise StandardError,"Could not load PHISH dynamic library"
+# load PHISH C++ library
 
-    # setup callbacks
+try:
+  lib = CDLL("_phish.so")
+except:
+  raise StandardError,"Could not load PHISH dynamic library"
 
-    ALLDONEFUNC = CFUNCTYPE(c_void_p)
-    self.alldone_def = ALLDONEFUNC(self.alldone_callback)
+# function defs
+# one-to-one match to functions in src/phish.h
+
+def init(args):
+  narg = len(args)
+  cargs = (c_char_p*narg)(*args)
+  n = lib.phish_init_python(narg,cargs)
+  return args[n:]
+
+def world():
+  me = c_int()
+  nprocs = c_int()
+  world = lib.phish_world(byref(me),byref(nprocs))
+  return me.value,nprocs.value,world
+
+def exit():
+  lib.phish_exit()
+
+# clunky: using named callback for each port
+# Tim says to use closures to generate callback function code
     
-    DATUMFUNC = CFUNCTYPE(c_void_p,c_int)
-    self.datum0_def = DATUMFUNC(self.datum0_callback)
-    self.datum1_def = DATUMFUNC(self.datum1_callback)
-    DONEFUNC = CFUNCTYPE(c_void_p)
-    self.done0_def = DONEFUNC(self.done0_callback)
-    self.done1_def = DONEFUNC(self.done1_callback)
+def input(iport,datumfunc,donefunc,reqflag):
+  global datum0_caller,done0_caller
+  global datum1_caller,done1_caller
+  if iport == 0:
+    datum0_caller = datumfunc
+    done0_caller = donefunc
+    if datumfunc and donefunc:
+      lib.phish_input(iport,datum0_def,done0_def,reqflag)
+    elif datumfunc:
+      lib.phish_input(iport,datum0_def,None,reqflag)
+    elif donefunc:
+      lib.phish_input(iport,None,done0_def,reqflag)
+    else:
+      lib.phish_input(iport,None,None,reqflag)
+  if iport == 1:
+    datum1_caller = datumfunc
+    done1_caller = donefunc
+    if datumfunc and donefunc:
+      lib.phish_input(iport,datum1_def,done1_def,reqflag)
+    elif datumfunc:
+      lib.phish_input(iport,datum1_def,None,reqflag)
+    elif donefunc:
+      lib.phish_input(iport,None,done1_def,reqflag)
+    else:
+      lib.phish_input(iport,None,None,reqflag)
     
-    PROBEFUNC = CFUNCTYPE(c_void_p)
-    self.probe_def = PROBEFUNC(self.probe_callback)
-    
-  def init(self,args):
-    narg = len(args)
-    cargs = (c_char_p*narg)(*args)
-    n = self.lib.phish_init_python(narg,cargs)
-    return args[n:]
+def output(iport):
+  lib.phish_output(iport)
 
-  def world(self):
-    me = c_int()
-    nprocs = c_int()
-    world = self.lib.phish_world(byref(me),byref(nprocs))
-    return me.value,nprocs.value,world
+def check():
+  lib.phish_check()
 
-  def exit(self):
-    self.lib.phish_exit()
+def done(donefunc):
+  global alldone_caller
+  alldone_caller = donefunc
+  if donefunc: lib.phish_done(alldone_def)
+  else: lib.phish_done(None)
 
-  # clunky: named callback for each port
-    
-  def input(self,iport,datumfunc,donefunc,reqflag):
-    if iport == 0:
-      self.datum0_caller = datumfunc
-      self.done0_caller = donefunc
-      self.lib.phish_input(iport,self.datum0_def,self.done0_def,reqflag)
-    if iport == 1:
-      self.datum1_caller = datumfunc
-      self.done1_caller = donefunc
-      self.lib.phish_input(iport,self.datum1_def,self.done1_def,reqflag)
-    
-  def output(self,iport):
-    self.lib.phish_output(iport)
+def alldone_callback():
+  alldone_caller()
 
-  def check(self):
-    self.lib.phish_check()
+def close(iport):
+  lib.phish_close(iport)
 
-  def done(self,donefunc):
-    self.alldone_caller = donefunc
-    self.lib.phish_done(self.alldone_def)
-    
-  def alldone_callback(self):
-    self.alldone_caller()
+def loop():
+  lib.phish_loop()
 
-  def close(self,iport):
-    self.lib.phish_close(iport)
+def probe(probefunc):
+  global probe_caller
+  probe_caller = probefunc
+  lib.phish_probe(probe_def)
 
-  def loop(self):
-    self.lib.phish_loop()
+def probe_callback():
+  probe_caller()
 
-  def probe(self,probefunc):
-    self.probe_caller = probefunc
-    self.lib.phish_probe(self.probe_def)
+def datum0_callback(nvalues):
+  datum0_caller(nvalues)
 
-  def probe_callback(self):
-    self.probe_caller()
-    
-  def datum0_callback(self,nvalues):
-    self.datum0_caller(nvalues)
+def done0_callback():
+  done0_caller()
 
-  def done0_callback(self):
-    if self.done0_caller: self.done0_caller()
+def datum1_callback(nvalues):
+  datum1_caller(nvalues)
 
-  def datum1_callback(self,nvalues):
-    self.datum1_caller(nvalues)
+def done1_callback():
+  done1_caller()
 
-  def done1_callback(self):
-    if self.done1_caller: self.done1_caller()
+def send(oport):
+  lib.phish_send(oport)
 
-  def send(self,oport):
-    self.lib.phish_send(oport)
+def send_key(oport,key):
+  ckey = c_char_p(key)
+  lib.phish_send_key(oport,ckey,len(key))
 
-  def send_key(self,oport,key):
-    ckey = c_char_p(key)
-    self.lib.phish_send_key(oport,ckey,len(key))
+def pack_datum(ptr,len):
+  lib.phish_pack_datum(ptr,len)
 
-  # not all datatypes are supported yet for pack
-    
-  def pack_datum(self,ptr,len):
-    self.lib.phish_pack_datum(ptr,len)
-
-  def pack_byte(self,value):
-    cchar = c_char(value)
-    self.lib.phish_pack_byte(cchar)
-
-  def pack_int(self,value):
-    self.lib.phish_pack_int(value)
-
-  def pack_uint64(self,value):
-    self.lib.phish_pack_uint64(value)
-
-  def pack_double(self,value):
-    cdouble = c_double(value)
-    self.lib.phish_pack_double(cdouble)
-
-  def pack_string(self,str):
-    cstr = c_char_p(str)
-    self.lib.phish_pack_string(cstr)
-
-  def pack_int_array(self,ivec):
-    n = len(ivec)
-    ptr = (c_int * n)()    # don't understand this syntax
-    for i in xrange(n): ptr[i] = ivec[i]
-    self.lib.phish_pack_int_array(ptr,n)
-
-  # not all datatypes are supported yet for unpack
-    
-  def unpack(self):
-    buf = c_char_p()
-    len = c_int()
-    type = self.lib.phish_unpack(byref(buf),byref(len))
-    if type == PHISH_BYTE:
-      ptr = cast(buf,POINTER(c_char))
-      return type,ptr[0],len.value
-    if type == PHISH_INT:
-      ptr = cast(buf,POINTER(c_int))
-      return type,ptr[0],len.value
-    if type == PHISH_UINT64:
-      ptr = cast(buf,POINTER(c_ulonglong))
-      return type,ptr[0],len.value
-    if type == PHISH_DOUBLE:
-      ptr = cast(buf,POINTER(c_double))
-      return type,ptr[0],len.value
-    if type == PHISH_STRING:
-      return type,buf.value,len.value
-    if type == PHISH_INT_ARRAY:
-      ptr = cast(buf,POINTER(c_int))
-      ivec = len.value * [0]
-      for i in xrange(len.value): ivec[i] = ptr[i]
-      return type,ivec,len.value
-    self.lib.phish_error("Python phish_unpack did not recognize data type")
-
-  def datum(self):
-    buf = c_char_p()
-    len = c_int()
-    type = self.lib.phish_datum(byref(buf),byref(len))
-    return buf,len.value
+def pack_raw(str):
+  # need non-NULL-terminated byte string
+  lib.phish_error("Python wrapper cannot yet pack RAW datum field")
   
-  def error(self,str):
-    self.lib.phish_error(str)
+def pack_byte(value):
+  cchar = c_char(value)
+  lib.phish_pack_byte(cchar)
 
-  def warn(self,str):
-    self.lib.phish_warn(str)
+def pack_int(value):
+  lib.phish_pack_int(value)
 
-  def timer(self):
-    return self.lib.phish_timer()
+def pack_uint64(value):
+  lib.phish_pack_uint64(value)
+
+def pack_double(value):
+  cdouble = c_double(value)
+  lib.phish_pack_double(cdouble)
+
+def pack_string(str):
+  cstr = c_char_p(str)
+  lib.phish_pack_string(cstr)
+
+def pack_int_array(vec):
+  n = len(vec)
+  ptr = (c_int * n)()    # don't understand this syntax
+  for i in xrange(n): ptr[i] = vec[i]
+  lib.phish_pack_int_array(ptr,n)
+
+def pack_uint64_array(vec):
+  n = len(vec)
+  ptr = (c_ulonglong * n)()    # don't understand this syntax
+  for i in xrange(n): ptr[i] = vec[i]
+  lib.phish_pack_uint64_array(ptr,n)
+
+def pack_double_array(vec):
+  n = len(vec)
+  ptr = (c_double * n)()    # don't understand this syntax
+  for i in xrange(n): ptr[i] = vec[i]
+  lib.phish_pack_double_array(ptr,n)
+
+def unpack():
+  buf = c_char_p()
+  len = c_int()
+  type = lib.phish_unpack(byref(buf),byref(len))
+  if type == RAW:
+    # need non-NULL-terminated byte string
+    lib.phish_error("Python wrapper cannot yet unpack RAW datum field")
+  if type == BYTE:
+    ptr = cast(buf,POINTER(c_char))
+    return type,ptr[0],len.value
+  if type == INT:
+    ptr = cast(buf,POINTER(c_int))
+    return type,ptr[0],len.value
+  if type == UINT64:
+    ptr = cast(buf,POINTER(c_ulonglong))
+    return type,ptr[0],len.value
+  if type == DOUBLE:
+    ptr = cast(buf,POINTER(c_double))
+    return type,ptr[0],len.value
+  if type == STRING:
+    return type,buf.value,len.value
+  if type == INT_ARRAY:
+    ptr = cast(buf,POINTER(c_int))
+    vec = len.value * [0]
+    for i in xrange(len.value): vec[i] = ptr[i]
+    return type,vec,len.value
+  if type == UINT64_ARRAY:
+    ptr = cast(buf,POINTER(c_ulongulong))
+    vec = len.value * [0]
+    for i in xrange(len.value): vec[i] = ptr[i]
+    return type,vec,len.value
+  if type == DOUBLE_ARRAY:
+    ptr = cast(buf,POINTER(c_double))
+    vec = len.value * [0.0]
+    for i in xrange(len.value): vec[i] = ptr[i]
+    return type,vec,len.value
+
+def datum():
+  buf = c_char_p()
+  len = c_int()
+  type = lib.phish_datum(byref(buf),byref(len))
+  return buf,len.value
+  
+def error(str):
+  lib.phish_error(str)
+
+def warn(str):
+  lib.phish_warn(str)
+
+def timer():
+  return lib.phish_timer()
+
+# define other module variables
+
+# callback functions
+
+ALLDONEFUNC = CFUNCTYPE(c_void_p)
+alldone_def = ALLDONEFUNC(alldone_callback)
+    
+DATUMFUNC = CFUNCTYPE(c_void_p,c_int)
+datum0_def = DATUMFUNC(datum0_callback)
+datum1_def = DATUMFUNC(datum1_callback)
+DONEFUNC = CFUNCTYPE(c_void_p)
+done0_def = DONEFUNC(done0_callback)
+done1_def = DONEFUNC(done1_callback)
+  
+PROBEFUNC = CFUNCTYPE(c_void_p)
+probe_def = PROBEFUNC(probe_callback)

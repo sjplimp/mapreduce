@@ -1,7 +1,7 @@
 #!/usr/local/bin/python
 
 import sys,os,glob,copy
-from phish import Phish
+import phish
 
 def count(nvalues):
   if nvalues != 1: phish.error("Count processes one-value datums")
@@ -16,8 +16,6 @@ def sort():
     phish.pack_int(value)
     phish.pack_string(key)
     phish.send(0)
-
-phish = Phish()
 
 args = phish.init(sys.argv)
 phish.input(0,count,sort,1)

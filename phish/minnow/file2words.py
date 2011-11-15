@@ -1,7 +1,7 @@
 #!/usr/local/bin/python
 
 import sys,os,glob,copy
-from phish import Phish
+import phish
 
 def read_file(nvalues):
   if nvalues != 1: phish.error("File2words processes one-value datums")
@@ -14,8 +14,6 @@ def read_file(nvalues):
     for word in words:
       phish.pack_string(word)
       phish.send_key(0,word)
-
-phish = Phish()
 
 args = phish.init(sys.argv)
 phish.input(0,read_file,None,1)
