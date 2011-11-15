@@ -75,8 +75,8 @@ int main(int narg, char **args)
     phish_pack_uint64(i);
     phish_pack_uint64(j);
     phish_send(0);
-    
-    /*
+
+    /*    
     if (m % 100 == 0) {
       char str[128];
       sprintf(str,"RMAT send %lu",m);
