@@ -333,7 +333,7 @@ for minnow in minnows:
 # create output depending on mode
 
 if mode == "mpich": output_mpich()
-elif mode == "mpich": output_openmpi()
+elif mode == "openmpi": output_openmpi()
 elif mode == "socket": output_socket()
 
 # print stats
