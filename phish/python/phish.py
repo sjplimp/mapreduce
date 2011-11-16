@@ -31,11 +31,11 @@ def init(args):
   n = lib.phish_init_python(narg,cargs)
   return args[n:]
 
-def world():
+def school():
   me = c_int()
   nprocs = c_int()
-  world = lib.phish_world(byref(me),byref(nprocs))
-  return me.value,nprocs.value,world
+  lib.phish_school(byref(me),byref(nprocs))
+  return me.value,nprocs.value
 
 def exit():
   lib.phish_exit()

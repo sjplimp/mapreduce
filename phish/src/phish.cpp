@@ -323,13 +323,12 @@ int phish_init_python(int narg, char **args)
 
 /* ---------------------------------------------------------------------- */
 
-int phish_world(int *pme, int *pnprocs)
+void phish_school(int *pme, int *pnprocs)
 {
   if (!initflag) phish_error("Phish_init has not been called");
 
   *pme = me;
   *pnprocs = nprocs;
-  return world;
 }
 
 /* ---------------------------------------------------------------------- */

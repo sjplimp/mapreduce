@@ -6,7 +6,6 @@ finish Python wrappers:
     not all datatypes supported for pack/unpack, like byte, raw, array
   callbacks for multiple ports are clunky
     Tim says we can use closures to auto-write funcs on the fly
-  print.py minnow does not yet write to file like print.cpp
 
 use "ls *" in bait and minnow defs, but convert to ls * in bait.py
 debug wrapss (it and echo have debug statements)
@@ -39,14 +38,8 @@ should I error check for a send or pack or unpack being done
 
 can we in-line some func calls in phish lib?
 
-still to do in latest PHISH version:
-  wrapsource, wrapss, wrapsomefile, rare via domainstats,
-  Python wrappers are out of date,
-  document everything, basic one-proc CC,
-  add tagged message types to ports
-
 issue with Python wrapper not being able to MPI_Init()
-  with &narg,&args 
+  with &narg,&args - python init provided instead
 
 performance test on data2rare streaming MR:
   read 530 Mb per proc, 1 core per node, 1 disk per node (not all 4)
@@ -106,8 +99,6 @@ could make domain and user be same SP sending messages to
 should trap Ctrl-C from MPI when a job is running
   trigger a DONE msg on each app with no inputs (sources)
 
-rename SP to app?
-
 data2rare tasks:
   use QK instead of my SPs, as much as possible
   include date in kids, to break up rare by date
@@ -136,24 +127,12 @@ doc: hostfile syntax for MPICH vs OpenMPI
   nb08:4        in MPICH
   mpirun -machinefile hostfile
   
-what sockets should do that MPI already does:
-  throttle, no dropped messages
-  insure start-up is clean with no dropped messages
-  allow tagging of message with an int
-  allow message with any content
-  do all MPI actually do this?
-
-message types:
-  all encoded in tag
-  port #: DATA vs DONE vs other ports of DATA
-    have callback for different ports
-  RAW vs LINE vs STRUCTURE vs LABEL
-
 distinction between messaging vs message-passing
 
 how to start up processes on remote machine
 
-layout commands to tie processes to physical procs
+augment layout commands to tie processes to physical procs
+  use host keyword
 
 additional parsing functions for QK output:
   could put in another SP
