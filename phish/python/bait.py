@@ -125,14 +125,29 @@ class layout:
     self.nprocs = int(args[1])
     ids = [layout.id for layout in layouts]
     if self.id in ids: error("Layout ID %s already defined" % self.id)
-    # process additional layout args here
-
+    
+    self.prepend = None
+    self.host = None
+    iarg = 2
+    while iarg < narg:
+      if args[iarg] == "prepend":
+        if iarg+2 > narg: error("Invalid layout command")
+        self.prepend = args[iarg+1]
+        iarg += 2
+      elif args[iarg] == "host":
+        if iarg+2 > narg: error("Invalid layout command")
+        self.host = args[iarg+1]
+        iarg += 2
+      else: error("Invalid layout command")
+        
 # mode-dependent output
 
 def output_mpich():
   fp = open("configfile","w")
   for iminnow,minnow in enumerate(minnows):
-    procstr = "-n %d %s" % (minnow.nprocs,minnow.pathexe)
+    procstr = "-n %d" % (minnow.nprocs)
+    if minnow.prepend: exestr = " %s %s" % (minnow.prepend,minnow.pathexe)
+    else: exestr = " %s" % minnow.pathexe
     appstr = " -app %s %s %d %d" % \
         (minnow.exe,minnow.id,minnow.nprocs,minnow.procstart)
     instr = ""
@@ -151,7 +166,7 @@ def output_mpich():
            connects[send[1]].style,
            minnows[send[2]].nprocs,minnows[send[2]].procstart,
            int(connects[send[1]].recvport))
-    launchstr = procstr + appstr + instr + outstr
+    launchstr = procstr + exestr + appstr + instr + outstr
     if minnow.args: launchstr += " -args " + " ".join(minnow.args)
     # should just need following line, but MPICH has a configfile bug
     # print >>fp,launchstr
@@ -282,6 +297,7 @@ for minnow in minnows:
   else:
     index = layoutids.index(minnow.id)
     minnow.nprocs = layouts[index].nprocs
+    minnow.prepend = layouts[index].prepend
   minnow.procstart = nprocs
   nprocs += minnow.nprocs
 

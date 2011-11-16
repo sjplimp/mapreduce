@@ -39,7 +39,7 @@ bait.py -switch values ...
   style = "mpich" or "openmpi" or "socket"
   default = "mpich"
 
-switches have allowed abbreviations:
+some switches have allowed abbreviations:
 
 -np or -n
 -var or -v
@@ -112,6 +112,8 @@ ID = minnow ID
 nprocesses = # of processes to launch for each minnow
 if layout not specified for a minnow, nprocesses = 1 is default
 zero or more keyword/value pairs can be appended
-possible keywords = host
- host value = machine name, used for sockets
- need to define this syntax more clearly
+possible keywords = host or prepend
+  host value = machine name, used for sockets
+    need to define this syntax more clearly
+  prepend value = name of executable to launch minnow under in config file
+    examples = python or /usr/local/bin/python2.7 or valgrind
