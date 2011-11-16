@@ -632,6 +632,58 @@ void phish_probe(void (*probefunc)())
 }
 
 /* ----------------------------------------------------------------------
+   check for a message and recv it if there is one
+   no datum callback is invoked, even if one is defined
+   this allows app to request datums explicitly
+     as alternative to phish_loop() and the callback it invokes
+   return 0 if no message
+   return -1 for done message, after invoking done callbacks
+   return N for # fields in datum
+------------------------------------------------------------------------- */
+
+int phish_recv()
+{
+  if (!checkflag) phish_error("Phish_check has not been called");
+
+  int flag;
+  MPI_Status status;
+
+  MPI_Iprobe(MPI_ANY_SOURCE,MPI_ANY_TAG,world,&flag,&status);
+  if (!flag) return 0;
+
+  MPI_Recv(rbuf,MAXBUF,MPI_BYTE,MPI_ANY_SOURCE,MPI_ANY_TAG,world,&status);
+
+  int doneflag;
+  int iport = status.MPI_TAG;
+  if (iport >= MAXPORT) {
+    iport -= MAXPORT;
+    doneflag = 1;
+  } else doneflag = 0;
+    
+  InputPort *ip = &inports[iport];
+  if (ip->status != OPEN_PORT)
+    phish_error("Received datum on closed or unused port");
+    
+  if (doneflag) {
+    ip->donecount++;
+    if (ip->donecount == ip->donemax) {
+      ip->status = CLOSED_PORT;
+      if (ip->donefunc) (*ip->donefunc)();
+      donecount++;
+      if (donecount == ninports && alldonefunc) (*alldonefunc)();
+    }
+    return -1;
+  }
+
+  rcount++;
+  MPI_Get_count(&status,MPI_BYTE,&nrbytes);
+  nrfields = *(int *) rbuf;
+  rptr = rbuf + sizeof(int);
+  nunpack = 0;
+  return nrfields;
+}
+
+/* ----------------------------------------------------------------------
    send datum packed in sbuf via output port iport to a downstream proc
 ------------------------------------------------------------------------- */
 

@@ -32,6 +32,7 @@ void phish_close(int);
 
 void phish_loop();
 void phish_probe(void (*)());
+int phish_recv();
 
 void phish_send(int);
 void phish_send_key(int, char *, int);

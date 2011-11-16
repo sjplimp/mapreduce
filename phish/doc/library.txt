@@ -180,6 +180,15 @@ same as phish_loop(), except that incoming datums are
 if no message is available,
   then probe() function in invoked so app can do more work
 
+* int phish_recv()
+
+probe for incoming message, return whether one available or not
+allows app to request messages explicitly, rather than thru
+  phish_loop/probe and a callback
+return 0 if no message
+return 1 if done message (and invokes callbacks if necessary)
+return N for # of fields in received message
+
 * void phish_send(int oport)
 
 send a packed datum to output port oport

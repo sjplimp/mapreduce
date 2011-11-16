@@ -110,6 +110,9 @@ def datum1_callback(nvalues):
 def done1_callback():
   done1_caller()
 
+def recv():
+  return lib.phish_recv()
+  
 def send(oport):
   lib.phish_send(oport)
 
