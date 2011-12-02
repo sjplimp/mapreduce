@@ -1,0 +1,13 @@
+# CC algorithm
+
+minnow 1 readgraph inp.test
+minnow 2 cc
+minnow 3 print -f tmp
+
+connect 1 single 2
+connect 2 single 3
+
+layout 1 1
+layout 2 1
+layout 3 1
+
