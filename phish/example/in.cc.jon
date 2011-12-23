@@ -1,6 +1,6 @@
 # CC algorithm
 
-minnow 1 readgraph inp.test
+minnow 1 readgraph cc.inp.test
 minnow 2 cc
 minnow 3 print -f tmp
 
