@@ -77,7 +77,7 @@ exe is looked for in list of paths
 connect output port (oport) of sp ID1 to input port (iport) of sp ID2
 
 style = kind of connection
-style = single or paired or hashed or roundrobin or chain or ring
+style = single or paired or hashed or roundrobin or chain or ring 
  single = N senders with a single receiver, N = 1 is OK
  paired = N senders and N receivers, senders and receivers
    are paired so that each sender sends to one receiver, N = 1 is OK
@@ -85,6 +85,9 @@ style = single or paired or hashed or roundrobin or chain or ring
    to decide which of M receivers to send to, N and/or M = 1 is OK
  roundrobin = N senders and M receivers, each sender sends datums
    to each of M receivers in round-robin fashion, N and/or M = 1 is OK
+TIM:
+ direct = N senders and M receivers, each sender sends a datum
+   to a specific receiver of its choosing, N and/or M = 1 is OK
  chain = N procs, N > 1 is required, procs are connected
    as a linear chain, each sending to one downstream neighbor,
    1st proc is not a receiver, last proc is not a sender
@@ -96,6 +99,13 @@ for chain and ring, ID1 = ID2 is required
 
 iport and oport are optional (no colon if not specified)
 if not specified, port 0 is used
+
+TIM:
+ID1 or ID2 can be specified as EXT
+only supported by ZMQ, not by MPI
+means either the input will be read from an external socket
+  or the output will be written to an external socket
+does it make sense to also specify ports with EXT for input and output?
 
 each app defines how many input and output ports it recognizes
 if an app support M ports, they are numbered 0,1,...,M-1
