@@ -1,5 +1,11 @@
 This is the MapReduce-MPI (MR-MPI) library.
 
+Copyright (2009) Sandia Corporation.  Under the terms of Contract
+DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
+certain rights in this software.
+
+----------------------------------------------------------------------
+
 MapReduce is the operation popularized by Google for computing on
 large distributed data sets.  See the Wikipedia entry on MapReduce for
 an overview of what a MapReduce is.
@@ -30,7 +36,7 @@ directory for details.
 
 The most current version of the library including all bug fixes and
 new featues can be downloaded at
-www.cs.sandia.gov/~sjplimp/download.html.
+www.sandia.gov/~sjplimp/download.html.
 
 The authors of the library are Steve Plimpton and Karen Devine at
 Sandia National Laboratories who can be contacted at sjplimp, kddevin
