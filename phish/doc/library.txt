@@ -198,6 +198,15 @@ send a packed datum to output port oport
 send a packed datum to output port oport
   in a hashed manner using key of length nbytes
   to determine who receiver is
+only supported by "hashed" connections
+
+TIM
+* void phish_send_direct(int oport, int receiver)
+
+send a packed datum to output port oport
+  and to a specific recieving process
+  receiver = 0 to M-1, where M = # of receivers in the connection
+only supported by "direct" connections
 
 * void phish_pack_datum(char *buf, int n)
 * void phish_pack_raw(char *buf, int n)
