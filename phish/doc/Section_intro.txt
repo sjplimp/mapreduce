@@ -1,6 +1,0 @@
-PHISH has 2 parts: Python script (bait.py) and library (libphish.a)
-
-each stand-alone app calls library
-
-difference between normal datum and "done" datum
-
