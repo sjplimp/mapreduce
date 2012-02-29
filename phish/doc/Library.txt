@@ -209,7 +209,7 @@ send a packed datum to output port oport
 only supported by "direct" connections
 
 TIM
-* void phish_change_receiver(int receiver)
+* void phish_reset_receiver(int receiver)
 
 change the process I send messages to
   can be used to effectively permute the ordering of processes in a ring
@@ -256,7 +256,7 @@ NOTE: These only return a ptr to the field data, so if you
 want the data to persist when the next datum is received by
 the minnow (e.g. during a phish_loop() or phish_probe()) then
 you must make a copy.  It is OK to unpack several fields from
-the same datum before before copies of thefieldss.
+the same datum before making copies of the fields.
 
 * void phish_datum(char **buf, int *len)
 
@@ -271,6 +271,16 @@ the phish_pack_datum() function.
 This call does not conflict with the phish_unpack functions that
 unpack the datum, field by field.  Those can still be used to process
 the same datum.
+
+TIM - is this a useful query function to provide?
+* int phish_port()
+
+returns the port # (0 to N-1) the last received datum was received on
+typically called after phish_datum
+  (or maybe we should make it
+   int phish_datum(buf,len) and have it return the port ID?)
+   then the user could easily ignore it if desired?
+returns -1 if no received datum yet
 
 * void phish_error(char *str)
 
