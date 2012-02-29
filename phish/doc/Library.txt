@@ -1,0 +1,388 @@
+This is the API to the PHISH library that minnow applications call.
+Apps can be written in any language, e.g. C, C++, Fortran, Python.
+There is a C-style API and a Python API, which are essentially
+identical, but have a slightly different calling syntax.
+
+** Format of a datum sent between 2 processes:
+
+A datum is a chunk of bytes.  This describes what
+is in the chunk, which is the same whether the
+message is sent via MPI or sockets.
+
+# of fields in datum (int)
+type of 1st field (int)
+size of 1st field (optional int)
+data for 1st field (bytes)
+type of 2nd field (int)
+size of 2nd field (optional int)
+data for 2nd field (bytes)
+...
+type of Nth field (int)
+size of Nth field (optional int)
+data for Nth field (bytes)
+
+The "type" values are one of these values, defined in src/phish.h
+
+#define PHISH_RAW 0
+#define PHISH_BYTE 1
+#define PHISH_INT 2
+#define PHISH_UINT64 3
+#define PHISH_DOUBLE 4
+#define PHISH_STRING 5
+#define PHISH_INT_ARRAY 6
+#define PHISH_UINT64_ARRAY 7
+#define PHISH_DOUBLE_ARRAY 8
+
+PHISH_RAW is a list of raw bytes, which can be of any length, and
+which the user can format in any manner.  PHISH_BYTE is a single byte.
+PHISH_STRING is a NULL-terminated C-style string.  The NULL is
+included in the datum.  The ARRAYS are contiguous lists of int, uint64
+or double values.
+
+The "size" values are only included for PHISH_RAW (# of bytes),
+PHISH_STRING (# of bytes including NULL), and the ARRAY types (# of
+values).
+
+The field data is packed into the datum in a contiguous manner.
+
+NOTE: what about alignment with mix of int/double, or when
+single PHISH_BYTE are packed?
+
+The maximum allowed size of a datum (in bytes) is set by MAXBUF in
+src/phish.cpp, which defaults to 1 Mb.
+
+Additionally, MPI flags the messages with a "tag".  This tag encodes
+the receiver's port and also a "done" flag.  If it is not a done
+message, the tag is the receiver port (0 to Nport-1).  For a done
+message a value of DONETAG=100 (defined at the top of phish.cpp) is
+added to the tag.
+
+MPI also allows the receiver to query the byte size of the message,
+which is used for the "full" pack/unpack calls below.
+
+** C interface:
+
+* void phish_init(int *pnarg, char ***pargs)
+
+1st call that app makes, to initialize PHISH library
+must be called before any other phish function
+
+pnarg = ptr to narg
+pargs = ptr to args
+
+looks for args of the following form and strips them off
+note that -in and -out may appear multiple times in arg list
+modifies narg and args to only have args that follow -args
+
+-app exe ID N Nprev
+  exe = name of executable file for this app (e.g. count or count.py)
+  ID = ID string of this app in PHISH input script
+  N = how many instances of this app were launched
+  Nprev = how many processes exist preceding this app
+-in sprocs sfirst sport style rprocs rfirst rport
+  one connection between pair of ports for incoming datums I receive
+  sprocs = # of procs on sender side
+  sfirst = first proc on sender side
+  sport = port ID on sender
+  style = single or paired or hashed or roundrobin or chain or ring
+  rprocs = # of procs on receiver side, including me
+  rfirst = first proc on receiver side
+  rport = port ID I receive on
+-in sprocs sfirst sport style rprocs rfirst rport
+  one connection between pair of ports for outgoing datums I send
+  sprocs = # of procs on sender side, including me
+  sfirst = first proc on sender side
+  sport = port ID I send on
+  style = single or paired or hashed or roundrobin or chain or ring
+  rprocs = # of procs on receiver side
+  rfirst = first proc on receiver side
+  rport = port ID on receiver
+-args arg1 arg2 ... = args for the app itself
+
+each specified input port is set to CLOSED instead of UNUSED
+each specified output port is set to CLOSED instead of UNUSED
+
+* int phish_init_python(int *narg, char **args)
+
+wrapper on phish_init() to allow calling from Python
+
+* int phish_world(int *pme, int *pnprocs)
+
+return MPI_Comm
+return ID of this process in MPI sense (me = 0 to nprocs-1)
+return # of processes in MPI sense (nprocs)
+
+* void phish_exit()
+
+warns if any input ports still open
+closes all output ports if still unclosed
+free memory for PHISH library
+must be last call to any phish function
+
+* void phish_input(int iport, void (*datumfunc)(int),
+                   void (*donefunc)(), reqflag)
+
+call once for each input port the app uses
+cannot call after phish_check()
+
+iport = port ID (0 to MAXPORT-1)
+datumfunc = app function that will be called when a datum is recv by port,
+            datumfunc(is passed the number of fields in the received datum
+	    datumfunc can be NULL if don't wish to process datums
+donefunc = app function that will be called when port is closed
+             by receiving DONE messages from all senders
+           donefunc can be NULL
+reqflag = 1 if input port must be used by PHISH script, else 0
+
+error if input script uses input port not setup by phish_input()
+error if input script does not use a required port
+OK if input script does not use a non-required port
+
+* void phish_output(int iport)
+
+call once for each output port the app uses
+cannot call after phish_check()
+
+iport = port ID (0 to MAXPORT-1)
+all output ports are non-required
+OK if input script does not use a port
+
+* void phish_check()
+
+checks that input/output ports defined by app are consistent
+  with usage in PHISH input script
+call after phish_input() and phish_output() are called for all ports
+
+changes all CLOSED output ports requested by input script to OPEN
+  cannot be done in phish_output() since may not be called
+
+* void phish_done(void (*done)())
+
+set callback function done() to invoke when all input ports are closed
+
+* void phish_close(int iport)
+
+close an output port with portID iport
+sends DONE message to all downstream receivers
+no-op if port is already closed
+
+* void phish_loop()
+
+continuous loop, waiting for input datums
+if datum arrives on an input port, the port process() is called
+if port is closed, the port done() is called
+when all ports are closed, calls all_done callback, exits
+
+* void phish_probe(void (*probe)())
+
+same as phish_loop(), except that incoming datums are
+  probed for in non-blocking manner
+if no message is available,
+  then probe() function in invoked so app can do more work
+
+* int phish_recv()
+
+probe for incoming message, return whether one available or not
+allows app to request messages explicitly, rather than thru
+  phish_loop/probe and a callback
+return 0 if no message
+return 1 if done message (and invokes callbacks if necessary)
+return N for # of fields in received message
+
+* void phish_send(int oport)
+
+send a packed datum to output port oport
+
+* void phish_send_key(int oport, char *key, int nbytes)
+
+send a packed datum to output port oport
+  in a hashed manner using key of length nbytes
+  to determine who receiver is
+only supported by "hashed" connections
+
+TIM
+* void phish_send_direct(int oport, int receiver)
+
+send a packed datum to output port oport
+  and to a specific recieving process
+  receiver = 0 to M-1, where M = # of receivers in the connection
+only supported by "direct" connections
+
+TIM
+* void phish_change_receiver(int receiver)
+
+change the process I send messages to
+  can be used to effectively permute the ordering of processes in a ring
+  receiver = 0 to M-1, where M = # of receivers in the connection
+only supported by "ring" or "chain" connections
+
+* void phish_pack_datum(char *buf, int n)
+* void phish_pack_raw(char *buf, int n)
+* void phish_pack_byte(char cvalue)
+* void phish_pack_int(int ivalue)
+* void phish_pack_uint64(uint64_t uvalue)
+* void phish_pack_double(double dvalue)
+* void phish_pack_string(char *str)
+* void phish_pack_int_array(int *ivec, int n)
+* void phish_pack_uint64_array(uint64_t *uvec, int n)
+* void phish_pack_double_array(int *dvec, int n)
+
+pack an entire datum of N bytes,
+  including its field delimiters (see phish_datum() function)
+  must be the 1st and only pack call before sending ??  can we check this?
+pack raw buf of N bytes into send datum
+pack cvalue into send datum
+pack ivalue into send datum
+pack uvalue into send datum
+pack dvalue into send datum
+pack str with its trailing NULL into send datum
+pack N integers in ivec into send datum
+pack N uint64s in uvec into send datum<
+pack N doubles in dvec into send datum
+
+* int phish_unpack(char **buf, int *len)
+
+return next field in the received datum
+return value of field = PHISH_RAW, PHISH_INT, etc
+buf = ptr to start of field data
+len = # of values in field
+  for PHISH_RAW, len = # of bytes
+  for PHISH_STRING, len = # of bytes including NULL
+  for PHISH_BYTE, PHISH_INT, PHISH_UINT64, PHISH_DOUBLE, len = 1
+  for PHISH_INT_ARRAY, PHISH_UINT64_ARRAY, PHISH_DOUBLE_ARRAY, 
+    len = # of array values
+
+NOTE: These only return a ptr to the field data, so if you
+want the data to persist when the next datum is received by
+the minnow (e.g. during a phish_loop() or phish_probe()) then
+you must make a copy.  It is OK to unpack several fields from
+the same datum before before copies of thefieldss.
+
+* void phish_datum(char **buf, int *len)
+
+return info for entire received datum, including its field delimiters
+buf = ptr to start of datum
+len = byte length of entire datum, including field delimiters
+
+Using this call allows the minnow to do whatever it wishes with the
+datum, including send it along intact to another minnow.  See
+the phish_pack_datum() function.
+
+This call does not conflict with the phish_unpack functions that
+unpack the datum, field by field.  Those can still be used to process
+the same datum.
+
+* void phish_error(char *str)
+
+print error string
+does not close output ports
+for MPI, calls MPI_Abort()
+
+* void phish_error(char *str)
+
+print warning string
+
+* double phish_timer()
+
+wrapper on MPI_Wtime()
+returns current time
+can compute elapsed time between two phish_timer() calls
+
+** Python interface:
+
+def init(arguments=sys.argv):
+  """Initializes phish and returns a context object for communicating with the
+  rest of the school.  Takes the process argv (which may be modified) as its
+  sole argument."""
+
+class context:
+  """Abstract interface for a Phish context, which is used for communication by
+  individual minnows."""
+
+  def name(self):
+    """Returns the human-readable name for this minnow."""
+
+  def input_ports(self):
+    """Returns a list of connected input ports.  Note that this list is kept
+    up-to-date as input ports are closed."""
+
+  def output_ports(self):
+    """Returns a list of connected output ports.  Note that this list is
+    kept up-to-date as output ports are closed."""
+
+  def enable_input_port(self, port, message_callback, closed_callback=None, optional=False):
+    """Specifies an input port to be enabled, along with a callback to be
+    called when a message is received on the port, an optional callback to be
+    called when the port is closed (i.e. all connections to the port are
+    closed), and a flag specifying whether the port is optional (i.e. whether
+    it is an error condition if there are no connections to this port)."""
+
+  def enable_output_port(self, port):
+    """Specifies an output port to be enabled.  It is an error to attempt
+    sending a message on a port that hasn't been enabled, or to make a
+    connection to such a port."""
+
+  def set_last_port_closed_callback(self, callback):
+    """Specifies a callback to be called exactly once when every input port has
+    been closed.  Note: this callback will never be called for minnows that
+    have no input ports."""
+
+  def loop(self):
+    """Called to begin an event loop that will receive messages and invoke
+    registered callbacks.  Loops cannot be nested, so subsequent calls to
+    loop() before calling loop_complete() will be ignored."""
+
+  def loop_complete(self):
+    """Called to exit an event loop started with loop().  Note that multiple
+    calls to loop_complete() and calls to loop_complete() before calling loop()
+    will be ignored."""
+
+  def send(self, message, output_port=0):
+    """Sends a message to a single minnow connected to the given output
+    port, choosing recipients in round-robin order."""
+
+  def send_all(self, message, output_port=0):
+    """Sends a message to every minnow connected to the given output
+    port."""
+
+  def send_hashed(self, key, value, output_port=0):
+    """Sends a key-value pair to a single minnow connected to the given
+    output port, choosing recipients based on a hash of the key."""
+
+  def close_port(self, output_port):
+    """Notifies downstream minnows that the given output port has been closed."""
+
+  def close(self):
+    """Closes the context and releases any resources allocated by the library.
+    Note that this also implicitly closes any open output ports and completes
+    any running loop."""
+
+def school(backend="zmq"):
+  """Factory function for creating school objects.  The backend argument is
+  used to specify the backend to use for communications.  Currently, only "zmq"
+  is supported as a backend."""
+
+class school:
+  """Abstract interface for managing a collection of minnow processes."""
+
+  def create_minnows(self, name, arguments, count=1, hosts=None):
+    """Starts one-or-more minnow processes, using the given command-line
+    arguments, count of processes to create, and optional list of hosts where
+    processes should be run, returning a list containing handles to the new
+    minnows.  The hosts parameter must either be a single host, in which case
+    all the new minnow processes will be run on that host (useful to put I/O
+    minnows close to disk hardware, for example); or, the hosts parameter must
+    be a list of host names, one-per-minnow."""
+
+  def all_to_all(self, output_minnows, output_port, input_port, input_minnows):
+    """Creates all-to-all connections from the output ports on one set of
+    minnows to the input ports of another."""
+
+  def one_to_one(self, output_minnows, output_port, input_port, input_minnows):
+    """Connects an output port from one minnow to the input port of the
+    corresponding minnow, for two equal sets of minnows."""
+
+  def start(self):
+    """Notifies the school that all minnows have been created / connected, and
+    processing may begin."""
+

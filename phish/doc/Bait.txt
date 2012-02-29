@@ -1,0 +1,137 @@
+This describes the bait.py Python tool that pre-processes a PHISH
+input script into a form that can be executed by launching an MPI or
+socket-based job.
+
+** Script syntax:
+
+* parsing rules
+
+blank lines OK
+comment char = #, delete all trailing
+continuation char = &, with nothing following (including spaces)
+
+* variable substitution:
+
+what are rules for this?
+should probably be $a for single-char variable, ${abc} for multichar
+
+** Launch syntax:
+
+bait.py -switch values ...
+
+-np Np
+  Np = process count
+  default = 1
+-var ID str1 str2 ...
+  assign strings to a variable ID
+  default = no variables defined
+-hostfile filename
+  file with list of processors to run on
+  default = ""
+-configfile filename
+  filename = MPI config file to create
+  default = "configfile"
+-path path1:path2:path3:...
+  colon-seperated paths to prepend to app executable names
+  default = "."
+-mode style
+  manner in which PHISH job will be launched
+  style = "mpich" or "openmpi" or "socket"
+  default = "mpich"
+
+some switches have allowed abbreviations:
+
+-np or -n
+-var or -v
+-hostflie or -h
+-configfile or -c
+-path or -p
+-mode or -m
+
+** Allowed input script commands:
+
+* set keyword value
+
+nothing defined yet
+could duplicate command-line switches to allow them
+ to be set in input script
+could also allow verbosity or makefile
+ verbosity = 0 or 1 (default = 0) = currently not used
+ makefile = filename (default = Makefile) = currently not used
+   should be used to build EXE files
+
+* variable ID str1 str2 ...
+
+assign one or more strings to a variable ID
+
+* minnow ID exe args
+
+define a minnow with ID
+exe = name of stand-alone executable
+args = args passed to executable when launched
+
+exe is looked for in list of paths
+
+* connect ID1:oport style ID2:iport
+
+connect output port (oport) of sp ID1 to input port (iport) of sp ID2
+
+style = kind of connection
+style = single or paired or hashed or roundrobin or chain or ring or
+        publish or subscribe
+ single = N senders with a single receiver, N = 1 is OK
+ paired = N senders and N receivers, senders and receivers
+   are paired so that each sender sends to one receiver, N = 1 is OK
+ hashed = N senders and M receivers, each sender hashes datum on a key
+   to decide which of M receivers to send to, N and/or M = 1 is OK
+ roundrobin = N senders and M receivers, each sender sends datums
+   to each of M receivers in round-robin fashion, N and/or M = 1 is OK
+TIM:
+ direct = N senders and M receivers, each sender sends a datum
+   to a specific receiver it chooses when the message is sent
+   N and/or M = 1 is OK
+ chain = N procs, N > 1 is required, procs are connected
+   as a linear chain, each sending to one downstream neighbor,
+   1st proc is not a receiver, last proc is not a sender
+ ring = N procs, N > 1 is required, procs are connected
+   as a circular ring, each sending to one downstream neighbor,
+   every proc is both a sender and receiver
+TIM:
+ publish = send datums to a socket
+ one or more external programs can read datums from the socket
+ socket is specfied by replacing ID2:iport with tcpport
+ tcpport = a number, e.g. 25
+ this style is only supported by ZMQ, not by MPI
+TIM:
+ subscribe = receive datums from a socket
+ one or more external programs can write datums to the socket
+ socket is specfied by replacing ID1:oport with host:tcpport
+ host = hostname, e.g. www.foo.com
+ tcpport = a number, e.g. 25
+ this style is only supported by ZMQ, not by MPI
+
+for chain and ring, ID1 = ID2 is required
+
+iport and oport are optional (no colon if not specified)
+if not specified, port 0 is used
+
+each app defines how many input and output ports it recognizes
+if an app support M ports, they are numbered 0,1,...,M-1
+
+an app's input port can be connected to multiple outputs by
+ appearing in multiple connect commands
+
+an app's output port can be connected to multiple inputs by
+ appearing in multiple connect commands
+
+* layout ID nprocesses keyword value ...
+
+ID = minnow ID
+nprocesses = # of processes to launch for each minnow
+if layout not specified for a minnow, nprocesses = 1 is default
+zero or more keyword/value pairs can be appended
+possible keywords = host or prepend
+  host value = machine name, used for sockets
+    need to define this syntax more clearly
+  prepend value = name of executable to launch minnow under in config file
+    examples = python or /usr/local/bin/python2.7 or valgrind
