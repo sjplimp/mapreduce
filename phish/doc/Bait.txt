@@ -52,6 +52,8 @@ some switches have allowed abbreviations:
 
 * set keyword value
 
+could allow max buf size for a datum to be set
+  then append switch to all launched minnows
 nothing defined yet
 could duplicate command-line switches to allow them
  to be set in input script
@@ -77,8 +79,8 @@ exe is looked for in list of paths
 connect output port (oport) of sp ID1 to input port (iport) of sp ID2
 
 style = kind of connection
-style = single or paired or hashed or roundrobin or chain or ring or
-        publish or subscribe
+style = single or paired or hashed or roundrobin or direct or bcast or
+        chain or ring or publish or subscribe
  single = N senders with a single receiver, N = 1 is OK
  paired = N senders and N receivers, senders and receivers
    are paired so that each sender sends to one receiver, N = 1 is OK
@@ -90,6 +92,8 @@ TIM:
  direct = N senders and M receivers, each sender sends a datum
    to a specific receiver it chooses when the message is sent
    N and/or M = 1 is OK
+ bcast = N senders and M receivers, each sender sends a datum
+   to all M receivers, N and/or M = 1 is OK
  chain = N procs, N > 1 is required, procs are connected
    as a linear chain, each sending to one downstream neighbor,
    1st proc is not a receiver, last proc is not a sender
