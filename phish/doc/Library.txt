@@ -1,13 +1,22 @@
-This is the API to the PHISH library that minnow applications call.
-Apps can be written in any language, e.g. C, C++, Fortran, Python.
-There is a C-style API and a Python API, which are essentially
-identical, but have a slightly different calling syntax.
+This is the API to the PHISH library that minnows (stand-alone
+applications) call.  This is a C-style API, so it should be easy to
+write minnows in any language, e.g. C, C++, Fortran, Python.  
 
-** Format of a datum sent between 2 processes:
+Decide where to doc the Python interface.
 
-A datum is a chunk of bytes.  This describes what
-is in the chunk, which is the same whether the
-message is sent via MPI or sockets.
+Is the Sockets interface identical?
+
+What is a datum? :ul
+
+
+
+:line
+
+What is a datum? :h4
+
+A datum is a chunk of bytes sent from one PHISH minnow to another.
+This section describes the format of the chunk, which is the same whether
+the datum is sent via MPI or via sockets.
 
 # of fields in datum (int)
 type of 1st field (int)
@@ -19,9 +28,9 @@ data for 2nd field (bytes)
 ...
 type of Nth field (int)
 size of Nth field (optional int)
-data for Nth field (bytes)
+data for Nth field (bytes) :ul
 
-The "type" values are one of these values, defined in src/phish.h
+The "type" values are one of these settings, as defined in src/phish.h:
 
 #define PHISH_RAW 0
 #define PHISH_BYTE 1
@@ -31,7 +40,7 @@ The "type" values are one of these values, defined in src/phish.h
 #define PHISH_STRING 5
 #define PHISH_INT_ARRAY 6
 #define PHISH_UINT64_ARRAY 7
-#define PHISH_DOUBLE_ARRAY 8
+#define PHISH_DOUBLE_ARRAY 8 :ul
 
 PHISH_RAW is a list of raw bytes, which can be of any length, and
 which the user can format in any manner.  PHISH_BYTE is a single byte.
@@ -49,16 +58,20 @@ NOTE: what about alignment with mix of int/double, or when
 single PHISH_BYTE are packed?
 
 The maximum allowed size of a datum (in bytes) is set by MAXBUF in
-src/phish.cpp, which defaults to 1 Mb.
+src/phish.cpp, which defaults to 1 Mbyte.
 
 Additionally, MPI flags the messages with a "tag".  This tag encodes
 the receiver's port and also a "done" flag.  If it is not a done
-message, the tag is the receiver port (0 to Nport-1).  For a done
-message a value of DONETAG=100 (defined at the top of phish.cpp) is
-added to the tag.
+message, the tag is the receiver's port (0 to Nport-1).  For a done
+message a value of DONETAG=100 (defined at the top of src/phish.cpp)
+is added to the tag.
+
+How is this encoding of port and done implemented for sockets?
 
 MPI also allows the receiver to query the byte size of the message,
 which is used for the "full" pack/unpack calls below.
+
+:line
 
 ** C interface:
 
@@ -297,6 +310,9 @@ print warning string
 wrapper on MPI_Wtime()
 returns current time
 can compute elapsed time between two phish_timer() calls
+
+
+
 
 ** Python interface:
 
