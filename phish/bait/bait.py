@@ -113,8 +113,6 @@ class connect:
     else: self.recvport = "0"
 
     if self.style == "subscribe":
-      if self.sendport == "0":
-        error("Connect subscribe command requires non-zero port")
       self.sendport = self.sender + ":" + self.sendport
       self.sender = ""
     if self.style == "publish":
@@ -172,11 +170,11 @@ def output_mpich():
       if recv[0] >= 0:
         nprocs_send = minnows[recv[0]].nprocs
         procstart_send = minnows[recv[0]].procstart
-      else: nprocs_send = procstart_send = 0
+      else: nprocs_send = procstart_send = -1
       if recv[2] >= 0:
         nprocs_recv = minnows[recv[2]].nprocs
         procstart_recv = minnows[recv[2]].procstart
-      else: nprocs_recv = procstart_recv = 0
+      else: nprocs_recv = procstart_recv = -1
       instr += " -in %d %d %s %s %d %d %s" % \
           (nprocs_send,procstart_send,connects[recv[1]].sendport,
            connects[recv[1]].style,
@@ -187,11 +185,11 @@ def output_mpich():
       if send[0] >= 0:
         nprocs_send = minnows[send[0]].nprocs
         procstart_send = minnows[send[0]].procstart
-      else: nprocs_send = procstart_send = 0
+      else: nprocs_send = procstart_send = -1
       if send[2] >= 0:
         nprocs_recv = minnows[send[2]].nprocs
         procstart_recv = minnows[send[2]].procstart
-      else: nprocs_recv = procstart_recv = 0
+      else: nprocs_recv = procstart_recv = -1
       outstr += " -out %d %d %s %s %d %d %s" % \
           (nprocs_send,procstart_send,connects[send[1]].sendport,
            connects[send[1]].style,
@@ -221,11 +219,11 @@ def output_openmpi():
       if recv[0] >= 0:
         nprocs_send = minnows[recv[0]].nprocs
         procstart_send = minnows[recv[0]].procstart,
-      else: nprocs_send = procstart_send = 0
+      else: nprocs_send = procstart_send = -1
       if recv[2] >= 0:
         nprocs_recv = minnows[recv[2]].nprocs
         procstart_recv = minnows[recv[2]].procstart,
-      else: nprocs_recv = procstart_recv = 0
+      else: nprocs_recv = procstart_recv = -1
       instr += " -in %d %d %s %s %d %d %s" % \
           (nprocs_send,procstart_send,connects[recv[1]].sendport,
            connects[recv[1]].style,
@@ -236,11 +234,11 @@ def output_openmpi():
       if send[0] >= 0:
         nprocs_send = minnows[send[0]].nprocs
         procstart_send = minnows[send[0]].procstart,
-      else: nprocs_send = procstart_send = 0
+      else: nprocs_send = procstart_send = -1
       if send[2] >= 0:
         nprocs_recv = minnows[send[2]].nprocs
         procstart_recv = minnows[send[2]].procstart,
-      else: nprocs_recv = procstart_recv = 0
+      else: nprocs_recv = procstart_recv = -1
       outstr += " -out %d %d %s %s %d %d %s" % \
           (nprocs_send,procstart_send,connects[send[1]].sendport,
            connects[send[1]].style,
