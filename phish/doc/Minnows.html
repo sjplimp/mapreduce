@@ -1,0 +1,69 @@
+<HTML>
+<P>A minnow is an app, which is ...
+</P>
+<P>This section covers these topics:
+</P>
+<UL><LI>Structure of a minnow
+<LI>How a minnow shuts down
+<LI>Debugging a minnow
+<LI>Special issues to be aware of 
+</UL>
+<P>This is list of minnows provided with PHISH.  Some are provided in
+C++, some in Python, some in both.
+</P>
+<UL><LI><A HREF = "count.html">count</A>
+<LI><A HREF = "file2fields.html">file2fields</A>
+<LI><A HREF = "file2words.html">file2words</A>
+<LI><A HREF = "filegen.html">filegen</A>
+<LI><A HREF = "ping.html">ping</A>
+<LI><A HREF = "pong.html">pong</A>
+<LI><A HREF = "print.html">print</A>
+<LI><A HREF = "readgraph.html">readgraph</A>
+<LI><A HREF = "rmat.html">rmat</A>
+<LI><A HREF = "slowdown.html">slowdown</A>
+<LI><A HREF = "sort.html">sort</A>
+<LI><A HREF = "wrapsink.html">wrapsink</A>
+<LI><A HREF = "wrapsource.html">wrapsource</A>
+<LI><A HREF = "wrapss.html">wrapss</A> 
+</UL>
+<P>These are stand-alone apps that can be wrapped as a child
+process:
+</P>
+<UL><LI><A HREF = "echo.html">echo</A>
+<LI><A HREF = "reverse.html">reverse</A> 
+</UL>
+<HR>
+
+<HR>
+
+<H4>Structure of a minnow 
+</H4>
+<P>command line args
+setup calls to lib
+setting callbacks
+</P>
+<P>loop vs probe vs recv
+</P>
+<P>receving and unpacking a datum
+</P>
+<P>packing and sending a datum
+</P>
+<HR>
+
+<H4>How a minnow shuts down 
+</H4>
+<P>one-way schools, triggered by head
+done messages, per port level
+calls to exit, close, etc
+special care for ring or chain connections
+or when school has loops
+Ctrl-C option
+output at end
+</P>
+<HR>
+
+<H4>Special issues to be aware of 
+</H4>
+<P>shutdown in ZMQ is buggy
+</P>
+</HTML>

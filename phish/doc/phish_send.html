@@ -1,0 +1,18 @@
+<HTML>
+<P>* void phish_send(int oport)
+* void phish_send_key(int oport, char *key, int nbytes)
+* void phish_send_direct(int oport, int receiver)
+</P>
+<P>send a packed datum to output port oport
+</P>
+<P>send a packed datum to output port oport
+  in a hashed manner using key of length nbytes
+  to determine who receiver is
+only supported by "hashed" connections
+</P>
+<P>send a packed datum to output port oport
+  and to a specific recieving process
+  receiver = 0 to M-1, where M = # of receivers in the connection
+only supported by "direct" connections
+</P>
+</HTML>

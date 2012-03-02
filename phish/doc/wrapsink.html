@@ -1,0 +1,17 @@
+<HTML>
+<P>wrap a child process which consumes datums by reading from stdin
+</P>
+<P>syntax: wrapsink "program"
+"program" can be any string with flags, redirection, etc
+enclose in quotes to prevent shell from processing it
+</P>
+<P>write datums to child, one by one, as lines of input
+write done via popen pipe
+</P>
+<P>for each datum:
+  write datum to pipe with appended newline
+</P>
+<P>when done:
+  close the pipe
+</P>
+</HTML>

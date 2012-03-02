@@ -1,0 +1,11 @@
+<HTML>
+<P>* void phish_check()
+</P>
+<P>checks that input/output ports defined by app are consistent
+  with usage in PHISH input script
+call after phish_input() and phish_output() are called for all ports
+</P>
+<P>changes all CLOSED output ports requested by input script to OPEN
+  cannot be done in phish_output() since may not be called
+</P>
+</HTML>

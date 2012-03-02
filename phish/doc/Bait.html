@@ -1,0 +1,75 @@
+<HTML>
+<P>This describes the bait.py Python tool that pre-processes a PHISH
+input script into a form that can be executed by launching an MPI or
+socket-based job.
+</P>
+<P>Launch syntax:
+</P>
+<P>bait.py -switch values ... < in.script
+</P>
+<P>Command-line args for -switch and their values are discussed below.
+The in.script is a PHISH input script (text file) that contains
+a list of Bait.py input commands.
+</P>
+<UL><LI>Command-line arguments
+<LI>Input script syntax
+<LI>Input script commands
+<LI>  <A HREF = "variable.html">variable</A>
+<LI>  <A HREF = "set.html">set</A>
+<LI>  <A HREF = "minnow.html">minnow</A>
+<LI>  <A HREF = "connect.html">connect</A>
+<LI>  <A HREF = "layout.html">layout</A> 
+</UL>
+<HR>
+
+<HR>
+
+<H3>Command-line arguments 
+</H3>
+<P>-np Np
+  Np = process count
+  default = 1
+-var ID str1 str2 ...
+  assign strings to a variable ID
+  default = no variables defined
+-hostfile filename
+  file with list of processors to run on
+  default = ""
+-configfile filename
+  filename = MPI config file to create
+  default = "configfile"
+-path path1:path2:path3:...
+  colon-seperated paths to prepend to app executable names
+  default = "."
+-mode style
+  manner in which PHISH job will be launched
+  style = "mpich" or "openmpi" or "socket"
+  default = "mpich"
+</P>
+<P>each switch has an allowed abbreviation
+</P>
+<P>-np or -n
+-var or -v
+-hostflie or -h
+-configfile or -c
+-path or -p
+-mode or -m
+</P>
+<HR>
+
+<P>Input Script syntax
+</P>
+<P>parsing rules
+</P>
+<P>blank lines OK
+comment char = #, delete all trailing
+continuation char = &, with nothing following (including spaces)
+</P>
+<P>variables are as follows ...
+</P>
+<P>variable substitution:
+</P>
+<P>what are rules for this?
+should probably be $a for single-char variable, $<I>abc</I> for multichar
+</P>
+</HTML>

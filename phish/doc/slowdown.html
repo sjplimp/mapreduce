@@ -1,0 +1,14 @@
+<HTML>
+<P>read datum and emit it with slowdown delay
+</P>
+<P>syntax: slowdown delta
+delta = time to delay (in seconds)
+</P>
+<P>read each datum and insure delay seconds have passed
+before writing it downstream
+</P>
+<P>for each datum:
+  query time since last datum was processed and invoke usleep() if needed
+  send entire datum downstream
+</P>
+</HTML>

@@ -1,0 +1,165 @@
+<HTML>
+<P>This is the API to the PHISH library that minnows (stand-alone
+applications) call.  This is a C-style API, so it is easy to write
+minnows in any language, e.g. C, C++, Fortran, Python, that call
+the PHISH library.
+</P>
+<P>Decide where to doc the Python interface (in each doc page)?
+Is the Sockets interface identical?
+</P>
+<P>PHISH minnows send and receive datums by communicating with
+other minnows.  Before looking at the specific library
+calls for sending and receiving datums, its helpful to
+understand how the data in a datum is structured by the
+PHISH library.
+</P>
+<P>This is discussed below, in the sub-section <A HREF = "#what">What is a datum?</A>.
+</P>
+<P>The PHISH library is not large; there are only a handful of calls.
+They can be grouped into the following 5 categories.  Follow the links
+to see a doc page for each library call.  A general discussion of how
+minnows call these functions is given in the <A HREF = "Minnows.html">Minnows</A>
+section of the manual.
+</P>
+<OL><LI>Library calls for initialization 
+
+<UL>  <A HREF = "phish_init.html">phish_init()</A> 
+<BR>
+  <A HREF = "phish_init.html">phish_init_python()</A> 
+<BR>
+  <A HREF = "phish_callback.html">phish_input()</A> 
+<BR>
+  <A HREF = "phish_callback.html">phish_output()</A> 
+<BR>
+  <A HREF = "phish_callback.html">phish_done()</A> 
+<BR>
+  <A HREF = "phish_check.html">phish_check()</A> 
+<BR></UL>
+<LI>Library calls for shutdown 
+
+<UL>  <A HREF = "phish_exit.html">phish_exit()</A> 
+<BR>
+  <A HREF = "phish_close.html">phish_close()</A> 
+<BR></UL>
+<LI>Library calls for receiving datums 
+
+<UL>  <A HREF = "phish_loop.html">phish_loop()</A> 
+<BR>
+  <A HREF = "phish_probe.html">phish_probe()</A> 
+<BR>
+  <A HREF = "phish_recv.html">phish_recv()</A> 
+<BR>
+  <A HREF = "phish_unpack.html">phish_unpack()</A> 
+<BR>
+  <A HREF = "phish_datum.html">phish_datum()</A> 
+<BR></UL>
+<LI>Library calls for sending datums 
+
+<UL>  <A HREF = "phish_send.html">phish_send()</A> 
+<BR>
+  <A HREF = "phish_send.html">phish_send_key()</A> 
+<BR>
+  <A HREF = "phish_send.html">phish_send_direct()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_datum()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_raw()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_byte()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_int()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_uint64()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_double()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_string()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_int_array()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_uint64_array()</A> 
+<BR>
+  <A HREF = "phish_pack.html">phish_pack_double_array()</A> 
+<BR></UL>
+<LI>Miscellaneous library calls 
+
+<UL>  <A HREF = "phish_init.html">phish_world()</A> 
+<BR>
+  <A HREF = "phish_reset_receiver.html">phish_reset_receiver()</A> 
+<BR>
+  <A HREF = "phish_error.html">phish_error()</A> 
+<BR>
+  <A HREF = "phish_error.html">phish_warn()</A> 
+<BR>
+  <A HREF = "phish_timer.html">phish_timer()</A> 
+<BR></UL>
+
+</OL>
+<P>Discuss limits and options affecting library:
+</P>
+<P>make MAXBUF and PHISH_SAFE_SEND be settable options by user?
+</P>
+<HR>
+
+<HR>
+
+<H4>What is a datum? 
+</H4>
+<P>A datum is a chunk of bytes sent from one PHISH minnow to another.
+This section describes the format of the chunk, which is the same whether
+the datum is sent via MPI or via sockets.
+</P>
+<UL><LI># of fields in datum (int)
+<LI>type of 1st field (int)
+<LI>size of 1st field (optional int)
+<LI>data for 1st field (bytes)
+<LI>type of 2nd field (int)
+<LI>size of 2nd field (optional int)
+<LI>data for 2nd field (bytes)
+<LI>...
+<LI>type of Nth field (int)
+<LI>size of Nth field (optional int)
+<LI>data for Nth field (bytes) 
+</UL>
+<P>The "type" values are one of these settings, as defined in src/phish.h:
+</P>
+<UL><LI>#define PHISH_RAW 0
+<LI>#define PHISH_BYTE 1
+<LI>#define PHISH_INT 2
+<LI>#define PHISH_UINT64 3
+<LI>#define PHISH_DOUBLE 4
+<LI>#define PHISH_STRING 5
+<LI>#define PHISH_INT_ARRAY 6
+<LI>#define PHISH_UINT64_ARRAY 7
+<LI>#define PHISH_DOUBLE_ARRAY 8 
+</UL>
+<P>PHISH_RAW is a list of raw bytes, which can be of any length, and
+which the user can format in any manner.  PHISH_BYTE is a single byte.
+PHISH_STRING is a NULL-terminated C-style string.  The NULL is
+included in the datum.  The ARRAYS are contiguous lists of int, uint64
+or double values.
+</P>
+<P>The "size" values are only included for PHISH_RAW (# of bytes),
+PHISH_STRING (# of bytes including NULL), and the ARRAY types (# of
+values).
+</P>
+<P>The field data is packed into the datum in a contiguous manner.
+</P>
+<P>NOTE: what about alignment with mix of int/double, or when
+single PHISH_BYTE are packed?
+</P>
+<P>The maximum allowed size of a datum (in bytes) is set by MAXBUF in
+src/phish.cpp, which defaults to 1 Mbyte.
+</P>
+<P>Additionally, MPI flags the messages with a "tag".  This tag encodes
+the receiver's port and also a "done" flag.  If it is not a done
+message, the tag is the receiver's port (0 to Nport-1).  For a done
+message a value of MAXPORT (defined at the top of src/phish.cpp) is
+added to the tag.
+</P>
+<P>How is this encoding of port and done implemented for sockets?
+</P>
+<P>MPI also allows the receiver to query the byte size of the message,
+which is used for the "full" pack/unpack calls below.
+</P>
+</HTML>

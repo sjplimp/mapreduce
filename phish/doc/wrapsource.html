@@ -1,0 +1,24 @@
+<HTML>
+<P>wrap a child process which creates datums by writing to stdout
+</P>
+<P>syntax: wrapsource -f "program"
+-f is optional
+</P>
+<P>if -f is specified, receive filenames in stream and
+  invoke child process on each filename
+  generate "program" via sprintf() using filename as arg
+  so "program" presumably has %s in it
+if -f is not specified, invoke child process just once using "program"
+</P>
+<P>"program" can be any string with flags, redirection, etc
+enclose in quotes to prevent shell from processing it
+</P>
+<P>read lines of output from child one by one as datums via a pipe
+send them downstream
+</P>
+<P>for each datum:
+  launch the child process on the filename
+  read all its output until child exits
+  send each line of output downstream vis phish_send w/out newline
+</P>
+</HTML>

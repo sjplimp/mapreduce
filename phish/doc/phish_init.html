@@ -1,0 +1,50 @@
+<HTML>
+<P>* void phish_init(int *pnarg, char ***pargs)
+* int phish_init_python(int *narg, char **args)
+* int phish_world(int *pme, int *pnprocs)
+</P>
+<P>wrapper on phish_init() to allow calling from Python
+</P>
+<P>1st call that app makes, to initialize PHISH library
+must be called before any other phish function
+</P>
+<P>pnarg = ptr to narg
+pargs = ptr to args
+</P>
+<P>looks for args of the following form and strips them off
+note that -in and -out may appear multiple times in arg list
+modifies narg and args to only have args that follow -args
+</P>
+<P>-app exe ID N Nprev
+  exe = name of executable file for this app (e.g. count or count.py)
+  ID = ID string of this app in PHISH input script
+  N = how many instances of this app were launched
+  Nprev = how many processes exist preceding this app
+-in sprocs sfirst sport style rprocs rfirst rport
+  one connection between pair of ports for incoming datums I receive
+  sprocs = # of procs on sender side
+  sfirst = first proc on sender side
+  sport = port ID on sender
+  style = single or paired or hashed or roundrobin or chain or ring
+  rprocs = # of procs on receiver side, including me
+  rfirst = first proc on receiver side
+  rport = port ID I receive on
+-in sprocs sfirst sport style rprocs rfirst rport
+  one connection between pair of ports for outgoing datums I send
+  sprocs = # of procs on sender side, including me
+  sfirst = first proc on sender side
+  sport = port ID I send on
+  style = single or paired or hashed or roundrobin or chain or ring
+  rprocs = # of procs on receiver side
+  rfirst = first proc on receiver side
+  rport = port ID on receiver
+-args arg1 arg2 ... = args for the app itself
+</P>
+<P>each specified input port is set to CLOSED instead of UNUSED
+each specified output port is set to CLOSED instead of UNUSED
+</P>
+<P>return MPI_Comm
+return ID of this process in MPI sense (me = 0 to nprocs-1)
+return # of processes in MPI sense (nprocs)
+</P>
+</HTML>
