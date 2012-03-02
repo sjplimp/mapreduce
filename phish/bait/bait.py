@@ -103,23 +103,25 @@ class connect:
     narg = len(args)
     if narg < 3: error("Invalid connect command")
     self.sender = args[0]
-    if ':' in self.sender:
+    if ':' in self.sender and args[1] != "subscribe":
       self.sender,self.sendport = self.sender.split(':',1)
-    else: self.sendport = "0"
+      self.sendport = int(self.sendport)
+    else: self.sendport = 0
     self.style = args[1]
     self.receiver = args[2]
     if ':' in self.receiver:
       self.receiver,self.recvport = self.receiver.split(':',1)
-    else: self.recvport = "0"
+      self.recvport = int(self.recvport)
+    else: self.recvport = 0
 
-    if self.style == "subscribe":
-      self.sendport = self.sender + ":" + self.sendport
-      self.sender = ""
     if self.style == "publish":
-      self.recvport = self.receiver
+      self.socket = self.receiver
       self.receiver = ""
-      if self.recvport == "0":
-        error("Connect publish command requires non-zero port")
+      self.recvport = -1
+    if self.style == "subscribe":
+      self.socket = self.sender
+      self.sender = ""
+      self.sendport = -1
       
     ids = [minnow.id for minnow in minnows]
     if self.sender and self.sender not in ids:
@@ -175,9 +177,11 @@ def output_mpich():
         nprocs_recv = minnows[recv[2]].nprocs
         procstart_recv = minnows[recv[2]].procstart
       else: nprocs_recv = procstart_recv = -1
-      instr += " -in %d %d %s %s %d %d %s" % \
+      style = connects[recv[1]].style
+      if style == "subscribe": style += "/" + connects[recv[1]].socket
+      instr += " -in %d %d %d %s %d %d %d" % \
           (nprocs_send,procstart_send,connects[recv[1]].sendport,
-           connects[recv[1]].style,
+           style,
            nprocs_recv,procstart_recv,connects[recv[1]].recvport)
           
     outstr = ""
@@ -190,9 +194,11 @@ def output_mpich():
         nprocs_recv = minnows[send[2]].nprocs
         procstart_recv = minnows[send[2]].procstart
       else: nprocs_recv = procstart_recv = -1
-      outstr += " -out %d %d %s %s %d %d %s" % \
+      style = connects[send[1]].style
+      if style == "publish": style += "/" + connects[send[1]].socket
+      outstr += " -out %d %d %d %s %d %d %d" % \
           (nprocs_send,procstart_send,connects[send[1]].sendport,
-           connects[send[1]].style,
+           style,
            nprocs_recv,procstart_recv,connects[send[1]].recvport)
 
     launchstr = procstr + exestr + appstr + instr + outstr
@@ -224,9 +230,11 @@ def output_openmpi():
         nprocs_recv = minnows[recv[2]].nprocs
         procstart_recv = minnows[recv[2]].procstart,
       else: nprocs_recv = procstart_recv = -1
-      instr += " -in %d %d %s %s %d %d %s" % \
+      style = connects[recv[1]].style
+      if style == "subscribe": style += "/" + connects[recv[1]].socket
+      instr += " -in %d %d %d %s %d %d %d" % \
           (nprocs_send,procstart_send,connects[recv[1]].sendport,
-           connects[recv[1]].style,
+           style,
            nprocs_recv,procstart_recv,connects[recv[1]].recvport)
 
     outstr = ""
@@ -239,9 +247,11 @@ def output_openmpi():
         nprocs_recv = minnows[send[2]].nprocs
         procstart_recv = minnows[send[2]].procstart,
       else: nprocs_recv = procstart_recv = -1
-      outstr += " -out %d %d %s %s %d %d %s" % \
+      style = connects[send[1]].style
+      if style == "publish": style += "/" + connects[send[1]].socket
+      outstr += " -out %d %d %d %s %d %d %d" % \
           (nprocs_send,procstart_send,connects[send[1]].sendport,
-           connects[send[1]].style,
+           style,
            nprocs_recv,procstart_recv,connects[send[1]].recvport)
           
     launchstr = procstr + appstr + instr + outstr

@@ -63,8 +63,8 @@ src/phish.cpp, which defaults to 1 Mbyte.
 Additionally, MPI flags the messages with a "tag".  This tag encodes
 the receiver's port and also a "done" flag.  If it is not a done
 message, the tag is the receiver's port (0 to Nport-1).  For a done
-message a value of DONETAG=100 (defined at the top of src/phish.cpp)
-is added to the tag.
+message a value of MAXPORT (defined at the top of src/phish.cpp) is
+added to the tag.
 
 How is this encoding of port and done implemented for sockets?
 
@@ -74,6 +74,8 @@ which is used for the "full" pack/unpack calls below.
 :line
 
 ** C interface:
+
+NOTE: make MAXBUF and PHISH_SAFE_SEND be settable options by user?
 
 * void phish_init(int *pnarg, char ***pargs)
 
@@ -213,7 +215,6 @@ send a packed datum to output port oport
   to determine who receiver is
 only supported by "hashed" connections
 
-TIM
 * void phish_send_direct(int oport, int receiver)
 
 send a packed datum to output port oport
@@ -221,13 +222,12 @@ send a packed datum to output port oport
   receiver = 0 to M-1, where M = # of receivers in the connection
 only supported by "direct" connections
 
-TIM
-* void phish_reset_receiver(int receiver)
+* void phish_reset_receiver(int oport, int receiver)
 
-change the process I send messages to
+change the process I send messages to on output port oport
   can be used to effectively permute the ordering of processes in a ring
   receiver = 0 to M-1, where M = # of receivers in the connection
-only supported by "ring" or "chain" connections
+only supported by "ring" connection
 
 * void phish_pack_datum(char *buf, int n)
 * void phish_pack_raw(char *buf, int n)
@@ -271,11 +271,12 @@ the minnow (e.g. during a phish_loop() or phish_probe()) then
 you must make a copy.  It is OK to unpack several fields from
 the same datum before making copies of the fields.
 
-* void phish_datum(char **buf, int *len)
+* int phish_datum(char **buf, int *len)
 
 return info for entire received datum, including its field delimiters
 buf = ptr to start of datum
 len = byte length of entire datum, including field delimiters
+also return input port message was received on
 
 Using this call allows the minnow to do whatever it wishes with the
 datum, including send it along intact to another minnow.  See
@@ -284,16 +285,6 @@ the phish_pack_datum() function.
 This call does not conflict with the phish_unpack functions that
 unpack the datum, field by field.  Those can still be used to process
 the same datum.
-
-TIM - is this a useful query function to provide?
-* int phish_port()
-
-returns the port # (0 to N-1) the last received datum was received on
-typically called after phish_datum
-  (or maybe we should make it
-   int phish_datum(buf,len) and have it return the port ID?)
-   then the user could easily ignore it if desired?
-returns -1 if no received datum yet
 
 * void phish_error(char *str)
 
@@ -310,9 +301,6 @@ print warning string
 wrapper on MPI_Wtime()
 returns current time
 can compute elapsed time between two phish_timer() calls
-
-
-
 
 ** Python interface:
 
