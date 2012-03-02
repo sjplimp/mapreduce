@@ -36,6 +36,7 @@ int phish_recv();
 
 void phish_send(int);
 void phish_send_key(int, char *, int);
+void phish_send_direct(int, int);
 
 void phish_pack_datum(char *, int);
 void phish_pack_raw(char *, int);
@@ -49,7 +50,7 @@ void phish_pack_uint64_array(uint64_t *, int);
 void phish_pack_double_array(double *, int);
 
 int phish_unpack(char **, int *);
-void phish_datum(char **, int *);
+int phish_datum(char **, int *);
 
 void phish_error(const char *);
 void phish_warn(const char *);

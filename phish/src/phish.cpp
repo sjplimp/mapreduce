@@ -26,8 +26,13 @@
 
 //#define PHISH_SAFE_SEND 1      // uncomment for safer/slower MPI_Ssend()
 
-enum{SINGLE,PAIRED,HASHED,ROUNDROBIN,CHAIN,RING};     // connection styles
-enum{UNUSED_PORT,OPEN_PORT,CLOSED_PORT};              // port status
+// connection styles
+
+enum{SINGLE,PAIRED,HASHED,ROUNDROBIN,DIRECT,BCAST,CHAIN,RING,PUBLISH,SUBSCRIBE};
+
+// port status
+
+enum{UNUSED_PORT,OPEN_PORT,CLOSED_PORT};
 
 #define MAXBUF 1024*1024               // max datum length
 #define MAXPORT 16                     // max # of input or output ports
@@ -55,6 +60,7 @@ int appprev;              // # of processes launched prior to this app
 struct InConnect {        // inbound connection from output port of another app
   int style;              // SINGLE, HASHED, etc
   int nsend;              // # of procs that send to me on this connection
+  char *host;             // hostname for SUBSCRIBE input
 };
 
 struct InputPort {        // one input port
@@ -71,6 +77,7 @@ InputPort *inports;       // list of input ports
 int ninports;             // # of used input ports
 int donecount;            // # of closed input ports
 DoneFunc *alldonefunc;    // callback when all input ports closed
+int lastport;             // last input port a datum was received on
 
 // output ports
 // each can have multiple connections to input ports of other apps
@@ -122,6 +129,7 @@ void phish_init(int *pnarg, char ***pargs)
 {
   initflag = 1;
   checkflag = 0;
+  lastport = -1;
 
   MPI_Init(pnarg,pargs);
 
@@ -175,17 +183,32 @@ void phish_init(int *pnarg, char ***pargs)
     } else if (strcmp(args[iarg],"-in") == 0) {
       int style;
       int sprocs,sfirst,sport,rprocs,rfirst,rport;
+      char *shost = NULL;
 
       sprocs = atoi(args[iarg+1]);
       sfirst = atoi(args[iarg+2]);
-      sport = atoi(args[iarg+3]);
+
+      // sport = "hostname:port" string for style = SUBSCRIBE
+      // else just an integer
+
+      if (strcmp(args[iarg+4],"subscribe") == 0) {
+	int n = strlen(args[iarg+4]) + 1;
+	shost = new char[n];
+	strcpy(shost,args[iarg+4]);
+	sport = 0;
+      } else sport = atoi(args[iarg+3]);
+
       if (strcmp(args[iarg+4],"single") == 0) style = SINGLE;
       else if (strcmp(args[iarg+4],"paired") == 0) style = PAIRED;
       else if (strcmp(args[iarg+4],"hashed") == 0) style = HASHED;
       else if (strcmp(args[iarg+4],"roundrobin") == 0) style = ROUNDROBIN;
+      else if (strcmp(args[iarg+4],"direct") == 0) style = DIRECT;
+      else if (strcmp(args[iarg+4],"bcast") == 0) style = BCAST;
       else if (strcmp(args[iarg+4],"chain") == 0) style = CHAIN;
       else if (strcmp(args[iarg+4],"ring") == 0) style = RING;
+      else if (strcmp(args[iarg+4],"subscribe") == 0) style = SUBSCRIBE;
       else phish_error("Unrecognized in style");
+
       rprocs = atoi(args[iarg+5]);
       rfirst = atoi(args[iarg+6]);
       rport = atoi(args[iarg+7]);
@@ -199,19 +222,26 @@ void phish_init(int *pnarg, char ***pargs)
 	realloc(ip->connects,ip->nconnect*sizeof(InConnect));
       InConnect *ic = &ip->connects[ip->nconnect-1];
 
-      ic->nsend = sprocs;
       ic->style = style;
+      ic->nsend = sprocs;
+      ic->host = shost;
 
       switch (style) {
       case SINGLE:
       case HASHED:
       case ROUNDROBIN:
+      case DIRECT:
+      case BCAST:
 	ip->donemax += sprocs;
 	break;
       case PAIRED:
       case CHAIN:
       case RING:
 	ip->donemax++;
+	break;
+      case SUBSCRIBE:
+	// remove this error if support socket subscribing from MPI
+	phish_error("No support for subscribe input from MPI");
 	break;
       }
 
@@ -228,8 +258,11 @@ void phish_init(int *pnarg, char ***pargs)
       else if (strcmp(args[iarg+4],"paired") == 0) style = PAIRED;
       else if (strcmp(args[iarg+4],"hashed") == 0) style = HASHED;
       else if (strcmp(args[iarg+4],"roundrobin") == 0) style = ROUNDROBIN;
+      else if (strcmp(args[iarg+4],"direct") == 0) style = DIRECT;
+      else if (strcmp(args[iarg+4],"bcast") == 0) style = BCAST;
       else if (strcmp(args[iarg+4],"chain") == 0) style = CHAIN;
       else if (strcmp(args[iarg+4],"ring") == 0) style = RING;
+      else if (strcmp(args[iarg+4],"publish") == 0) style = PUBLISH;
       else phish_error("Unrecognized out style");
       rprocs = atoi(args[iarg+5]);
       rfirst = atoi(args[iarg+6]);
@@ -272,6 +305,18 @@ void phish_init(int *pnarg, char ***pargs)
 	oc->recvfirst = rfirst;
 	oc->offset = 0;
 	break;
+      case DIRECT:
+	oc->nrecv = rprocs;
+	oc->recvone = -1;
+	oc->recvfirst = rfirst;
+	oc->offset = 0;
+	break;
+      case BCAST:
+	oc->nrecv = rprocs;
+	oc->recvone = -1;
+	oc->recvfirst = rfirst;
+	oc->offset = 0;
+	break;
       case CHAIN:
 	oc->nrecv = 1;
 	oc->recvone = me + 1;
@@ -286,6 +331,14 @@ void phish_init(int *pnarg, char ***pargs)
 	oc->nrecv = 1;
 	oc->recvone = me + 1;
 	if (me-sfirst == sprocs-1) oc->recvone = rfirst;
+	oc->recvfirst = -1;
+	oc->offset = -1;
+	break;
+      case PUBLISH:
+	// remove this error if support socket publishing from MPI
+	phish_error("No support for publish output from MPI");
+	oc->nrecv = -1;
+	oc->recvone = -1;
 	oc->recvfirst = -1;
 	oc->offset = -1;
 	break;
@@ -360,7 +413,11 @@ void phish_exit()
   // free port memory
 
   for (int i = 0; i < MAXPORT; i++)
-    if (inports[i].status != UNUSED_PORT) free(inports[i].connects);
+    if (inports[i].status != UNUSED_PORT) {
+      for (int j = 0; j < inports[i].nconnect; j++)
+	delete [] inports[i].connects[j].host;
+      free(inports[i].connects);
+    }
   delete [] inports;
   for (int i = 0; i < MAXPORT; i++)
     if (outports[i].status != UNUSED_PORT) free(outports[i].connects);
@@ -505,6 +562,8 @@ void phish_close(int iport)
 
     case HASHED:
     case ROUNDROBIN:
+    case DIRECT:
+    case BCAST:
       for (int i = 0; i < oc->nrecv; i++)
 #ifdef PHISH_SAFE_SEND
         MPI_Ssend(NULL,0,MPI_BYTE,oc->recvfirst+i,tag,world);
@@ -553,6 +612,7 @@ void phish_loop()
     InputPort *ip = &inports[iport];
     if (ip->status != OPEN_PORT)
       phish_error("Received datum on closed or unused port");
+    lastport = iport;
 
     if (doneflag) {
       ip->donecount++;
@@ -606,6 +666,7 @@ void phish_probe(void (*probefunc)())
       InputPort *ip = &inports[iport];
       if (ip->status != OPEN_PORT)
 	phish_error("Received datum on closed or unused port");
+      lastport = iport;
 
       if (doneflag) {
 	ip->donecount++;
@@ -663,7 +724,8 @@ int phish_recv()
   InputPort *ip = &inports[iport];
   if (ip->status != OPEN_PORT)
     phish_error("Received datum on closed or unused port");
-    
+  lastport = iport;
+
   if (doneflag) {
     ip->donecount++;
     if (ip->donecount == ip->donemax) {
@@ -738,8 +800,8 @@ void phish_send_key(int iport, char *key, int keybytes)
 
   // loop over connections
   // send datum to connection receiver via send()
-  // handle HASHED style here via hashing key into processor offset
-  // pass non-HASHED styles to send()
+  // for HASHED style, use hashing key to compute processor offset & send datum
+  // non-HASHED styles just invoke send()
 
   for (int iconnect = 0; iconnect < op->nconnect; iconnect++) {
     OutConnect *oc = &op->connects[iconnect];
@@ -756,6 +818,59 @@ void phish_send_key(int iport, char *key, int keybytes)
 #endif
       }
       break;
+      
+    default:
+      send(oc);
+    }
+  }
+
+  // reset send buffer
+
+  sptr = sbuf + sizeof(int);
+  npack = 0;
+}
+
+/* ----------------------------------------------------------------------
+   send datum packed in sbuf via output port iport to a downstream proc
+   choose proc to send to based on receiver
+------------------------------------------------------------------------- */
+
+void phish_send_direct(int iport, int receiver)
+{
+  if (iport < 0 || iport >= MAXPORT) 
+    phish_error("Invalid port ID for phish_send");
+  OutPort *op = &outports[iport];
+  if (op->status == UNUSED_PORT) return;
+  if (op->status == CLOSED_PORT) 
+    phish_error("Using phish_send with closed port");
+
+  scount++;
+
+  // setup send buffer
+
+  *(int *) sbuf = npack;
+  nsbytes = sptr - sbuf;
+
+  // loop over connections
+  // send datum to connection receiver via send()
+  // for DIRECT style, set recvone to receiver before send()
+  // non-DIRECT styles just invoke send()
+
+  for (int iconnect = 0; iconnect < op->nconnect; iconnect++) {
+    OutConnect *oc = &op->connects[iconnect];
+
+    switch (oc->style) {
+    case DIRECT:
+      {
+	int tag = oc->recvport;
+	if (receiver < 0 || receiver > oc->nrecv-1)
+	  phish_error("Invalid receiver for phish_send_direct()");
+#ifdef PHISH_SAFE_SEND
+	MPI_Ssend(sbuf,nsbytes,MPI_BYTE,oc->recvfirst+receiver,tag,world);
+#else
+	MPI_Send(sbuf,nsbytes,MPI_BYTE,oc->recvfirst+receiver,tag,world);
+#endif
+      }
       
     default:
       send(oc);
@@ -810,8 +925,22 @@ void send(OutConnect *oc)
     }
     break;
 
+  case BCAST:
+    for (int i = 0; i < oc->nrecv; i++)
+#ifdef PHISH_SAFE_SEND
+      MPI_Ssend(sbuf,nsbytes,MPI_BYTE,oc->recvfirst+i,tag,world);
+#else
+      MPI_Send(sbuf,nsbytes,MPI_BYTE,oc->recvfirst+i,tag,world);
+#endif
+    break;
+
+  // error if called for HASHED or DIRECT
+
   case HASHED:
-    phish_error("Cannot use phish_send() when hashing is required");
+    phish_error("Cannot use phish_send() for HASHED output");
+    break;
+  case DIRECT:
+    phish_error("Cannot use phish_send() for DIRECT output");
     break;
   }
 }
@@ -1020,15 +1149,17 @@ int phish_unpack(char **buf, int *len)
 }
 
 /* ----------------------------------------------------------------------
-   return the entire received datum
+   return info about entire received datum
    buf = ptr to datum
    len = total size of received datum
+   return input port the datum was received on
 ------------------------------------------------------------------------- */
 
-void phish_datum(char **buf, int *len)
+int phish_datum(char **buf, int *len)
 {
   *buf = rbuf;
   *len = nrbytes;
+  return lastport;
 }
 
 /* ---------------------------------------------------------------------- */
