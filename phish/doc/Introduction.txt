@@ -1,6 +1,36 @@
 PHISH has 2 parts: Python script (bait.py) and library (libphish.a)
 
-each stand-alone app calls library
+what is streaming data
+  continuous
+  high bandwidth
+  cannot afford to see it more than once
+
+But can also process corpus of files.
+
+Break stream up into datums = chunk of bytes.
+
+Minnows read (swim in) stream, process datums,
+can store state, consume or write (altered) datums.
+
+Can wrap existing apps in PHISH (fish-wrapper).
+Minnows are provided
+
+School of minnows and their connectivity specified
+in simple input script, processed with bait.py to
+turn into launchable parallel job, either via MPI and
+mpirun, or via sockets and a shell script.
+
+easy path to distributed memory parallel for processing
+streaming data
+
+minnow = stand-alone program (app) that (typically)
+does one task, designed to work in tandem with other
+minnows, either copies of itself, or totally different
+
+portable open-source lib, lightweight, easy to call
+from any language, including Python
+
+each stand-alone minnow calls library
 
 difference between normal datum and "done" datum
 
