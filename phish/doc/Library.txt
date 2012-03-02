@@ -41,18 +41,18 @@ Library calls for receiving datums :l
 
 Library calls for sending datums :l
   "phish_send()"_phish_send.html :ulb,b
-  "phish_send_key()"_phish_send_key.html :b
-  "phish_send_direct()"_phish_send_direct.html :b
-  "phish_pack_datum()"_phish_pack_datum.html :b
-  "phish_pack_raw()"_phish_pack_raw.html :b
-  "phish_pack_byte()"_phish_pack_byte.html :b
-  "phish_pack_int()"_phish_pack_int.html :b
-  "phish_pack_uint64()"_phish_pack_uint64.html :b
-  "phish_pack_double()"_phish_pack_double.html :b
-  "phish_pack_string()"_phish_pack_string.html :b
-  "phish_pack_int_array()"_phish_pack_int_array.html :b
-  "phish_pack_uint64_array()"_phish_pack_uint64_array.html :b
-  "phish_pack_double_array()"_phish_pack_double_array.html :ule,b
+  "phish_send_key()"_phish_send.html :b
+  "phish_send_direct()"_phish_send.html :b
+  "phish_pack_datum()"_phish_pack.html :b
+  "phish_pack_raw()"_phish_pack.html :b
+  "phish_pack_byte()"_phish_pack.html :b
+  "phish_pack_int()"_phish_pack.html :b
+  "phish_pack_uint64()"_phish_pack.html :b
+  "phish_pack_double()"_phish_pack.html :b
+  "phish_pack_string()"_phish_pack.html :b
+  "phish_pack_int_array()"_phish_pack.html :b
+  "phish_pack_uint64_array()"_phish_pack.html :b
+  "phish_pack_double_array()"_phish_pack.html :ule,b
 
 Miscellaneous library calls :l
   "phish_world()"_phish_init.html :ulb,b
