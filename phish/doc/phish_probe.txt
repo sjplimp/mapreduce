@@ -1,7 +1,0 @@
-* void phish_probe(void (*probe)())
-
-same as phish_loop(), except that incoming datums are
-  probed for in non-blocking manner
-if no message is available,
-  then probe() function in invoked so app can do more work
-

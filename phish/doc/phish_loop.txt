@@ -1,7 +1,0 @@
-* void phish_loop()
-
-continuous loop, waiting for input datums
-if datum arrives on an input port, the port process() is called
-if port is closed, the port done() is called
-when all ports are closed, calls all_done callback, exits
-
