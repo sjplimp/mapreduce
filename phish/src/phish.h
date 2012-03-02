@@ -37,6 +37,7 @@ int phish_recv();
 void phish_send(int);
 void phish_send_key(int, char *, int);
 void phish_send_direct(int, int);
+void phish_reset_receiver(int, int);
 
 void phish_pack_datum(char *, int);
 void phish_pack_raw(char *, int);
