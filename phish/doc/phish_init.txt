@@ -1,5 +1,6 @@
 * void phish_init(int *pnarg, char ***pargs)
 * int phish_init_python(int *narg, char **args)
+* int phish_world(int *pme, int *pnprocs)
 
 wrapper on phish_init() to allow calling from Python
 
@@ -42,3 +43,6 @@ each specified input port is set to CLOSED instead of UNUSED
 each specified output port is set to CLOSED instead of UNUSED
 
 
+return MPI_Comm
+return ID of this process in MPI sense (me = 0 to nprocs-1)
+return # of processes in MPI sense (nprocs)
