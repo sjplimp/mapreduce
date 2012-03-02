@@ -13,11 +13,11 @@ a list of Bait.py input commands.
 Command-line arguments
 Input script syntax
 Input script commands
-  "variable"_variable.html
-  "set"_set.html
-  "minnow"_minnow.html
-  "connect"_connect.html
-  "layout"_layout.html :ul
+  "variable"_bait_variable.html
+  "set"_bait_set.html
+  "minnow"_bait_minnow.html
+  "connect"_bait_connect.html
+  "layout"_bait_layout.html :ul
 
 :line
 :line
