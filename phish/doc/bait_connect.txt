@@ -1,0 +1,56 @@
+* connect ID1:oport style ID2:iport
+
+connect output port (oport) of sp ID1 to input port (iport) of sp ID2
+
+style = kind of connection
+style = single or paired or hashed or roundrobin or direct or bcast or
+        chain or ring or publish or subscribe
+ single = N senders with a single receiver, N = 1 is OK
+ paired = N senders and N receivers, senders and receivers
+   are paired so that each sender sends to one receiver, N = 1 is OK
+ hashed = N senders and M receivers, each sender hashes datum on a key
+   to decide which of M receivers to send to, N and/or M = 1 is OK
+ roundrobin = N senders and M receivers, each sender sends datums
+   to each of M receivers in round-robin fashion, N and/or M = 1 is OK
+TIM:
+ direct = N senders and M receivers, each sender sends a datum
+   to a specific receiver it chooses when the message is sent
+   N and/or M = 1 is OK
+ bcast = N senders and M receivers, each sender sends a datum
+   to all M receivers, N and/or M = 1 is OK
+ chain = N procs, N > 1 is required, procs are connected
+   as a linear chain, each sending to one downstream neighbor,
+   1st proc is not a receiver, last proc is not a sender
+ ring = N procs, N > 1 is required, procs are connected
+   as a circular ring, each sending to one downstream neighbor,
+   every proc is both a sender and receiver
+TIM:
+ publish = send datums to a socket
+ one or more external programs can read datums from the socket
+ socket is specfied by replacing ID2:port with tcpport
+ tcpport = a number, e.g. 25
+ this style is only supported by ZMQ, not by MPI
+ NOTE: anyway around this restriction?  let MPI lib write to a ZMQ socket?
+TIM:
+ subscribe = receive datums from a socket
+ one or more external programs can write datums to the socket
+ socket is specfied by replacing ID1:port with host:tcpport
+ host = hostname, e.g. www.foo.com
+ tcpport = a number, e.g. 25
+ this style is only supported by ZMQ, not by MPI
+ NOTE: anyway around this restriction?  let MPI lib read from a ZMQ socket?
+
+for chain and ring, ID1 = ID2 is required
+
+iport and oport are optional (no colon if not specified)
+if not specified, port 0 is used
+
+each app defines how many input and output ports it recognizes
+if an app support M ports, they are numbered 0,1,...,M-1
+
+an app's input port can be connected to multiple outputs by
+ appearing in multiple connect commands
+
+an app's output port can be connected to multiple inputs by
+ appearing in multiple connect commands
+

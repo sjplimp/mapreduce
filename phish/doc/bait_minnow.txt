@@ -1,0 +1,8 @@
+* minnow ID exe args
+
+define a minnow with ID
+exe = name of stand-alone executable
+args = args passed to executable when launched
+
+exe is looked for in list of paths
+

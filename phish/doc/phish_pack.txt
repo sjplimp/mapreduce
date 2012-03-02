@@ -1,0 +1,23 @@
+* void phish_pack_datum(char *buf, int n)
+* void phish_pack_raw(char *buf, int n)
+* void phish_pack_byte(char cvalue)
+* void phish_pack_int(int ivalue)
+* void phish_pack_uint64(uint64_t uvalue)
+* void phish_pack_double(double dvalue)
+* void phish_pack_string(char *str)
+* void phish_pack_int_array(int *ivec, int n)
+* void phish_pack_uint64_array(uint64_t *uvec, int n)
+* void phish_pack_double_array(int *dvec, int n)
+
+pack an entire datum of N bytes,
+  including its field delimiters (see phish_datum() function)
+  must be the 1st and only pack call before sending ??  can we check this?
+pack raw buf of N bytes into send datum
+pack cvalue into send datum
+pack ivalue into send datum
+pack uvalue into send datum
+pack dvalue into send datum
+pack str with its trailing NULL into send datum
+pack N integers in ivec into send datum
+pack N uint64s in uvec into send datum<
+pack N doubles in dvec into send datum

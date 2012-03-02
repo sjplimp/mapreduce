@@ -1,0 +1,4 @@
+* void phish_done(void (*done)())
+
+set callback function done() to invoke when all input ports are closed
+

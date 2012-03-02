@@ -1,186 +1,70 @@
-This is list of minnows (apps) provided with PHISH
 
-** count
 
-count instances of keyed datums
 
-syntax: no args
+A minnow is an app, which is ...
 
-creates an internal hash, so it can count instances of keys
-hash key = string, hash value = count
-keeps track of largest key it receives
+This section covers these topics:
 
-for each datum:
-  treat buf of nbytes as a string and hash it
-  increment hash value for that string
+Structure of a minnow
+How a minnow shuts down
+Debugging a minnow
+Special issues to be aware of :ul
 
-when done:
-  iterate over hash table
-  send all hash entries downstream as count/string
+This is list of minnows provided with PHISH.  Some are provided in
+C++, some in Python, some in both.
 
-** file2words
+"count"_count.html
+"file2fields"_file2fields.html
+"file2words"_file2words.html
+"filegen"_filegen.html
+"ping"_ping.html
+"pong"_pong.html
+"print"_print.html
+"readgraph"_readgraph.html
+"rmat"_rmat.html
+"slowdown"_slowdown.html
+"sort"_sort.html
+"wrapsink"_wrapsink.html
+"wrapsource"_wrapsource.html
+"wrapss"_wrapss.html :ul
 
-read file and emit words
+These are stand-alone apps that can be wrapped as a child
+process:
 
-syntax: no args
+"echo"_echo.html
+"reverse"_reverse.html :ul
 
-for each datum:
-  treat message as filename
-  open it, parse into words separated by whitespace
-  send each word downstream, using word as key
+:line
+:line
 
-** filegen
+Structure of a minnow :h4
 
-emit filenames
+command line args
+setup calls to lib
+setting callbacks
 
-syntax: filengen file1 file2 ...
+loop vs probe vs recv
 
-filenames can also be directories
-directories are opened recursively and their files added to list
-send each file name one by one downsteram
+receving and unpacking a datum
 
-** ping
+packing and sending a datum
 
-reflect messages to a receiver
+:line
 
-syntax: ping N M
-N = # of times to ping/pong with partner proc
-M = # of bytes in a message
+How a minnow shuts down :h4
 
-fill M-byte buffer with NULLs
-send it and go into loop
+one-way schools, triggered by head
+done messages, per port level
+calls to exit, close, etc
+special care for ring or chain connections
+or when school has loops
+Ctrl-C option
+output at end
 
-for each datum:
-  when recv from partner
-  increment count and send back to partner
-  when count hits M, send done message
+:line
 
-** pong
+Special issues to be aware of :h4
 
-reflect messages to a sender
+shutdown in ZMQ is buggy
 
-syntax: no args
 
-datum method:
-  when recv from partner, send message back to partner
-
-** print
-
-print datums to screen or file
-
-syntax: print -f filename
--f is optional, if not specified, prints to stdout
-
-for each datum:
-  print string
-
-when done:
-  close file
-
-** slowdown
-
-read datum and emit it with slowdown delay
-
-syntax: slowdown delta
-delta = time to delay (in seconds)
-
-read each datum and insure delay seconds have passed
-before writing it downstream
-
-for each datum:
-  query time since last datum was processed and invoke usleep() if needed
-  send entire datum downstream
-
-** sort
-
-sort datums, emit highest count ones
-
-syntax: sort N
-N = keep top N of sorted list
-
-for each datum:
-  assume message is int/string
-  store in/string as STL pair in a vector list
-
-when done:
-  sort the list based on integer count
-  send the top N list items downstream as count/string
-
-** wrapsink
-
-wrap a child process which consumes datums by reading from stdin
-
-syntax: wrapsink "program"
-"program" can be any string with flags, redirection, etc
-enclose in quotes to prevent shell from processing it
-
-write datums to child, one by one, as lines of input
-write done via popen pipe
-
-for each datum:
-  write datum to pipe with appended newline
-
-when done:
-  close the pipe
-
-** wrapsource
-
-wrap a child process which creates datums by writing to stdout
-
-syntax: wrapsource -f "program"
--f is optional
-
-if -f is specified, receive filenames in stream and
-  invoke child process on each filename
-  generate "program" via sprintf() using filename as arg
-  so "program" presumably has %s in it
-if -f is not specified, invoke child process just once using "program"
-
-"program" can be any string with flags, redirection, etc
-enclose in quotes to prevent shell from processing it
-
-read lines of output from child one by one as datums via a pipe
-send them downstream
-
-for each datum:
-  launch the child process on the filename
-  read all its output until child exits
-  send each line of output downstream vis phish_send w/out newline
-  
-** wrapss
-
-wrap a child process which both consumes and creates datums via stdin/stdout
-so child is a sink and a source
-
-syntax: wrapss "program"
-"program" can be any string with flags, redirection, etc
-enclose in quotes to prevent shell from processing it
-
-open 2 pipes to child via pipe()
-fork() into parent and child processes
-parent calls phish_probe() to query incoming messages and child output
-child hooks its stdin/stdout to 2 pipes via dup2()
-child invokes the "program" via execv()
-
-datum method:
-  write datum to pipe with appended newline
-
-probe method:
-  poll pipe for output from child
-  if output is there, read it and break into lines
-  phish_send() each line downstream as string w/out newline
-
-close method:
-  close write pipe to child so it will know parent is done
-  wait for all output from child read pipe
-  send DONE message to notify receivers
-
-* Standalone Apps that can be wrapped as child proceses
-
-** echo
-
-echo lines from stdin to stdout
-
-** reverse
-
-reverse characters in lines from stdin and write to stdout

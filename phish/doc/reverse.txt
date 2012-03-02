@@ -1,0 +1,1 @@
+reverse characters in lines from stdin and write to stdout

@@ -1,0 +1,7 @@
+emit filenames
+
+syntax: filengen file1 file2 ...
+
+filenames can also be directories
+directories are opened recursively and their files added to list
+send each file name one by one downsteram

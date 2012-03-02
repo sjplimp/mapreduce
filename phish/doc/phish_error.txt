@@ -1,0 +1,9 @@
+* void phish_error(char *str)
+* void phish_warn(char *str)
+
+print error string
+does not close output ports
+for MPI, calls MPI_Abort()
+
+
+print warning string

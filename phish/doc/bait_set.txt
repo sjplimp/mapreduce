@@ -1,0 +1,11 @@
+* set keyword value
+
+could allow max buf size for a datum to be set
+  then append switch to all launched minnows
+nothing defined yet
+could duplicate command-line switches to allow them
+ to be set in input script
+could also allow verbosity or makefile
+ verbosity = 0 or 1 (default = 0) = currently not used
+ makefile = filename (default = Makefile) = currently not used
+   should be used to build EXE files

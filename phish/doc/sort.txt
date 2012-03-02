@@ -1,0 +1,12 @@
+sort datums, emit highest count ones
+
+syntax: sort N
+N = keep top N of sorted list
+
+for each datum:
+  assume message is int/string
+  store in/string as STL pair in a vector list
+
+when done:
+  sort the list based on integer count
+  send the top N list items downstream as count/string

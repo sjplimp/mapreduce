@@ -1,0 +1,6 @@
+
+* double phish_timer()
+
+wrapper on MPI_Wtime()
+returns current time
+can compute elapsed time between two phish_timer() calls

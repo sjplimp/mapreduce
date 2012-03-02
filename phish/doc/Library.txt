@@ -1,15 +1,72 @@
 This is the API to the PHISH library that minnows (stand-alone
-applications) call.  This is a C-style API, so it should be easy to
-write minnows in any language, e.g. C, C++, Fortran, Python.  
+applications) call.  This is a C-style API, so it is easy to write
+minnows in any language, e.g. C, C++, Fortran, Python, that call
+the PHISH library.
 
-Decide where to doc the Python interface.
-
+Decide where to doc the Python interface (in each doc page)?
 Is the Sockets interface identical?
 
-What is a datum? :ul
+PHISH minnows send and receive datums by communicating with
+other minnows.  Before looking at the specific library
+calls for sending and receiving datums, its helpful to
+understand how the data in a datum is structured by the
+PHISH library.
 
+This is discussed below, in the sub-section "What is a datum?"_#what.
 
+The PHISH library is not large; there are only a handful of calls.
+They can be grouped into the following 5 categories.  Follow the links
+to see a doc page for each library call.  A general discussion of how
+minnows call these functions is given in the "Minnows"_Minnows.html
+section of the manual.
 
+Library calls for initialization :olb,l
+  void phish_init(int *pnarg, char ***pargs) :ulb,b
+  int phish_init_python(int *narg, char **args) :b
+  void phish_input(int iport, void (*datumfunc)(int), void (*donefunc)(), reqflag) :b
+  void phish_output(int iport) :b
+  void phish_done(void (*done)()) :b
+  void phish_check() :ule,b
+
+Library calls for shutdown :l
+  void phish_exit() :ulb,b
+  void phish_close(int iport) :ule,b
+
+Library calls for receiving datums :l
+  void phish_loop() :ulb,b
+  void phish_probe(void (*probe)()) :b
+  int phish_recv() :b
+  int phish_unpack(char **buf, int *len) :b
+  int phish_datum(char **buf, int *len) :ule,b
+
+Library calls for sending datums :l
+  void phish_send(int oport) :ulb,b
+  void phish_send_key(int oport, char *key, int nbytes) :b
+  void phish_send_direct(int oport, int receiver) :b
+  void phish_pack_datum(char *buf, int n) :b
+  void phish_pack_raw(char *buf, int n) :b
+  void phish_pack_byte(char cvalue) :b
+  void phish_pack_int(int ivalue) :b
+  void phish_pack_uint64(uint64_t uvalue) :b
+  void phish_pack_double(double dvalue) :b
+  void phish_pack_string(char *str) :b
+  void phish_pack_int_array(int *ivec, int n) :b
+  void phish_pack_uint64_array(uint64_t *uvec, int n) :b
+  void phish_pack_double_array(int *dvec, int n) :ule,b
+
+Miscellaneous library calls :l
+  int phish_world(int *pme, int *pnprocs) :ulb,b
+  void phish_reset_receiver(int oport, int receiver) :b
+  void phish_error(char *str) :b
+  void phish_warn(char *str) :b
+  double phish_timer() :ule,b
+:ole
+
+Discuss limits and options affecting library:
+
+make MAXBUF and PHISH_SAFE_SEND be settable options by user?
+
+:line
 :line
 
 What is a datum? :h4
@@ -71,236 +128,9 @@ How is this encoding of port and done implemented for sockets?
 MPI also allows the receiver to query the byte size of the message,
 which is used for the "full" pack/unpack calls below.
 
-:line
-
 ** C interface:
 
-NOTE: make MAXBUF and PHISH_SAFE_SEND be settable options by user?
 
-* void phish_init(int *pnarg, char ***pargs)
-
-1st call that app makes, to initialize PHISH library
-must be called before any other phish function
-
-pnarg = ptr to narg
-pargs = ptr to args
-
-looks for args of the following form and strips them off
-note that -in and -out may appear multiple times in arg list
-modifies narg and args to only have args that follow -args
-
--app exe ID N Nprev
-  exe = name of executable file for this app (e.g. count or count.py)
-  ID = ID string of this app in PHISH input script
-  N = how many instances of this app were launched
-  Nprev = how many processes exist preceding this app
--in sprocs sfirst sport style rprocs rfirst rport
-  one connection between pair of ports for incoming datums I receive
-  sprocs = # of procs on sender side
-  sfirst = first proc on sender side
-  sport = port ID on sender
-  style = single or paired or hashed or roundrobin or chain or ring
-  rprocs = # of procs on receiver side, including me
-  rfirst = first proc on receiver side
-  rport = port ID I receive on
--in sprocs sfirst sport style rprocs rfirst rport
-  one connection between pair of ports for outgoing datums I send
-  sprocs = # of procs on sender side, including me
-  sfirst = first proc on sender side
-  sport = port ID I send on
-  style = single or paired or hashed or roundrobin or chain or ring
-  rprocs = # of procs on receiver side
-  rfirst = first proc on receiver side
-  rport = port ID on receiver
--args arg1 arg2 ... = args for the app itself
-
-each specified input port is set to CLOSED instead of UNUSED
-each specified output port is set to CLOSED instead of UNUSED
-
-* int phish_init_python(int *narg, char **args)
-
-wrapper on phish_init() to allow calling from Python
-
-* int phish_world(int *pme, int *pnprocs)
-
-return MPI_Comm
-return ID of this process in MPI sense (me = 0 to nprocs-1)
-return # of processes in MPI sense (nprocs)
-
-* void phish_exit()
-
-warns if any input ports still open
-closes all output ports if still unclosed
-free memory for PHISH library
-must be last call to any phish function
-
-* void phish_input(int iport, void (*datumfunc)(int),
-                   void (*donefunc)(), reqflag)
-
-call once for each input port the app uses
-cannot call after phish_check()
-
-iport = port ID (0 to MAXPORT-1)
-datumfunc = app function that will be called when a datum is recv by port,
-            datumfunc(is passed the number of fields in the received datum
-	    datumfunc can be NULL if don't wish to process datums
-donefunc = app function that will be called when port is closed
-             by receiving DONE messages from all senders
-           donefunc can be NULL
-reqflag = 1 if input port must be used by PHISH script, else 0
-
-error if input script uses input port not setup by phish_input()
-error if input script does not use a required port
-OK if input script does not use a non-required port
-
-* void phish_output(int iport)
-
-call once for each output port the app uses
-cannot call after phish_check()
-
-iport = port ID (0 to MAXPORT-1)
-all output ports are non-required
-OK if input script does not use a port
-
-* void phish_check()
-
-checks that input/output ports defined by app are consistent
-  with usage in PHISH input script
-call after phish_input() and phish_output() are called for all ports
-
-changes all CLOSED output ports requested by input script to OPEN
-  cannot be done in phish_output() since may not be called
-
-* void phish_done(void (*done)())
-
-set callback function done() to invoke when all input ports are closed
-
-* void phish_close(int iport)
-
-close an output port with portID iport
-sends DONE message to all downstream receivers
-no-op if port is already closed
-
-* void phish_loop()
-
-continuous loop, waiting for input datums
-if datum arrives on an input port, the port process() is called
-if port is closed, the port done() is called
-when all ports are closed, calls all_done callback, exits
-
-* void phish_probe(void (*probe)())
-
-same as phish_loop(), except that incoming datums are
-  probed for in non-blocking manner
-if no message is available,
-  then probe() function in invoked so app can do more work
-
-* int phish_recv()
-
-probe for incoming message, return whether one available or not
-allows app to request messages explicitly, rather than thru
-  phish_loop/probe and a callback
-return 0 if no message
-return 1 if done message (and invokes callbacks if necessary)
-return N for # of fields in received message
-
-* void phish_send(int oport)
-
-send a packed datum to output port oport
-
-* void phish_send_key(int oport, char *key, int nbytes)
-
-send a packed datum to output port oport
-  in a hashed manner using key of length nbytes
-  to determine who receiver is
-only supported by "hashed" connections
-
-* void phish_send_direct(int oport, int receiver)
-
-send a packed datum to output port oport
-  and to a specific recieving process
-  receiver = 0 to M-1, where M = # of receivers in the connection
-only supported by "direct" connections
-
-* void phish_reset_receiver(int oport, int receiver)
-
-change the process I send messages to on output port oport
-  can be used to effectively permute the ordering of processes in a ring
-  receiver = 0 to M-1, where M = # of receivers in the connection
-only supported by "ring" connection
-
-* void phish_pack_datum(char *buf, int n)
-* void phish_pack_raw(char *buf, int n)
-* void phish_pack_byte(char cvalue)
-* void phish_pack_int(int ivalue)
-* void phish_pack_uint64(uint64_t uvalue)
-* void phish_pack_double(double dvalue)
-* void phish_pack_string(char *str)
-* void phish_pack_int_array(int *ivec, int n)
-* void phish_pack_uint64_array(uint64_t *uvec, int n)
-* void phish_pack_double_array(int *dvec, int n)
-
-pack an entire datum of N bytes,
-  including its field delimiters (see phish_datum() function)
-  must be the 1st and only pack call before sending ??  can we check this?
-pack raw buf of N bytes into send datum
-pack cvalue into send datum
-pack ivalue into send datum
-pack uvalue into send datum
-pack dvalue into send datum
-pack str with its trailing NULL into send datum
-pack N integers in ivec into send datum
-pack N uint64s in uvec into send datum<
-pack N doubles in dvec into send datum
-
-* int phish_unpack(char **buf, int *len)
-
-return next field in the received datum
-return value of field = PHISH_RAW, PHISH_INT, etc
-buf = ptr to start of field data
-len = # of values in field
-  for PHISH_RAW, len = # of bytes
-  for PHISH_STRING, len = # of bytes including NULL
-  for PHISH_BYTE, PHISH_INT, PHISH_UINT64, PHISH_DOUBLE, len = 1
-  for PHISH_INT_ARRAY, PHISH_UINT64_ARRAY, PHISH_DOUBLE_ARRAY, 
-    len = # of array values
-
-NOTE: These only return a ptr to the field data, so if you
-want the data to persist when the next datum is received by
-the minnow (e.g. during a phish_loop() or phish_probe()) then
-you must make a copy.  It is OK to unpack several fields from
-the same datum before making copies of the fields.
-
-* int phish_datum(char **buf, int *len)
-
-return info for entire received datum, including its field delimiters
-buf = ptr to start of datum
-len = byte length of entire datum, including field delimiters
-also return input port message was received on
-
-Using this call allows the minnow to do whatever it wishes with the
-datum, including send it along intact to another minnow.  See
-the phish_pack_datum() function.
-
-This call does not conflict with the phish_unpack functions that
-unpack the datum, field by field.  Those can still be used to process
-the same datum.
-
-* void phish_error(char *str)
-
-print error string
-does not close output ports
-for MPI, calls MPI_Abort()
-
-* void phish_error(char *str)
-
-print warning string
-
-* double phish_timer()
-
-wrapper on MPI_Wtime()
-returns current time
-can compute elapsed time between two phish_timer() calls
 
 ** Python interface:
 

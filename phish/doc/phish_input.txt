@@ -1,0 +1,19 @@
+* void phish_input(int iport, void (*datumfunc)(int),
+                   void (*donefunc)(), reqflag)
+
+call once for each input port the app uses
+cannot call after phish_check()
+
+iport = port ID (0 to MAXPORT-1)
+datumfunc = app function that will be called when a datum is recv by port,
+            datumfunc(is passed the number of fields in the received datum
+	    datumfunc can be NULL if don't wish to process datums
+donefunc = app function that will be called when port is closed
+             by receiving DONE messages from all senders
+           donefunc can be NULL
+reqflag = 1 if input port must be used by PHISH script, else 0
+
+error if input script uses input port not setup by phish_input()
+error if input script does not use a required port
+OK if input script does not use a non-required port
+

@@ -1,0 +1,17 @@
+* int phish_unpack(char **buf, int *len)
+
+return next field in the received datum
+return value of field = PHISH_RAW, PHISH_INT, etc
+buf = ptr to start of field data
+len = # of values in field
+  for PHISH_RAW, len = # of bytes
+  for PHISH_STRING, len = # of bytes including NULL
+  for PHISH_BYTE, PHISH_INT, PHISH_UINT64, PHISH_DOUBLE, len = 1
+  for PHISH_INT_ARRAY, PHISH_UINT64_ARRAY, PHISH_DOUBLE_ARRAY, 
+    len = # of array values
+
+NOTE: These only return a ptr to the field data, so if you
+want the data to persist when the next datum is received by
+the minnow (e.g. during a phish_loop() or phish_probe()) then
+you must make a copy.  It is OK to unpack several fields from
+the same datum before making copies of the fields.
