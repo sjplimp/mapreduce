@@ -21,45 +21,45 @@ minnows call these functions is given in the "Minnows"_Minnows.html
 section of the manual.
 
 Library calls for initialization :olb,l
-  void phish_init(int *pnarg, char ***pargs) :ulb,b
-  int phish_init_python(int *narg, char **args) :b
-  void phish_input(int iport, void (*datumfunc)(int), void (*donefunc)(), reqflag) :b
-  void phish_output(int iport) :b
-  void phish_done(void (*done)()) :b
-  void phish_check() :ule,b
+  "phish_init()"_phish_init.html :ulb,b
+  "phish_init_python()"_phish_init.html :b
+  "phish_input()"_phish_callback.html :b
+  "phish_output()"_phish_callback.html :b
+  "phish_done()"_phish_callback.html :b
+  "phish_check()"_phish_check.html :ule,b
 
 Library calls for shutdown :l
-  void phish_exit() :ulb,b
-  void phish_close(int iport) :ule,b
+  "phish_exit()"_phish_exit.html :ulb,b
+  "phish_close()"_phish_close.html :ule,b
 
 Library calls for receiving datums :l
-  void phish_loop() :ulb,b
-  void phish_probe(void (*probe)()) :b
-  int phish_recv() :b
-  int phish_unpack(char **buf, int *len) :b
-  int phish_datum(char **buf, int *len) :ule,b
+  "phish_loop()"_phish_loop.html :ulb,b
+  "phish_probe()"_phish_probe.html :b
+  "phish_recv()"_phish_recv.html :b
+  "phish_unpack()"_phish_unpack.html :b
+  "phish_datum()"_phish_datum.html :ule,b
 
 Library calls for sending datums :l
-  void phish_send(int oport) :ulb,b
-  void phish_send_key(int oport, char *key, int nbytes) :b
-  void phish_send_direct(int oport, int receiver) :b
-  void phish_pack_datum(char *buf, int n) :b
-  void phish_pack_raw(char *buf, int n) :b
-  void phish_pack_byte(char cvalue) :b
-  void phish_pack_int(int ivalue) :b
-  void phish_pack_uint64(uint64_t uvalue) :b
-  void phish_pack_double(double dvalue) :b
-  void phish_pack_string(char *str) :b
-  void phish_pack_int_array(int *ivec, int n) :b
-  void phish_pack_uint64_array(uint64_t *uvec, int n) :b
-  void phish_pack_double_array(int *dvec, int n) :ule,b
+  "phish_send()"_phish_send.html :ulb,b
+  "phish_send_key()"_phish_send_key.html :b
+  "phish_send_direct()"_phish_send_direct.html :b
+  "phish_pack_datum()"_phish_pack_datum.html :b
+  "phish_pack_raw()"_phish_pack_raw.html :b
+  "phish_pack_byte()"_phish_pack_byte.html :b
+  "phish_pack_int()"_phish_pack_int.html :b
+  "phish_pack_uint64()"_phish_pack_uint64.html :b
+  "phish_pack_double()"_phish_pack_double.html :b
+  "phish_pack_string()"_phish_pack_string.html :b
+  "phish_pack_int_array()"_phish_pack_int_array.html :b
+  "phish_pack_uint64_array()"_phish_pack_uint64_array.html :b
+  "phish_pack_double_array()"_phish_pack_double_array.html :ule,b
 
 Miscellaneous library calls :l
-  int phish_world(int *pme, int *pnprocs) :ulb,b
-  void phish_reset_receiver(int oport, int receiver) :b
-  void phish_error(char *str) :b
-  void phish_warn(char *str) :b
-  double phish_timer() :ule,b
+  "phish_world()"_phish_init.html :ulb,b
+  "phish_reset_receiver()"_phish_reset_receiver.html :b
+  "phish_error()"_phish_error.html :b
+  "phish_warn()"_phish_error.html :b
+  "phish_timer()"_phish_timer.html :ule,b
 :ole
 
 Discuss limits and options affecting library:

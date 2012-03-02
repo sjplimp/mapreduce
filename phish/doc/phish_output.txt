@@ -1,9 +1,0 @@
-* void phish_output(int iport)
-
-call once for each output port the app uses
-cannot call after phish_check()
-
-iport = port ID (0 to MAXPORT-1)
-all output ports are non-required
-OK if input script does not use a port
-
