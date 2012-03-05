@@ -3,14 +3,12 @@
 # Syntax: bait.py -switch arg(s) ... < in.script
 #         -np P = # of procs
 #         -var vname value1 value2 ... = set variable vname to set of strings 
-#         -hostfile filename = list of processors to run on
-#         -configfile filename = MPI configfile to create
+#         -output filename = launch file to create
 #         -path path1:path2:path3:... = paths to prepend to apps
 #         -mode style = mpich or openmpi or socket
 # allowed abbrevs: -np = -n
 #                  -var = -v
-#                  -hostfile = -h
-#                  -configfile = -c
+#                  -output = -o
 #                  -path = -p
 #                  -mode = -m
 
@@ -158,7 +156,7 @@ class layout:
 # sendport and recvport are strings which can encode more info than an int
 
 def output_mpich():
-  fp = open("configfile","w")
+  fp = open(outfile,"w")
   
   for iminnow,minnow in enumerate(minnows):
     procstr = "-n %d" % (minnow.nprocs)
@@ -211,9 +209,8 @@ def output_mpich():
   fp.close()
 
 def output_openmpi():
-  fp = open("configfile","w")
-  if hostfile: print >>fp,"mpirun -hostfile hfile",
-  else: print >>fp,"mpirun",
+  fp = open("outfile","w")
+  print >>fp,"mpirun",
 
   for iminnow,minnow in enumerate(minnows):
     procstr = "-n %d %s" % (minnow.nprocs,minnow.pathexe)
@@ -274,8 +271,7 @@ args = sys.argv
 
 nprocs = 1
 variables = {}
-hostfile = ""
-configfile = "configfile"
+outfile = "outfile"
 pathlist = ""
 mode = "mpich"
 
@@ -291,13 +287,9 @@ while iarg < narg:
     while stop < narg and args[stop][0] != '-': stop += 1
     variables[args[iarg+1]] = args[start:stop]
     iarg += 2+stop-start
-  elif args[iarg] == "-hostfile" or args[iarg] == "-h":
+  elif args[iarg] == "-output" or args[iarg] == "-o":
     if iarg+2 > narg: error("Invalid command line args")
-    hostfile = args[iarg+1]
-    iarg += 2
-  elif args[iarg] == "-configfile" or args[iarg] == "-c":
-    if iarg+2 > narg: error("Invalid command line args")
-    configfile = args[iarg+1]
+    outfile = args[iarg+1]
     iarg += 2
   elif args[iarg] == "-path" or args[iarg] == "-p":
     if iarg+2 > narg: error("Invalid command line args")
@@ -426,9 +418,11 @@ elif mode == "socket": output_socket()
 print "# of minnows =",len(minnows)
 print "# of processes =",nprocs
 
-# prompt for how to invoke launch script for flavor of MPI
+# tell user for how to invoke launch script
 
 if mode == "mpich":
-  print "mpiexec -configfile %s" % configfile
+  print "MPICH: mpiexec -configfile %s" % outfile
 elif mode == "openmpi":
-  print "invoke %s from shell" % configfile
+  print "OpenMPI: invoke %s from shell" % outfile
+elif mode == "socket":
+  print "Sockets: invoke %s from shell" % outfile
