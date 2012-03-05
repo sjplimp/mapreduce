@@ -1,6 +1,16 @@
-This describes the bait.py Python tool that pre-processes a PHISH
-input script into a form that can be executed by launching an MPI or
-socket-based job.
+"Previous Section"_Intro.html - "PHISH WWW Site"_pws -
+"LAMMPS Documentation"_pd - "Next Section"_Minnows.html :c
+
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+
+:line
+
+2. Bait.py setup tool :h3
+
+This doc page describes the bait.py Python tool that pre-processes a
+PHISH input script into a form that can be executed by launching an
+MPI or socket-based job.
 
 Launch syntax:
 
@@ -30,12 +40,9 @@ Command-line arguments :h3
 -var ID str1 str2 ...
   assign strings to a variable ID
   default = no variables defined
--hostfile filename
-  file with list of processors to run on
-  default = ""
--configfile filename
+-output filename
   filename = MPI config file to create
-  default = "configfile"
+  default = "outfile"
 -path path1:path2:path3:...
   colon-seperated paths to prepend to app executable names
   default = "."

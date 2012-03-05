@@ -1,3 +1,12 @@
+"Previous Section"_Examples.html - "PHISH WWW Site"_pws -
+"LAMMPS Documentation"_pd - "Next Section"_Manual.html :c
+
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+
+:line
+
+6. Python interface to the PHISH library :h3
 
 How to wrap the PHISH lib with Python.
 

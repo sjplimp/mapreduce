@@ -1,3 +1,13 @@
+"Previous Section"_Library.html - "PHISH WWW Site"_pws -
+"LAMMPS Documentation"_pd - "Next Section"_Python.html :c
+
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+
+:line
+
+5. Examples :h3
+
 This is the list of example PHISH input scripts provided:
 
 ** in.pp = ping-pong test between 2 processes

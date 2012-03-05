@@ -1,3 +1,13 @@
+"Previous Section"_Minnows.html - "PHISH WWW Site"_pws -
+"LAMMPS Documentation"_pd - "Next Section"_Examples.html :c
+
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+
+:line
+
+1. PHISH library :h3
+
 This is the API to the PHISH library that minnows (stand-alone
 applications) call.  This is a C-style API, so it is easy to write
 minnows in any language, e.g. C, C++, Fortran, Python, that call

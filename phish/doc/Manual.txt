@@ -138,10 +138,10 @@ access to documentation for all the PHISH library methods and minnows.
 "htmldoc"_http://www.easysw.com/htmldoc
 
 "Introduction"_Intro.html
-"Setup via bait.py"_Bait.html
-"PHISH Minnows"_Minnows.html
-"PHISH Library"_Library.html
+"Bait.py setup tool"_Bait.html
+"PHISH minnows"_Minnows.html
+"PHISH library"_Library.html
 "Examples"_Examples.html
-"Python interface to the PHISH Library"_Python.html :ul
+"Python interface to the PHISH library"_Python.html :ul
 
 </BODY>
