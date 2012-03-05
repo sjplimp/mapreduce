@@ -11,20 +11,6 @@ use "ls *" in bait and minnow defs, but convert to ls * in bait.py
 debug wrapss (it and echo have debug statements)
 test old QK input scripts
 
-style CHAIN
-  is not yet correct for done messages
-  this is because unlike RING, there is a proc on end
-  with no connection to another proc
-  so how does that guy tell the 1st proc its DONE?
-    i.e. if done trigger starts in middle of chain
-    or does it always have to start at front of chain
-  maybe logic for done messages needs to be like a ring
-    even when the procs are a chain?
-
-style RING
-  do done messages keep looping infinitely?
-  need rule about who can initiate a done message?
-
 do I really need input connections stored as list?
   i.e the InConnect data struct within an input port
   its values are not currently used
@@ -228,10 +214,6 @@ figure out how to do shmem pingpong on-box
 phish_send vs phish_send_key
   SP doesn't know which is needed since that is specified by
     connection
-
-can wrap PHISH lib in Python so can write SPs in Python
-
-does callback to done() ever need args?
 
 good to have a tool or SPs to help with debugging
   e.g. flag to turn on statistics logging to file per SP
