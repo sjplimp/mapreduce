@@ -1,48 +1,153 @@
-* void phish_init(int *pnarg, char ***pargs)
-* int phish_init_python(int *narg, char **args)
-* int phish_world(int *pme, int *pnprocs)
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
 
-wrapper on phish_init() to allow calling from Python
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
 
-1st call that app makes, to initialize PHISH library
-must be called before any other phish function
+:line
 
-pnarg = ptr to narg
-pargs = ptr to args
+phish_init() function :h3
+phish_world() function :h3
 
-looks for args of the following form and strips them off
-note that -in and -out may appear multiple times in arg list
-modifies narg and args to only have args that follow -args
+[C syntax:]
 
--app exe ID N Nprev
-  exe = name of executable file for this app (e.g. count or count.py)
-  ID = ID string of this app in PHISH input script
-  N = how many instances of this app were launched
-  Nprev = how many processes exist preceding this app
+void phish_init(int *pnarg, char ***pargs)
+int phish_world(int *pme, int *pnminnows)
+
+[C examples:]
+
+phish_init(&argc,&argv);
+int me,nminnows;
+MPI_Comm comm = phish_world(&me,&nminnows);
+printf("Minnow info: %d %d\n",me,nminnows);
+
+[Python syntax:]
+
+void phish_init(int *pnarg, char ***pargs)
+int phish_world(int *pme, int *pnminnows)
+
+[Python examples:]
+
+phish_init(&argc,&argv);
+int me,nminnows;
+MPI_Comm comm = phish_world(&me,&nminnows);
+printf("Minnow info: %d %d\n",me,nminnows);
+
+[Description:]
+
+These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the "PHISH library"_Library.html.
+
+The phish_init() function is the first call to the PHISH library that
+a minnow makes and it must be made before any other PHISH library call
+can be made.  Typically, it the first executable line of a minnow
+program.
+
+It's purpose is to initialize the library using command-line arguments
+that were passed to the minnow when it was launched, typically by the
+MPI or socket launch script that the "bait.py"_Bait.html setup tool
+creates from a PHISH input script.
+
+When a PHISH program, using one or more sets of minnows is launched,
+every individual minnow is assigned a global ID, from 0 to G-1, where
+{G} = the total number of minnows.  These IDs are ordered by group, so
+that the minnows in each set have consecutive IDs.  These IDs enable
+the PHISH library to orchestrate communication of datums between
+minnows in different sets.
+
+The two arguments to phish_init() are pointers to the number of
+command-line arguments, and a pointer to the arguments themselves as
+an array of strings.  These are passed as pointers, because the PHISH
+library will read and remove the PHISH-specific arguments.  It will
+then return the reamining minnow-specific arguments, which the minnow
+can read and process.
+
+There are the switches and arguments the PHISH library looks for and
+processes:
+
+-app exefile ID N Nprev 
 -in sprocs sfirst sport style rprocs rfirst rport
-  one connection between pair of ports for incoming datums I receive
-  sprocs = # of procs on sender side
-  sfirst = first proc on sender side
-  sport = port ID on sender
-  style = single or paired or hashed or roundrobin or chain or ring
-  rprocs = # of procs on receiver side, including me
-  rfirst = first proc on receiver side
-  rport = port ID I receive on
--in sprocs sfirst sport style rprocs rfirst rport
-  one connection between pair of ports for outgoing datums I send
-  sprocs = # of procs on sender side, including me
-  sfirst = first proc on sender side
-  sport = port ID I send on
-  style = single or paired or hashed or roundrobin or chain or ring
-  rprocs = # of procs on receiver side
-  rfirst = first proc on receiver side
-  rport = port ID on receiver
--args arg1 arg2 ... = args for the app itself
+-out sprocs sfirst sport style rprocs rfirst rport
+-args arg1 arg2 ... = args for the minnoq itself :ul
 
-each specified input port is set to CLOSED instead of UNUSED
-each specified output port is set to CLOSED instead of UNUSED
+The {-app} switch appears once, as the first argument.  {Exefile} is
+the name of executable file for this minnow, e.g. count or count.py.
+The ID is its minnow ID in the PHISH input script.  {N} is the number
+of duplicate minnows launched via the "layout"_bait_layout.html
+command and the "bait.py"_Bait.html tool.  {Nprev} is how many of the
+duplicate minnows precede this one in this set of duplicate minnows.
+E.g. if {N} = 10 minnows were launched in this set, each of them would
+be assigned an {Nprev} from 0 to 9.
 
+NOTE: is Nprev within the set, or a global ID?
 
-return MPI_Comm
-return ID of this process in MPI sense (me = 0 to nprocs-1)
-return # of processes in MPI sense (nprocs)
+The {-in} switch appears once for every connection the minnow has with
+other minnows, where it is a receiver of datums.  See the
+"connect"_bait_connect.html command in PHISH input scripts processed
+by the "bait.py"_Bait.html tool, for more information.
+
+{Sprocs}, {sfirst}, and {sport} refer to the set of minnows sending to
+this minnow.  They are respectively, the number of minnows in the set,
+the global ID of the first minnow in the set, and the output port used
+by those minnows.  {Rprocs}, {rfirst}, and {rport} refer to the set of
+minnows receivng the datums, i.e. the set of minnows this minnow
+belongs to.  They are respectively, the number of minnows in the set,
+the global ID of the first minnow in the set, and the input port used
+by those minnows.  {Style} is the connection style, as specified by
+the "connect"_bait_connect.html command in the PHISH input script
+processed by the "bait.py"_Bait.html tool.  E.g. {style} is a word
+like "single" or "hashed".  If it is "subscribe", then extra info
+about the external host and its TCP port is appended to the {style},
+e.g. "subscribe/www.foo.com:25".
+
+The {-out} switch appears once for every connection the minnow has
+with other minnows, where it is a sender of datums.  See the
+"connect"_bait_connect.html command in PHISH input scripts processed
+by the "bait.py"_Bait.html tool, for more information.
+
+{Sprocs}, {sfirst}, and {sport} refer to the set of minnows sending
+datums, i.e. the set of minnows this minnow belongs to.  They are
+respectively, the number of minnows in the set, the global ID of the
+first minnow in the set, and the output port used by those minnows.
+{Rprocs}, {rfirst}, and {rport} refer to the set of minnows receivng
+the datums.  They are respectively, the number of minnows in the set,
+the global ID of the first minnow in the set, and the input port used
+by those minnows.  {Style} is the connection style, as specified by
+the "connect"_bait_connect.html command in the PHISH input script
+processed by the "bait.py"_Bait.html tool.  E.g. {style} is a word
+like "single" or "hashed".  If it is "publish", then extra info about
+the TCP port is appended to the {style}, e.g. "publish/25".
+
+The {-args} switch appears last and lists all the remaining
+minnow-specific arguments.  The PHISH library ignores these, but
+strips of all command-line arguments up to and including the {-args}
+switch before returning the args to the minnow caller.
+
+The phish_init() function also flags each specified input port and
+output port with a CLOSED status, instead of UNUSED.  See the
+"connect"_bait_connect.html command for the "bait.py"_Bait.html tool
+for more info about communication ports.  See the
+"phish_input"_phish_input.html and "phish_output"_phish_output.html
+functions for more info about port status.
+
+:line
+
+The phish_world() function can be used to query information about the
+minnow's status within the school (or collection) of minnows running
+the PHISH program.
+
+The returned "me" and "nminnows" are the global ID of this
+minnow and the total number of minnows ({G} as described above).
+
+The function itself returns the MPI communicator being used by PHISH
+(i.e. MPI_COMM_WORLD), when running the MPI version of the library.
+
+NOTE: what is communicator for socket version?
+
+NOTE: should it also return number of minnows in this set?
+      or my location within the set?
+
+[Restrictions:] none
+
+[Related commands:] none

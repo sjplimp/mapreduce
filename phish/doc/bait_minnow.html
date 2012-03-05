@@ -1,10 +1,54 @@
 <HTML>
-<P>* minnow ID exe args
+<CENTER><A HREF = "http://phish.sandia.gov">PHISH WWW Site</A> - <A HREF = "Manual.html">PHISH Documentation</A> - <A HREF = "Bait.html">Bait.py Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>minnow command 
+</H3>
+<P><B>Syntax:</B>
 </P>
-<P>define a minnow with ID
-exe = name of stand-alone executable
-args = args passed to executable when launched
+<PRE>minnow ID exefile arg1 arg2 ... 
+</PRE>
+<UL><LI>ID = ID of minnow
+<LI>exefile = executable file name
+<LI>arg1,arg2 ... = arguments to pass to executable 
+</UL>
+<P><B>Examples:</B>
 </P>
-<P>exe is looked for in list of paths
+<PRE>minnow 1 count
+minnow 5 filegen ${files}
+minnow myapp app 3 f1.txt 4.0 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>Minnow is a command that can be used in a PHISH input script which is
+recognized by the <A HREF = "Bait.html">bait.py</A> setup program.  It defines a
+minnow application and assigns it an ID which can be used elsewhere in
+the input script.  In PHISH lingo, a "minnow" is a stand-alone
+application which makes calls to the <A HREF = "Library.html">PHISH library</A> to
+exchange data with other PHISH minnows.
+</P>
+<P>The <I>ID</I> of the minnow can only contain alphanumeric characters and
+underscores.
+</P>
+<P>The <I>exefile</I> is the name of the executable which will be launched
+when the PHISH program is run.  It should reside in one of the
+directories specified by the <I>-path</I> command-line argument for
+<A HREF = "Bait.html">bait.py</A>.
+</P>
+<P>The <I>arg1</I>, <I>arg2</I>, etc keywords are arguments that will be passed
+to the <I>exefile</I> program when it is launched.
+</P>
+<P><B>Restrictions:</B> none
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "bait_layout.html">layout</A>
 </P>
 </HTML>

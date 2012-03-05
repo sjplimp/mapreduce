@@ -1,3 +1,38 @@
-* variable ID str1 str2 ...
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
 
-assign one or more strings to a variable ID
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
+
+:line
+
+variable command :h3
+
+[Syntax:]
+
+variable ID str1 str2 ... :pre
+
+[Examples:]
+
+variable files f1.txt f2.txt f3.txt
+variable N 100 :pre
+
+[Description:]
+
+Variable is a command that can be used in a PHISH input script which
+is recognized by the "bait.py"_Bait.html setup program.  It creates a
+variable with name {ID} which contains a list of one or more strings.
+The variable can be used elsewhere in the input script.  The
+substitution rules for variables is described by the
+"bait.py"_Bait.html doc page.
+
+The {ID} of the variable can only contain alphanumeric characters and
+underscores.  The strings can contain any printable character.
+
+[Restrictions:] none
+
+[Related commands:]
+
+See the {-var} command-line argument for "bait.py"_Bait.html.
+
+[Default:] none

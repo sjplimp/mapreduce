@@ -43,6 +43,8 @@ command line args
 setup calls to lib
 setting callbacks
 
+Deinfe ports as in connect command
+
 loop vs probe vs recv
 
 receving and unpacking a datum

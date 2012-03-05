@@ -1,8 +1,56 @@
 <HTML>
-<P>* double phish_timer()
+<CENTER><A HREF = "http://phish.sandia.gov">PHISH WWW Site</A> - <A HREF = "Manual.html">PHISH Documentation</A> - <A HREF = "Bait.html">Bait.py Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>phish_timer() function 
+</H3>
+<P><B>C syntax:</B>
 </P>
-<P>wrapper on MPI_Wtime()
-returns current time
-can compute elapsed time between two phish_timer() calls
+<PRE>double phish_timer() 
+</PRE>
+<P><B>C examples:</B>
+</P>
+<P>double t1 = phish_timer();
+...
+double t2 = phish_timer();
+printf("Elapsed time = %g\n",t2-t1);
+</P>
+<P><B>Python syntax:</B>
+</P>
+<PRE>double phish_timer() 
+</PRE>
+<P><B>Python examples:</B>
+</P>
+<P>double t1 = phish_timer();
+...
+double t2 = phish_timer();
+printf("Elapsed time = %g\n",t2-t1);
+</P>
+<P><B>Description:</B>
+</P>
+<P>This is a PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the <A HREF = "Library.html">PHISH library</A>.
+</P>
+<P>This function provides a portable means to time operations within
+a minnow.  For the MPI version of the PHISH library, the function
+is a wrapper on MPI_Wtime().  For the socket version of the library,
+it is what?
+</P>
+<P>The function returns the current time in CPU seconds.  To calculated
+an elapsed time, you need to bracket a section of code with 2 calls to
+phish_timer() and calcualte the difference between the 2 returned
+times, as in the example above.
+</P>
+<P><B>Restrictions:</B> none
+</P>
+<P><B>Related commands:</B> none
 </P>
 </HTML>

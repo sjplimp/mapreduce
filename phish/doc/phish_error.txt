@@ -1,9 +1,51 @@
-* void phish_error(char *str)
-* void phish_warn(char *str)
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
 
-print error string
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
+
+:line
+
+phish_error() function :h3
+phish_warn() function :h3
+
+[C syntax:]
+
+void phish_error(char *str) :pre
+void phish_warn(char *str) :pre
+
+[C examples:]
+
+phish_error("Bad datum received");
+phish_warn("May overflow internal buffer");
+
+[Python syntax:]
+
+void phish_error(char *str) :pre
+void phish_warn(char *str) :pre
+
+[Python examples:]
+
+phish_error("Bad datum received");
+phish_warn("May overflow internal buffer");
+
+[Description:]
+
+There are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the "PHISH library"_Library.html.
+
+The phish_error() function prints the specified character string (str)
+to the screen, and caused the running minnow to exit.
+
 does not close output ports
 for MPI, calls MPI_Abort()
+Do I print additional info about minnow?
 
+The phish_warning() function simply prints the specified character
+string (str) to the screen.  Control is returned to the caller (the
+minnow) which continues on.
 
-print warning string
+[Restrictions:] none
+
+[Related commands:] none

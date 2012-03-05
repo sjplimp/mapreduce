@@ -1,6 +1,43 @@
 <HTML>
-<P>* variable ID str1 str2 ...
+<CENTER><A HREF = "http://phish.sandia.gov">PHISH WWW Site</A> - <A HREF = "Manual.html">PHISH Documentation</A> - <A HREF = "Bait.html">Bait.py Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>variable command 
+</H3>
+<P><B>Syntax:</B>
 </P>
-<P>assign one or more strings to a variable ID
+<PRE>variable ID str1 str2 ... 
+</PRE>
+<P><B>Examples:</B>
+</P>
+<PRE>variable files f1.txt f2.txt f3.txt
+variable N 100 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>Variable is a command that can be used in a PHISH input script which
+is recognized by the <A HREF = "Bait.html">bait.py</A> setup program.  It creates a
+variable with name <I>ID</I> which contains a list of one or more strings.
+The variable can be used elsewhere in the input script.  The
+substitution rules for variables is described by the
+<A HREF = "Bait.html">bait.py</A> doc page.
+</P>
+<P>The <I>ID</I> of the variable can only contain alphanumeric characters and
+underscores.  The strings can contain any printable character.
+</P>
+<P><B>Restrictions:</B> none
+</P>
+<P><B>Related commands:</B>
+</P>
+<P>See the <I>-var</I> command-line argument for <A HREF = "Bait.html">bait.py</A>.
+</P>
+<P><B>Default:</B> none
 </P>
 </HTML>

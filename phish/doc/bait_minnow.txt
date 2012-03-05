@@ -1,8 +1,49 @@
-* minnow ID exe args
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
 
-define a minnow with ID
-exe = name of stand-alone executable
-args = args passed to executable when launched
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
 
-exe is looked for in list of paths
+:line
 
+minnow command :h3
+
+[Syntax:]
+
+minnow ID exefile arg1 arg2 ... :pre
+
+ID = ID of minnow
+exefile = executable file name
+arg1,arg2 ... = arguments to pass to executable :ul
+
+[Examples:]
+
+minnow 1 count
+minnow 5 filegen $\{files\}
+minnow myapp app 3 f1.txt 4.0 :pre
+
+[Description:]
+
+Minnow is a command that can be used in a PHISH input script which is
+recognized by the "bait.py"_Bait.html setup program.  It defines a
+minnow application and assigns it an ID which can be used elsewhere in
+the input script.  In PHISH lingo, a "minnow" is a stand-alone
+application which makes calls to the "PHISH library"_Library.html to
+exchange data with other PHISH minnows.
+
+The {ID} of the minnow can only contain alphanumeric characters and
+underscores.
+
+The {exefile} is the name of the executable which will be launched
+when the PHISH program is run.  It should reside in one of the
+directories specified by the {-path} command-line argument for
+"bait.py"_Bait.html.
+
+The {arg1}, {arg2}, etc keywords are arguments that will be passed
+to the {exefile} program when it is launched.
+
+[Restrictions:] none
+
+[Related commands:]
+
+"layout"_bait_layout.html

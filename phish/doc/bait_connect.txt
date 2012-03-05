@@ -1,56 +1,196 @@
-* connect ID1:oport style ID2:iport
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
 
-connect output port (oport) of sp ID1 to input port (iport) of sp ID2
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
 
-style = kind of connection
-style = single or paired or hashed or roundrobin or direct or bcast or
-        chain or ring or publish or subscribe
- single = N senders with a single receiver, N = 1 is OK
- paired = N senders and N receivers, senders and receivers
-   are paired so that each sender sends to one receiver, N = 1 is OK
- hashed = N senders and M receivers, each sender hashes datum on a key
-   to decide which of M receivers to send to, N and/or M = 1 is OK
- roundrobin = N senders and M receivers, each sender sends datums
-   to each of M receivers in round-robin fashion, N and/or M = 1 is OK
-TIM:
- direct = N senders and M receivers, each sender sends a datum
-   to a specific receiver it chooses when the message is sent
-   N and/or M = 1 is OK
- bcast = N senders and M receivers, each sender sends a datum
-   to all M receivers, N and/or M = 1 is OK
- chain = N procs, N > 1 is required, procs are connected
-   as a linear chain, each sending to one downstream neighbor,
-   1st proc is not a receiver, last proc is not a sender
- ring = N procs, N > 1 is required, procs are connected
-   as a circular ring, each sending to one downstream neighbor,
-   every proc is both a sender and receiver
-TIM:
- publish = send datums to a socket
- one or more external programs can read datums from the socket
- socket is specfied by replacing ID2:port with tcpport
- tcpport = a number, e.g. 25
- this style is only supported by ZMQ, not by MPI
- NOTE: anyway around this restriction?  let MPI lib write to a ZMQ socket?
-TIM:
- subscribe = receive datums from a socket
- one or more external programs can write datums to the socket
- socket is specfied by replacing ID1:port with host:tcpport
- host = hostname, e.g. www.foo.com
- tcpport = a number, e.g. 25
- this style is only supported by ZMQ, not by MPI
- NOTE: anyway around this restriction?  let MPI lib read from a ZMQ socket?
+:line
 
-for chain and ring, ID1 = ID2 is required
+layout command :h3
 
-iport and oport are optional (no colon if not specified)
-if not specified, port 0 is used
+[Syntax:]
 
-each app defines how many input and output ports it recognizes
-if an app support M ports, they are numbered 0,1,...,M-1
+connect sendID:outport style recvID:inport
 
-an app's input port can be connected to multiple outputs by
- appearing in multiple connect commands
+sendID = ID of minnows which will send datums
+outport = output port datums are written to by sending minnows (default = 0)
+style = kind of connection between sending minnows and receiving
+minnows = {single} or {paired} or {hashed} or {roundrobin} or {direct} or {bcast} or {chain} or {ring} or {publish} or {subscribe}
+recvID = ID of minnows which will receive datums
+inport = input port datums are read from by receiving minnows (default
+= 0) :ul
 
-an app's output port can be connected to multiple inputs by
- appearing in multiple connect commands
 
+[Examples:]
+
+connect ... :pre
+
+[Description:]
+
+Connect is a command that can be used in a PHISH input script which is
+recognized by the "bait.py"_Bait.html setup program.  It determines
+how the output from one minnow is routed to the input of another
+minnow when the PHISH program is run.  In PHISH lingo, a "minnow" is a
+stand-alone application which makes calls to the "PHISH
+library"_Library.html to exchange data with other PHISH minnows.
+
+The topology of connections defined by a series of connect commands
+defines how a school of minnows is harnessed together to perform a
+desired computational task.  It also defins how parallelism is
+exploited by the collection of minnows.
+
+A connection is made between two sets of minnows, one set sends
+datums, the other set receives them.  Each set may contain one or more
+processes, where a process is a single minnow.  The
+"layout"_bait_layout.html command specifies how many minnows run
+within each set.  Since a datum is typically sent from a single minnow
+to a single receiving minnow, the style of the connection determines
+which minnow in the sending set communicates with which minnow in the
+receiving set.
+
+Each minnow can send datums through specific output ports.  If a
+minnow defines N output ports, then they are numbered 0 to N-1.
+Likewise a minnow can receive data through specific input ports.  If a
+minnow defines M input ports, then they are numbered 0 to M-1.  Ports
+enable a minnow to have multiple input and output connections, and for
+a PHISH input script to connect a single set of minnows to multiple
+other sets of minnows with different communication patterns.  For
+example, a stream of data might be processed by a minnow, reading from
+its input port 0, and writing to its output port 0.  But the minnow
+might also look for incoming datums on its input port 1, that signify
+some kind of external message from a "control" minnow triggered by the
+user, e.g. asking the minnow to print out its current statistics.  See
+the "Minnows"_Minnows.html doc page for more information about how
+minnows can define and use ports.
+
+The specified {sendID} and {outport} are the minnows which will send
+datums through their output port {outport}.  If {outport} is not
+specified with a colon following the {sendID}, then a default
+output port of 0 is assumed.
+
+The specified {recvID} and {inport} are the minnows which will receive
+the sent datums through their input port {inport}.  If {inport} is not
+specified with a colon following the {recvID}, then a default input
+port of 0 is assumed.
+
+Both {sendID} and {recvID} must be the IDs of minnows previously
+defined by a "minnow"_bait_minnow.html command.
+
+Note that there can be multiple connect commands which connect the
+same {sendID} and same (or different) {outport} to different
+{recvID:inport} minnows.  Likewise, there can be multiple connect
+commands which connect the same {recvID} and same (or different)
+{inport} to different {sendID:outport} minnows.  There can even be
+multiple connect commands which connect the same {sendID} and same (or
+different) {outport} to the same {recvID:inport} minnows.
+
+Also note that for all of the styles (except as noted below), the
+{sendID} and {recvID} can be the same, meaning a set of minnows will
+send datums to themselves.
+
+:line
+
+These are the different connection styles supported by the
+connect command.
+
+The {single} style connects {N} sending minnows to one receiving
+minnow.  {N} = 1 is allowed.  All the sending minnows send
+their datums to a single receiving minnow.
+
+The {paired} style connects {N} sending minnows to {N} receiving
+minnows.  {N} = 1 is allowed.  Each of the {N} sending minnows
+sends it datums to a specific partner receiving minnow.
+
+The {hashed} style connects {N} sending minnows to {M} receiving
+minnows.  {N} does not have to equal {M}, and either or both of {N},
+{M} = 1 is allowed.  When any of the {N} minnows sends a datum, it
+must also define a value for the PHISH library to hash on, which will
+determine which of the {M} receiving minnows it is sent to.  See the
+doc page for the "phish_send_hashed()"_phish_send.html library
+function for more explanation of how this is done.
+
+The {roundrobin} style connects {N} sending minnows to {M} receiving
+minnows.  {N} does not have to equal {M}, and either or both of {N},
+{M} = 1 is allowed.  Each of the {N} senders cycles through the list
+of {M} receivers each time it sends a datum, in a roundrobin fashion.
+a different.  If the receivers are numbered 0 to M-1, a sender will
+send its first datum to 0, its 2nd to 1, its Mth to M-1, its M+1 datum
+to 0, etc.
+
+The {direct} style connects {N} sending minnows to {M} receiving
+minnows.  {N} does not have to equal {M}, and either or both of {N},
+{M} = 1 is allowed.  When any of the {N} minnows sends a datum, it
+must also choosed a specific one of the {M} receiving minnows to sent
+to.  See the doc page for the "phish_send_direct()"_phish_send.html
+library function for more explanation of how this is done.
+
+The {bcast} style connects {N} sending minnows to {M} receiving
+minnows.  {N} does not have to equal {M}, and either or both of {N},
+{M} = 1 is allowed.  When any of the {N} minnows sends a datum, it
+sends a copy of it once to each of the {M} receiving minnows.
+
+The {chain} style configures {N} minnows as a 1-dimensional chain so
+that each minnow sends datums to the next minnow in the chain, and
+likewise each minnow receives datums from the previous minnow in the
+chain.  The first minnow in the chain cannot receive, and the last
+minnow in the chain cannot send. {N} > 1 is required.  The {sendID}
+must also be the same as the {recvID}, since the same set of minnows
+is sending and receiving.
+
+The {ring} style is the same as the {chain} style, except that the {N}
+minnows are configured as a 1-dimensional loop.  Each minnow sends
+datums to the next minnow in the loop, and likewise each minnow
+receives datums from the previous minnow in the loop.  This includes
+the first and last minnows.  {N} > 1 is required.  The {sendID} must
+also be the same as the {recvID}, since the same set of minnows is
+sending and receiving.
+
+The {publish} and {subscribe} styles are different in that they do not
+connect two sets of minnows to each other.  Instead they connect one
+set of minnows to an external socket, either for writing or reading
+datums.  The external socket will typically be driven by some external
+program which is either reading from the socket or writing to it, but
+the running PHISH program requires no knowledge of that program.  It
+could be another PHISH program or some completely different program.
+
+The {publish} style connects {N} sending minnows to a socket.  {N} = 1
+is allowed.  The {recvID:inport} argument is replaced with a TCP port
+#, which is an integer, e.g. 25.  When each minnow sends a datum it
+will "publish" the bytes of the datum to that TCP port, on the machine
+the minnow is running on.  In socket lingo, "publishing" means that
+the sender has no communication with any processes which may be
+reading from the socket.  The sender simply writes the bytes and
+continues without blocking.  If no process is reading from the socket,
+the datum is lost.
+
+The {subscribe} style connects {M} receiving minnows to a socket.  {M}
+= 1 is allowed.  The {sendID:outport} argument is replaced with a
+hostname and TCP port #, separated by a colon, e.g. www.foo.com:25.
+Each minnow receives datums by "subscribing" to the TCP port on the
+specified host.  In socket lingo, "subscribing" means that the
+receiver has no communication with any process which is writing to the
+socket.  The receiver simply checks if a datum is available and reads
+it.  If a new datum arrives before the receiver is ready to read it,
+the datum is lost.
+
+Note that multple processes can publish to the same physical socket,
+and likewise multiple processes can subscribe to the same physical
+socket.  In the latter case, each receiving process reads the same
+published datum.
+
+NOTE: how does the PHISH library check the socket and return
+if there is no datum?
+
+NOTE: how does the read from the socket delimit the PHISH datum,
+so the minnow knows how much to read?
+
+[Restrictions:]
+
+The {publish} and {subscribe} styles are only supported by the socket
+version of the PHISH library, not the MPI version.
+
+[Related commands:]
+
+"minnow"_bait_minnow.html, "layout"_bait_layout.html
+
+[Default:] none

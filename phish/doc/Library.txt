@@ -22,7 +22,6 @@ section of the manual.
 
 Library calls for initialization :olb,l
   "phish_init()"_phish_init.html :ulb,b
-  "phish_init_python()"_phish_init.html :b
   "phish_input()"_phish_callback.html :b
   "phish_output()"_phish_callback.html :b
   "phish_done()"_phish_callback.html :b
@@ -127,4 +126,3 @@ How is this encoding of port and done implemented for sockets?
 
 MPI also allows the receiver to query the byte size of the message,
 which is used for the "full" pack/unpack calls below.
-
