@@ -6,7 +6,7 @@
 
 :line
 
-1. PHISH library :h3
+4. PHISH Library :h3
 
 This is the API to the PHISH library that minnows (stand-alone
 applications) call.  This is a C-style API, so it is easy to write

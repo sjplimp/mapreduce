@@ -6,7 +6,7 @@
 
 :line
 
-6. Python interface to the PHISH library :h3
+6. Python Interface to PHISH :h3
 
 How to wrap the PHISH lib with Python.
 

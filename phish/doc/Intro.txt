@@ -8,13 +8,91 @@
 
 1. Introduction :h3
 
-
-PHISH has 2 parts: Python script (bait.py) and library (libphish.a)
+give a quick index to this page
 
 what is streaming data
   continuous
   high bandwidth
   cannot afford to see it more than once
+
+goals: informatics data in broadest sense, stats, data mininng,
+  anomaly detection
+
+powerful paradigm: stateful independent processes, that
+  are small programs that do one things, run a large collection
+  of these that communicate is a designed fashion, to acheive
+  parallelism, running
+  that ship datums (chunk of bytes) to each other in continuous
+  fashion.  Can be infinite stream or processing of large
+  archive of data
+
+what kind of algorithms can be expressed in this mode?
+various stream models of computation: e.g. W-stream, X-stream
+our own interest is graph algorithms and data mining on 
+hi-volume streams of data, but many other data processing
+tasks can be formulated in this fashion
+
+other products: DataMiner from IBM (see Karl list)
+
+dropping data versus perfrect answer (pipeline throttles itself)
+
+Simple example: MR word count
+
+
+why we wrote PHISH
+  different than typicaly MPI where all procs run one program
+  wanted to go beyond MPI to sockets, hetergenous machines
+    add/delete minnows dynamically
+  wanted to automate some of the parallelism inherent in 
+    processing big data, a la MapReduce (this is the hashing idea)
+  make it as simple as possible to process data in parallel
+
+all of these goals reflected in name PHISH
+
+ulterior motive, phish swim in a stream, minnows 
+are small, but work in coordinated fashion to some
+goal (evade preadtor, find food)
+
+brings us to PHISH lingo
+
+minnow: read and compute on and write (altered) datums
+school: collection of minnows
+bait the hook via bait.py
+phish wrapper = Python
+
+Features of PHISH
+
+lib = simple (1000 lines), C-interface, portable (list langaunges),
+Python (phish) wrapper provided
+
+The individual programs can be written in any language (e.g. C, C++,
+Fortran, Python) and link to the PHISH library so that they can
+receive incoming data from upstream sources, bundle their data, and
+send it downstream.
+
+paralllel data procesing via parallel launch or hashing
+
+lib on top of MPI or sockets - latter via ZMQ lib
+(geogrphically diverse machines)
+
+mechanism to hook multiple PHISH schools togehter via sockets
+  means can add/delete processes
+
+examples for streaming MR, CC finidng in parallel, MR-like jobs
+
+benchmarks for running on MPI or sockets
+
+minnows that let you wrap existing stand-alone programs that
+read from stdin and write to stdout
+
+Steps to running a PHISH calculation
+
+a) write one or more minnows that call the PHISH library
+b) write a script listing the minnows and the communication patterns between them
+c) ues the Bait.py tool to process the input script
+c) run the file (via MPI or a shell script) produced by Bait.py
+
+PHISH has 2 parts: Python script (bait.py) and library (libphish.a)
 
 But can also process corpus of files.
 
@@ -56,3 +134,68 @@ bait.py
 school of minnows swim in a stream, doing something
 coordinated.
 
+
+
+A PHISH input script allows specification of the set of programs to
+launch as independent procsses, how many copies of each are inovked,
+and the topology of how they connect to each other as they send and
+receive data.  Thus the input script encodes an algorithm for
+processing continuous data from a stream source or archived data from
+files.  The supported communication topologies include a "hashed" mode
+of messaging where a "key" is hashed to determine what process to send
+data to, which is a means of exploiting parallelism in a streaming
+context, akin to a MapReduce operation.
+
+The sending and receiving of datums between processes is handled
+within the PHISH library either by calls to the message-passing
+interface (MPI) library, or by sockets via the ZMQ library.  A PHISH
+tool converts the input script into a configuration file that can be
+launched by either MPI or a shell script.  In the former case, a PHISH
+program can run on any platform that supports MPI.  In the latter
+case, a PHISH program can run on a single desktop machine or across
+any network of (geographically distributed) machines that support
+socket connections.
+
+
+
+
+
+
+The PHISH package is open-source software that implements the
+"MapReduce operation"_wiki popularized by Google on top of standard
+MPI message passing.
+
+The library is designed for parallel execution on distributed-memory
+platforms, but will also operate on a single processor.  It requires
+no additional software to build and run, except linking with an MPI
+library if you wish to perform MapReduces in parallel.  Similar to the
+original Google design, a user performs a MapReduce by writing a small
+program that invokes the library.  The user typically provides two
+application-specific functions, a "map()" and a "reduce()", that are
+called back from the library when a MapReduce operation is executed.
+"Map()" and "reduce()" are serial functions, meaning they are invoked
+independently on individual processors on portions of your data when
+performing a MapReduce operation in parallel.
+
+The MR-MPI library is written in C++ and is callable from hi-level
+langauges such as C++, C, Fortran.  A Python wrapper is also included,
+so MapReduce programs can be written in Python, including map() and
+reduce() user callback methods.  A hi-level scripting interface to the
+MR-MPI library, called OINK, is also included which can be used to
+develop and chain MapReduce algorithms together in scripts with
+commands that simplify data management tasks.
+
+The goal of the MR-MPI library is to provide a simple and portable
+interface for users to create their own MapReduce programs, which can
+then be run on any desktop or large parallel machine using MPI.  See
+the Background section for features and limitations of this
+implementation.
+
+The distrubution includes a few examples of simple programs that
+illustrate the use of MR-MPI.
+
+Source code for PHISH is freely available for download from the "PHISH
+web site"_phish and is licensed under the modified "Berkeley Software
+Distribution (BSD) License"_bsd.  This basically means they can be
+used by anyone for any purpose.  See the LICENSE file provided with
+the distribution for more details.

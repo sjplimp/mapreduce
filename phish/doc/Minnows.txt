@@ -6,7 +6,7 @@
 
 :line
 
-3. PHISH minnows :h3
+3. PHISH Minnows :h3
 
 A minnow is an app, which is ...
 
