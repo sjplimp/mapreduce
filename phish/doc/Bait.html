@@ -8,35 +8,67 @@
 
 <HR>
 
-<H3>2. Bait.py setup tool 
+<H3>2. Bait.py Setup Tool 
 </H3>
-<P>This doc page describes the bait.py Python tool that pre-processes a
-PHISH input script into a form that can be executed by launching an
-MPI or socket-based job.
+<P>Bait.py is a Python script which converts a PHISH input
+script into a MPI configuration file or shell script which
+can be used to launch a school of minnows, i.e. to run a PHISH
+calculation.  You can edit the input script or pass
+it different parameters via bait.py command-line arguments
+to change the calculation, in which case you need to rerun
+bait.py to create a new launch script.
 </P>
-<P>Launch syntax:
+<P>The remainder of this page discusses how bait.py can be used
+and how a PHISH input script is formatted.  There
+are separate doc pages for each PHISH input script command.
 </P>
-<P>bait.py -switch values ... < in.script
-</P>
-<P>Command-line args for -switch and their values are discussed below.
-The in.script is a PHISH input script (text file) that contains
-a list of Bait.py input commands.
-</P>
-<UL><LI>Command-line arguments
-<LI>Input script syntax
-<LI>Input script commands
-<LI>  <A HREF = "bait_variable.html">variable</A>
-<LI>  <A HREF = "bait_set.html">set</A>
-<LI>  <A HREF = "bait_minnow.html">minnow</A>
-<LI>  <A HREF = "bait_connect.html">connect</A>
+<UL><LI><A HREF = "#bait_1">Running bait.py</A> 
+
+<LI><A HREF = "#bait_2">Command-line arguments</A> 
+
+<LI><A HREF = "#bait_3">Input script syntax and parsing</A> 
+
+<LI>Input script commands 
+
+<UL><LI>  <A HREF = "bait_variable.html">variable</A> 
+
+<LI>  <A HREF = "bait_set.html">set</A> 
+
+<LI>  <A HREF = "bait_minnow.html">minnow</A> 
+
+<LI>  <A HREF = "bait_connect.html">connect</A> 
+
 <LI>  <A HREF = "bait_layout.html">layout</A> 
+</UL>
+
 </UL>
 <HR>
 
 <HR>
 
-<H3>Command-line arguments 
-</H3>
+<A NAME = "bait_1"></A><H4>Running bait.py 
+</H4>
+<P>The bait.py Python script is in the bait sub-directory of the
+distribution.
+</P>
+<P>To run it on an input script in another directory, you
+simply point to it.
+</P>
+<P>use python
+or edit the first line of bait.py
+make sure it is executable via chmod
+</P>
+<P>bait.py -switch values ... < in.script
+</P>
+<P>Command-line args for -switch and their values are discussed in
+the next section.
+</P>
+<HR>
+
+<A NAME = "bait_1"></A><H4>Command-line arguments 
+</H4>
+<P>each has a default
+</P>
 <P>-np Np
   Np = process count
   default = 1
@@ -50,7 +82,7 @@ a list of Bait.py input commands.
   colon-seperated paths to prepend to app executable names
   default = "."
 -mode style
-  manner in which PHISH job will be launched
+  manner in launching PHISH job
   style = "mpich" or "openmpi" or "socket"
   default = "mpich"
 </P>
@@ -58,14 +90,22 @@ a list of Bait.py input commands.
 </P>
 <P>-np or -n
 -var or -v
--hostflie or -h
 -configfile or -c
 -path or -p
 -mode or -m
 </P>
+<P>NOTE: does np have to match layout sum?
+</P>
 <HR>
 
-<P>Input Script syntax
+<A NAME = "bait_1"></A><H4>Input script syntax and parsing 
+</H4>
+<P>A PHISH input script is a text file that
+contains commands recognized by the bait.py tool.
+</P>
+<P>command = name + args, separated by whitespace
+</P>
+<P>continuation char
 </P>
 <P>parsing rules
 </P>

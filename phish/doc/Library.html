@@ -11,9 +11,9 @@
 <H3>4. PHISH Library 
 </H3>
 <P>This is the API to the PHISH library that minnows (stand-alone
-applications) call.  This is a C-style API, so it is easy to write
-minnows in any language, e.g. C, C++, Fortran, Python, that call
-the PHISH library.
+applications) call.  It is a C-style API, so it is easy to write
+minnows in any language (e.g. C, C++, Fortran, Python) that call the
+PHISH library.
 </P>
 <P>Decide where to doc the Python interface (in each doc page)?
 Is the Sockets interface identical?
@@ -24,7 +24,7 @@ calls for sending and receiving datums, its helpful to
 understand how the data in a datum is structured by the
 PHISH library.
 </P>
-<P>This is discussed below, in the sub-section <A HREF = "#what">What is a datum?</A>.
+<P>This is discussed below, in the sub-section <A HREF = "#datum">Format of a datum</A>.
 </P>
 <P>The PHISH library is not large; there are only a handful of calls.
 They can be grouped into the following 5 categories.  Follow the links
@@ -36,11 +36,11 @@ section of the manual.
 
 <UL>  <A HREF = "phish_init.html">phish_init()</A> 
 <BR>
-  <A HREF = "phish_callback.html">phish_input()</A> 
+  <A HREF = "phish_port.html">phish_input()</A> 
 <BR>
-  <A HREF = "phish_callback.html">phish_output()</A> 
+  <A HREF = "phish_port.html">phish_output()</A> 
 <BR>
-  <A HREF = "phish_callback.html">phish_done()</A> 
+  <A HREF = "phish_port.html">phish_done()</A> 
 <BR>
   <A HREF = "phish_check.html">phish_check()</A> 
 <BR></UL>
@@ -92,7 +92,7 @@ section of the manual.
 <BR></UL>
 <LI>Miscellaneous library calls 
 
-<UL>  <A HREF = "phish_init.html">phish_world()</A> 
+<UL>  <A HREF = "phish_init.html">phish_school()</A> 
 <BR>
   <A HREF = "phish_reset_receiver.html">phish_reset_receiver()</A> 
 <BR>
@@ -112,7 +112,7 @@ section of the manual.
 
 <HR>
 
-<H4>What is a datum? 
+<A NAME = "datum"></A><H4>Format of a datum 
 </H4>
 <P>A datum is a chunk of bytes sent from one PHISH minnow to another.
 This section describes the format of the chunk, which is the same whether

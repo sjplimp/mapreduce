@@ -11,30 +11,30 @@
 
 <H3>phish_init() function 
 </H3>
-<H3>phish_world() function 
+<H3>phish_school() function 
 </H3>
 <P><B>C syntax:</B>
 </P>
 <P>void phish_init(int *pnarg, char ***pargs)
-int phish_world(int *pme, int *pnminnows)
+int phish_school(int *pme, int *pnminnows)
 </P>
 <P><B>C examples:</B>
 </P>
 <P>phish_init(&argc,&argv);
 int me,nminnows;
-MPI_Comm comm = phish_world(&me,&nminnows);
+MPI_Comm comm = phish_school(&me,&nminnows);
 printf("Minnow info: %d %d\n",me,nminnows);
 </P>
 <P><B>Python syntax:</B>
 </P>
 <P>void phish_init(int *pnarg, char ***pargs)
-int phish_world(int *pme, int *pnminnows)
+int phish_school(int *pme, int *pnminnows)
 </P>
 <P><B>Python examples:</B>
 </P>
 <P>phish_init(&argc,&argv);
 int me,nminnows;
-MPI_Comm comm = phish_world(&me,&nminnows);
+MPI_Comm comm = phish_school(&me,&nminnows);
 printf("Minnow info: %d %d\n",me,nminnows);
 </P>
 <P><B>Description:</B>
@@ -137,7 +137,7 @@ functions for more info about port status.
 </P>
 <HR>
 
-<P>The phish_world() function can be used to query information about the
+<P>The phish_school() function can be used to query information about the
 minnow's status within the school (or collection) of minnows running
 the PHISH program.
 </P>

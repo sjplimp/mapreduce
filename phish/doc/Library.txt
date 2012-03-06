@@ -9,9 +9,9 @@
 4. PHISH Library :h3
 
 This is the API to the PHISH library that minnows (stand-alone
-applications) call.  This is a C-style API, so it is easy to write
-minnows in any language, e.g. C, C++, Fortran, Python, that call
-the PHISH library.
+applications) call.  It is a C-style API, so it is easy to write
+minnows in any language (e.g. C, C++, Fortran, Python) that call the
+PHISH library.
 
 Decide where to doc the Python interface (in each doc page)?
 Is the Sockets interface identical?
@@ -22,7 +22,7 @@ calls for sending and receiving datums, its helpful to
 understand how the data in a datum is structured by the
 PHISH library.
 
-This is discussed below, in the sub-section "What is a datum?"_#what.
+This is discussed below, in the sub-section "Format of a datum"_#datum.
 
 The PHISH library is not large; there are only a handful of calls.
 They can be grouped into the following 5 categories.  Follow the links
@@ -32,9 +32,9 @@ section of the manual.
 
 Library calls for initialization :olb,l
   "phish_init()"_phish_init.html :ulb,b
-  "phish_input()"_phish_callback.html :b
-  "phish_output()"_phish_callback.html :b
-  "phish_done()"_phish_callback.html :b
+  "phish_input()"_phish_port.html :b
+  "phish_output()"_phish_port.html :b
+  "phish_done()"_phish_port.html :b
   "phish_check()"_phish_check.html :ule,b
 
 Library calls for shutdown :l
@@ -64,7 +64,7 @@ Library calls for sending datums :l
   "phish_pack_double_array()"_phish_pack.html :ule,b
 
 Miscellaneous library calls :l
-  "phish_world()"_phish_init.html :ulb,b
+  "phish_school()"_phish_init.html :ulb,b
   "phish_reset_receiver()"_phish_reset_receiver.html :b
   "phish_error()"_phish_error.html :b
   "phish_warn()"_phish_error.html :b
@@ -78,7 +78,7 @@ make MAXBUF and PHISH_SAFE_SEND be settable options by user?
 :line
 :line
 
-What is a datum? :h4
+Format of a datum :link(datum),h4
 
 A datum is a chunk of bytes sent from one PHISH minnow to another.
 This section describes the format of the chunk, which is the same whether

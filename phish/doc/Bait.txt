@@ -6,33 +6,56 @@
 
 :line
 
-2. Bait.py setup tool :h3
+2. Bait.py Setup Tool :h3
 
-This doc page describes the bait.py Python tool that pre-processes a
-PHISH input script into a form that can be executed by launching an
-MPI or socket-based job.
+Bait.py is a Python script which converts a PHISH input
+script into a MPI configuration file or shell script which
+can be used to launch a school of minnows, i.e. to run a PHISH
+calculation.  You can edit the input script or pass
+it different parameters via bait.py command-line arguments
+to change the calculation, in which case you need to rerun
+bait.py to create a new launch script.
 
-Launch syntax:
+The remainder of this page discusses how bait.py can be used
+and how a PHISH input script is formatted.  There
+are separate doc pages for each PHISH input script command.
+
+"Running bait.py"_#bait_1 :ulb,l
+"Command-line arguments"_#bait_2 :l
+"Input script syntax and parsing"_#bait_3 :l
+Input script commands :l
+  "variable"_bait_variable.html :ulb,l
+  "set"_bait_set.html :l
+  "minnow"_bait_minnow.html :l
+  "connect"_bait_connect.html :l
+  "layout"_bait_layout.html :ule,l
+:ule
+
+:line
+:line
+
+Running bait.py :link(bait_1),h4
+
+The bait.py Python script is in the bait sub-directory of the
+distribution.
+
+To run it on an input script in another directory, you
+simply point to it.
+
+use python
+or edit the first line of bait.py
+make sure it is executable via chmod
 
 bait.py -switch values ... < in.script
 
-Command-line args for -switch and their values are discussed below.
-The in.script is a PHISH input script (text file) that contains
-a list of Bait.py input commands.
-
-Command-line arguments
-Input script syntax
-Input script commands
-  "variable"_bait_variable.html
-  "set"_bait_set.html
-  "minnow"_bait_minnow.html
-  "connect"_bait_connect.html
-  "layout"_bait_layout.html :ul
+Command-line args for -switch and their values are discussed in
+the next section.
 
 :line
-:line
 
-Command-line arguments :h3
+Command-line arguments :link(bait_1),h4
+
+each has a default
 
 -np Np
   Np = process count
@@ -47,7 +70,7 @@ Command-line arguments :h3
   colon-seperated paths to prepend to app executable names
   default = "."
 -mode style
-  manner in which PHISH job will be launched
+  manner in launching PHISH job
   style = "mpich" or "openmpi" or "socket"
   default = "mpich"
 
@@ -55,14 +78,22 @@ each switch has an allowed abbreviation
 
 -np or -n
 -var or -v
--hostflie or -h
 -configfile or -c
 -path or -p
 -mode or -m
 
+NOTE: does np have to match layout sum?
+
 :line
 
-Input Script syntax
+Input script syntax and parsing :link(bait_1),h4
+
+A PHISH input script is a text file that
+contains commands recognized by the bait.py tool.
+
+command = name + args, separated by whitespace
+
+continuation char
 
 parsing rules
 

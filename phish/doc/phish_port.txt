@@ -1,0 +1,143 @@
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
+
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
+
+:line
+
+phish_input() function :h3
+phish_output() function :h3
+phish_done() function :h3
+
+[C syntax:]
+
+void phish_input(int iport, void (*datumfunc)(int), void (*donefunc)(), reqflag) :pre
+void phish_output(int iport) :pre
+void phish_done(void (*done)()) :pre
+
+[C examples:]
+
+phish_input(0,count,NULL,1);
+phish_input(1,count,mydone,0);
+phish_output(0);
+phish_done(alldone); :pre
+
+[Python syntax:]
+
+void phish_input(int iport, void (*datumfunc)(int), void (*donefunc)(), reqflag) :pre
+void phish_output(int iport) :pre
+void phish_done(void (*alldonefunc)()) :pre
+
+[Python examples:]
+
+phish_input(0,count,NULL,1);
+phish_input(1,count,mydone,0);
+phish_output(0);
+phish_done(alldone); :pre
+
+[Description:]
+
+There are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the "PHISH library"_Library.html.
+
+The phish_input() and phish_output() functions define input and output
+ports for the minnow.  An input port is where datums are sent by other
+minnows, so they can be read by this minnow.  An output port is where
+the minnow sends datums to route them to the input ports of other
+minnows.  These inter-minnow connections are setup by the
+"connect"_bait_connect.html command in a PHISH input script, as
+discussed on the "bait.py"_Bait.html tool doc page.
+
+A minnnow can define and use multiple input and output ports, to send
+and receive datums of different kinds to different sets of minnows.
+Both input and output ports are numbered from 0 to Pmax-1, where Pmax
+= the maximum allowed ports, which is a hard-coded value in
+src/phish.cpp.  It is currently set to 16; most minnows use 1 or 2.
+Note that a single port can be used to send or receive datums to many
+other minnows (processors), depending on the connection style.  See
+the "connect"_bait_connect.html command for details.
+
+:line
+
+The minnow should make one call to phish_input() for each input port
+it uses, whether or not a particular PHISH input script actually
+connects to the port.  Specify {reqflag} = 1 if a PHISH input script
+must specify a connection to the input port; specify {reqflag} = 0 if
+it is optional.  The "phish_check"_phish_check.html function will
+check for compatibility between the PHISH input script and the minnow
+ports.
+
+Two callback function pointers are passed as arguments to
+phish_input().  Either or both can be specied as {NULL} if the minnow
+does not require a callback.  Note that multiple input ports can use
+the same callback functions.
+
+The first callback is {datumfunc}, and is called by the PHISH library
+each time a datum is received on that input port.
+
+The {datumfunc} function should have the following form:
+
+void datumfunc(int nfields) \{
+\} :pre
+
+where "datumfunc" is replaced by a function name of your choice.  The
+function is passed "nfields" = the # of fields in the received datum.
+See the "phish_unpack"_phish_unpack.html and
+"phish_datum"_phish_datum.html doc pages for info on how the received
+datum can be further processed.
+
+The second callback is {donefunc}, and is a called by the PHISH
+library when the input port is closed.
+
+The {donefunc} function should have the following form:
+
+void donefunc() \{
+\} :pre
+
+where "donefunc" is replaced by a function name of your choice.  A
+minnow might use the function to print out some statistics about data
+received thru that input port, or its closure might trigger further
+data to be sent downstream to other minnows.  See the
+"phish_close"_phish_close.html function and "shutdown
+section"_Minnows.html#shutdown of the "Minnows"_Minnows.html doc page,
+for more discussion of how a school of minnows closes ports and shuts
+down.
+
+:line
+
+The minnow should make one call to phish_output() for each output port
+it uses, whether or not a particular PHISH input script actually
+connects to the port.  Usage of an output port by an input script is
+always optional, which makes it easy to develop and debug a sequence
+of pipelined operations, one minnow at a time.
+
+:line
+
+The phish_done() function can be used if desired to specify a callback
+function that will be invoked by the PHISH library when all the
+minnow's input ports have been closed.  The callback function should
+have the following form:
+
+void alldonefunc() \{
+\} :pre
+
+where "alldonefunc" is replaced by a function name of your choice.  A
+minnow might use the function to print out some final statistics
+before the PHISH library exits.  See the
+"phish_close"_phish_close.html function and "shutdown
+section"_Minnows.html#shutdown of the "Minnows"_Minnows.html doc page,
+for more discussion of how a school of minnows closes ports and shuts
+down.
+
+:line
+
+[Restrictions:]
+
+These functions cannot be called after "phish_check"_phish_check.html
+has been called.
+
+[Related commands:]
+
+"phish_check"_phish_check.html, "phish_close"_phish_close.html
