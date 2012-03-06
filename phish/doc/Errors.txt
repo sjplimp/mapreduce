@@ -8,6 +8,13 @@
 
 7. Errors :h3
 
+special error cases:
+
+overflow of stacked-up messages
+ZMQ shutdown
+
+how to debug a PHISH school via an input script, stage by stage
+
 This is the list of error messages bait.py and the PHISH library
 can generate.
 
