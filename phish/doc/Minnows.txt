@@ -86,6 +86,14 @@ Communication via ports :link(minnow_2),h4
 
 Shutting down a minnow :link(minnow_3),h4
 
+regular datum vs done message
+
+For a PHISH program whose minnows operate in a pipelined
+one-directional fashion (e.g. one or more minnows read input,
+send datums to a 2nd set of minnows, on to a 3rd set, etc), it
+is typically sufficient to trigger an orderly shutdown of
+the entire program 
+
 one-way schools, triggered by head
 done messages, per port level
 close ports explicitly or implicitly

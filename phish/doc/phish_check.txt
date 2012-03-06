@@ -26,7 +26,7 @@ phish_check();
 
 [Description:]
 
-This is PHISH library functions which can be called from a minnow
+This is a PHISH library function which can be called from a minnow
 application.  In PHISH lingo, a "minnow" is a stand-alone application
 which makes calls to the "PHISH library"_Library.html.
 
@@ -45,6 +45,8 @@ Specifically, it does the following:
 checks that required input ports are used by the script
 checks that no ports used by the script are undefined by the minnow
 opens all ports used by the script so that data exchanges can begin :ul
+
+:line
 
 [Restrictions:] none
 

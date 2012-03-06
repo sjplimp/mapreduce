@@ -9,50 +9,117 @@
 
 <HR>
 
-<H3>phish_close() function 
-</H3>
 <H3>phish_exit() function 
+</H3>
+<H3>phish_close() function 
 </H3>
 <P><B>C syntax:</B>
 </P>
-<PRE>void phish_close(int iport) 
-</PRE>
 <PRE>void phish_exit() 
+</PRE>
+<PRE>void phish_close(int iport) 
 </PRE>
 <P><B>C examples:</B>
 </P>
-<PRE>phish_close(0);
-phish_exit(); 
+<PRE>phish_exit();
+phish_close(0); 
 </PRE>
 <P><B>Python syntax:</B>
 </P>
-<PRE>void phish_close(int iport) 
-</PRE>
 <PRE>void phish_exit() 
+</PRE>
+<PRE>void phish_close(int iport) 
 </PRE>
 <P><B>Python examples:</B>
 </P>
-<PRE>phish_close(0);
-phish_exit(); 
+<PRE>phish_exit();
+phish_close(0); 
 </PRE>
-<P>phish_check();
-</P>
 <P><B>Description:</B>
 </P>
 <P>These are PHISH library functions which can be called from a minnow
 application.  In PHISH lingo, a "minnow" is a stand-alone application
 which makes calls to the <A HREF = "Library.html">PHISH library</A>.
 </P>
-<P>These functions serve to shutdown a running minnow, either entirely
-or a portion of its output capabilities.  Th
+<P>These functions serve to shutdown a running minnow, either entirely or
+a portion of its output capabilities.  They trigger the closing of a
+minnow's output port(s) which notifies downstream minnows, so they
+also can clean-up and exit.
 </P>
-<P>warns if any input ports still open
-closes all output ports if still unclosed
-free memory for PHISH library
-must be last call to any phish function
+<P>See <A HREF = "Minnows.html#minnow_3">this section</A> of the <A HREF = "Minnows.html">Minnows</A>
+doc page for a discussion of shutdown options for PHISH programs.
 </P>
-<P>close an output port with portID iport
-sends DONE message to all downstream receivers
-no-op if port is already closed
+<HR>
+
+<P>The phish_exit() function is the most commonly used mechanism for
+performing an orderly shutdown of a PHISH program.  Once called, no
+further calls to the PHISH library can be made by a minnow, so it is
+often the final line of a minnow program.
+</P>
+<P>When phish_exit() is called it performs the following operations:
+</P>
+<UL><LI>warn if any input port is not closed
+<LI>close all output ports
+<LI>free internal memory allocated by the PHISH library
+<LI>shutdown communication protocols to other minnows 
+</UL>
+<P>Closing a minnow's output port involves sending a "done" message to
+each minnow (in each set of minnows) connected as a receiver to that
+port, so that they know to expect no more datums from this minnow.
+</P>
+<P>When all the minnows in a set have invoked phish_exit() to close an
+output port, each downstream minnow that receives output from this
+port will have received a series of "done" messages on its
+corresponding input port.  Each minnow keeps a count of the total # of
+minnows that send to that port, so it will know when the requisite
+number of done messages have been received to close the input port.
+</P>
+<P>In the MPI version of the library, the final step is performed by
+invoking MPI_Finalize(), which means no further MPI calls can be made.
+</P>
+<P>NOTE: how is this done for the sockets version?
+</P>
+<P>Note that this function is often called directly by the most upstream
+minnow(s) in a PHISH school, when they are done with their task
+(e.g. reading data from a file).
+</P>
+<P>Other downstream minnows often call phish_exit() after the
+<A HREF = "phish_recv.html">phish_loop</A> or <A HREF = "phish_recv.html">phish_probe</A> function
+returns control to the minnow, since that only occurs when all the
+minnow's input ports have been closed.  In this manner, the shutdown
+procedure cascades from minnow to minnow.
+</P>
+<HR>
+
+<P>The phish_close() function is less often used than the phish_exit()
+function.  It can be useful when some minnow in the middle of a data
+processing pipeline needs to trigger an orderly shutdown of the PHISH
+program.
+</P>
+<P>Phish_close() closes the specified <I>iport</I> output port of a minnow.
+This procedure involves sending a "done" message to each minnow (in
+each set of minnows) connected as a receiver to that port, so that
+they know to expect no more datums from this minnow.
+</P>
+<P>When all the minnows in a set have invoked phish_close() on an output
+port, each downstream minnow that receives output from this port will
+have received a series of "done" messages on its corresponding input
+port.  Each minnow keeps a count of the total # of minnows that send
+to that port, so it will know when the requisite number of done
+messages have been received to close the input port.  As input ports
+are closed, this typically triggers the minnow to invoke phish_exit()
+or phish_close().  In this manner, the shutdown procedure cascades
+from minnow to minnow.
+</P>
+<P>This function does nothing if the specified output port is already
+closed.
+</P>
+<HR>
+
+<P><B>Restrictions:</B> none
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "phish_recv.html">phish_loop</A>, <A HREF = "phish_recv.html">phish_probe</A>
 </P>
 </HTML>

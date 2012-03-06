@@ -1,9 +1,52 @@
 <HTML>
-<P>* void phish_reset_receiver(int iport, int receiver)
+<CENTER><A HREF = "http://phish.sandia.gov">PHISH WWW Site</A> - <A HREF = "Manual.html">PHISH Documentation</A> - <A HREF = "Bait.html">Bait.py Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>phish_reset_receiver() function 
+</H3>
+<P><B>C syntax:</B>
 </P>
+<PRE>void phish_reset_receiver(int iport, int receiver) 
+</PRE>
+<P><B>C examples:</B>
+</P>
+<PRE>phish_reset_receiver(0,3); 
+</PRE>
+<P><B>Python syntax:</B>
+</P>
+<PRE>void phish_reset_receiver(int iport, int receiver) 
+</PRE>
+<P><B>Python examples:</B>
+</P>
+<PRE>phish_reset_receiver(0,3); 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the <A HREF = "Library.html">PHISH library</A>.
+</P>
+<P>These are miscellaneous functions, which are not used
+by typical minnows, but serve special purposes.
+</P>
+<HR>
+
 <P>change the process I send messages to on output port iport
   can be used to effectively permute the ordering of processes in a ring
   receiver = 0 to M-1, where M = # of receivers in the connection
 only supported by "ring" connection
+</P>
+<HR>
+
+<P><B>Restrictions:</B> none
+</P>
+<P><B>Related commands:</B> none
 </P>
 </HTML>
