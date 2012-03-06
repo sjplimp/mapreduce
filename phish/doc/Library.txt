@@ -73,7 +73,7 @@ Miscellaneous library calls :l
 
 Discuss limits and options affecting library:
 
-make MAXBUF and PHISH_SAFE_SEND be settable options by user?
+NOTE: make MAXBUF and PHISH_SAFE_SEND be settable options by user?
 
 :line
 :line

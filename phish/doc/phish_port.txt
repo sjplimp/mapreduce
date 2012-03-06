@@ -21,7 +21,7 @@ void phish_done(void (*done)()) :pre
 phish_input(0,count,NULL,1);
 phish_input(1,count,mydone,0);
 phish_output(0);
-phish_done(alldone); :pre
+phish_done(quit); :pre
 
 [Python syntax:]
 
@@ -34,7 +34,7 @@ void phish_done(void (*alldonefunc)()) :pre
 phish_input(0,count,NULL,1);
 phish_input(1,count,mydone,0);
 phish_output(0);
-phish_done(alldone); :pre
+phish_done(quit); :pre
 
 [Description:]
 

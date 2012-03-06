@@ -1,18 +1,125 @@
 <HTML>
-<P>* void phish_send(int oport)
-* void phish_send_key(int oport, char *key, int nbytes)
-* void phish_send_direct(int oport, int receiver)
+<CENTER><A HREF = "http://phish.sandia.gov">PHISH WWW Site</A> - <A HREF = "Manual.html">PHISH Documentation</A> - <A HREF = "Bait.html">Bait.py Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>phish_send() function 
+</H3>
+<H3>phish_send_key() function 
+</H3>
+<H3>phish_send_direct() function 
+</H3>
+<P><B>C syntax:</B>
 </P>
-<P>send a packed datum to output port oport
+<PRE>void phish_send(int oport) 
+</PRE>
+<PRE>void phish_send_key(int oport, char *key, int nbytes) 
+</PRE>
+<PRE>void phish_send_direct(int oport, int receiver) 
+</PRE>
+<P><B>C examples:</B>
 </P>
-<P>send a packed datum to output port oport
-  in a hashed manner using key of length nbytes
-  to determine who receiver is
-only supported by "hashed" connections
+<PRE>phish_send(0);
+phish_send_key(1,id,strlen(id));
+phish_send_direct(0,3); 
+</PRE>
+<P><B>Python syntax:</B>
 </P>
-<P>send a packed datum to output port oport
-  and to a specific recieving process
-  receiver = 0 to M-1, where M = # of receivers in the connection
-only supported by "direct" connections
+<PRE>void phish_send(int oport) 
+</PRE>
+<PRE>void phish_send_key(int oport, char *key, int nbytes) 
+</PRE>
+<PRE>void phish_send_direct(int oport, int receiver) 
+</PRE>
+<P><B>Python examples:</B>
+</P>
+<PRE>phish_loop(); 
+</PRE>
+<PRE>phish_probe(count); 
+</PRE>
+<PRE>n = phish_recv(); 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the <A HREF = "Library.html">PHISH library</A>.
+</P>
+<P>These functions are used to send datums to other minnows.  Before a
+datum can be sent, it must be packed into a buffer.  See the doc page
+for the <A HREF = "phish_pack.html">phish_pack</A> functions to see how this is
+done.
+</P>
+<P>All datums are sent via output ports the minnow defines and which the
+PHISH input script uses to route datums from one set of minnows to
+another set.  Thus these send functions all take an <I>oport</I> argument
+to specify which output port to send thru.
+</P>
+<P>The specific minnow(s) that the datum will be sent to is determined by
+the connection style(s) defined for the output port.  See the PHISH
+input script <A HREF = "bait_connect.html">connect</A> command, as discussed on the
+<A HREF = "Bait.html">bait.py</A> tool doc page, for details.  Some connection
+styles require additional information from the minnow to route the
+datum to the desired minnow.  This is the reason for the
+phish_send_key() and phish_send_direct() variants of phish_send().
+</P>
+<HR>
+
+<P>The phish_send() function sends a datum to the specified <I>oport</I>
+output port.
+</P>
+<P>This generic form of a send can be used for all connection styles
+except the HASHED and DIRECT styles.  See the PHISH input script
+<A HREF = "bait_connect.html">connect</A> command for details.  Note that multiple
+sets of receiving minnows, each with their own connection style, can
+be connected to the same output port.
+</P>
+<P>If phish_send() is used with a HASHED or DIRECT connection style,
+an error will result.
+</P>
+<HR>
+
+<P>The phish_key() function sends a datum to the specified <I>oport</I> output
+port and allows specification of a byte string or <I>key</I> of length
+<I>nbytes</I>, which will be hashed by the PHISH library and converted into
+an index for choosing a specific receiving processor to send the datum
+to.
+</P>
+<P>This form of sending must be used for a HASHED connection style.  See
+the PHISH input script <A HREF = "bait_connect.html">connect</A> command for
+details.  If one or more of the connection styles connected to the
+output port is not a HASHED style, then the <I>key</I> and <I>nbytes</I>
+arguments are ignored, and the generic phish_send() form is used to
+send the datum.
+</P>
+<HR>
+
+<P>The phish_direct() function sends a datum to the specified <I>oport</I>
+output port and allows a specific receiving minnow to be selected via
+the <I>receiver</I> argument.  The <I>receiver</I> is an integer offset into the
+set of receiving minnows connected to this output port.  If there are
+<I>M</I> minnows in the receiving set, then 0 <= <I>receiver</I> < M is
+required.  The <A HREF = "phish_init.html">phish_school</A> function can be used to
+query information about the receiving set of minnows.
+</P>
+<P>This form of sending must be used for a DIRECT connection style.  See
+the PHISH input script <A HREF = "bait_connect.html">connect</A> command for
+details.  If one or more of the connection styles connected to the
+output port is not a DIRECT style, then the <I>reciever</I> argument is
+ignored, and the generic phish_send() form is used to send the datum.
+</P>
+<HR>
+
+<P><B>Restrictions:</B> none
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "phish_pack.html">phish_pack</A>
 </P>
 </HTML>

@@ -1,28 +1,133 @@
-* void phish_loop()
-* void phish_probe(void (*probe)())
-* int phish_recv()
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
 
-continuous loop, waiting for input datums
-if datum arrives on an input port, the port process() is called
-if port is closed, the port done() is called
-when all ports are closed, calls all_done callback, exits
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
 
+:line
 
+phish_loop() function :h3
+phish_probe() function :h3
+phish_recv() function :h3
 
+[C syntax:]
 
-same as phish_loop(), except that incoming datums are
-  probed for in non-blocking manner
-if no message is available,
-  then probe() function in invoked so app can do more work
+void phish_loop() :pre
+void phish_probe(void (*probefunc)()) :pre
+int phish_recv() :pre
 
+[C examples:]
 
+phish_loop();
+phish_probe(count);
+n = phish_recv(); :pre
 
+[Python syntax:]
 
+void phish_loop() :pre
+void phish_probe(void (*probefunc)()) :pre
+int phish_recv() :pre
 
-probe for incoming message, return whether one available or not
-allows app to request messages explicitly, rather than thru
-  phish_loop/probe and a callback
-return 0 if no message
-return 1 if done message (and invokes callbacks if necessary)
-return N for # of fields in received message
+[Python examples:]
 
+phish_loop();
+phish_probe(count);
+n = phish_recv(); :pre
+
+[Description:]
+
+These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the "PHISH library"_Library.html.
+
+These functions are used to receive datums sent by other minnows.
+
+Note that received datums can arrive on any input port the minnow
+defines and the PHISH input script uses to route datums from one set
+of minnows to another set.  The functions documented on this page
+receive the next datum, whichever input port it arrives on.  It is up
+to the minnow to take the appropriate port-specific action if
+necessary.  This can be done by defining a port-specific callback
+function via the "phish_input"_phish_port.html function.  Or by
+querying what port the datum was received on via the
+"phish_datum"_phish_unpack.html function.
+
+:line
+
+The phish_loop() function turns control over to the PHISH library.  It
+will wait for the next datum to arrive on any input port.  When it
+does one of three things happen:
+
+(1) For a regular datum, phish_loop() will make a callback to the
+minnow, to the {datum} callback function assigned to the input port
+the datum was received on.  See the "phish_input"_phish_input.html
+function for how this callback function is assigned.  When the
+callback function returns, control is returned to phish_loop().
+
+(2) For a datum that signals the closure of an input port,
+phish_loop() will make a callback to the minnow, to the {done}
+callback function assigned to the input port the datum was received
+on.  See the "phish_input"_phish_input.html function for how this
+callback function is assigned.  When the callback function returns,
+control is returned to phish_loop().
+
+(3) For a datum that closes the last open input port, step (2) is
+performed, and then an additional callback to the minnow is made, to
+the {alldone} callback function (optionally) assigned by the
+"phish_done"_phish_done.html function.  When the callback function
+returns, control is returned to phish_loop().
+
+After option (3) has occurred, phish_loop() returns, giving control
+back to the minnow.  Typically, the minnow will then clean up and call
+"phish_exit"_phish_exit.html, since all its input ports are closed and
+no more datums can be received.
+
+:line
+
+The phish_probe() function is identical to phish_loop(), except that
+instead of waiting for the next datum to arrive, phish_probe() checks
+if a datum has arrived.  If not, then it immediately calls the
+specified {probefunc} callback function.  This allows the minnow to do
+useful work while waiting for the next datum to arrive.
+
+The {probefunc} function should have the following form:
+
+void probefunc() \{
+\} :pre
+
+where "datumfunc" is replaced by a function name of your choice.  When
+the {probefunc} callback function returns, control is returned to
+phish_probe().
+
+Note that just like phish_loop(), phish_probe() will not return
+control to the minnow, until option (3) above has occured, i.e. all
+input ports have been closed.
+
+:line
+
+The phish_recv() function allows the minnow to request datums
+explicitly, rather than be handing control to phish_loop() or
+phish_probe() and being called back to by those functions.
+
+The phish_recv() function checks if a datum has arrived and returns
+regardless.  It returns a value of 0 if no datum is available.  It
+returns a value N > 0 if a datum has arrived, with N = the number of
+fields in the datum.  See the "phish_unpack"_phish_unpack.html and
+"phish_datum"_phish_datum.html doc pages for info on how the received
+datum can be further processed.
+
+If a datum is received that signals the closure of an input port, then
+phish_recv() will perform the same options (2) and (3) listed above,
+making callbacks to the {done} callback function and {alldone}
+callback function as appopriate, and then return with a value of -1.
+
+:line
+
+[Restrictions:]
+
+These functions can only be called after
+"phish_check"_phish_check.html has been called.
+
+[Related commands:]
+
+"phish_input"_phish_input.html, "phish_done"_phish_done.html

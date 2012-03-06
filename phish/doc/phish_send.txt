@@ -1,20 +1,112 @@
-* void phish_send(int oport)
-* void phish_send_key(int oport, char *key, int nbytes)
-* void phish_send_direct(int oport, int receiver)
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
 
-send a packed datum to output port oport
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
 
+:line
 
-send a packed datum to output port oport
-  in a hashed manner using key of length nbytes
-  to determine who receiver is
-only supported by "hashed" connections
+phish_send() function :h3
+phish_send_key() function :h3
+phish_send_direct() function :h3
 
+[C syntax:]
 
-send a packed datum to output port oport
-  and to a specific recieving process
-  receiver = 0 to M-1, where M = # of receivers in the connection
-only supported by "direct" connections
+void phish_send(int oport) :pre
+void phish_send_key(int oport, char *key, int nbytes) :pre
+void phish_send_direct(int oport, int receiver) :pre
 
+[C examples:]
 
+phish_send(0);
+phish_send_key(1,id,strlen(id));
+phish_send_direct(0,3); :pre
 
+[Python syntax:]
+
+void phish_send(int oport) :pre
+void phish_send_key(int oport, char *key, int nbytes) :pre
+void phish_send_direct(int oport, int receiver) :pre
+
+[Python examples:]
+
+phish_loop(); :pre
+phish_probe(count); :pre
+n = phish_recv(); :pre
+
+[Description:]
+
+These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the "PHISH library"_Library.html.
+
+These functions are used to send datums to other minnows.  Before a
+datum can be sent, it must be packed into a buffer.  See the doc page
+for the "phish_pack"_phish_pack.html functions to see how this is
+done.
+
+All datums are sent via output ports the minnow defines and which the
+PHISH input script uses to route datums from one set of minnows to
+another set.  Thus these send functions all take an {oport} argument
+to specify which output port to send thru.
+
+The specific minnow(s) that the datum will be sent to is determined by
+the connection style(s) defined for the output port.  See the PHISH
+input script "connect"_bait_connect.html command, as discussed on the
+"bait.py"_Bait.html tool doc page, for details.  Some connection
+styles require additional information from the minnow to route the
+datum to the desired minnow.  This is the reason for the
+phish_send_key() and phish_send_direct() variants of phish_send().
+
+:line
+
+The phish_send() function sends a datum to the specified {oport}
+output port.
+
+This generic form of a send can be used for all connection styles
+except the HASHED and DIRECT styles.  See the PHISH input script
+"connect"_bait_connect.html command for details.  Note that multiple
+sets of receiving minnows, each with their own connection style, can
+be connected to the same output port.
+
+If phish_send() is used with a HASHED or DIRECT connection style,
+an error will result.
+
+:line
+
+The phish_key() function sends a datum to the specified {oport} output
+port and allows specification of a byte string or {key} of length
+{nbytes}, which will be hashed by the PHISH library and converted into
+an index for choosing a specific receiving processor to send the datum
+to.
+
+This form of sending must be used for a HASHED connection style.  See
+the PHISH input script "connect"_bait_connect.html command for
+details.  If one or more of the connection styles connected to the
+output port is not a HASHED style, then the {key} and {nbytes}
+arguments are ignored, and the generic phish_send() form is used to
+send the datum.
+
+:line
+
+The phish_direct() function sends a datum to the specified {oport}
+output port and allows a specific receiving minnow to be selected via
+the {receiver} argument.  The {receiver} is an integer offset into the
+set of receiving minnows connected to this output port.  If there are
+{M} minnows in the receiving set, then 0 <= {receiver} < M is
+required.  The "phish_school"_phish_init.html function can be used to
+query information about the receiving set of minnows.
+
+This form of sending must be used for a DIRECT connection style.  See
+the PHISH input script "connect"_bait_connect.html command for
+details.  If one or more of the connection styles connected to the
+output port is not a DIRECT style, then the {reciever} argument is
+ignored, and the generic phish_send() form is used to send the datum.
+
+:line
+
+[Restrictions:] none
+
+[Related commands:]
+
+"phish_pack"_phish_pack.html

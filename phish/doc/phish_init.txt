@@ -148,6 +148,10 @@ NOTE: what is communicator for socket version?
 NOTE: should it also return number of minnows in this set?
       or my location within the set?
 
+NOTE: also need phish_school to tell something
+      about other sets connected to?
+      e.g. for phish_send_direct() function
+
 [Restrictions:] none
 
 [Related commands:] none
