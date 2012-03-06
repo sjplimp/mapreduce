@@ -65,7 +65,7 @@ to persist within the minnow, you must make a copy.  It is OK to
 unpack several fields from the same datum before making copies of the
 fields.  It is also OK to pack one or more fields for sending and wait
 to send it until after another datum is received.  This is because
-calls to the "phish_pack" functions, copy data into a send buffer.
+calls to "phish_pack" functions copy data into a send buffer.
 </P>
 <HR>
 
@@ -85,11 +85,11 @@ one of these values (defined in src/phish.h):
 </UL>
 <P>PHISH_RAW is a string of raw bytes which can store whatever the
 sending minnow put into its send buffer, e.g. a C data structure
-containing a collection of C primitive data types.  PHISH_INT is a
-signed int, typically 32-bits in length.  PHISH_UINT64 refers to an
-unsigned 64-bit integer.  PHISH_STRING is a C-style NULL-terminated
-string.  The ARRAY types mean the field is a sequence of "int" or
-"uint64" or "double" values, packed one after the other.
+containing a collection of various C primitive data types.  PHISH_INT
+is a signed int, typically 32-bits in length.  PHISH_UINT64 is an
+unsigned 64-bit int.  PHISH_STRING is a standard C-style
+NULL-terminated string.  The ARRAY types mean the field is a sequence
+of "int" or "uint64" or "double" values, packed one after the other.
 </P>
 <P>The function also returns <I>buf</I> and <I>len</I>.  <I>Buf</I> is a char pointer to
 where the field starts.  You will need to cast this to the appropriate

@@ -11,27 +11,29 @@ phish_school() function :h3
 
 [C syntax:]
 
-void phish_init(int *pnarg, char ***pargs)
-int phish_school(int *pme, int *pnminnows)
+void phish_init(int *narg, char ***args) :pre
+void phish_school(int *idlocal, int *nlocal, int *idglobal, int *nglobal) :pre
 
 [C examples:]
 
 phish_init(&argc,&argv);
-int me,nminnows;
-MPI_Comm comm = phish_school(&me,&nminnows);
-printf("Minnow info: %d %d\n",me,nminnows);
+int idlocal,nlocal,idglobal,nglobal;
+MPI_Comm comm = phish_school(&idlocal,&nlocal,&idglobal,&nglobal);
+printf("Local minnow info: %d %d\n",idlocal,nlocal);
+printf("Global minnow info: %d %d\n",idglobal,nglobal); :pre
 
 [Python syntax:]
 
-void phish_init(int *pnarg, char ***pargs)
-int phish_school(int *pme, int *pnminnows)
+void phish_init(int *narg, char ***args) :pre
+void phish_school(int *idlocal, int *nlocal, int *idglobal, int *nglobal) :pre
 
 [Python examples:]
 
 phish_init(&argc,&argv);
-int me,nminnows;
-MPI_Comm comm = phish_school(&me,&nminnows);
-printf("Minnow info: %d %d\n",me,nminnows);
+int idlocal,nlocal,idglobal,nglobal;
+MPI_Comm comm = phish_school(&idlocal,&nlocal,&idglobal,&nglobal);
+printf("Local minnow info: %d %d\n",idlocal,nlocal);
+printf("Global minnow info: %d %d\n",idglobal,nglobal); :pre
 
 [Description:]
 
@@ -39,48 +41,47 @@ These are PHISH library functions which can be called from a minnow
 application.  In PHISH lingo, a "minnow" is a stand-alone application
 which makes calls to the "PHISH library"_Library.html.
 
-The phish_init() function is the first call to the PHISH library that
-a minnow makes and it must be made before any other PHISH library call
-can be made.  Typically, it the first executable line of a minnow
+The phish_init() function must be the first call to the PHISH library
+made by a minnow.  Since it alters the command-line arguments passed
+to the minnow, it is typically the first executable line of a minnow
 program.
 
-It's purpose is to initialize the library using command-line arguments
-that were passed to the minnow when it was launched, typically by the
-MPI or socket launch script that the "bait.py"_Bait.html setup tool
-creates from a PHISH input script.
-
-When a PHISH program, using one or more sets of minnows is launched,
-every individual minnow is assigned a global ID, from 0 to G-1, where
-{G} = the total number of minnows.  These IDs are ordered by group, so
-that the minnows in each set have consecutive IDs.  These IDs enable
-the PHISH library to orchestrate communication of datums between
-minnows in different sets.
+It's purpose is to initialize the library using special command-line
+arguments passed to the minnow when it was launched, typically by the
+MPI or socket launch script that the "bait.py"_Bait.html tool creates
+from a PHISH input script.
 
 The two arguments to phish_init() are pointers to the number of
 command-line arguments, and a pointer to the arguments themselves as
 an array of strings.  These are passed as pointers, because the PHISH
-library will read and remove the PHISH-specific arguments.  It will
-then return the reamining minnow-specific arguments, which the minnow
-can read and process.
+library reads and removes the PHISH-specific arguments.  It then
+returns the reamining minnow-specific arguments, which the minnow can
+read and process.
 
 There are the switches and arguments the PHISH library looks for and
 processes:
 
--app exefile ID N Nprev 
+-minnow exefile ID local-ID Nlocal global-ID Nglobal
 -in sprocs sfirst sport style rprocs rfirst rport
 -out sprocs sfirst sport style rprocs rfirst rport
 -args arg1 arg2 ... = args for the minnoq itself :ul
 
-The {-app} switch appears once, as the first argument.  {Exefile} is
-the name of executable file for this minnow, e.g. count or count.py.
-The ID is its minnow ID in the PHISH input script.  {N} is the number
-of duplicate minnows launched via the "layout"_bait_layout.html
-command and the "bait.py"_Bait.html tool.  {Nprev} is how many of the
-duplicate minnows precede this one in this set of duplicate minnows.
-E.g. if {N} = 10 minnows were launched in this set, each of them would
-be assigned an {Nprev} from 0 to 9.
+The {-minnow} switch appears once, as the first argument.  {Exefile}
+is the name of executable file for this minnow, e.g. count or
+count.py.  The ID is the minnow ID in the PHISH input script.  The 4
+remaining local and global arguments are as follows.
 
-NOTE: is Nprev within the set, or a global ID?
+A PHISH program typically includes one or more sets of minnows, as
+specified in a PHISH input script.  Each minnow in each set is an
+individual process.  In a local sense, each minnow has a local-ID from
+0 to Nlocal-1 within its set, where {Nlocal} is the number of minnows
+in the set.  Globally, each minnow has a global-ID from 0 to
+Nglobal-1, where {Nglobal} is the total number of minnows.  The
+global-IDs are ordered by set, so that minnows within each set have
+consecutive IDs.  These IDs enable the PHISH library to orchestrate
+communication of datums between minnows in different sets.  E.g. when
+running the MPI version of the PHISH library, the global-ID
+corresponsds to the rank ID of an MPI process.
 
 The {-in} switch appears once for every connection the minnow has with
 other minnows, where it is a receiver of datums.  See the
@@ -133,24 +134,17 @@ functions for more info about port status.
 
 :line
 
-The phish_school() function can be used to query information about the
-minnow's status within the school (or collection) of minnows running
-the PHISH program.
+The phish_school() function can be used to query the local and global
+information about the minnow, both within its local set of duplicate
+minnows, and within the global school of minnows.
 
-The returned "me" and "nminnows" are the global ID of this
-minnow and the total number of minnows ({G} as described above).
+The meaning of the 4 returned values {idlocal}, {nlocal}, {idglobal},
+and {nglobal} are as described above for the {-minnow} command-line
+switch.
 
-The function itself returns the MPI communicator being used by PHISH
-(i.e. MPI_COMM_WORLD), when running the MPI version of the library.
-
-NOTE: what is communicator for socket version?
-
-NOTE: should it also return number of minnows in this set?
-      or my location within the set?
-
-NOTE: also need phish_school to tell something
+NOTE: also need phish_school or a variatnt to tell something
       about other sets connected to?
-      e.g. for phish_send_direct() function
+      for phish_send_direct() function
 
 [Restrictions:] none
 

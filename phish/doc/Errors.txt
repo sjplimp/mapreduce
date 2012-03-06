@@ -1,0 +1,14 @@
+"Previous Section"_Python.html - "PHISH WWW Site"_pws -
+"LAMMPS Documentation"_pd - "Next Section"_Manual.html :c
+
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+
+:line
+
+7. Errors :h3
+
+This is the list of error messages bait.py and the PHISH library
+can generate.
+
+

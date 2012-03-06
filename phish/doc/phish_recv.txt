@@ -42,15 +42,17 @@ which makes calls to the "PHISH library"_Library.html.
 
 These functions are used to receive datums sent by other minnows.
 
-Note that received datums can arrive on any input port the minnow
-defines and the PHISH input script uses to route datums from one set
-of minnows to another set.  The functions documented on this page
-receive the next datum, whichever input port it arrives on.  It is up
-to the minnow to take the appropriate port-specific action if
-necessary.  This can be done by defining a port-specific callback
-function via the "phish_input"_phish_port.html function.  Or by
-querying what port the datum was received on via the
-"phish_datum"_phish_unpack.html function.
+All received datums arrive on input ports the minnow defines and which
+the PHISH input script uses to route datums from one set of minnows to
+another set.
+
+The functions documented on this page receive the next datum,
+whichever input port it arrives on.  It is up to the minnow to take
+the appropriate port-specific action if necessary.  This can be done
+by defining a port-specific callback function via the
+"phish_input"_phish_port.html function.  Or by querying what port the
+datum was received on via the "phish_datum"_phish_unpack.html
+function.
 
 :line
 

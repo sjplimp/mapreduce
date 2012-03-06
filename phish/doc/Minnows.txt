@@ -8,17 +8,27 @@
 
 3. PHISH Minnows :h3
 
-A minnow is an app, which is ...
+In PHISH lingo, a "minnow" is a stand-alone application which makes
+calls to the "PHISH library"_Library.html.  Typically they are small
+programs which perform a single task, e.g. they parse a string into
+keywords and store statistics on those keywords.
 
-This section covers these topics:
+Hooked together by connections to other sets, in various communication
+patterns
 
-Structure of a minnow
-How a minnow shuts down
-Debugging a minnow
-Special issues to be aware of :ul
+Often come in sets as specified by input script.  Parallel if working
+in tandem with other duplicate minnows, each processing a subset of
+datums.
 
-This is list of minnows provided with PHISH.  Some are provided in
-C++, some in Python, some in both.
+This doc page covers these topics:
+
+"Structure of a minnow"_#minnow_1
+"Communication via ports"_#minnow_2
+"Shutting down a minnow"_#minnow_3
+"Debugging a minnow"_#minnow_4 :ul
+
+This is a list of minnows in the minnow sub-directory of the PHISH
+distribution.  Some are written in C++, some in Python, some in both:
 
 "count"_count.html
 "file2fields"_file2fields.html
@@ -30,13 +40,18 @@ C++, some in Python, some in both.
 "readgraph"_readgraph.html
 "rmat"_rmat.html
 "slowdown"_slowdown.html
-"sort"_sort.html
+"sort"_sort.html :ul
+
+These are special minnows which can wrap stand-alone non-PHISH
+applications which read from stdin and write to stdout, so that they
+can be used in as minnows in a PHISH program:
+
 "wrapsink"_wrapsink.html
 "wrapsource"_wrapsource.html
 "wrapss"_wrapss.html :ul
 
-These are stand-alone apps that can be wrapped as a child
-process:
+These are simple stand-alone applications that are examples of code
+that can be wrapped by the "wrap" minnows:
 
 "echo"_echo.html
 "reverse"_reverse.html :ul
@@ -44,11 +59,16 @@ process:
 :line
 :line
 
-Structure of a minnow :h4
+Structure of a minnow :link(minnow_1),h4
+
+Best way to make sense of what a minnow does is examine a few
+simple ones from the minnow dir.
 
 command line args
 setup calls to lib
 setting callbacks
+
+when to make various kinds of lib calls
 
 Deinfe ports as in connect command
 
@@ -60,20 +80,24 @@ packing and sending a datum
 
 :line
 
-How a minnow shuts down :h4
+Communication via ports :link(minnow_2),h4
+
+:line
+
+Shutting down a minnow :link(minnow_3),h4
 
 one-way schools, triggered by head
 done messages, per port level
+close ports explicitly or implicitly
 calls to exit, close, etc
 special care for ring or chain connections
 or when school has loops
 Ctrl-C option
 output at end
 
-:line
-
-Special issues to be aware of :h4
-
 shutdown in ZMQ is buggy
 
+:line
+
+Debuggind a minnow :link(minnow_4),h4
 

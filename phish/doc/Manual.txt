@@ -70,6 +70,7 @@ we can improve the PHISH documentation.
 "PHISH Minnows"_Minnows.html
 "PHISH Library"_Library.html
 "Examples"_Examples.html
-"Python Interface to PHISH"_Python.html :ul
+"Python Interface to PHISH"_Python.html
+"Errors"_Errors.html :ul
 
 </BODY>
