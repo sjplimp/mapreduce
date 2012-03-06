@@ -1,0 +1,57 @@
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
+
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
+
+:line
+
+phish_close() function :h3
+phish_exit() function :h3
+
+[C syntax:]
+
+void phish_close(int iport) :pre
+void phish_exit() :pre
+
+[C examples:]
+
+phish_close(0);
+phish_exit(); :pre
+
+[Python syntax:]
+
+void phish_close(int iport) :pre
+void phish_exit() :pre
+
+[Python examples:]
+
+phish_close(0);
+phish_exit(); :pre
+
+phish_check();
+
+[Description:]
+
+These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the "PHISH library"_Library.html.
+
+These functions serve to shutdown a running minnow, either entirely
+or a portion of its output capabilities.  Th
+
+
+
+
+warns if any input ports still open
+closes all output ports if still unclosed
+free memory for PHISH library
+must be last call to any phish function
+
+
+
+
+close an output port with portID iport
+sends DONE message to all downstream receivers
+no-op if port is already closed
+

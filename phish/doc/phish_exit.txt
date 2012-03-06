@@ -1,6 +1,0 @@
-* void phish_exit()
-
-warns if any input ports still open
-closes all output ports if still unclosed
-free memory for PHISH library
-must be last call to any phish function

@@ -17,11 +17,11 @@
 </H3>
 <P><B>C syntax:</B>
 </P>
-<PRE>void phish_send(int oport) 
+<PRE>void phish_send(int iport) 
 </PRE>
-<PRE>void phish_send_key(int oport, char *key, int nbytes) 
+<PRE>void phish_send_key(int iport, char *key, int nbytes) 
 </PRE>
-<PRE>void phish_send_direct(int oport, int receiver) 
+<PRE>void phish_send_direct(int iport, int receiver) 
 </PRE>
 <P><B>C examples:</B>
 </P>
@@ -31,11 +31,11 @@ phish_send_direct(0,3);
 </PRE>
 <P><B>Python syntax:</B>
 </P>
-<PRE>void phish_send(int oport) 
+<PRE>void phish_send(int iport) 
 </PRE>
-<PRE>void phish_send_key(int oport, char *key, int nbytes) 
+<PRE>void phish_send_key(int iport, char *key, int nbytes) 
 </PRE>
-<PRE>void phish_send_direct(int oport, int receiver) 
+<PRE>void phish_send_direct(int iport, int receiver) 
 </PRE>
 <P><B>Python examples:</B>
 </P>
@@ -58,7 +58,7 @@ done.
 </P>
 <P>All datums are sent via output ports the minnow defines and which the
 PHISH input script uses to route datums from one set of minnows to
-another set.  Thus these send functions all take an <I>oport</I> argument
+another set.  Thus these send functions all take an <I>iport</I> argument
 to specify which output port to send thru.
 </P>
 <P>The specific minnow(s) that the datum will be sent to is determined by
@@ -71,7 +71,7 @@ phish_send_key() and phish_send_direct() variants of phish_send().
 </P>
 <HR>
 
-<P>The phish_send() function sends a datum to the specified <I>oport</I>
+<P>The phish_send() function sends a datum to the specified <I>iport</I>
 output port.
 </P>
 <P>This generic form of a send can be used for all connection styles
@@ -85,7 +85,7 @@ an error will result.
 </P>
 <HR>
 
-<P>The phish_key() function sends a datum to the specified <I>oport</I> output
+<P>The phish_key() function sends a datum to the specified <I>iport</I> output
 port and allows specification of a byte string or <I>key</I> of length
 <I>nbytes</I>, which will be hashed by the PHISH library and converted into
 an index for choosing a specific receiving processor to send the datum
@@ -100,7 +100,7 @@ send the datum.
 </P>
 <HR>
 
-<P>The phish_direct() function sends a datum to the specified <I>oport</I>
+<P>The phish_direct() function sends a datum to the specified <I>iport</I>
 output port and allows a specific receiving minnow to be selected via
 the <I>receiver</I> argument.  The <I>receiver</I> is an integer offset into the
 set of receiving minnows connected to this output port.  If there are

@@ -1,0 +1,58 @@
+<HTML>
+<CENTER><A HREF = "http://phish.sandia.gov">PHISH WWW Site</A> - <A HREF = "Manual.html">PHISH Documentation</A> - <A HREF = "Bait.html">Bait.py Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>phish_close() function 
+</H3>
+<H3>phish_exit() function 
+</H3>
+<P><B>C syntax:</B>
+</P>
+<PRE>void phish_close(int iport) 
+</PRE>
+<PRE>void phish_exit() 
+</PRE>
+<P><B>C examples:</B>
+</P>
+<PRE>phish_close(0);
+phish_exit(); 
+</PRE>
+<P><B>Python syntax:</B>
+</P>
+<PRE>void phish_close(int iport) 
+</PRE>
+<PRE>void phish_exit() 
+</PRE>
+<P><B>Python examples:</B>
+</P>
+<PRE>phish_close(0);
+phish_exit(); 
+</PRE>
+<P>phish_check();
+</P>
+<P><B>Description:</B>
+</P>
+<P>These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the <A HREF = "Library.html">PHISH library</A>.
+</P>
+<P>These functions serve to shutdown a running minnow, either entirely
+or a portion of its output capabilities.  Th
+</P>
+<P>warns if any input ports still open
+closes all output ports if still unclosed
+free memory for PHISH library
+must be last call to any phish function
+</P>
+<P>close an output port with portID iport
+sends DONE message to all downstream receivers
+no-op if port is already closed
+</P>
+</HTML>

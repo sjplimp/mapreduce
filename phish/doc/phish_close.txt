@@ -1,6 +1,0 @@
-* void phish_close(int iport)
-
-close an output port with portID iport
-sends DONE message to all downstream receivers
-no-op if port is already closed
-
