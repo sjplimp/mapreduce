@@ -8,17 +8,16 @@
 
 2. Bait.py Setup Tool :h3
 
-Bait.py is a Python script which converts a PHISH input
-script into a MPI configuration file or shell script which
-can be used to launch a school of minnows, i.e. to run a PHISH
-calculation.  You can edit the input script or pass
-it different parameters via bait.py command-line arguments
-to change the calculation, in which case you need to rerun
+Bait.py is a Python program which converts a PHISH input script into a
+MPI configuration file or shell script which can be used to launch a
+school of minnows, i.e. to run a PHISH calculation.  You can edit the
+input script or pass it different parameters via bait.py command-line
+arguments to change the calculation, in which case you need to rerun
 bait.py to create a new launch script.
 
-The remainder of this page discusses how bait.py can be used
-and how a PHISH input script is formatted.  There
-are separate doc pages for each PHISH input script command.
+The remainder of this page discusses how bait.py is used and how a
+PHISH input script is formatted.  There are separate doc pages for
+each PHISH input script command recognized by bait.py.
 
 "Running bait.py"_#bait_1 :ulb,l
 "Command-line arguments"_#bait_2 :l
@@ -30,6 +29,9 @@ Input script commands :l
   "connect"_bait_connect.html :l
   "layout"_bait_layout.html :ule,l
 :ule
+
+NOTE" include a diagram of a simple algorithm (e.g. MapReduce word
+count), show the corresponding PHISH input script?
 
 :line
 :line
@@ -107,6 +109,3 @@ variable substitution:
 
 what are rules for this?
 should probably be $a for single-char variable, ${abc} for multichar
-
-
-

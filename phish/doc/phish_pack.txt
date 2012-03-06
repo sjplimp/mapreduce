@@ -1,23 +1,109 @@
-* void phish_pack_datum(char *buf, int n)
-* void phish_pack_raw(char *buf, int n)
-* void phish_pack_byte(char cvalue)
-* void phish_pack_int(int ivalue)
-* void phish_pack_uint64(uint64_t uvalue)
-* void phish_pack_double(double dvalue)
-* void phish_pack_string(char *str)
-* void phish_pack_int_array(int *ivec, int n)
-* void phish_pack_uint64_array(uint64_t *uvec, int n)
-* void phish_pack_double_array(int *dvec, int n)
+"PHISH WWW Site"_pws - "PHISH Documentation"_pd - "Bait.py Commands"_pc :c
 
-pack an entire datum of N bytes,
-  including its field delimiters (see phish_datum() function)
-  must be the 1st and only pack call before sending ??  can we check this?
-pack raw buf of N bytes into send datum
-pack cvalue into send datum
-pack ivalue into send datum
-pack uvalue into send datum
-pack dvalue into send datum
-pack str with its trailing NULL into send datum
-pack N integers in ivec into send datum
-pack N uint64s in uvec into send datum<
-pack N doubles in dvec into send datum
+:link(pws,http://phish.sandia.gov)
+:link(pd,Manual.html)
+:link(pc,Bait.html)
+
+:line
+
+phish_pack_datum :h3
+phish_pack_raw :h3
+phish_pack_byte :h3
+phish_pack_int :h3
+phish_pack_uint64 :h3
+phish_pack_double :h3
+phish_pack_string :h3
+phish_pack_int_array :h3
+phish_pack_uint64_array :h3
+phish_pack_double_array :h3
+
+[C syntax:]
+
+void phish_pack_datum(char *buf, int n)
+void phish_pack_raw(char *buf, int n)
+void phish_pack_byte(char cvalue)
+void phish_pack_int(int ivalue)
+void phish_pack_uint64(uint64_t uvalue)
+void phish_pack_double(double dvalue)
+void phish_pack_string(char *str)
+void phish_pack_int_array(int *ivec, int n)
+void phish_pack_uint64_array(uint64_t *uvec, int n)
+void phish_pack_double_array(int *dvec, int n)
+
+[C examples:]
+
+char *buf;
+int len;
+int type = phish_unpack(&buf,&len);
+int iport = phish_datum(&buf,&len); :pre
+
+[Python syntax:]
+
+
+[Python examples:]
+
+[Description:]
+
+These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the "PHISH library"_Library.html.
+
+These functions are used to pack data into a datum before sending it
+to another minnow.
+
+As discussed in "this section"_Library.html#datum of the "PHISH
+Library"_Library.html doc page, datums sent and recived by the PHISH
+library contain one or more fields.  A field is a fundamental data
+type, such as an "int" or vector of "doubles" or a NULL-terminated
+character string.  These pack functions (except for pack_datum()) add
+a single field to a datum by packing data into a contiguous byte
+string, using integer flags to indicate what type and length of data
+comes next.  "Unpack"_phish_unpack.html functions allow the minnow to
+extract data from the datum, one field at a time.
+
+Once data has been packed, the minnow may re-use the memory that
+stores the data; the pack functions copy the data into a send buffer.
+
+:line
+
+The pack_datum() function
+
+A minnow can build the structure of a datum itself, using the
+information "this section"_Library.html#datum of the "PHISH
+Library"_Library.html doc page.  But the more common usage is to use
+this function to pack a datum just received and unpacked via the
+"phish_datum"_phish_unpack.html function, so that it can be sent as-is
+to another minnow.
+
+:line
+
+The remaining pack functions correspond one-to-one with the kinds of
+fundamental data that can be packed into a PHISH datum:
+
+phish_pack_raw() = pack a string of raw bytes of length {n}
+phish_pack_byte() = pack a single character
+phish_pack_int() = pack a single int
+phish_pack_uint64() = pack a single unsigned 64-bit int
+phish_pack_double() = pack a single double
+phish_pack_string() = pack a C-style NULL-terminated string of bytes
+phish_pack_int_array() = pack {n} int values from {ivec}
+phish_pack_uint64_array() = pack {n} uint64 values from {uvec}
+phish_pack_double_array() = pack {n} double values from {dvec} :ul
+
+Phish_pack_raw() can be used with whatever string of raw bytes the
+minnow puts into the {buf} argument, e.g. a C data structure
+containing a collection of various C primitive data types.  The "int"
+data type refers to a signed int, typically 32-bits in length.  The
+"uint64" data type refers to an unsigned 64-bit int.
+Phish_pack_string() will pack a standard C-style NULL-terminated 
+string of bytes.  The array pack functions exepct the
+{ivec} or {uvec} or {dvec} pointer to point to a contiguous
+vector of "int" or "uint64" or "double" values.
+
+:line
+
+[Restrictions:] none
+
+[Related commands:]
+
+"phish_send"_phish_send.html, "phish_unpack"_phish_unpack.html

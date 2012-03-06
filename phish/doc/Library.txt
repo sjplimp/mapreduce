@@ -11,18 +11,19 @@
 This is the API to the PHISH library that minnows (stand-alone
 applications) call.  It is a C-style API, so it is easy to write
 minnows in any language (e.g. C, C++, Fortran, Python) that call the
-PHISH library.
+PHISH library.  The doc pages below for individual library functions
+also document the "Python interface"_Python.html to the library.
 
-Decide where to doc the Python interface (in each doc page)?
-Is the Sockets interface identical?
+NOTE: Is the Sockets interface identical?
+NOTE: Discuss limits and options affecting library:
+      e.g. MAXBUF and PHISH_SAFE_SEND
+      make these user-settable options?
 
-PHISH minnows send and receive datums by communicating with
-other minnows.  Before looking at the specific library
-calls for sending and receiving datums, its helpful to
-understand how the data in a datum is structured by the
-PHISH library.
-
-This is discussed below, in the sub-section "Format of a datum"_#datum.
+PHISH minnows communicate with other minnows by sending and receiving
+datums.  Before looking individual library calls, its helpful to
+understand how the data in a datum is structured by the PHISH library.
+This topic is discussed below, in the section entitled "Format of a
+datum"_#datum.
 
 The PHISH library is not large; there are only a handful of calls.
 They can be grouped into the following 5 categories.  Follow the links
@@ -46,7 +47,7 @@ Library calls for receiving datums :l
   "phish_probe()"_phish_probe.html :b
   "phish_recv()"_phish_recv.html :b
   "phish_unpack()"_phish_unpack.html :b
-  "phish_datum()"_phish_datum.html :ule,b
+  "phish_datum()"_phish_unpack.html :ule,b
 
 Library calls for sending datums :l
   "phish_send()"_phish_send.html :ulb,b
@@ -71,10 +72,6 @@ Miscellaneous library calls :l
   "phish_timer()"_phish_timer.html :ule,b
 :ole
 
-Discuss limits and options affecting library:
-
-NOTE: make MAXBUF and PHISH_SAFE_SEND be settable options by user?
-
 :line
 :line
 
@@ -98,41 +95,46 @@ data for Nth field (bytes) :ul
 
 The "type" values are one of these settings, as defined in src/phish.h:
 
-#define PHISH_RAW 0
-#define PHISH_BYTE 1
-#define PHISH_INT 2
-#define PHISH_UINT64 3
-#define PHISH_DOUBLE 4
-#define PHISH_STRING 5
-#define PHISH_INT_ARRAY 6
-#define PHISH_UINT64_ARRAY 7
-#define PHISH_DOUBLE_ARRAY 8 :ul
+PHISH_RAW = 0
+PHISH_BYTE = 1
+PHISH_INT = 2
+PHISH_UINT64 = 3
+PHISH_DOUBLE = 4
+PHISH_STRING = 5
+PHISH_INT_ARRAY = 6
+PHISH_UINT64_ARRAY = 7
+PHISH_DOUBLE_ARRAY = 8 :ul
 
-PHISH_RAW is a list of raw bytes, which can be of any length, and
-which the user can format in any manner.  PHISH_BYTE is a single byte.
-PHISH_STRING is a NULL-terminated C-style string.  The NULL is
-included in the datum.  The ARRAYS are contiguous lists of int, uint64
-or double values.
+PHISH_RAW is a string of raw bytes, which can be of any length, and
+which the minnow can format in any manner.  PHISH_BYTE, PHISH_INT,
+PHISH_UINT64, and PHISH_DOUBLE are a single byte, int, uint64, and
+double value.  PHISH_INT is a signed int, typically 32-bits in length.
+PHISH_UINT64 is an unsigned 64-bit int.  PHISH_STRING is a standard
+C-style NULL-terminated C-string.  The NULL is included in the field.
+The ARRAYS are contiguous sequences of int, uint64 or double values.
 
 The "size" values are only included for PHISH_RAW (# of bytes),
 PHISH_STRING (# of bytes including NULL), and the ARRAY types (# of
 values).
 
 The field data is packed into the datum in a contiguous manner.
+This means that no attention is paid to alignment of integer
+or floating point values.
 
-NOTE: what about alignment with mix of int/double, or when
-single PHISH_BYTE are packed?
+The maximum allowed size of an entire datum (in bytes) is set by
+MAXBUF in src/phish.cpp, which defaults to 1 Mbyte.
 
-The maximum allowed size of a datum (in bytes) is set by MAXBUF in
-src/phish.cpp, which defaults to 1 Mbyte.
+NOTE: should this be a user-settable parameter
 
-Additionally, MPI flags the messages with a "tag".  This tag encodes
-the receiver's port and also a "done" flag.  If it is not a done
-message, the tag is the receiver's port (0 to Nport-1).  For a done
-message a value of MAXPORT (defined at the top of src/phish.cpp) is
-added to the tag.
+When a datum is sent via the MPI version of the PHISH library, MPI
+flags the message with an MPI "tag".  This tag encodes the receiving
+minnow's input port and also a "done" flag.  Specifically, if the
+datum is not a done message, the tag is the receiver's input port (0
+to Nport-1).  For a done message a value of MAXPORT (defined at the
+top of src/phish.cpp) is added to the tag.
 
-How is this encoding of port and done implemented for sockets?
+See the "phish_input"_phish_port.html doc page for a discussion of
+ports.  See the "shutdown section"_Minnows.html#shutdown of the
+"Minnows"_Minnows.html doc page for a discussion of "done" messages.
 
-MPI also allows the receiver to query the byte size of the message,
-which is used for the "full" pack/unpack calls below.
+NOTE: How is this encoding of port and done implemented for sockets?

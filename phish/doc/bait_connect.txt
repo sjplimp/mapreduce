@@ -20,7 +20,6 @@ recvID = ID of minnows which will receive datums
 inport = input port datums are read from by receiving minnows (default
 = 0) :ul
 
-
 [Examples:]
 
 connect ... :pre

@@ -1,20 +1,142 @@
 <HTML>
-<P>* int phish_unpack(char **buf, int *len)
+<CENTER><A HREF = "http://phish.sandia.gov">PHISH WWW Site</A> - <A HREF = "Manual.html">PHISH Documentation</A> - <A HREF = "Bait.html">Bait.py Commands</A> 
+</CENTER>
+
+
+
+
+
+
+<HR>
+
+<H3>phish_unpack() function 
+</H3>
+<H3>phish_datum() function 
+</H3>
+<P><B>C syntax:</B>
 </P>
-<P>return next field in the received datum
-return value of field = PHISH_RAW, PHISH_INT, etc
-buf = ptr to start of field data
-len = # of values in field
-  for PHISH_RAW, len = # of bytes
-  for PHISH_STRING, len = # of bytes including NULL
-  for PHISH_BYTE, PHISH_INT, PHISH_UINT64, PHISH_DOUBLE, len = 1
-  for PHISH_INT_ARRAY, PHISH_UINT64_ARRAY, PHISH_DOUBLE_ARRAY, 
-    len = # of array values
+<P>int phish_unpack(char **buf, int *len)
+int phish_datum(char **buf, int *len)
 </P>
-<P>NOTE: These only return a ptr to the field data, so if you
-want the data to persist when the next datum is received by
-the minnow (e.g. during a phish_loop() or phish_probe()) then
-you must make a copy.  It is OK to unpack several fields from
-the same datum before making copies of the fields.
+<P><B>C examples:</B>
+</P>
+<PRE>char *buf;
+int len;
+int type = phish_unpack(&buf,&len);
+int iport = phish_datum(&buf,&len); 
+</PRE>
+<P><B>Python syntax:</B>
+</P>
+<P>int phish_unpack(char **buf, int *len)
+int phish_datum(char **buf, int *len)
+</P>
+<P><B>Python examples:</B>
+</P>
+<PRE>char *buf;
+int len;
+int type = phish_unpack(&buf,&len);
+int iport = phish_datum(&buf,&len); 
+</PRE>
+<P><B>Description:</B>
+</P>
+<P>These are PHISH library functions which can be called from a minnow
+application.  In PHISH lingo, a "minnow" is a stand-alone application
+which makes calls to the <A HREF = "Library.html">PHISH library</A>.
+</P>
+<P>These functions are used to unpack a datum after it has been received
+from another minnow.
+</P>
+<P>As discussed in <A HREF = "Library.html#datum">this section</A> of the <A HREF = "Library.html">PHISH
+Library</A> doc page, datums sent and recived by the PHISH
+library contain one or more fields.  A field is a fundamental data
+type, such as an "int" or vector of "doubles" or a NULL-terminated
+character string.  These fields are <A HREF = "phish_pack.html">packed</A> into a
+contiguous byte string when then are sent, using integer flags to
+indicate what type and length of data comes next.  These unpack
+functions allow the minnow to extract data from the datum, one field
+at a time.
+</P>
+<P>Note that these functions return pointers to the internal buffer
+holding the datum within the PHISH library.  The buffer will be
+overwritten when the minnow returns control to the PHISH library and
+the next datum is received.  Typically this occurs when a callback
+function in the minnow returns.  This means that if you want the data
+to persist within the minnow, you must make a copy.  It is OK to
+unpack several fields from the same datum before making copies of the
+fields.  It is also OK to pack one or more fields for sending and wait
+to send it until after another datum is received.  This is because
+calls to the "phish_pack" functions, copy data into a send buffer.
+</P>
+<HR>
+
+<P>The phish_unpack() function returns the next field in the latest
+received datum.  The function itself returns an integer flag set to
+one of these values (defined in src/phish.h):
+</P>
+<UL><LI>PHISH_RAW = 0
+<LI>PHISH_BYTE = 1
+<LI>PHISH_INT = 2
+<LI>PHISH_UINT64 = 3
+<LI>PHISH_DOUBLE = 4
+<LI>PHISH_STRING = 5
+<LI>PHISH_INT_ARRAY = 6
+<LI>PHISH_UINT64_ARRAY = 7
+<LI>PHISH_DOUBLE_ARRAY = 8 
+</UL>
+<P>PHISH_RAW is a string of raw bytes which can store whatever the
+sending minnow put into its send buffer, e.g. a C data structure
+containing a collection of C primitive data types.  PHISH_INT is a
+signed int, typically 32-bits in length.  PHISH_UINT64 refers to an
+unsigned 64-bit integer.  PHISH_STRING is a C-style NULL-terminated
+string.  The ARRAY types mean the field is a sequence of "int" or
+"uint64" or "double" values, packed one after the other.
+</P>
+<P>The function also returns <I>buf</I> and <I>len</I>.  <I>Buf</I> is a char pointer to
+where the field starts.  You will need to cast this to the appropriate
+data type if necessary to access the data.  <I>Len</I> is the length of
+the field, with the following meanings:
+</P>
+<UL><LI>PHISH_RAW: len = # of bytes
+<LI>PHISH_BYTE: len = 1
+<LI>PHISH_INT: len = 1
+<LI>PHISH_UINT64: len = 1
+<LI>PHISH_DOUBLE: len = 1
+<LI>PHISH_STRING: len = # of bytes, including the trailing NULL
+<LI>PHISH_INT_ARRAY: len = # of int values
+<LI>PHISH_UINT64_ARRAY: len = # of uint64 values
+<LI>PHISH_DOUBLE_ARRAY: len = # of double values 
+</UL>
+<HR>
+
+<P>The phish_datum() function returns information about the entire datum.
+The function itself returns the input port it was received on.  See
+the <A HREF = "phish_port.html">phish_port</A> functions for a discussion of ports.
+</P>
+<P>The function also returns <I>buf</I> and <I>len</I>.  In this case, unlike
+the phish_unpack() function, <I>buf</I> is a char pointer to
+where the entire datum starts, which includes other info
+besides the data itself, e.g. the number of fields and the data type
+flags.  Likewise, <I>len</I> is the length in bytes of the entire datum,
+including its data and flags.
+</P>
+<P>A minnow can parse the entire datum following this function call, to
+extract whatever info it needs; see <A HREF = "Library.html#datum">this section</A>
+of the <A HREF = "Library.html">PHISH Library</A> doc page for a description of the
+structure of a datum.  But the more common usage is to follow a
+phish_datum() call with a call to the
+<A HREF = "phish_pack.html">phish_pack_datum</A> function to pack the entire datum
+as-is for sending to another minnow.
+</P>
+<P>The phish_datum() function does not conflict with the phish_unpack()
+function.  Phish_datum() can be called before or after or inbetween a
+series of phish_unpack() calls.
+</P>
+<HR>
+
+<P><B>Restrictions:</B> none
+</P>
+<P><B>Related commands:</B>
+</P>
+<P><A HREF = "phish_recv.html">phish_recv</A>, <A HREF = "phish_pack.html">phish_pack</A>
 </P>
 </HTML>
