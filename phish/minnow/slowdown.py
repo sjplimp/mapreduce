@@ -7,7 +7,7 @@ def send(nvalues):
   global time_previous,delta
   elapsed = phish.timer() - time_previous
   if elapsed < delta: time.sleep(delta-elapsed)
-  buf,len = phish.datum()
+  iport,buf,len = phish.datum()
   phish.pack_datum(buf,len)
   phish.send(0)
   time_previous = phish.timer()

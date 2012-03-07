@@ -6,8 +6,8 @@ import phish
 def read_file(nvalues):
   if nvalues != 1: phish.error("File2words processes one-value datums")
   type,filename,tmp = phish.unpack()
-  #if type != phish.PHISH_STRING: phish.error("File2words processes string values")
-  
+  if type != phish.STRING:
+    phish.error("File2words processes string values")
   lines = open(filename,"r").readlines()
   for line in lines:
     words = line.split()
