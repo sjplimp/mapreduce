@@ -1,8 +1,0 @@
-read file and emit words
-
-syntax: no args
-
-for each datum:
-  treat message as filename
-  open it, parse into words separated by whitespace
-  send each word downstream, using word as key

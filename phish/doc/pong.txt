@@ -1,6 +1,0 @@
-reflect messages to a sender
-
-syntax: no args
-
-datum method:
-  when recv from partner, send message back to partner
