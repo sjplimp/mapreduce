@@ -31,17 +31,18 @@ n = phish_recv();
 </PRE>
 <P><B>Python syntax:</B>
 </P>
-<PRE>void phish_loop() 
+<PRE>def phish.loop() 
 </PRE>
-<PRE>void phish_probe(void (*probefunc)()) 
+<PRE>def phish.probe(probefunc) 
 </PRE>
-<PRE>int phish_recv() 
+<PRE>def phish.recv() 
 </PRE>
 <P><B>Python examples:</B>
 </P>
-<PRE>phish_loop();
-phish_probe(count);
-n = phish_recv(); 
+<PRE>import phish
+phish.loop();
+phish.probe(count);
+n = phish.recv(); 
 </PRE>
 <P><B>Description:</B>
 </P>
@@ -106,6 +107,12 @@ useful work while waiting for the next datum to arrive.
 <PRE>void probefunc() {
 } 
 </PRE>
+<P>or
+</P>
+<PRE>def provefunc() 
+</PRE>
+<P>in Python,
+</P>
 <P>where "datumfunc" is replaced by a function name of your choice.  When
 the <I>probefunc</I> callback function returns, control is returned to
 phish_probe().

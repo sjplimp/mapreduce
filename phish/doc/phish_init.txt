@@ -24,16 +24,15 @@ printf("Global minnow info: %d %d\n",idglobal,nglobal); :pre
 
 [Python syntax:]
 
-void phish_init(int *narg, char ***args) :pre
-void phish_school(int *idlocal, int *nlocal, int *idglobal, int *nglobal) :pre
+def init(args) :pre
+def school() :pre
 
 [Python examples:]
 
-phish_init(&argc,&argv);
-int idlocal,nlocal,idglobal,nglobal;
-MPI_Comm comm = phish_school(&idlocal,&nlocal,&idglobal,&nglobal);
-printf("Local minnow info: %d %d\n",idlocal,nlocal);
-printf("Global minnow info: %d %d\n",idglobal,nglobal); :pre
+import phish
+args = phish.init(sys.argv)
+first_minnow_arg = args[0]
+idlocal,nlocal,idglobal,nglobal = phish.school() :pre
 
 [Description:]
 
@@ -72,6 +71,10 @@ an array of strings.  These are passed as pointers, because the PHISH
 library reads and removes the PHISH-specific arguments.  It then
 returns the reamining minnow-specific arguments, which the minnow can
 read and process.
+
+Note that in the python version of phish.init(), the full argument
+list is passed as an argument, and the truncated argument list is
+returned.
 
 There are the switches and arguments the PHISH library looks for and
 processes:

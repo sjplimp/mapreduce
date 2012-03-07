@@ -24,15 +24,16 @@ n = phish_recv(); :pre
 
 [Python syntax:]
 
-void phish_loop() :pre
-void phish_probe(void (*probefunc)()) :pre
-int phish_recv() :pre
+def phish.loop() :pre
+def phish.probe(probefunc) :pre
+def phish.recv() :pre
 
 [Python examples:]
 
-phish_loop();
-phish_probe(count);
-n = phish_recv(); :pre
+import phish
+phish.loop();
+phish.probe(count);
+n = phish.recv(); :pre
 
 [Description:]
 
@@ -96,6 +97,12 @@ The {probefunc} function should have the following form:
 
 void probefunc() \{
 \} :pre
+
+or
+
+def provefunc() :pre
+
+in Python,
 
 where "datumfunc" is replaced by a function name of your choice.  When
 the {probefunc} callback function returns, control is returned to

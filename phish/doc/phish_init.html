@@ -29,17 +29,16 @@ printf("Global minnow info: %d %d\n",idglobal,nglobal);
 </PRE>
 <P><B>Python syntax:</B>
 </P>
-<PRE>void phish_init(int *narg, char ***args) 
+<PRE>def init(args) 
 </PRE>
-<PRE>void phish_school(int *idlocal, int *nlocal, int *idglobal, int *nglobal) 
+<PRE>def school() 
 </PRE>
 <P><B>Python examples:</B>
 </P>
-<PRE>phish_init(&argc,&argv);
-int idlocal,nlocal,idglobal,nglobal;
-MPI_Comm comm = phish_school(&idlocal,&nlocal,&idglobal,&nglobal);
-printf("Local minnow info: %d %d\n",idlocal,nlocal);
-printf("Global minnow info: %d %d\n",idglobal,nglobal); 
+<PRE>import phish
+args = phish.init(sys.argv)
+first_minnow_arg = args<B>0</B>
+idlocal,nlocal,idglobal,nglobal = phish.school() 
 </PRE>
 <P><B>Description:</B>
 </P>
@@ -47,6 +46,21 @@ printf("Global minnow info: %d %d\n",idglobal,nglobal);
 application.  In PHISH lingo, a "minnow" is a stand-alone application
 which makes calls to the <A HREF = "Library.html">PHISH library</A>.
 </P>
+<P>A PHISH program typically includes one or more sets of minnows, as
+specified in a PHISH input script.  Each minnow in each set is an
+individual process.  In a local sense, each minnow has a local-ID from
+0 to Nlocal-1 within its set, where <I>Nlocal</I> is the number of minnows
+in the set.  Globally, each minnow has a global-ID from 0 to
+Nglobal-1, where <I>Nglobal</I> is the total number of minnows.  The
+global-IDs are ordered by set, so that minnows within each set have
+consecutive IDs.  These IDs enable the PHISH library to orchestrate
+communication of datums between minnows in different sets.  E.g. when
+running the MPI version of the PHISH library, the global-ID
+corresponsds to the rank ID of an MPI process, used in MPI_Send() and
+MPI_Recv() function calls.
+</P>
+<HR>
+
 <P>The phish_init() function must be the first call to the PHISH library
 made by a minnow.  Since it alters the command-line arguments passed
 to the minnow, it is typically the first executable line of a minnow
@@ -64,30 +78,24 @@ library reads and removes the PHISH-specific arguments.  It then
 returns the reamining minnow-specific arguments, which the minnow can
 read and process.
 </P>
+<P>Note that in the python version of phish.init(), the full argument
+list is passed as an argument, and the truncated argument list is
+returned.
+</P>
 <P>There are the switches and arguments the PHISH library looks for and
 processes:
 </P>
-<UL><LI>-minnow exefile ID local-ID Nlocal global-ID Nglobal
+<UL><LI>-minnow exefile ID Nlocal Nprev
 <LI>-in sprocs sfirst sport style rprocs rfirst rport
 <LI>-out sprocs sfirst sport style rprocs rfirst rport
 <LI>-args arg1 arg2 ... = args for the minnoq itself 
 </UL>
 <P>The <I>-minnow</I> switch appears once, as the first argument.  <I>Exefile</I>
 is the name of executable file for this minnow, e.g. count or
-count.py.  The ID is the minnow ID in the PHISH input script.  The 4
-remaining local and global arguments are as follows.
-</P>
-<P>A PHISH program typically includes one or more sets of minnows, as
-specified in a PHISH input script.  Each minnow in each set is an
-individual process.  In a local sense, each minnow has a local-ID from
-0 to Nlocal-1 within its set, where <I>Nlocal</I> is the number of minnows
-in the set.  Globally, each minnow has a global-ID from 0 to
-Nglobal-1, where <I>Nglobal</I> is the total number of minnows.  The
-global-IDs are ordered by set, so that minnows within each set have
-consecutive IDs.  These IDs enable the PHISH library to orchestrate
-communication of datums between minnows in different sets.  E.g. when
-running the MPI version of the PHISH library, the global-ID
-corresponsds to the rank ID of an MPI process.
+count.py.  The ID is the minnow ID in the PHISH input script.  The
+<I>Nlocal</I> argument was explained above.  <I>Nprev</I> is the total number of
+minnows in sets of minnows previous to this one.  It is used to infer
+the <I>local-ID</I> value discussed above.
 </P>
 <P>The <I>-in</I> switch appears once for every connection the minnow has with
 other minnows, where it is a receiver of datums.  See the

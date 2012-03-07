@@ -26,14 +26,15 @@ phish_close(0);
 </PRE>
 <P><B>Python syntax:</B>
 </P>
-<PRE>void phish_exit() 
+<PRE>def phish.exit() 
 </PRE>
-<PRE>void phish_close(int iport) 
+<PRE>def phish.close(iport) 
 </PRE>
 <P><B>Python examples:</B>
 </P>
-<PRE>phish_exit();
-phish_close(0); 
+<PRE>import phish
+phish.exit();
+phish.close(0); 
 </PRE>
 <P><B>Description:</B>
 </P>
@@ -58,11 +59,16 @@ often the final line of a minnow program.
 </P>
 <P>When phish_exit() is called it performs the following operations:
 </P>
-<UL><LI>warn if any input port is not closed
+<UL><LI>print stats about the # of datums received and sent by the minnow
+<LI>warn if any input port is not closed
 <LI>close all output ports
 <LI>free internal memory allocated by the PHISH library
 <LI>shutdown communication protocols to other minnows 
 </UL>
+<P>The stats message is printed with the same supplementary information
+as the <A HREF = "phish_error.html">phish_error</A> function, to identify the minnow
+that printed it.
+</P>
 <P>Closing a minnow's output port involves sending a "done" message to
 each minnow (in each set of minnows) connected as a receiver to that
 port, so that they know to expect no more datums from this minnow.

@@ -21,7 +21,7 @@
 </PRE>
 <PRE>void phish_output(int iport) 
 </PRE>
-<PRE>void phish_done(void (*done)()) 
+<PRE>void phish_done(void (*alldonefunc)()) 
 </PRE>
 <P><B>C examples:</B>
 </P>
@@ -32,18 +32,19 @@ phish_done(quit);
 </PRE>
 <P><B>Python syntax:</B>
 </P>
-<PRE>void phish_input(int iport, void (*datumfunc)(int), void (*donefunc)(), reqflag) 
+<PRE>def phish.input(iport,datumfunc,donefunc,reqflag) 
 </PRE>
-<PRE>void phish_output(int iport) 
+<PRE>def phish.output(iport) 
 </PRE>
-<PRE>void phish_done(void (*alldonefunc)()) 
+<PRE>def phish.done(alldonefunc) 
 </PRE>
 <P><B>Python examples:</B>
 </P>
-<PRE>phish_input(0,count,NULL,1);
-phish_input(1,count,mydone,0);
-phish_output(0);
-phish_done(quit); 
+<PRE>import phish
+phish.input(0,count,None,1)
+phish.input(1,count,mydone,0)
+phish.output(0)
+phish.done(quit) 
 </PRE>
 <P><B>Description:</B>
 </P>
@@ -79,9 +80,9 @@ check for compatibility between the PHISH input script and the minnow
 ports.
 </P>
 <P>Two callback function pointers are passed as arguments to
-phish_input().  Either or both can be specied as <I>NULL</I> if the minnow
-does not require a callback.  Note that multiple input ports can use
-the same callback functions.
+phish_input().  Either or both can be specied as <I>NULL</I>, or <I>None</I> in
+the Python version, if the minnow does not require a callback.  Note
+that multiple input ports can use the same callback functions.
 </P>
 <P>The first callback is <I>datumfunc</I>, and is called by the PHISH library
 each time a datum is received on that input port.
@@ -91,6 +92,12 @@ each time a datum is received on that input port.
 <PRE>void datumfunc(int nfields) {
 } 
 </PRE>
+<P>or
+</P>
+<PRE>def datumfunc(nfields) 
+</PRE>
+<P>in Python,
+</P>
 <P>where "datumfunc" is replaced by a function name of your choice.  The
 function is passed "nfields" = the # of fields in the received datum.
 See the <A HREF = "phish_unpack.html">phish_unpack</A> and
@@ -105,6 +112,12 @@ library when the input port is closed.
 <PRE>void donefunc() {
 } 
 </PRE>
+<P>or
+</P>
+<PRE>def donefunc() 
+</PRE>
+<P>in Python,
+</P>
 <P>where "donefunc" is replaced by a function name of your choice.  A
 minnow might use the function to print out some statistics about data
 received thru that input port, or its closure might trigger further
@@ -132,6 +145,12 @@ have the following form:
 <PRE>void alldonefunc() {
 } 
 </PRE>
+<P>or
+</P>
+<PRE>def alldonefunc() 
+</PRE>
+<P>in Python,
+</P>
 <P>where "alldonefunc" is replaced by a function name of your choice.  A
 minnow might use the function to print out some final statistics
 before the PHISH library exits.  See the

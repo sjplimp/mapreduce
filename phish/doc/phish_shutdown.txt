@@ -21,13 +21,14 @@ phish_close(0); :pre
 
 [Python syntax:]
 
-void phish_exit() :pre
-void phish_close(int iport) :pre
+def phish.exit() :pre
+def phish.close(iport) :pre
 
 [Python examples:]
 
-phish_exit();
-phish_close(0); :pre
+import phish
+phish.exit();
+phish.close(0); :pre
 
 [Description:]
 

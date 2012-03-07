@@ -14,7 +14,7 @@ phish_done() function :h3
 
 void phish_input(int iport, void (*datumfunc)(int), void (*donefunc)(), reqflag) :pre
 void phish_output(int iport) :pre
-void phish_done(void (*done)()) :pre
+void phish_done(void (*alldonefunc)()) :pre
 
 [C examples:]
 
@@ -25,16 +25,17 @@ phish_done(quit); :pre
 
 [Python syntax:]
 
-void phish_input(int iport, void (*datumfunc)(int), void (*donefunc)(), reqflag) :pre
-void phish_output(int iport) :pre
-void phish_done(void (*alldonefunc)()) :pre
+def phish.input(iport,datumfunc,donefunc,reqflag) :pre
+def phish.output(iport) :pre
+def phish.done(alldonefunc) :pre
 
 [Python examples:]
 
-phish_input(0,count,NULL,1);
-phish_input(1,count,mydone,0);
-phish_output(0);
-phish_done(quit); :pre
+import phish
+phish.input(0,count,None,1)
+phish.input(1,count,mydone,0)
+phish.output(0)
+phish.done(quit) :pre
 
 [Description:]
 
@@ -70,9 +71,9 @@ check for compatibility between the PHISH input script and the minnow
 ports.
 
 Two callback function pointers are passed as arguments to
-phish_input().  Either or both can be specied as {NULL} if the minnow
-does not require a callback.  Note that multiple input ports can use
-the same callback functions.
+phish_input().  Either or both can be specied as {NULL}, or {None} in
+the Python version, if the minnow does not require a callback.  Note
+that multiple input ports can use the same callback functions.
 
 The first callback is {datumfunc}, and is called by the PHISH library
 each time a datum is received on that input port.
@@ -81,6 +82,12 @@ The {datumfunc} function should have the following form:
 
 void datumfunc(int nfields) \{
 \} :pre
+
+or
+
+def datumfunc(nfields) :pre
+
+in Python,
 
 where "datumfunc" is replaced by a function name of your choice.  The
 function is passed "nfields" = the # of fields in the received datum.
@@ -95,6 +102,12 @@ The {donefunc} function should have the following form:
 
 void donefunc() \{
 \} :pre
+
+or
+
+def donefunc() :pre
+
+in Python,
 
 where "donefunc" is replaced by a function name of your choice.  A
 minnow might use the function to print out some statistics about data
@@ -122,6 +135,12 @@ have the following form:
 
 void alldonefunc() \{
 \} :pre
+
+or
+
+def alldonefunc() :pre
+
+in Python,
 
 where "alldonefunc" is replaced by a function name of your choice.  A
 minnow might use the function to print out some final statistics
