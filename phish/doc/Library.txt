@@ -32,44 +32,44 @@ minnows call these functions is given in the "Minnows"_Minnows.html
 section of the manual.
 
 Library calls for initialization :olb,l
-  "phish_init()"_phish_init.html :ulb,b
+x  "phish_init()"_phish_init.html :ulb,b
   "phish_input()"_phish_port.html :b
-  "phish_output()"_phish_port.html :b
-  "phish_done()"_phish_port.html :b
-  "phish_check()"_phish_check.html :ule,b
+x  "phish_output()"_phish_port.html :b
+x  "phish_done()"_phish_port.html :b
+x  "phish_check()"_phish_check.html :ule,b
 
 Library calls for shutdown :l
-  "phish_exit()"_phish_shutdown.html :ulb,b
-  "phish_close()"_phish_shutdown.html :ule,b
+x  "phish_exit()"_phish_shutdown.html :ulb,b
+x  "phish_close()"_phish_shutdown.html :ule,b
 
 Library calls for receiving datums :l
-  "phish_loop()"_phish_loop.html :ulb,b
-  "phish_probe()"_phish_probe.html :b
-  "phish_recv()"_phish_recv.html :b
-  "phish_unpack()"_phish_unpack.html :b
-  "phish_datum()"_phish_unpack.html :ule,b
+x  "phish_loop()"_phish_loop.html :ulb,b
+x  "phish_probe()"_phish_probe.html :b
+x  "phish_recv()"_phish_recv.html :b
+x  "phish_unpack()"_phish_unpack.html :b
+x  "phish_datum()"_phish_unpack.html :ule,b
 
 Library calls for sending datums :l
-  "phish_send()"_phish_send.html :ulb,b
+x  "phish_send()"_phish_send.html :ulb,b
   "phish_send_key()"_phish_send.html :b
-  "phish_send_direct()"_phish_send.html :b
-  "phish_pack_datum()"_phish_pack.html :b
+x  "phish_send_direct()"_phish_send.html :b
+x  "phish_pack_datum()"_phish_pack.html :b
   "phish_pack_raw()"_phish_pack.html :b
-  "phish_pack_byte()"_phish_pack.html :b
-  "phish_pack_int()"_phish_pack.html :b
-  "phish_pack_uint64()"_phish_pack.html :b
-  "phish_pack_double()"_phish_pack.html :b
+x  "phish_pack_byte()"_phish_pack.html :b
+x  "phish_pack_int()"_phish_pack.html :b
+x  "phish_pack_uint64()"_phish_pack.html :b
+x  "phish_pack_double()"_phish_pack.html :b
   "phish_pack_string()"_phish_pack.html :b
-  "phish_pack_int_array()"_phish_pack.html :b
-  "phish_pack_uint64_array()"_phish_pack.html :b
-  "phish_pack_double_array()"_phish_pack.html :ule,b
+x  "phish_pack_int_array()"_phish_pack.html :b
+x  "phish_pack_uint64_array()"_phish_pack.html :b
+x  "phish_pack_double_array()"_phish_pack.html :ule,b
 
 Miscellaneous library calls :l
-  "phish_school()"_phish_init.html :ulb,b
+x  "phish_school()"_phish_init.html :ulb,b
   "phish_reset_receiver()"_phish_reset_receiver.html :b
-  "phish_error()"_phish_error.html :b
-  "phish_warn()"_phish_error.html :b
-  "phish_timer()"_phish_timer.html :ule,b
+x  "phish_error()"_phish_error.html :b
+x  "phish_warn()"_phish_error.html :b
+x  "phish_timer()"_phish_timer.html :ule,b
 :ole
 
 :line

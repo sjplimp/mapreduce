@@ -11,7 +11,7 @@
    See the README file in the top-level MapReduce directory.
 ------------------------------------------------------------------------- */
 
-// MPI-based version of PHISH library
+// MPI version of PHISH library
 
 #include "mpi.h"
 #include "stdio.h"
@@ -49,15 +49,17 @@ int me,nprocs;            // MPI rank and total # of procs
 int initflag;             // 1 if phish_init has been called
 int checkflag;            // 1 if phish_check has been called
 
-char *appname;            // name of app executable
-char *appid;              // ID of app via minnow command
-int appcount;             // # of instances of this app via layout command
-int appprev;              // # of processes launched prior to this app
+char *exename;            // name of minnow executable
+char *idminnow;           // ID of minnow in input script
+int idlocal;              // index of minnow within its set
+int nlocal;               // # of duplicate minnows via layout command
+int idglobal;             // index of minnow within global school
+int nglobal;              // # of total minnows in global school
 
 // input ports
-// each can have multiple connections from output ports of other apps
+// each can have multiple connections from output ports of other minnows
 
-struct InConnect {        // inbound connection from output port of another app
+struct InConnect {        // inbound connect from output port of other minnow
   int style;              // SINGLE, HASHED, etc
   int nsend;              // # of procs that send to me on this connection
   char *host;             // hostname:port for SUBSCRIBE input
@@ -80,9 +82,9 @@ DoneFunc *alldonefunc;    // callback when all input ports closed
 int lastport;             // last input port a datum was received on
 
 // output ports
-// each can have multiple connections to input ports of other apps
+// each can have multiple connections to input ports of other minnows
 
-struct OutConnect {        // outbound connection to input port of another app
+struct OutConnect {        // outbound connect to input port of other minnow
   int style;               // SINGLE, HASHED, etc
   int nrecv;               // # of procs that receive from me
   int recvone;             // single proc ID I send to (nrecv = 1)
@@ -170,18 +172,27 @@ void phish_init(int *pnarg, char ***pargs)
   
   int iarg = 1;
   while (iarg < narg) {
-    if (strcmp(args[iarg],"-app") == 0) {
+    if (strcmp(args[iarg],"-minnow") == 0) {
+      if (iarg+5 > narg)
+	phish_error("Invalid command-line args in phish_init");
+
       int n = strlen(args[iarg+1]) + 1;
-      appname = new char[n];
-      strcpy(appname,args[iarg+1]);
+      exename = new char[n];
+      strcpy(exename,args[iarg+1]);
       n = strlen(args[iarg+2]) + 1;
-      appid = new char[n];
-      strcpy(appid,args[iarg+2]);
-      appcount = atoi(args[iarg+3]);
-      appprev = atoi(args[iarg+4]);
+      idminnow = new char[n];
+      strcpy(idminnow,args[iarg+2]);
+      nlocal = atoi(args[iarg+3]);
+      int nprev = atoi(args[iarg+4]);
+      idlocal = me - nprev;
+      idglobal = me;
+      nglobal = nprocs;
       iarg += 5;
 
     } else if (strcmp(args[iarg],"-in") == 0) {
+      if (iarg+8 > narg)
+	phish_error("Invalid command-line args in phish_init");
+
       int style;
       int sprocs,sfirst,sport,rprocs,rfirst,rport;
       char *host = NULL;
@@ -244,6 +255,9 @@ void phish_init(int *pnarg, char ***pargs)
       iarg += 8;
 
     } else if (strcmp(args[iarg],"-out") == 0) {
+      if (iarg+8 > narg) 
+	phish_error("Invalid command-line args in phish_init");
+
       int style;
       int sprocs,sfirst,sport,rprocs,rfirst,rport;
       int tcpport = 0;
@@ -380,12 +394,14 @@ int phish_init_python(int narg, char **args)
 
 /* ---------------------------------------------------------------------- */
 
-void phish_school(int *pme, int *pnprocs)
+void phish_school(int *pidlocal, int *pnlocal, int *pidglobal, int *pnglobal)
 {
   if (!initflag) phish_error("Phish_init has not been called");
 
-  *pme = me;
-  *pnprocs = nprocs;
+  *pidlocal = idlocal;
+  *pnlocal = nlocal;
+  *pidglobal = idglobal;
+  *pnglobal = nglobal;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -429,8 +445,8 @@ void phish_exit()
 
   // free other PHISH memory
 
-  delete [] appname;
-  delete [] appid;
+  delete [] exename;
+  delete [] idminnow;
 
   // shut-down MPI
 
@@ -1195,7 +1211,7 @@ int phish_datum(char **buf, int *len)
 
 void phish_error(const char *str)
 {
-  printf("ERROR: App %s ID %s # %d: %s\n",appname,appid,me-appprev,str);
+  printf("ERROR: Minnow %s ID %s # %d: %s\n",exename,idminnow,idglobal,str);
   MPI_Abort(world,1);
 }
 
@@ -1203,7 +1219,7 @@ void phish_error(const char *str)
 
 void phish_warn(const char *str)
 {
-  printf("WARNING: App %s ID %s # %d: %s\n",appname,appid,me-appprev,str);
+  printf("WARNING: Minnow %s ID %s # %d: %s\n",exename,idminnow,idglobal,str);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1217,6 +1233,6 @@ double phish_timer()
 
 void stats()
 {
-  printf("Stats: App %s ID %s # %d: %lu %lu datums recv/sent\n",
-	 appname,appid,me-appprev,rcount,scount);
+  printf("Stats: Minnow %s ID %s # %d: %lu %lu datums recv/sent\n",
+	 exename,idminnow,idglobal,rcount,scount);
 }

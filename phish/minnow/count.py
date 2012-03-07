@@ -6,7 +6,8 @@ import phish
 def count(nvalues):
   if nvalues != 1: phish.error("Count processes one-value datums")
   type,str,tmp = phish.unpack()
-  #if type != phish.PHISH_STRING: phish.error("File2words processes string values")
+  if type != phish.STRING:
+    phish.error("File2words processes string values")
   if hash.has_key(str): hash[str] = hash[str] + 1
   else: hash[str] = 1
 

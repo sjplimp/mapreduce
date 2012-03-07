@@ -21,7 +21,7 @@ extern "C" {
 
 void phish_init(int *, char ***);
 int phish_init_python(int, char **);
-void phish_school(int *, int *);
+void phish_school(int *, int *, int *, int *);
 void phish_exit();
 
 void phish_input(int, void(*)(int), void(*)(), int);

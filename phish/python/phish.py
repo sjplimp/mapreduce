@@ -32,10 +32,12 @@ def init(args):
   return args[n:]
 
 def school():
-  me = c_int()
-  nprocs = c_int()
-  lib.phish_school(byref(me),byref(nprocs))
-  return me.value,nprocs.value
+  idlocal = c_int()
+  nlocal = c_int()
+  idglobal = c_int()
+  nglobal = c_int()
+  lib.phish_school(byref(idlocal),byref(nlocal),byref(idglobal),byref(nglobal))
+  return idlocal.value,nlocal.value,idglobal.value,nglobal.value
 
 def exit():
   lib.phish_exit()
@@ -113,12 +115,15 @@ def done1_callback():
 def recv():
   return lib.phish_recv()
   
-def send(oport):
-  lib.phish_send(oport)
+def send(iport):
+  lib.phish_send(iport)
 
-def send_key(oport,key):
+def send_key(iport,key):
   ckey = c_char_p(key)
-  lib.phish_send_key(oport,ckey,len(key))
+  lib.phish_send_key(iport,ckey,len(key))
+
+def send_direct(iport,receiver):
+  lib.phish_send_direct(iport,receiver)
 
 def pack_datum(ptr,len):
   lib.phish_pack_datum(ptr,len)
@@ -203,8 +208,8 @@ def unpack():
 def datum():
   buf = c_char_p()
   len = c_int()
-  type = lib.phish_datum(byref(buf),byref(len))
-  return buf,len.value
+  iport = lib.phish_datum(byref(buf),byref(len))
+  return iport,buf,len.value
   
 def error(str):
   lib.phish_error(str)
@@ -215,7 +220,7 @@ def warn(str):
 def timer():
   return lib.phish_timer()
 
-# define other module variables
+# define other PHISH module variables
 
 # callback functions
 

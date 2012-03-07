@@ -1,15 +1,15 @@
 # word count from files
 # provide list of files or dirs as -v files command-line arg
 
-minnow 1 filegen ${files}
-#minnow 1 filegen.py ${files}
-minnow 2 file2words
-#minnow 2 file2words.py
-minnow 3 count
-#minnow 3 count.py
+#minnow 1 filegen ${files}
+minnow 1 filegen.py ${files}
+#minnow 2 file2words
+minnow 2 file2words.py
+#minnow 3 count
+minnow 3 count.py
 minnow 4 sort 10
-minnow 5 print
-#minnow 5 print.py
+#minnow 5 print
+minnow 5 print.py
 
 connect 1 roundrobin 2
 connect 2 hashed 3

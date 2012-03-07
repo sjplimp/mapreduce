@@ -162,7 +162,7 @@ def output_mpich():
     procstr = "-n %d" % (minnow.nprocs)
     if minnow.prepend: exestr = " %s %s" % (minnow.prepend,minnow.pathexe)
     else: exestr = " %s" % minnow.pathexe
-    appstr = " -app %s %s %d %d" % \
+    minnowstr = " -minnow %s %s %d %d" % \
         (minnow.exe,minnow.id,minnow.nprocs,minnow.procstart)
 
     instr = ""
@@ -199,7 +199,7 @@ def output_mpich():
            style,
            nprocs_recv,procstart_recv,connects[send[1]].recvport)
 
-    launchstr = procstr + exestr + appstr + instr + outstr
+    launchstr = procstr + exestr + minnowstr + instr + outstr
     if minnow.args: launchstr += " -args " + " ".join(minnow.args)
     # should just need following line, but MPICH has a configfile bug
     # print >>fp,launchstr
@@ -214,7 +214,7 @@ def output_openmpi():
 
   for iminnow,minnow in enumerate(minnows):
     procstr = "-n %d %s" % (minnow.nprocs,minnow.pathexe)
-    appstr = " -app %s %s %d %d" % \
+    minnowstr = " -minnow %s %s %d %d" % \
         (minnow.exe,minnow.id,minnow.nprocs,minnow.procstart)
     
     instr = ""
@@ -251,7 +251,7 @@ def output_openmpi():
            style,
            nprocs_recv,procstart_recv,connects[send[1]].recvport)
           
-    launchstr = procstr + appstr + instr + outstr
+    launchstr = procstr + minnowstr + instr + outstr
     if minnow.args: launchstr += " -args " + " ".join(minnow.args)
     print >>fp,launchstr,
     if iminnow < len(minnows)-1: print >>fp,":",

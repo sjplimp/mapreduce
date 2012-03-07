@@ -41,6 +41,21 @@ These are PHISH library functions which can be called from a minnow
 application.  In PHISH lingo, a "minnow" is a stand-alone application
 which makes calls to the "PHISH library"_Library.html.
 
+A PHISH program typically includes one or more sets of minnows, as
+specified in a PHISH input script.  Each minnow in each set is an
+individual process.  In a local sense, each minnow has a local-ID from
+0 to Nlocal-1 within its set, where {Nlocal} is the number of minnows
+in the set.  Globally, each minnow has a global-ID from 0 to
+Nglobal-1, where {Nglobal} is the total number of minnows.  The
+global-IDs are ordered by set, so that minnows within each set have
+consecutive IDs.  These IDs enable the PHISH library to orchestrate
+communication of datums between minnows in different sets.  E.g. when
+running the MPI version of the PHISH library, the global-ID
+corresponsds to the rank ID of an MPI process, used in MPI_Send() and
+MPI_Recv() function calls.
+
+:line
+
 The phish_init() function must be the first call to the PHISH library
 made by a minnow.  Since it alters the command-line arguments passed
 to the minnow, it is typically the first executable line of a minnow
@@ -61,27 +76,17 @@ read and process.
 There are the switches and arguments the PHISH library looks for and
 processes:
 
--minnow exefile ID local-ID Nlocal global-ID Nglobal
+-minnow exefile ID Nlocal Nprev
 -in sprocs sfirst sport style rprocs rfirst rport
 -out sprocs sfirst sport style rprocs rfirst rport
 -args arg1 arg2 ... = args for the minnoq itself :ul
 
 The {-minnow} switch appears once, as the first argument.  {Exefile}
 is the name of executable file for this minnow, e.g. count or
-count.py.  The ID is the minnow ID in the PHISH input script.  The 4
-remaining local and global arguments are as follows.
-
-A PHISH program typically includes one or more sets of minnows, as
-specified in a PHISH input script.  Each minnow in each set is an
-individual process.  In a local sense, each minnow has a local-ID from
-0 to Nlocal-1 within its set, where {Nlocal} is the number of minnows
-in the set.  Globally, each minnow has a global-ID from 0 to
-Nglobal-1, where {Nglobal} is the total number of minnows.  The
-global-IDs are ordered by set, so that minnows within each set have
-consecutive IDs.  These IDs enable the PHISH library to orchestrate
-communication of datums between minnows in different sets.  E.g. when
-running the MPI version of the PHISH library, the global-ID
-corresponsds to the rank ID of an MPI process.
+count.py.  The ID is the minnow ID in the PHISH input script.  The
+{Nlocal} argument was explained above.  {Nprev} is the total number of
+minnows in sets of minnows previous to this one.  It is used to infer
+the {local-ID} value discussed above.
 
 The {-in} switch appears once for every connection the minnow has with
 other minnows, where it is a receiver of datums.  See the

@@ -52,10 +52,15 @@ often the final line of a minnow program.
 
 When phish_exit() is called it performs the following operations:
 
+print stats about the # of datums received and sent by the minnow
 warn if any input port is not closed
 close all output ports
 free internal memory allocated by the PHISH library
 shutdown communication protocols to other minnows :ul
+
+The stats message is printed with the same supplementary information
+as the "phish_error"_phish_error.html function, to identify the minnow
+that printed it.
 
 Closing a minnow's output port involves sending a "done" message to
 each minnow (in each set of minnows) connected as a receiver to that

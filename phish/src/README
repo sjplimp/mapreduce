@@ -1,5 +1,8 @@
 Todo:
 
+why does wordcount running on different # of map/reduce
+  give different sorted answers sometimes?
+
 finish Python wrappers:
   not all funcs yet implemented:
     send_key only works for string as key

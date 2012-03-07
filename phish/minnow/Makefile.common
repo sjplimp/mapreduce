@@ -9,8 +9,14 @@ all:	cc count file2fields file2words filegen ping pong print \
 cc:     cc.o $(LIB)
 	$(LINK) $(LINKFLAGS) cc.o $(LIB) $(SYSLIB) -o cc
 
+ccdummy:     ccdummy.o $(LIB)
+	$(LINK) $(LINKFLAGS) ccdummy.o $(LIB) $(SYSLIB) -o ccdummy
+
 count:	count.o $(LIB)
 	$(LINK) $(LINKFLAGS) count.o $(LIB) $(SYSLIB) -o count
+
+edgegen:	edgegen.o $(LIB)
+	$(LINK) $(LINKFLAGS) edgegen.o $(LIB) $(SYSLIB) -o edgegen
 
 file2fields:	file2fields.o $(LIB)
 	$(LINK) $(LINKFLAGS) file2fields.o $(LIB) $(SYSLIB) -o file2fields
