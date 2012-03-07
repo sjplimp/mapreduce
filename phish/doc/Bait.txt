@@ -23,11 +23,11 @@ each PHISH input script command recognized by bait.py.
 "Command-line arguments"_#bait_2 :l
 "Input script syntax and parsing"_#bait_3 :l
 Input script commands :l
-  "variable"_bait_variable.html :ulb,l
-  "set"_bait_set.html :l
-  "minnow"_bait_minnow.html :l
-  "connect"_bait_connect.html :l
-  "layout"_bait_layout.html :ule,l
+ "variable"_bait_variable.html :ulb,l
+ "set"_bait_set.html :l
+ "minnow"_bait_minnow.html :l
+ "connect"_bait_connect.html :l
+ "layout"_bait_layout.html :ule,l
 :ule
 
 NOTE" include a diagram of a simple algorithm (e.g. MapReduce word
@@ -60,21 +60,21 @@ Command-line arguments :link(bait_1),h4
 each has a default
 
 -np Np
-  Np = process count
-  default = 1
+ Np = process count
+ default = 1
 -var ID str1 str2 ...
-  assign strings to a variable ID
-  default = no variables defined
+ assign strings to a variable ID
+ default = no variables defined
 -output filename
-  filename = MPI config file to create
-  default = "outfile"
+ filename = MPI config file to create
+ default = "outfile"
 -path path1:path2:path3:...
-  colon-seperated paths to prepend to app executable names
-  default = "."
+ colon-seperated paths to prepend to app executable names
+ default = "."
 -mode style
-  manner in launching PHISH job
-  style = "mpich" or "openmpi" or "socket"
-  default = "mpich"
+ manner in launching PHISH job
+ style = "mpich" or "openmpi" or "socket"
+ default = "mpich"
 
 each switch has an allowed abbreviation
 
@@ -109,3 +109,4 @@ variable substitution:
 
 what are rules for this?
 should probably be $a for single-char variable, ${abc} for multichar
+

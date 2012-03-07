@@ -10,23 +10,50 @@
 
 <H3>1. Introduction 
 </H3>
-<P>give a quick index to this page
+<P>NOTE: post citation to MR-MPI paper in PC
 </P>
+<P>NOTE: so long, and thanks for all the phish (with apologies to Douglas Adams)
+</P>
+<P>NOTE: Remember, a dead phish can float downstream, but it takes a live
+one to swim upstream.  W. C. Fields
+</P>
+<P>NOTE: This WWW site is not about Phish the band, or illicit phishing
+for your personal info, but about PHISH, a software package for
+writing parallel programs that process streaming data.
+</P>
+<P>This section explains what the PHISH software package is and why we
+created it.  It describes a simple example of using PHISH to perform a
+parallel calculation and highlights the steps to creating your own
+PHISH program.  These are the topics discussed:
+</P>
+<UL><LI><A HREF = "#intro_1">Motivation</A>
+<LI><A HREF = "#intro_2">PHISH Pheatures</A>
+<LI><A HREF = "#intro_3">PHISH lingo</A>
+<LI><A HREF = "#intro_4">Simple example</A>
+<LI><A HREF = "#intro_5">Steps to creating and running a PHISH program</A>
+<LI><A HREF = "#intro_6">Acknowledgments and citations</A> 
+</UL>
+<HR>
+
+<HR>
+
+<A NAME = "intro_1"></A><H4>Motivation 
+</H4>
 <P>what is streaming data
-  continuous
-  high bandwidth
-  cannot afford to see it more than once
+ continuous
+ high bandwidth
+ cannot afford to see it more than once
 </P>
 <P>goals: informatics data in broadest sense, stats, data mininng,
-  anomaly detection
+ anomaly detection
 </P>
 <P>powerful paradigm: stateful independent processes, that
-  are small programs that do one things, run a large collection
-  of these that communicate is a designed fashion, to acheive
-  parallelism, running
-  that ship datums (chunk of bytes) to each other in continuous
-  fashion.  Can be infinite stream or processing of large
-  archive of data
+ are small programs that do one things, run a large collection
+ of these that communicate is a designed fashion, to acheive
+ parallelism, running
+ that ship datums (chunk of bytes) to each other in continuous
+ fashion.  Can be infinite stream or processing of large
+ archive of data
 </P>
 <P>what kind of algorithms can be expressed in this mode?
 various stream models of computation: e.g. W-stream, X-stream
@@ -38,30 +65,19 @@ tasks can be formulated in this fashion
 </P>
 <P>dropping data versus perfrect answer (pipeline throttles itself)
 </P>
-<P>Simple example: MR word count
-</P>
 <P>why we wrote PHISH
-  different than typicaly MPI where all procs run one program
-  wanted to go beyond MPI to sockets, hetergenous machines
-    add/delete minnows dynamically
-  wanted to automate some of the parallelism inherent in 
-    processing big data, a la MapReduce (this is the hashing idea)
-  make it as simple as possible to process data in parallel
+ different than typicaly MPI where all procs run one program
+ wanted to go beyond MPI to sockets, hetergenous machines
+   add/delete minnows dynamically
+ wanted to automate some of the parallelism inherent in 
+   processing big data, a la MapReduce (this is the hashing idea)
+ make it as simple as possible to process data in parallel
 </P>
 <P>all of these goals reflected in name PHISH
 </P>
-<P>ulterior motive, phish swim in a stream, minnows 
-are small, but work in coordinated fashion to some
-goal (evade preadtor, find food)
-</P>
-<P>brings us to PHISH lingo
-</P>
-<P>minnow: read and compute on and write (altered) datums
-school: collection of minnows
-bait the hook via bait.py
-phish wrapper = Python
-</P>
-<P>Features of PHISH
+<HR>
+
+<P>PHISH Pheatures:link(intro_1),h4
 </P>
 <P>lib = simple (1000 lines), C-interface, portable (list langaunges),
 Python (phish) wrapper provided
@@ -77,7 +93,7 @@ send it downstream.
 (geogrphically diverse machines)
 </P>
 <P>mechanism to hook multiple PHISH schools togehter via sockets
-  means can add/delete processes
+ means can add/delete processes
 </P>
 <P>examples for streaming MR, CC finidng in parallel, MR-like jobs
 </P>
@@ -86,46 +102,54 @@ send it downstream.
 <P>minnows that let you wrap existing stand-alone programs that
 read from stdin and write to stdout
 </P>
-<P>Steps to running a PHISH calculation
+<P>Can wrap existing apps in PHISH (fish-wrapper).
+Minnows are provided
 </P>
-<P>a) write one or more minnows that call the PHISH library
-b) write a script listing the minnows and the communication patterns between them
-c) ues the Bait.py tool to process the input script
-c) run the file (via MPI or a shell script) produced by Bait.py
+<P>portable open-source lib, lightweight, easy to call
+from any language, including Python
 </P>
-<P>PHISH has 2 parts: Python script (bait.py) and library (libphish.a)
+<P>easy path to distributed memory parallel for processing
+streaming data
 </P>
-<P>But can also process corpus of files.
+<P>shutdown via done messages
 </P>
-<P>Break stream up into datums = chunk of bytes.
+<P>The PHISH package is open-source software that implements the
+<A HREF = "wiki">MapReduce operation</A> popularized by Google on top of standard
+MPI message passing.
+</P>
+<HR>
+
+<P>PHISH lingo:link(intro_1),h4
+</P>
+<P>phish wrapper
 </P>
 <P>Minnows read (swim in) stream, process datums,
 can store state, consume or write (altered) datums.
 </P>
-<P>Can wrap existing apps in PHISH (fish-wrapper).
-Minnows are provided
+<P>minnow = stand-alone program (app) that (typically)
+does one task, designed to work in tandem with other
+minnows, either copies of itself, or totally different
 </P>
 <P>School of minnows and their connectivity specified
 in simple input script, processed with bait.py to
 turn into launchable parallel job, either via MPI and
 mpirun, or via sockets and a shell script.
 </P>
-<P>easy path to distributed memory parallel for processing
-streaming data
-</P>
-<P>minnow = stand-alone program (app) that (typically)
-does one task, designed to work in tandem with other
-minnows, either copies of itself, or totally different
-</P>
-<P>portable open-source lib, lightweight, easy to call
-from any language, including Python
-</P>
 <P>each stand-alone minnow calls library
 </P>
-<P>difference between normal datum and "done" datum
+<P>ulterior motive, phish swim in a stream, minnows 
+are small, but work in coordinated fashion to some
+goal (evade preadtor, find food)
+</P>
+<P>brings us to PHISH lingo
+</P>
+<P>minnow: read and compute on and write (altered) datums
+school: collection of minnows
+bait the hook via bait.py
+phish wrapper = Python
 </P>
 <P>explain acronym
-  what each word means
+what each word means
 </P>
 <P>minnow
 school
@@ -136,7 +160,7 @@ bait.py
 coordinated.
 </P>
 <P>A PHISH input script allows specification of the set of programs to
-launch as independent procsses, how many copies of each are inovked,
+launch as independent processes, how many copies of each are inovked,
 and the topology of how they connect to each other as they send and
 receive data.  Thus the input script encodes an algorithm for
 processing continuous data from a stream source or archived data from
@@ -155,38 +179,48 @@ case, a PHISH program can run on a single desktop machine or across
 any network of (geographically distributed) machines that support
 socket connections.
 </P>
-<P>The PHISH package is open-source software that implements the
-<A HREF = "wiki">MapReduce operation</A> popularized by Google on top of standard
-MPI message passing.
+<HR>
+
+<P>Simple example:link(intro_1),h4
 </P>
-<P>The library is designed for parallel execution on distributed-memory
-platforms, but will also operate on a single processor.  It requires
-no additional software to build and run, except linking with an MPI
-library if you wish to perform MapReduces in parallel.  Similar to the
-original Google design, a user performs a MapReduce by writing a small
-program that invokes the library.  The user typically provides two
-application-specific functions, a "map()" and a "reduce()", that are
-called back from the library when a MapReduce operation is executed.
-"Map()" and "reduce()" are serial functions, meaning they are invoked
-independently on individual processors on portions of your data when
-performing a MapReduce operation in parallel.
+<HR>
+
+<A NAME = "intro_1"></A><H4>Steps to creating and running a PHISH program 
+</H4>
+<P>a) write one or more minnows that call the PHISH library
+b) write a script listing the minnows and the communication patterns between them
+c) ues the Bait.py tool to process the input script
+c) run the file (via MPI or a shell script) produced by Bait.py
 </P>
-<P>The MR-MPI library is written in C++ and is callable from hi-level
-langauges such as C++, C, Fortran.  A Python wrapper is also included,
-so MapReduce programs can be written in Python, including map() and
-reduce() user callback methods.  A hi-level scripting interface to the
-MR-MPI library, called OINK, is also included which can be used to
-develop and chain MapReduce algorithms together in scripts with
-commands that simplify data management tasks.
+<P>PHISH has 2 parts: Python script (bait.py) and library (libphish.a)
 </P>
-<P>The goal of the MR-MPI library is to provide a simple and portable
-interface for users to create their own MapReduce programs, which can
-then be run on any desktop or large parallel machine using MPI.  See
-the Background section for features and limitations of this
-implementation.
+<P>But can also process corpus of files.
 </P>
-<P>The distrubution includes a few examples of simple programs that
-illustrate the use of MR-MPI.
+<P>Break stream up into datums = chunk of bytes.
+</P>
+<HR>
+
+<A NAME = "intro_1"></A><H4>Acknowledgments and citations 
+</H4>
+<P>PHISH development has been funded by the US Department of Energy (DOE),
+through its LDRD program at Sandia National Laboratories.
+</P>
+<P>The following paper describe the basic ideas in PHISH.  If you use
+PHISH in your published work, please cite this paper and include a
+pointer to the PHISH WWW Site (http://phish.sandia.gov):
+</P>
+<P>S. J. Plimpton and T. Shead, PHISH in action, J Parallel and
+Distributed Compuing, submitted (2012).
+</P>
+<P>PHISH was developed by the following folks at Sandia National Labs:
+</P>
+<UL><LI>Steve Plimpton, sjplimp at sandia.gov
+<LI>Tim Shead, tshead at sandia.gov 
+</UL>
+<P>PHISH comes with no warranty of any kind. As each source file states
+in its header, it is a copyrighted code that is distributed free-of-
+charge, under the terms of the Berkeley Softward Distribution (BSD)
+License. 
 </P>
 <P>Source code for PHISH is freely available for download from the <A HREF = "phish">PHISH
 web site</A> and is licensed under the modified <A HREF = "bsd">Berkeley Software
@@ -194,4 +228,13 @@ Distribution (BSD) License</A>.  This basically means they can be
 used by anyone for any purpose.  See the LICENSE file provided with
 the distribution for more details.
 </P>
+<P> This is often referred to as open-source distribution - see
+www.gnu.org or www.opensource.org for more details.  The BSD license
+is the most unrestricted form of an open-source license.  It basically
+means that anyone can use the code for any purpose.  The legal text of
+the BSD license is in the LICENSE file that is included in the LAMMPS
+distribution.
+</P>
+<HR>
+
 </HTML>
