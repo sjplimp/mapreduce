@@ -15,6 +15,10 @@ INT_ARRAY = 6
 UINT64_ARRAY = 7
 DOUBLE_ARRAY = 8
 
+# max port setting from src/phish.cpp
+
+MAXPORT = 16
+
 # load PHISH C++ library
 
 try:
@@ -125,6 +129,9 @@ def send_key(iport,key):
 def send_direct(iport,receiver):
   lib.phish_send_direct(iport,receiver)
 
+def reset_receiver(iport,receiver):
+  lib.phish_reset_receiver(iport,receiver)
+  
 def pack_datum(ptr,len):
   lib.phish_pack_datum(ptr,len)
 
