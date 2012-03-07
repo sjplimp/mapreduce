@@ -17,22 +17,23 @@ double phish_timer() :pre
 double t1 = phish_timer();
 ...
 double t2 = phish_timer();
-printf("Elapsed time = %g\n",t2-t1);
+printf("Elapsed time = %g\n",t2-t1); :pre
 
 [Python syntax:]
 
-double phish_timer() :pre
+def phish.timer() :pre
 
 [Python examples:]
 
-double t1 = phish_timer();
+import phish
+t1 = phish.timer();
 ...
-double t2 = phish_timer();
-printf("Elapsed time = %g\n",t2-t1);
+t2 = phish.timer();
+print "Elapsed time =",t2-t1 :pre
 
 [Description:]
 
-This is a PHISH library functions which can be called from a minnow
+This is a PHISH library function which can be called from a minnow
 application.  In PHISH lingo, a "minnow" is a stand-alone application
 which makes calls to the "PHISH library"_Library.html.
 

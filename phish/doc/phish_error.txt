@@ -21,13 +21,14 @@ phish_warn("May overflow internal buffer");
 
 [Python syntax:]
 
-void phish_error(char *str) :pre
-void phish_warn(char *str) :pre
+def phish.error(str) :pre
+def phish.warn(str) :pre
 
 [Python examples:]
 
-phish_error("Bad datum received");
-phish_warn("May overflow internal buffer");
+import phish
+phish.error("Bad datum received")
+phish.warn("May overflow internal buffer") :pre
 
 [Description:]
 

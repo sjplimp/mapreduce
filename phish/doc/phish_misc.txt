@@ -18,11 +18,12 @@ phish_reset_receiver(0,3); :pre
 
 [Python syntax:]
 
-void phish_reset_receiver(int iport, int receiver) :pre
+def phish_reset_receiver(iport,receiver) :pre
 
 [Python examples:]
 
-phish_reset_receiver(0,3); :pre
+import phish
+phish.reset_receiver(0,3) :pre
 
 [Description:]
 

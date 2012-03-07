@@ -31,19 +31,18 @@ phish_send_direct(0,3);
 </PRE>
 <P><B>Python syntax:</B>
 </P>
-<PRE>void phish_send(int iport) 
+<PRE>def phish.send(iport) 
 </PRE>
-<PRE>void phish_send_key(int iport, char *key, int nbytes) 
+<PRE>def phish.send_key(iport,key) 
 </PRE>
-<PRE>void phish_send_direct(int iport, int receiver) 
+<PRE>def phish.send_direct(iport,receiver) 
 </PRE>
 <P><B>Python examples:</B>
 </P>
-<PRE>phish_loop(); 
-</PRE>
-<PRE>phish_probe(count); 
-</PRE>
-<PRE>n = phish_recv(); 
+<PRE>import phish
+phish.send(0)
+phish.send_key(1,id)
+phish.send_direct(0,3) 
 </PRE>
 <P><B>Description:</B>
 </P>
@@ -85,11 +84,11 @@ an error will result.
 </P>
 <HR>
 
-<P>The phish_key() function sends a datum to the specified <I>iport</I> output
-port and allows specification of a byte string or <I>key</I> of length
-<I>nbytes</I>, which will be hashed by the PHISH library and converted into
-an index for choosing a specific receiving processor to send the datum
-to.
+<P>The phish_send_key() function sends a datum to the specified <I>iport</I>
+output port and allows specification of a byte string or <I>key</I> of
+length <I>nbytes</I>, which will be hashed by the PHISH library and
+converted into an index for choosing a specific receiving processor to
+send the datum to.
 </P>
 <P>This form of sending must be used for a HASHED connection style.  See
 the PHISH input script <A HREF = "bait_connect.html">connect</A> command for
@@ -97,6 +96,8 @@ details.  If one or more of the connection styles connected to the
 output port is not a HASHED style, then the <I>key</I> and <I>nbytes</I>
 arguments are ignored, and the generic phish_send() form is used to
 send the datum.
+</P>
+<P>NOTE: does Python syntax not include len?
 </P>
 <HR>
 

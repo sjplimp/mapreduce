@@ -32,15 +32,23 @@ void phish_pack_double_array(int *dvec, int n)
 
 [C examples:]
 
-char *buf;
-int len;
-int type = phish_unpack(&buf,&len);
-int iport = phish_datum(&buf,&len); :pre
-
 [Python syntax:]
 
+def phish.pack_datum(buf,n)
+def phish.pack_raw(buf,n)
+def phish.pack_byte(cvalue)
+def phish.pack_int(ivalue)
+def phish.pack_uint64(uvalue)
+def phish.pack_double(dvalue)
+def phish.pack_string(str)
+def phish.pack_int_array(ivec,n)
+def phish.pack_uint64_array(uvec,n)
+def phish.pack_double_array(dvec,n)
 
 [Python examples:]
+
+NOTE: need to provide examples
+NOTE:  need to doc how Python is different below
 
 [Description:]
 

@@ -23,15 +23,16 @@ int iport = phish_datum(&buf,&len); :pre
 
 [Python syntax:]
 
-int phish_unpack(char **buf, int *len)
-int phish_datum(char **buf, int *len)
+def phish.unpack()
+def phish.datum()
 
 [Python examples:]
 
-char *buf;
-int len;
-int type = phish_unpack(&buf,&len);
-int iport = phish_datum(&buf,&len); :pre
+import phish
+type,value,len = phish.unpack()
+iport,buf,len = phish.datum() :pre
+
+NOTE:  need to doc how Python is different below
 
 [Description:]
 

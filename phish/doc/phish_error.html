@@ -26,15 +26,16 @@ phish_warn("May overflow internal buffer");
 </P>
 <P><B>Python syntax:</B>
 </P>
-<PRE>void phish_error(char *str) 
+<PRE>def phish.error(str) 
 </PRE>
-<PRE>void phish_warn(char *str) 
+<PRE>def phish.warn(str) 
 </PRE>
 <P><B>Python examples:</B>
 </P>
-<P>phish_error("Bad datum received");
-phish_warn("May overflow internal buffer");
-</P>
+<PRE>import phish
+phish.error("Bad datum received")
+phish.warn("May overflow internal buffer") 
+</PRE>
 <P><B>Description:</B>
 </P>
 <P>There are PHISH library functions which can be called from a minnow

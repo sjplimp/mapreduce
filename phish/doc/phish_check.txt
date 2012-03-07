@@ -10,19 +10,20 @@ phish_check() function :h3
 
 [C syntax:]
 
-void phish_check()
+void phish_check() :pre
 
 [C examples:]
 
-phish_check();
+phish_check(); :pre
 
 [Python syntax:]
 
-void phish_check()
+def phish.check() :pre
 
 [Python examples:]
 
-phish_check();
+import phish
+phish.check() :pre
 
 [Description:]
 

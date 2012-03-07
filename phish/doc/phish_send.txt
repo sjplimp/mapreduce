@@ -24,15 +24,16 @@ phish_send_direct(0,3); :pre
 
 [Python syntax:]
 
-void phish_send(int iport) :pre
-void phish_send_key(int iport, char *key, int nbytes) :pre
-void phish_send_direct(int iport, int receiver) :pre
+def phish.send(iport) :pre
+def phish.send_key(iport,key) :pre
+def phish.send_direct(iport,receiver) :pre
 
 [Python examples:]
 
-phish_loop(); :pre
-phish_probe(count); :pre
-n = phish_recv(); :pre
+import phish
+phish.send(0)
+phish.send_key(1,id)
+phish.send_direct(0,3) :pre
 
 [Description:]
 
@@ -74,11 +75,11 @@ an error will result.
 
 :line
 
-The phish_key() function sends a datum to the specified {iport} output
-port and allows specification of a byte string or {key} of length
-{nbytes}, which will be hashed by the PHISH library and converted into
-an index for choosing a specific receiving processor to send the datum
-to.
+The phish_send_key() function sends a datum to the specified {iport}
+output port and allows specification of a byte string or {key} of
+length {nbytes}, which will be hashed by the PHISH library and
+converted into an index for choosing a specific receiving processor to
+send the datum to.
 
 This form of sending must be used for a HASHED connection style.  See
 the PHISH input script "connect"_bait_connect.html command for
@@ -86,6 +87,8 @@ details.  If one or more of the connection styles connected to the
 output port is not a HASHED style, then the {key} and {nbytes}
 arguments are ignored, and the generic phish_send() form is used to
 send the datum.
+
+NOTE: does Python syntax not include len?
 
 :line
 

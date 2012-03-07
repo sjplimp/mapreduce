@@ -27,16 +27,17 @@ int iport = phish_datum(&buf,&len);
 </PRE>
 <P><B>Python syntax:</B>
 </P>
-<P>int phish_unpack(char **buf, int *len)
-int phish_datum(char **buf, int *len)
+<P>def phish.unpack()
+def phish.datum()
 </P>
 <P><B>Python examples:</B>
 </P>
-<PRE>char *buf;
-int len;
-int type = phish_unpack(&buf,&len);
-int iport = phish_datum(&buf,&len); 
+<PRE>import phish
+type,value,len = phish.unpack()
+iport,buf,len = phish.datum() 
 </PRE>
+<P>NOTE:  need to doc how Python is different below
+</P>
 <P><B>Description:</B>
 </P>
 <P>These are PHISH library functions which can be called from a minnow
