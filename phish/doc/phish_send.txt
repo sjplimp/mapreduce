@@ -24,9 +24,9 @@ phish_send_direct(0,3); :pre
 
 [Python syntax:]
 
-def phish.send(iport) :pre
-def phish.send_key(iport,key) :pre
-def phish.send_direct(iport,receiver) :pre
+def send(iport) :pre
+def send_key(iport,key) :pre
+def send_direct(iport,receiver) :pre
 
 [Python examples:]
 

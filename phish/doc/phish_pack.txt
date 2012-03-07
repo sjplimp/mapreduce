@@ -34,16 +34,16 @@ void phish_pack_double_array(int *dvec, int n)
 
 [Python syntax:]
 
-def phish.pack_datum(buf,n)
-def phish.pack_raw(buf,n)
-def phish.pack_byte(cvalue)
-def phish.pack_int(ivalue)
-def phish.pack_uint64(uvalue)
-def phish.pack_double(dvalue)
-def phish.pack_string(str)
-def phish.pack_int_array(ivec,n)
-def phish.pack_uint64_array(uvec,n)
-def phish.pack_double_array(dvec,n)
+def pack_datum(buf,n)
+def pack_raw(buf,n)
+def pack_byte(cvalue)
+def pack_int(ivalue)
+def pack_uint64(uvalue)
+def pack_double(dvalue)
+def pack_string(str)
+def pack_int_array(ivec,n)
+def pack_uint64_array(uvec,n)
+def pack_double_array(dvec,n)
 
 [Python examples:]
 

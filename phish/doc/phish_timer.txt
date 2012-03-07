@@ -21,7 +21,7 @@ printf("Elapsed time = %g\n",t2-t1); :pre
 
 [Python syntax:]
 
-def phish.timer() :pre
+def timer() :pre
 
 [Python examples:]
 

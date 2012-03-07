@@ -11,8 +11,8 @@ phish_datum() function :h3
 
 [C syntax:]
 
-int phish_unpack(char **buf, int *len)
-int phish_datum(char **buf, int *len)
+int phish_unpack(char **buf, int *len) :pre
+int phish_datum(char **buf, int *len) :pre
 
 [C examples:]
 
@@ -23,8 +23,8 @@ int iport = phish_datum(&buf,&len); :pre
 
 [Python syntax:]
 
-def phish.unpack()
-def phish.datum()
+def unpack() :pre
+def datum() :pre
 
 [Python examples:]
 

@@ -25,9 +25,9 @@ phish_done(quit); :pre
 
 [Python syntax:]
 
-def phish.input(iport,datumfunc,donefunc,reqflag) :pre
-def phish.output(iport) :pre
-def phish.done(alldonefunc) :pre
+def input(iport,datumfunc,donefunc,reqflag) :pre
+def output(iport) :pre
+def done(alldonefunc) :pre
 
 [Python examples:]
 

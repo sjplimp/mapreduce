@@ -24,9 +24,9 @@ n = phish_recv(); :pre
 
 [Python syntax:]
 
-def phish.loop() :pre
-def phish.probe(probefunc) :pre
-def phish.recv() :pre
+def loop() :pre
+def probe(probefunc) :pre
+def recv() :pre
 
 [Python examples:]
 

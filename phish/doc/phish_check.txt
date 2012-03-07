@@ -18,7 +18,7 @@ phish_check(); :pre
 
 [Python syntax:]
 
-def phish.check() :pre
+def check() :pre
 
 [Python examples:]
 

@@ -21,8 +21,8 @@ phish_warn("May overflow internal buffer");
 
 [Python syntax:]
 
-def phish.error(str) :pre
-def phish.warn(str) :pre
+def error(str) :pre
+def warn(str) :pre
 
 [Python examples:]
 

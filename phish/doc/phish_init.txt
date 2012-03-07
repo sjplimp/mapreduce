@@ -72,7 +72,7 @@ library reads and removes the PHISH-specific arguments.  It then
 returns the reamining minnow-specific arguments, which the minnow can
 read and process.
 
-Note that in the python version of phish.init(), the full argument
+Note that in the Python version of phish.init(), the full argument
 list is passed as an argument, and the truncated argument list is
 returned.
 

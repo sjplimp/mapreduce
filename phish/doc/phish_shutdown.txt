@@ -21,8 +21,8 @@ phish_close(0); :pre
 
 [Python syntax:]
 
-def phish.exit() :pre
-def phish.close(iport) :pre
+def exit() :pre
+def close(iport) :pre
 
 [Python examples:]
 
