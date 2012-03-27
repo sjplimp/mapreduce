@@ -41,7 +41,7 @@ from most hi-level languages, and also a Python wrapper and our own
 used to develop and chain MapReduce operations together.  MR-MPI and
 OINK are open-source codes, distributed freely under the terms of the
 modified "Berkeley Software Distribution (BSD) License"_bsd.  See
-"this page"_mapreduce/open_source.html for more details.
+"this page"_open_source.html for more details.
 
 The authors of the library are "Steve Plimpton"_sjp and "Karen
 Devine"_kdd, who can be contacted at sjplimp at sandia.gov and kddevin
