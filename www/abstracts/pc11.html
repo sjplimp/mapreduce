@@ -1,0 +1,36 @@
+<HTML>
+<P><B>MapReduce in MPI for Large-Scale Graph Algorithms</B>
+</P>
+<P>S. J. Plimpton and K. D. Devine, accepted for a special issue of
+Parallel Computing.  To appear in 2011.
+</P>
+<P>We describe a parallel library written with message-passing (MPI)
+calls that allows algorithms to be expressed in the MapReduce
+paradigm.  This means the calling program does not need to include
+explicit parallel code, but instead provides ``map'' and ``reduce''
+functions that operate independently on elements of a data set
+distributed across processors.  The library performs needed data
+movement between processors.  We describe how typical MapReduce
+functionality can be implemented in an MPI context, and also in an
+out-of-core manner for data sets that do not fit within the aggregate
+memory of a parallel machine.  Our motivation for creating this
+library was to enable graph algorithms to be written as MapReduce
+operations, allowing processing of terabyte-scale data sets on
+traditional MPI-based clusters.  We outline MapReduce versions of
+several such algorithms: vertex ranking via PageRank, triangle
+finding, connected component identification, Luby's algorithm for
+maximally independent sets, and single-source shortest-path
+calculation.  To test the algorithms on arbitrarily large artificial
+graphs we generate randomized R-MAT matrices in parallel; a MapReduce
+version of this operation is also described.  Performance and
+scalability results for the various algorithms are presented for
+varying size graphs on a distributed-memory cluster.  For some cases,
+we compare the results with non-MapReduce algorithms, different
+machines, and different MapReduce software, namely Hadoop.  Our
+open-source library is written in C++, is callable from C++, C,
+Fortran, or scripting languages such as Python, and can run on any
+parallel platform that supports MPI.
+</P>
+<P>Return to <A HREF = "../papers.html">Publications page</A>
+</P>
+</HTML>
