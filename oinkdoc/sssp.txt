@@ -1,7 +1,7 @@
 "MR-MPI WWW Site"_mws -"MR-MPI Documentation"_md - "OINK
 Documentation"_od - "OINK Commands"_oc :c
 
-:link(mws,http://www.sandia.gov/~sjplimp/mapreduce.html)
+:link(mws,http://mapreduce.sandia.gov)
 :link(md,../doc/Manual.html)
 :link(od,Manual.html)
 :link(oc,Section_script.html#comm)

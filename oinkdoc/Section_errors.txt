@@ -1,7 +1,7 @@
 "MR-MPI WWW Site"_mws -"MR-MPI Documentation"_md - "OINK
 Documentation"_od - "OINK Commands"_oc :c
 
-:link(mws,http://www.sandia.gov/~sjplimp/mapreduce.html)
+:link(mws,http://mapreduce.sandia.gov)
 :link(md,../doc/Manual.html)
 :link(od,Manual.html)
 :link(oc,Section_script.html#comm)
@@ -27,7 +27,7 @@ decide if the WARNING is important or not.  If OINK crashes or hangs
 without spitting out an error message first then it could be a bug
 
 If you think you have found a bug in OINK, please send an email to the
-"developers"_http://www.sandia.gov/~sjplimp/mapreduce.html with info
+"developers"_http://mapreduce.sandia.gov with info
 about the problem.  Anything you can do to isolate the problem and
 reproduce it on a small data set will be helpful.
 
