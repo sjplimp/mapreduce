@@ -1,5 +1,5 @@
 "MapReduce-MPI WWW Site"_mws :c
-:link(mws,../mapreduce.html)
+:link(mws,index.html)
 
 :line
 

@@ -1,5 +1,5 @@
 "MapReduce-MPI WWW Site"_mws :c
-:link(mws,../mapreduce.html)
+:link(mws,index.html)
 
 :line
 
@@ -7,7 +7,7 @@ MapReduce-MPI Papers :h3
 
 If you use the MR-MPI library in one of your publications, please cite
 the following paper and also list the URL of the "MR-MPI WWW
-site"_mws, namely http://www.sandia.gov/~sjplimp/mapreduce.html.
+site"_mws, namely http://mapreduce.sandia.gov.
 
 This paper describes the MR-MPI library and several MapReduce graph
 algorithms for informatics problems:
