@@ -1,6 +1,6 @@
 "MapReduce-MPI WWW Site"_mws - "MapReduce-MPI Documentation"_md :c
 
-:link(mws,http://www.cs.sandia.gov/~sjplimp/mapreduce.html)
+:link(mws,http://mapreduce.sandia.gov)
 :link(md,Manual.html)
 
 :line
