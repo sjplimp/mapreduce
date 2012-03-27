@@ -14,12 +14,15 @@ algorithms for informatics problems:
 
 [MapReduce in MPI for Large-Scale Graph Algorithms], S. J. Plimpton
 and K. D. Devine, Parallel Computing, 37, 610-632 (2011).
-("abstract"_abstracts/pc11.html) ("preprint"_papers/pc11.pdf)
+("abstract"_abstracts/pc11.html) ("preprint"_pdf/pc11.pdf)
 
 :line
 
 The authors of the MR-MPI library are "Steve Plimpton"_sjp (sjplimp at
 sandia.gov) and "Karen Devine"_kdd (kddevin at sandia.gov).
+
+:link(sjp,http://www.sandia.gov/~sjplimp)
+:link(kdd,http://www.cs.sandia.gov/~kddevin)
 
 You can send us email regarding any of these issues:
 
@@ -47,5 +50,5 @@ processors of the U Texas Ranger machine.
 [Parallelizing BLAST and SOM algorithms with MapReduce-MPI library],
 S.-J. Sul and A. Tovchigrechko, IEEE International Parallel &
 Distributed Processing HICOMB Symposium, (2011).
-("abstract"_../abstracts/hicomb11.html) (download paper from "HICOMB
+("abstract"_abstracts/hicomb11.html) (download paper from "HICOMB
 2011 proceedings site"_http://www.hicomb.org/proceedings.html)
