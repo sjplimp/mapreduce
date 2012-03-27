@@ -81,9 +81,9 @@ sandia.gov.
 :link(wiki,http://en.wikipedia.org/wiki/Mapreduce)
 :link(bsd,http://en.wikipedia.org/wiki/BSD_license)
 :link(kdd,http://www.cs.sandia.gov/~kddevin)
-:link(sjp,http://www.cs.sandia.gov/~sjplimp)
+:link(sjp,http://www.sandia.gov/~sjplimp)
 :link(mrmpi,http://mapreduce.sandia.gov)
-:link(bug,http://www.sandia.gov/~sjplimp/mapreduce/bug.html)
+:link(bug,http://mapreduce.sandia.gov/bug.html)
 
 :line
 
