@@ -36,6 +36,15 @@ describe the version you have. :ule,l
 :line
 :line
 
+[10 Aug 2012]
+
+Fixed a typo in the Python interface file mrmpi.py.
+
+This is the "list of changed files"_patches/files.10Aug12 from the 20
+Jun 2011 version.
+
+:line
+
 [20 Jun 2011]
 
 A couple users found some bugs with the memory allocation logic that
