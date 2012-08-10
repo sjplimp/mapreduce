@@ -314,7 +314,7 @@ class mrmpi:
     n = self.lib.MR_scan_kmv(self.mr,self.scankmv_def,None)
     return n
 
-  def scankv_callback(self,ckey,keybytes,multivalue,nvalues,valuesizes,dummy):
+  def scankmv_callback(self,ckey,keybytes,multivalue,nvalues,valuesizes,dummy):
     key = loads(ckey[:keybytes])
     mvalue = []
     start = 0
