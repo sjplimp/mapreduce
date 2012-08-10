@@ -28,8 +28,6 @@
 #include "mapreduce.h"
 #include "keyvalue.h"
 
-#include <iostream>
-
 using namespace MAPREDUCE_NS;
 
 void generate(int, KeyValue *, void *);
@@ -125,7 +123,6 @@ int main(int narg, char **args)
     if (nunique == ntotal) break;
     mr->reduce(&cull,&rmat);
     nremain = ntotal - nunique;
-std::cout << "KDDKDD " << ntotal << " " << nunique << " " << nremain << std::endl;
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
