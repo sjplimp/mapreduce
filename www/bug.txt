@@ -36,6 +36,16 @@ describe the version you have. :ule,l
 :line
 :line
 
+[15 Aug 2012]
+
+Simplied the building and installing of the Python interface to the
+MR-MPI library.  See the python/README file for details.
+
+This is the "list of changed files"_patches/files.15Aug12 from the 10
+Aug 2012 version.
+
+:line
+
 [10 Aug 2012]
 
 Fixed a typo in the Python interface file mrmpi.py.
