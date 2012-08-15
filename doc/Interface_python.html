@@ -17,160 +17,131 @@ compiled language.  Using the MR-MPI library from Python incurs two
 additional overheads, discussed in the <A HREF = "Technical.html">Technical
 Details</A> section.
 </P>
-<P>Before using the MR-MPI library in a Python script, the Python on your
-machine must be "extended" to include an interface to the MR-MPI
-library.  If your Python script will invoke MPI operations, you will
-also need to extend your Python with an interface to MPI itself.
+<P>Before using MR-MPI from a Python script, you need to do two things.
+You need to build MR-MPI as a dynamic shared library, so it can be
+loaded by Python.  And you need to tell Python how to find the library
+and the Python wrapper file python/mrmpi.py.  Both these steps are
+discussed below.  If you wish to run MR-MPI in parallel from Python,
+you also need to extend your Python with MPI.  This is also discussed
+below.
 </P>
-<P>Thus you should first decide how you intend to use the MR-MPI library
-from Python.  There are 3 options:
+<P>The Python wrapper for MR-MPI uses the amazing and magical (to me)
+"ctypes" package in Python, which auto-generates the interface code
+needed between Python and a set of C interface routines for a library.
+Ctypes is part of standard Python for versions 2.5 and later.  You can
+check which version of Python you have installed, by simply typing
+"python" at a shell prompt.
 </P>
-<P>(1) Use the library on a single processor running Python.
+<P>The following sub-sections cover the rest of the Python discussion:
 </P>
-<P>(2) Use the library in parallel, where each processor runs Python, but
-your application script does not use MPI.
-</P>
-<P>(3) Use the library in parallel, where each processor runs Python, and
-your application also makes MPI calls through a Python/MPI interface.
-</P>
-<P>Note that for (2) and (3) you will not be able to interact with Python
-interactively by typing commands and getting a response.  This is
-because when you have multiple instances of Python running (e.g. on a
-parallel machine) they cannot all read what you type.
-</P>
-<P>Working in mode (1) does not require your machine to have MPI
-installed.  You should extend your Python with a serial version of the
-MR-MPI library and its dummy MPI library.  See instructions below on
-how to do this.
-</P>
-<P>Working in mode (2) requires your machine to have an MPI library
-installed, but your Python does not need to be extended with MPI
-itself.  The MPI library must be a shared library (e.g. a *.so file on
-Linux) which is not typically created when MPI is built/installed.
-See instruction below on how to do this.  You should extend your
-Python with the parallel MR-MPI library which will use the shared MPI
-system library.  See instructions below on how to do this.
-</P>
-<P>Working in mode (3) requires your machine to have MPI installed (as a
-shared library as in (2)).  You must also extend your Python with the
-parallel MR-MPI library (same as in (2)) and with MPI itself, via one
-of several available Python/MPI packages.  See instructions below on
-how to do the latter task.
-</P>
-<P>The following sub-sections cover the rest of the Python setup
-discussion:
-</P>
-<UL><LI><A HREF = "#serial">Extending Python with a serial version of the MR-MPI library</A>
-<LI><A HREF = "#shared">Creating a shared MPI library</A>
-<LI><A HREF = "#parallel">Extending Python with a parallel version of the MR-MPI library</A>
-<LI><A HREF = "#mpi">Extending Python with MPI itself</A>
-<LI><A HREF = "#test">Testing the MR-MPI library from Python</A> 
-</UL>
-<P>This sub-section describes the Python syntax used to invoke the MR-MPI
-library:
-</P>
-<UL><LI><A HREF = "#use">Using the MR-MPI library from Python</A> 
+<UL><LI><A HREF = "#py_1">Building MR-MPI as a shared library</A>
+<LI><A HREF = "#py_2">Installing the Python wrapper into Python</A>
+<LI><A HREF = "#py_3">Extending Python with MPI to run in parallel</A>
+<LI><A HREF = "#py_4">Testing the Python/MR-MPI interface</A>
+<LI><A HREF = "#py_5">Using the MR-MPI library from Python</A> 
 </UL>
 <HR>
 
 <HR>
 
-<A NAME = "serial"></A><B>Extending Python with a serial version of the MR-MPI library</B> 
+<A NAME = "py_1"></A><B>Building MR-MPI as a shared library</B> 
 
-<P>From the python directory, type
+<P>Instructions on how to build MR-MPI as a shared library are given in
+the <A HREF = "Start.html">Start section</A>. A shared library is one that is
+dynamically loadable, which is what Python requires.  On Linux this is
+a library file that ends in ".so", not ".a".
 </P>
-<PRE>python setup_serial.py build 
+<P>From the src directory, type
+</P>
+<PRE>make -f Makefile.shlib foo 
 </PRE>
-<P>and then one of these commands:
+<P>where foo is the machine target name, such as linux or g++ or serial.
+This should create the file libmrmpir_foo.so in the src directory, as
+well as a soft link libmrmpi.so, which is what the Python wrapper will
+load by default.  Note that if you are building multiple machine
+versions of the shared library, the soft link is always set to the
+most recently built version.
 </P>
-<PRE>sudo python setup_serial.py install
-python setup_serial.py install --home=~/foo 
-</PRE>
-<P>The "build" command should compile all the needed MR-MPI C++ files,
-including the dummy MPI library.  The first "install" command will put
-the needed files in your Python's site-packages sub-directory, so that
-Python can load them.  For example, if you installed Python yourself
-on a Linux machine, it would typically be somewhere like
-/usr/local/lib/python2.5/site-packages.  Installing Python packages
-this way often requires you to be able to write to the Python
-directories, which may require root priveleges, hence the "sudo"
-prefix.  If this is not the case, you can drop the "sudo".
-</P>
-<P>Alternatively, you can install the MR-MPI files (or any other Python
-packages) in your own user space.  The second "install" command does
-this, where you should replace "foo" with your directory of choice.
-</P>
-<P>If these commands are successful, an <I>mrmpi.py</I> and <I>_mrmpi_serial.so</I>
-file will be put in the appropriate directory.
+<P>If this fails, see the <A HREF = "Start.html">Start section</A> for more details.
 </P>
 <HR>
 
-<A NAME = "shared"></A><B>Creating a shared MPI library</B> 
+<A NAME = "py_2"></A><B>Installing the Python wrapper into Python</B> 
 
-<P>A shared library is one that is dynamically loadable, which is what
-Python requires.  On Linux this is a library file that ends in ".so",
-not ".a".  Such a shared library is normally not built if you
-installed MPI yourself, but it is easy to do.  Here is how to do it
-for <A HREF = "http://www-unix.mcs.anl.gov/mpi">MPICH</A>, a popular open-source version of MPI, distributed
-by Argonne National Labs.  From within the mpich directory, type
+<P>For Python to invoke MR-MPI, there are 2 files it needs to know about:
 </P>
-
-
-<PRE>./configure --enable-sharedlib=gcc
-make
-make install 
+<UL><LI>python/mrmpi.py
+<LI>src/libmrmpi.so 
+</UL>
+<P>Mrmpi.py is the Python wrapper on the MR-MPI library interface.
+Libmrmpi.so is the shared MR-MPI library that Python loads, as
+described above.
+</P>
+<P>You can insure Python can find these files in one of two ways:
+</P>
+<UL><LI>set two environment variables
+<LI>run the python/install.py script 
+</UL>
+<P>If you set the paths to these files as environment variables, you only
+have to do it once.  For the csh or tcsh shells, add something like
+this to your ~/.cshrc file, one line for each of the two files:
+</P>
+<PRE>setenv PYTHONPATH $<I>PYTHONPATH</I>:/home/sjplimp/mrmpi/python
+setenv LD_LIBRARY_PATH $<I>LD_LIBRARY_PATH</I>:/home/sjplimp/mrmpi/src 
 </PRE>
-<P>You may need to use "sudo make install" in place of the last line.
-The end result should be the file libmpich.so in /usr/local/lib.  Note
-that if the file libmpich.a already existed in /usr/local/lib, you
-will now have both a static and shared MPICH library.  This will be
-fine for Python MR-MPI since it only uses the shared library.  But if
-you build other codes with libmpich.a, then those builds may fail if
-the linker uses libmpich.so instead, unless other dynamic libraries
-are also linked to.
+<P>If you use the python/install.py script, you need to invoke it every
+time you rebuild MR-MPI (as a shared library) or make changes to the
+python/mrmpi.py file.
+</P>
+<P>You can invoke install.py from the python directory as
+</P>
+<PRE>% python install.py [libdir] [pydir] 
+</PRE>
+<P>The optional libdir is where to copy the MR-MPI shared library to; the
+default is /usr/local/lib.  The optional pydir is where to copy the
+mrmpi.py file to; the default is the site-packages directory of the
+version of Python that is running the install script.
+</P>
+<P>Note that libdir must be a location that is in your default
+LD_LIBRARY_PATH, like /usr/local/lib or /usr/lib.  And pydir must be a
+location that Python looks in by default for imported modules, like
+its site-packages dir.  If you want to copy these files to
+non-standard locations, such as within your own user space, you will
+need to set your PYTHONPATH and LD_LIBRARY_PATH environment variables
+accordingly, as above.
+</P>
+<P>If the install.py script does not allow you to copy files into system
+directories, prefix the python command with "sudo".  If you do this,
+make sure that the Python that root runs is the same as the Python you
+run.  E.g. you may need to do something like
+</P>
+<PRE>% sudo /usr/local/bin/python install.py [libdir] [pydir] 
+</PRE>
+<P>You can also invoke install.py from the make command in the src
+directory as
+</P>
+<PRE>% make install-python 
+</PRE>
+<P>In this mode you cannot append optional arguments.  Again, you may
+need to prefix this with "sudo".  In this mode you cannot control
+which Python is invoked by root.
+</P>
+<P>Note that if you want Python to be able to load different versions of
+the MR-MPI shared library (see <A HREF = "#py_5">this section</A> below), you will
+need to manually copy files like lmpmrmpi_g++.so into the appropriate
+system directory.  This is not needed if you set the LD_LIBRARY_PATH
+environment variable as described above.
 </P>
 <HR>
 
-<A NAME = "parallel"></A><B>Extending Python with a parallel version of the MR-MPI library</B> 
-
-<P>From the python directory, type
+<A NAME = "py_3"></A><H4>11.3 Extending Python with MPI to run in parallel 
+</H4>
+<P>If you wish to run MR-MPI in parallel from Python, you need to extend
+your Python with an interface to MPI.  This also allows you to make
+MPI calls directly from Python in your script, if you desire.
 </P>
-<PRE>python setup.py build 
-</PRE>
-<P>and then one of these commands:
-</P>
-<PRE>sudo python setup.py install
-python setup.py install --home=~/foo 
-</PRE>
-<P>The "build" command should compile all the needed MR-MPI C++ files,
-which will require MPI to be installed on your system.  This means it
-must find both the header file mpi.h and a shared library file,
-e.g. libmpich.so if the MPICH version of MPI is installed.  See the
-preceding section for how to create a build MPI as a shared library if
-it does not exist.
-</P>
-<P>The first "install" command will put the needed files in your Python's
-site-packages sub-directory, so that Python can load them.  For
-example, if you installed Python yourself on a Linux machine, it would
-typically be somewhere like /usr/local/lib/python2.5/site-packages.
-Installing Python packages this way often requires you to be able to
-write to the Python directories, which may require root priveleges,
-hence the "sudo" prefix.  If this is not the case, you can drop the
-"sudo".
-</P>
-<P>Alternatively, you can install the MR-MPI files (or any other Python
-packages) in your own user space.  The second "install" command does
-this, where you should replace "foo" with your directory of choice.
-</P>
-<P>If these commands are successful, an <I>mrmpi.py</I> and <I>_mrmpi.so</I> file
-will be put in the appropriate directory.
-</P>
-<HR>
-
-<A NAME = "mpi"></A><B>Extending Python with MPI itself</B> 
-
 <P>There are several Python packages available that purport to wrap MPI
-and allow its functions to be called from Python.
+as a library and allow MPI functions to be called from Python.
 </P>
 <P>These include
 </P>
@@ -178,30 +149,30 @@ and allow its functions to be called from Python.
 <LI><A HREF = "http://code.google.com/p/maroonmpi/">maroonmpi</A>
 <LI><A HREF = "http://code.google.com/p/mpi4py/">mpi4py</A>
 <LI><A HREF = "http://nbcr.sdsc.edu/forum/viewtopic.php?t=89&sid=c997fefc3933bd66204875b436940f16">myMPI</A>
-<LI><A HREF = "http://datamining.anu.edu.au/~ole/pypar">Pypar</A> 
+<LI><A HREF = "http://code.google.com/p/pypar">Pypar</A> 
 </UL>
-<P>All of these except pyMPI work by wrapping the MPI library (which must
-be available on your system as a shared library, as discussed above),
-and exposing (some portion of) its interface to your Python script.
-This means they cannot be used interactively in parallel, since they
-do not address the issue of interactive input to multiple instances of
+<P>All of these except pyMPI work by wrapping the MPI library and
+exposing (some portion of) its interface to your Python script.  This
+means Python cannot be used interactively in parallel, since they do
+not address the issue of interactive input to multiple instances of
 Python running on different processors.  The one exception is pyMPI,
 which alters the Python interpreter to address this issue, and (I
-believe) creates a new alternate executable (in place of python
+believe) creates a new alternate executable (in place of "python"
 itself) as a result.
 </P>
-<P>In principle any of these Python/MPI packages should work with the
-MR-MPI library.  However, when I downloaded and looked at a few of
-them, their docuemtation was incomplete and I had trouble with their
-installation.  It's not clear if some of the packages are still being
-actively developed and supported.
+<P>In principle any of these Python/MPI packages should work to invoke
+MR-MPI in parallel and MPI calls themselves from a Python script which
+is itself running in parallel.  However, when I downloaded and looked
+at a few of them, their documentation was incomplete and I had trouble
+with their installation.  It's not clear if some of the packages are
+still being actively developed and supported.
 </P>
-<P>The one I recommend, since I have successfully used it with the MR-MPI
-library, is Pypar.  Pypar requires the ubiqtuitous <A HREF = "http://numpy.scipy.org">Numpy
+<P>The one I recommend, since I have successfully used it with MR-MPI, is
+Pypar.  Pypar requires the ubiquitous <A HREF = "http://numpy.scipy.org">Numpy
 package</A> be installed in your Python.  After
 launching python, type
 </P>
-<PRE>>>> import numpy 
+<PRE>import numpy 
 </PRE>
 <P>to see if it is installed.  If not, here is how to install it (version
 1.3.0b1 as of April 2009).  Unpack the numpy tarball and from its
@@ -213,109 +184,156 @@ sudo python setup.py install
 <P>The "sudo" is only needed if required to copy Numpy files into your
 Python distribution's site-packages directory.
 </P>
-<P>To install PyPar (version pypar-2.1.0_66 as of April 2009), unpack it
+<P>To install Pypar (version pypar-2.1.4_94 as of Aug 2012), unpack it
 and from its "source" directory, type
 </P>
 <PRE>python setup.py build
 sudo python setup.py install 
 </PRE>
-<P>Again, the "sudo" is only needed if required to copy PyPar files into
+<P>Again, the "sudo" is only needed if required to copy Pypar files into
 your Python distribution's site-packages directory.
 </P>
 <P>If you have successully installed Pypar, you should be able to run
-python serially and type
+Python and type
 </P>
-<PRE>>>> import pypar 
+<PRE>import pypar 
 </PRE>
 <P>without error.  You should also be able to run python in parallel
 on a simple test script
 </P>
-<PRE>% mpirun -np 4 python test.script 
+<PRE>% mpirun -np 4 python test.py 
 </PRE>
-<P>where test.script contains the lines
+<P>where test.py contains the lines
 </P>
 <PRE>import pypar
 print "Proc %d out of %d procs" % (pypar.rank(),pypar.size()) 
 </PRE>
-<P>and see one line of output for each processor you ran on.
+<P>and see one line of output for each processor you run on.
+</P>
+<P>IMPORTANT NOTE: To use Pypar and MR-MPI in parallel from Python, you
+must insure both are using the same version of MPI.  If you only have
+one MPI installed on your system, this is not an issue, but it can be
+if you have multiple MPIs.  Your MR-MPI build is explicit about which
+MPI it is using, since you specify the details in your lo-level
+src/MAKE/Makefile.foo file.  Pypar uses the "mpicc" command to find
+information about the MPI it uses to build against.  And it tries to
+load "libmpi.so" from the LD_LIBRARY_PATH.  This may or may not find
+the MPI library that MR-MPI is using.  If you have problems running
+both Pypar and MR-MPI together, this is an issue you may need to
+address, e.g. by moving other MPI installations so that Pypar finds
+the right one.
 </P>
 <HR>
 
-<A NAME = "test"></A><B>Testing the MR-MPI library from Python</B> 
-
-<P>Before importing the MR-MPI library in a Python program, one more step
-is needed.  The interface to the library is via Python ctypes, which
-loads the shared MR-MPI library via a CDLL() call, which in turn is a
-wrapper on the C-library dlopen().  This command is different than a
-normal Python "import" and needs to be able to find the MR-MPI shared
-library, which is either in the Python site-packages directory or in a
-local directory you specified in the "python setup.py install"
-command, as described above.
-</P>
-<P>The simplest way to do this is add a line like this to your
-.cshrc or other shell start-up file.
-</P>
-<PRE>setenv LD_LIBRARY_PATH $<I>LD_LIBRARY_PATH</I>:/usr/local/lib/python2.5/site-packages 
-</PRE>
-<P>and then execute the file to insure the path has been updated.  This
-will extend the path that dlopen() uses to look for shared libraries.
-</P>
-<P>To test if the MR-MPI library has been successfully installed,
-launch python in serial and type
+<A NAME = "py_4"></A><H4>11.4 Testing the Python-MR-MPI interface 
+</H4>
+<P>To test if MR-MPI is callable from Python in serial, launch Python
+interactively and type:
 </P>
 <PRE>>>> from mrmpi import mrmpi
 >>> mr = mrmpi() 
 </PRE>
-<P>If you get no errors, you're ready to use the library, as described
-below.
+<P>If you get no errors, you're ready to use MR-MPI from Python.
+If the load fails, the most common error to see is
 </P>
-<P>If you built the MR-MPI library for parallel use, launch python 
-in parallel
-</P>
-<PRE>% mpirun -np 4 python test.script 
+<PRE>OSError: Could not load MR-MPI dynamic library 
 </PRE>
-<P>where test.script contains the lines
+<P>which means Python was unable to load the MR-MPI shared library.  This
+typically occurs if the system can't find the MRMPI shared library.
+</P>
+<P>Python (actually the operating system) isn't verbose about telling you
+why the load failed, so carefully go through the steps above regarding
+environment variables, and the instructions in th "Start about
+building a shared library and about setting the LD_LIBRARY_PATH
+envirornment variable.
+</P>
+<H5><B>Test MR-MPI and Python in parallel:</B> 
+</H5>
+<P>To run MR-MPI in parallel, assuming you have installed the
+<A HREF = "http://datamining.anu.edu.au/~ole/pypar">Pypar</A> package as discussed
+above, create a test.py file containing these lines:
 </P>
 <PRE>import pypar
 from mrmpi import mrmpi
 mr = mrmpi()
-print "Proc %d out of %d procs has" % (pypar.rank(),pypar.size()), mr
+print "Proc %d out of %d procs has" % (pypar.rank(),pypar.size()),mr
 pypar.finalize() 
 </PRE>
-<P>Again, if you get no errors, you're good to go.
+<P>You can then run it in parallel as:
 </P>
+<PRE>% mpirun -np 4 python test.py 
+</PRE>
+<P>Note that if you leave out the 3 lines from test.py that specify Pypar
+commands you will instantiate and run MR-MPI independently on each of
+the P processors specified in the mpirun command.  In this case you
+should get 4 sets of output, each showing that a MR-MPI was
+initialized on a single processor, instead of one set of output
+showing MR-MPI was initialized on 4 processors.  If the 1-processor
+outputs occur, it means that Pypar is not working correctly.
+</P>
+<P>Also note that once you import the PyPar module, Pypar initializes MPI
+for you, and you can use MPI calls directly in your Python script, as
+described in the Pypar documentation.  The last line of your Python
+script should be pypar.finalize(), to insure MPI is shut down
+correctly.
+</P>
+<H5><B>Running Python scripts:</B> 
+</H5>
+<P>Note that any Python script (not just for MR-MPI) can be invoked in
+one of several ways:
+</P>
+<PRE>% python foo.script
+% python -i foo.script
+% foo.script 
+</PRE>
+<P>The last command requires that the first line of the script be
+something like this:
+</P>
+<PRE>#!/usr/local/bin/python 
+#!/usr/local/bin/python -i 
+</PRE>
+<P>where the path points to where you have Python installed, and that you
+have made the script file executable:
+</P>
+<PRE>% chmod +x foo.script 
+</PRE>
+<P>Without the "-i" flag, Python will exit when the script finishes.
+With the "-i" flag, you will be left in the Python interpreter when
+the script finishes, so you can type subsequent commands.  As
+mentioned above, you can only run Python interactively when running
+Python on a single processor, not in parallel.
+</P>
+<HR>
+
 <HR>
 
 <A NAME = "use"></A><B>Using the MR-MPI library from Python</B> 
 
-<P>The Python interface to the MR-MPI library consists of an "mrmpi"
-class which creates a "mrmpi" object, with a set of methods that can
-be invoked on that object.  The sample code lines below assume you
-have first imported the "mrmpi" module as follows:
+<P>The Python interface to MR-MPI consists of a Python "mrmpi" module,
+the source code for which is in python/mrmpi.py, which creates a
+"mrmpi" object, with a set of methods that can be invoked on that
+object.  The sample Python code below assumes you have first imported
+the "mrmpi" module in your Python script, as follows:
 </P>
 <PRE>from mrmpi import mrmpi 
 </PRE>
-<P>Note that when your script imports the Pypar package (same with some
-other Python/MPI packages), it initializes MPI for you.  Pypar does
-not, however, make the global MPI communicator (MPI_COMM_WORLD)
-visible to your program, so you can't pass it to the MR-MPI library.
-When using Pypar, the last line of your input script should thus be
-pypar.finalize(), to insure MPI is shut down correctly.
-</P>
-<P>Some of the methods defined by the mrmpi class take callback functions
-as arguments, e.g. <A HREF = "map.html">map()</A> and <A HREF = "reduce.html">reduce()</A>.  These
-are Python functions you define elsewhere in your script.  When you
-register "keys" and "values" with the library, they can be simple
-quantities like strings or ints or floats.  Or they can be Python data
-structures like lists or tuples.
+<P>These are the methods defined by the mrmpi module.  Some of them take
+callback functions as arguments, e.g. <A HREF = "map.html">map()</A> and
+<A HREF = "reduce.html">reduce()</A>.  These are Python functions you define
+elsewhere in your script.  When you register "keys" and "values" with
+the library, they can be simple quantities like strings or ints or
+floats.  Or they can be Python data structures like lists or tuples.
 </P>
 <P>These are the class methods defined by the mrmpi module.  Their
 functionality and arguments are described in the <A HREF = "Interface_c++.html">C++ interface
 section</A>.
 </P>
-<PRE>mr = mrmpi()                # create an mrmpi object
+<PRE>mr = mrmpi()                # create a MR-MPI object using the default libmrmpi.so library
 mr = mrmpi(mpi_comm)        # ditto, but with a specified MPI communicator
-mr = mrmpi(0.0)             # ditto, and the library will finalize MPI 
+mr = mrmpi(0.0)             # ditto, and the library will finalize MPI
+mr = mrmpi(None,"g++")      # create a MR-MPI object using the libmrmpi_g++.so library
+mr = mrmpi(mpi_comm,"g++")  # ditto, but with a specified MPI communicator
+mr = mrmpi(0.0,"g++")       # ditto, and the library will finalize MPI 
 </PRE>
 <PRE>mr2 = mr.copy()             # copy mr to create mr2 
 </PRE>
