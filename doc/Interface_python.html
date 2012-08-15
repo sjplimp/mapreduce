@@ -307,7 +307,7 @@ Python on a single processor, not in parallel.
 
 <HR>
 
-<A NAME = "use"></A><B>Using the MR-MPI library from Python</B> 
+<A NAME = "py_5"></A><B>Using the MR-MPI library from Python</B> 
 
 <P>The Python interface to MR-MPI consists of a Python "mrmpi" module,
 the source code for which is in python/mrmpi.py, which creates a
@@ -465,7 +465,13 @@ mr.add_multi_dynamic(keys,values) # add list of keys and values
 				  # each key may be different length
 				  # each value may be different length 
 </PRE>
-<P>These class methods correspond one-to-one with the C++ methods
+<HR>
+
+<P>Note that you can create multiple MR-MPI objects in your Python
+script, and coordinate the data stored in each and moved between them,
+just as can from a C or C++ program.
+</P>
+<P>The class methods above correspond one-to-one with the C++ methods
 described <A HREF = "Interface_c++.html">here</A>, except that for C++ methods with
 multiple interfaces (e.g. <A HREF = "map.html">map()</A>), there are multiple Python
 methods with slightly different names, similar to the <A HREF = "Interface_c.html">C
