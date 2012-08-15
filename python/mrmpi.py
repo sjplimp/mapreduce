@@ -18,17 +18,29 @@ from ctypes import *
 from cPickle import dumps,loads
 
 class mrmpi:
-  def __init__(self,comm=None):
+  def __init__(self,comm=None,name=""):
 
-    # attempt to load parallel library first, serial library next
-
+    # load liblammps.so by default
+    # if name = "g++", load liblammps_g++.so
+    
     try:
-      self.lib = CDLL("libmrmpi_linux.so")
+      if not name: self.lib = CDLL("libmrmpi.so")
+      else: self.lib = CDLL("libmrmpi_%s.so" % name)
     except:
-      try:
-        self.lib = CDLL("_mrmpi_serial.so")
-      except:
-        raise StandardError,"Could not load MR-MPI dynamic library"
+      raise OSError,"Could not load MR-MPI dynamic library"
+
+    # create an instance of MR-MPI
+    
+    if comm == None: self.mr = self.lib.MR_create_mpi()
+    elif type(comm) == types.IntType: self.mr = self.lib.MR_create(comm)
+    elif type(comm) == types.FloatType:
+      self.mr = self.lib.MR_create_mpi_finalize()
+    else: raise StandardError,"Could not create an MR library instance"
+
+    # hardwire keyalign and valuealign to 1 because of pickling
+
+    self.lib.MR_set_keyalign(self.mr,1)
+    self.lib.MR_set_valuealign(self.mr,1)
 
     # setup callbacks
     
@@ -73,19 +85,6 @@ class mrmpi:
     SCANKMVFUNC = CFUNCTYPE(c_void_p,POINTER(c_char),c_int,
                             POINTER(c_char),c_int,POINTER(c_int),c_void_p)
     self.scankmv_def = SCANKMVFUNC(self.scankmv_callback)
-
-    # create an instance of MR-MPI library
-    
-    if comm == None: self.mr = self.lib.MR_create_mpi()
-    elif type(comm) == types.IntType: self.mr = self.lib.MR_create(comm)
-    elif type(comm) == types.FloatType:
-      self.mr = self.lib.MR_create_mpi_finalize()
-    else: raise StandardError,"Could not create an MR library instance"
-
-    # hardwire keyalign and valuealign to 1 because of pickling
-
-    self.lib.MR_set_keyalign(self.mr,1)
-    self.lib.MR_set_valuealign(self.mr,1)
 
   def __del__(self):
     if self.mr: self.lib.MR_destroy(self.mr)
