@@ -3,32 +3,38 @@
 SHELL = /bin/sh
 
 # ---------------------------------------------------------------------
-# compiler/archive settings
-# specify flags and libraries needed for your compiler and MPI installation
+# compiler/linker settings
+# specify flags and libraries needed for your compiler and MPI
 
 CC =		g++
 CCFLAGS =	-O -DMPICH_IGNORE_CXX_SEEK
+SHFLAGS =	-fPIC
 DEPFLAGS =	-M
+
 ARCHIVE =	ar
 ARFLAGS =	-rc
-SIZE =		size
+SHLIBFLAGS =	-shared
+SHLIB =         -lmpich -lmpl -lpthread
 
 # ---------------------------------------------------------------------
 # build rules and dependencies
 # no need to edit this section
 
-# Library target
+# Library targets
 
 lib:	$(OBJ)
 	$(ARCHIVE) $(ARFLAGS) $(EXE) $(OBJ)
 
+shlib:	$(OBJ)
+	$(CC) $(CCFLAGS) $(SHFLAGS) $(SHLIBFLAGS) -o $(EXE) $(OBJ) $(SHLIB)
+
 # Compilation rules
 
 %.o:%.cpp
-	$(CC) $(CCFLAGS) $(EXTRA_INC) -c $<
+	$(CC) $(CCFLAGS) $(SHFLAGS) -c $<
 
 %.d:%.cpp
-	$(CC) $(CCFLAGS) $(EXTRA_INC) $(DEPFLAGS) $< > $@
+	$(CC) $(CCFLAGS) $(DEPFLAGS) $< > $@
 
 # Individual dependencies
 

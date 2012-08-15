@@ -1,4 +1,4 @@
-# MR-MPI library multiple-machine Makefile
+# MR-MPI static library multiple-machine Makefile
 
 SHELL = /bin/sh
 #.IGNORE:
@@ -18,8 +18,13 @@ help:
 	@echo 'make clean-all           delete all object files'
 	@echo 'make clean-machine       delete object files for one machine'
 	@echo 'make tar                 mrmpi_src.tar.gz of src dir'
+	@echo 'make stubs               build dummy MPI library in mpistubs'
+	@echo 'make install-python      install MR-MPI wrapper in Python'
+
 	@echo ''
-	@echo 'make machine             build MRMPI where machine is one of:'
+	@echo 'make -f Makefile.shlib machine    build MR-MPI shared library for machine'
+	@echo 'make machine             build MR-MPI static library for machine:'
+
 	@echo ''
 	@files="`ls MAKE/Makefile.*`"; \
 	  for file in $$files; do head -1 $$file; done
@@ -33,7 +38,8 @@ help:
 	@cp -p $(SRC) $(INC) Obj_$@
 	@cp MAKE/Makefile.$@ Obj_$@/Makefile
 	@cd Obj_$@; \
-	$(MAKE) $(MFLAGS) "OBJ = $(OBJ)" "INC = $(INC)" "EXE = ../$(EXE)" lib
+	$(MAKE) $(MFLAGS) "OBJ = $(OBJ)" "INC = $(INC)" "SHFLAGS =" \
+	  "EXE = ../$(EXE)" lib
 	@if [ -d Obj_$@ ]; then cd Obj_$@; rm -f $(SRC) $(INC) Makefile*; fi
 
 # Remove machine-specific object files
@@ -54,3 +60,8 @@ tar:
 	@cd ..; tar cvzf src/$(ROOT)_src.tar.gz \
 	  src/Make* src/MAKE src/*.cpp src/*.h --exclude=*/.svn
 	@echo "Created $(ROOT)_src.tar.gz"
+
+# Make MPI STUBS library
+
+stubs:
+	@cd STUBS; make clean; make
