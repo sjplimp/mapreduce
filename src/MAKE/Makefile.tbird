@@ -8,27 +8,33 @@ SHELL = /bin/sh
 
 CC =		mpic++
 CCFLAGS =	-O2 -DMPICH_IGNORE_CXX_SEEK
+SHFLAGS =	-fPIC
 DEPFLAGS =	-M
+
 ARCHIVE =	ar
 ARFLAGS =	-rc
-SIZE =		size
+SHLIBFLAGS =	-shared
+SHLIB =         
 
 # ---------------------------------------------------------------------
 # build rules and dependencies
 # no need to edit this section
 
-# Library target
+# Library targets
 
 lib:	$(OBJ)
 	$(ARCHIVE) $(ARFLAGS) $(EXE) $(OBJ)
 
+shlib:	$(OBJ)
+	$(CC) $(CCFLAGS) $(SHFLAGS) $(SHLIBFLAGS) -o $(EXE) $(OBJ) $(SHLIB)
+
 # Compilation rules
 
 %.o:%.cpp
-	$(CC) $(CCFLAGS) $(EXTRA_INC) -c $<
+	$(CC) $(CCFLAGS) $(SHFLAGS) -c $<
 
 %.d:%.cpp
-	$(CC) $(CCFLAGS) $(EXTRA_INC) $(DEPFLAGS) $< > $@
+	$(CC) $(CCFLAGS) $(DEPFLAGS) $< > $@
 
 # Individual dependencies
 

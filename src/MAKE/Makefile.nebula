@@ -8,27 +8,33 @@ SHELL = /bin/sh
 
 CC =		/opt/openmpi-gnu-1.3.2/bin/mpiCC
 CCFLAGS =	-O -I../../src
+SHFLAGS =	-fPIC
 DEPFLAGS =	-M
+
 ARCHIVE =	ar
 ARFLAGS =	-rc
-SIZE =		size
+SHLIBFLAGS =	-shared
+SHLIB =         
 
 # ---------------------------------------------------------------------
 # build rules and dependencies
 # no need to edit this section
 
-# Library target
+# Library targets
 
 lib:	$(OBJ)
 	$(ARCHIVE) $(ARFLAGS) $(EXE) $(OBJ)
 
+shlib:	$(OBJ)
+	$(CC) $(CCFLAGS) $(SHFLAGS) $(SHLIBFLAGS) -o $(EXE) $(OBJ) $(SHLIB)
+
 # Compilation rules
 
 %.o:%.cpp
-	$(CC) $(CCFLAGS) $(EXTRA_INC) -c $<
+	$(CC) $(CCFLAGS) $(SHFLAGS) -c $<
 
 %.d:%.cpp
-	$(CC) $(CCFLAGS) $(EXTRA_INC) $(DEPFLAGS) $< > $@
+	$(CC) $(CCFLAGS) $(DEPFLAGS) $< > $@
 
 # Individual dependencies
 
