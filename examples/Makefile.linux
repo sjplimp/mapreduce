@@ -5,7 +5,7 @@ CPP =		g++
 CCFLAGS =	-g -O -I../src -DMPICH_IGNORE_CXX_SEEK
 LINK =		g++
 LINKFLAGS =	-g -O
-USRLIB =	../src/libmrmpi_linux.a
-SYSLIB =	-lmpich -lmpl -lpthread
+USRLIB =	../src/libmrmpi_linux.so
+#SYSLIB =	-lmpich -lmpl -lpthread
 
 include Makefile.common
