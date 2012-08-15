@@ -65,3 +65,8 @@ tar:
 
 stubs:
 	@cd STUBS; make clean; make
+
+# install MR-MPI shared lib and Python wrapper for Python usage
+
+install-python:
+	@python ../python/install.py
