@@ -23,7 +23,7 @@ class mrmpi:
     # attempt to load parallel library first, serial library next
 
     try:
-      self.lib = CDLL("_mrmpi.so")
+      self.lib = CDLL("libmrmpi_linux.so")
     except:
       try:
         self.lib = CDLL("_mrmpi_serial.so")
