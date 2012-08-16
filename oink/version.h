@@ -1,1 +1,1 @@
-#define OINK_VERSION "15 Aug 2012"
+#define OINK_VERSION "16 Aug 2012"
