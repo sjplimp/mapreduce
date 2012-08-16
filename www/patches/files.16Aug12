@@ -1,0 +1,8 @@
+15Aug12 version files changed by 16Aug12 upgrade:
+
+doc/Manual.pdf
+oink/version.h
+oinkdoc/Manual.pdf
+python/install.py
+src/Makefile.shlib
+src/version.h
