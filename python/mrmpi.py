@@ -20,13 +20,15 @@ from cPickle import dumps,loads
 class mrmpi:
   def __init__(self,comm=None,name=""):
 
-    # load liblammps.so by default
-    # if name = "g++", load liblammps_g++.so
+    # load libmrmpi.so by default
+    # if name = "g++", load libmrmpi_g++.so
     
     try:
       if not name: self.lib = CDLL("libmrmpi.so")
       else: self.lib = CDLL("libmrmpi_%s.so" % name)
     except:
+      type,value,tb = sys.exc_info()
+      traceback.print_exception(type,value,tb)
       raise OSError,"Could not load MR-MPI dynamic library"
 
     # create an instance of MR-MPI
@@ -35,7 +37,7 @@ class mrmpi:
     elif type(comm) == types.IntType: self.mr = self.lib.MR_create(comm)
     elif type(comm) == types.FloatType:
       self.mr = self.lib.MR_create_mpi_finalize()
-    else: raise StandardError,"Could not create an MR library instance"
+    else: raise StandardError,"Could not create an MR-MPI library instance"
 
     # hardwire keyalign and valuealign to 1 because of pickling
 
