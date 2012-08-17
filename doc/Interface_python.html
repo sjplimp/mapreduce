@@ -233,19 +233,25 @@ interactively and type:
 <PRE>>>> from mrmpi import mrmpi
 >>> mr = mrmpi() 
 </PRE>
-<P>If you get no errors, you're ready to use MR-MPI from Python.
-If the load fails, the most common error to see is
+<P>If you get no errors, you're ready to use MR-MPI from Python.  If the
+2nd command fails, the most common error to see is
 </P>
 <PRE>OSError: Could not load MR-MPI dynamic library 
 </PRE>
 <P>which means Python was unable to load the MR-MPI shared library.  This
-typically occurs if the system can't find the MRMPI shared library.
+typically occurs if the system can't find the MR-MPI shared library,
+or if something about the library is incompatible with your Python.
+The error message should give you an indication of what went wrong.
 </P>
-<P>Python (actually the operating system) isn't verbose about telling you
-why the load failed, so carefully go through the steps above regarding
-environment variables, and the instructions in th "Start about
-building a shared library and about setting the LD_LIBRARY_PATH
-envirornment variable.
+<P>You can also test the load directly in Python as follows, without
+first importing from the mrmpi.py file:
+</P>
+<PRE>>>> from ctypes import CDLL
+>>> CDLL("libmrmpi.so") 
+</PRE>
+<P>If an error occurs, carefully go thru the steps in <A HREF = "Start.html">Start</A>
+and above about building a shared library and about insuring Python
+can find the necessary two files it needs.
 </P>
 <H5><B>Test MR-MPI and Python in parallel:</B> 
 </H5>
