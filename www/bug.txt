@@ -36,6 +36,16 @@ describe the version you have. :ule,l
 :line
 :line
 
+[11 Mar 2013]
+
+Typo in the in.sssp example input script for single-source shortest
+path finding.
+
+This is the "list of changed files"_patches/files.11Mar2013 from the
+16 Aug 2012 version.
+
+:line
+
 [16 Aug 2012]
 
 A couple of files were missing from the repository for yesterday's
