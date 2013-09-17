@@ -82,8 +82,8 @@ MapReduce *mr = new MapReduce();
 mr->map(nstr,strings,1,0,1,mymap,NULL);
 int ntotalfiles = mr->mapfilecount; :pre
 
-The third set of variants allows large file(s) to be broken into
-chunks and one or more sections to be passed back to your mymap()
+The third and fourth set of variants allow large file(s) to be broken
+into chunks and one or more sections to be passed back to your mymap()
 function as a string so it can process it.  {Nmap} is the number of
 chunks to generate from all the files in aggregate (not {nmap} chunks
 per file).  As with the previous variant, you also specify {nstr},
