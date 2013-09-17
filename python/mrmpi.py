@@ -27,6 +27,7 @@ class mrmpi:
       if not name: self.lib = CDLL("libmrmpi.so")
       else: self.lib = CDLL("libmrmpi_%s.so" % name)
     except:
+      import sys,traceback
       type,value,tb = sys.exc_info()
       traceback.print_exception(type,value,tb)
       raise OSError,"Could not load MR-MPI dynamic library"
