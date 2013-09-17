@@ -1,0 +1,9 @@
+11Mar13 version files changed by 17Sep13 upgrade:
+
+doc/Manual.pdf
+doc/map.html
+doc/map.txt
+oink/version.h
+oinkdoc/Manual.pdf
+python/mrmpi.py
+src/version.h
