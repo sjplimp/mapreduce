@@ -1,0 +1,7 @@
+17Sep13 version files changed by 23Oct13 upgrade:
+
+doc/Manual.pdf
+oink/version.h
+oinkdoc/Manual.pdf
+src/cmapreduce.h
+src/version.h
