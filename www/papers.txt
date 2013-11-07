@@ -52,3 +52,20 @@ S.-J. Sul and A. Tovchigrechko, IEEE International Parallel &
 Distributed Processing HICOMB Symposium, (2011).
 ("abstract"_abstracts/hicomb11.html) (download paper from "HICOMB
 2011 proceedings site"_http://www.hicomb.org/proceedings.html)
+
+:line
+
+Ths is a paper by "Boyu Zhang"_http://www.eecis.udel.edu/~bzhang and
+Michela Taufer (U Delaware) and collaborators who wrote two variants
+of a general analysis algorithm for large structural biology datasets
+requiring distributed memory.  The algorithm performance was evaluated
+on 1024 cores across 15 data sets.
+
+[On Efficiently Capturing Scientific Properties in Distributed Big
+Data without Moving the Data: A Case Study in Distributed Structural
+Biology using MapReduce], B. Zhang, T. Estrada, P. Cicotti, and
+M. Taufer, in the Proceedings of the 16th IEEE International
+Conferences on Computational Science and Engineering (CSE), Sydney,
+Australia (2013). ("abstract"_abstracts/cse13.html) (download paper
+from
+"http://gcl.cis.udel.edu/publications/conferences/13_CSE_zhang.pdf"_http://gcl.cis.udel.edu/publications/conferences/13_CSE_zhang.pdf)
