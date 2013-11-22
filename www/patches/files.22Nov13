@@ -1,0 +1,11 @@
+23Oct13 version files changed by 22Nov13 upgrade:
+
+doc/Interface_c.html
+doc/Interface_c.txt
+doc/Manual.pdf
+oink/version.h
+oinkdoc/Manual.pdf
+python/mrmpi.py
+src/cmapreduce.cpp
+src/cmapreduce.h
+src/version.h
