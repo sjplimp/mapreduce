@@ -136,12 +136,18 @@ void MR_kv_add_multi_dynamic(void *KVptr, int n,
 			    char *key, int *keybytes,
 			    char *value, int *valuebytes); 
 </PRE>
+<PRE>void *MR_get_kv(void *MRptr);
+void *MR_get_kmv(void *MRptr); 
+</PRE>
 <P>These functions correspond one-to-one with the C++ methods described
 <A HREF = "Interface_c++.html">here</A>, except that for C++ methods with multiple
 interfaces (e.g. <A HREF = "map.html">map()</A>), there are multiple C functions,
 with slightly different names.  The MR_set() functions are added to
 the C interface to enable the corresponding library variables to be
-set.
+set.  The final MR_get_kv() and MR_get_kmv() functions have on C++
+counterpart; they were added to allow extraction of the internal KV
+and KMV pointers from a C-style calling program, which can be done
+directly in C++ since the pointers are public members.
 </P>
 <P>Note that when you call MR_create() or MR_copy(), they return a "void
 *MRptr" which is a pointer to the MapReduce object created by the
