@@ -44,6 +44,18 @@ void MR_destroy(void *MRptr)
   delete mr;
 }
 
+void *MR_get_kv(void *MRptr)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return (void *) mr->kv;
+}
+
+void *MR_get_kmv(void *MRptr)
+{
+  MapReduce *mr = (MapReduce *) MRptr;
+  return (void *) mr->kmv;
+}
+
 void *MR_copy(void *MRptr)
 {
   MapReduce *mr = (MapReduce *) MRptr;

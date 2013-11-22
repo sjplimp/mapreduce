@@ -26,6 +26,9 @@ void *MR_create_mpi();
 void *MR_create_mpi_finalize();
 void MR_destroy(void *MRptr);
 
+void *MR_get_kv(void *MRptr);
+void *MR_get_kmv(void *MRptr);
+
 void *MR_copy(void *MRptr);
 
 uint64_t MR_add(void *MRptr, void *MRptr2);

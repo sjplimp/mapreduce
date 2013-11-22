@@ -95,7 +95,7 @@ class mrmpi:
   def destroy(self):
     self.lib.MR_destroy(self.mr)
     self.mr = None
-    
+
   def copy(self,mr):
     cmr = self.lib.MR_copy(self.mr,mr.mr)
     pymr = mrmpi()
