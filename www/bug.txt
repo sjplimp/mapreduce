@@ -36,6 +36,21 @@ describe the version you have. :ule,l
 :line
 :line
 
+[4 Apr 2014]
+
+Fixed a logic bug in one of the "print()"_doc/print.html methods which
+might allow a page of key/values to be accessed when not yet in
+memory.  Also a logic bug that could undercount the memory
+requirements of the largest key/value pair.  This could cause a memory
+issue if some key/value pair was very large.
+
+Thanks to Xiaoban Wu (U Wyoming) for flagging these issues.
+
+This is the "list of changed files"_patches/files.4Apr14 from the 22
+Nov 2013 version.
+
+:line
+
 [22 Nov 2013]
 
 Added a couple accessor functions to the C-style interface, to allow
