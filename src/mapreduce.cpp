@@ -1624,8 +1624,16 @@ void MapReduce::print(char *file, int fflag,
   if (proc == me) {
     FILE *fp = fopen(file,"w");
     if (fp == NULL) error->one("Could not open print file");
-    if (kv) kv->print(fp,nstride,kflag,vflag);
-    if (kmv) kmv->print(fp,nstride,kflag,vflag);
+    if (kv) {
+      kv->allocate();
+      kv->print(fp,nstride,kflag,vflag);
+      kv->deallocate(0);
+    }
+    if (kmv) {
+      kmv->allocate();
+      kmv->print(fp,nstride,kflag,vflag);
+      kmv->deallocate(0);
+    }
     fclose(fp);
   }
 
@@ -1637,8 +1645,16 @@ void MapReduce::print(char *file, int fflag,
     sprintf(procfile,"%s.%d",file,me);
     FILE *fp = fopen(procfile,"w");
     if (fp == NULL) error->one("Could not open print file");
-    if (kv) kv->print(fp,nstride,kflag,vflag);
-    if (kmv) kmv->print(fp,nstride,kflag,vflag);
+    if (kv) {
+      kv->allocate();
+      kv->print(fp,nstride,kflag,vflag);
+      kv->deallocate(0);
+    }
+    if (kmv) {
+      kmv->allocate();
+      kmv->print(fp,nstride,kflag,vflag);
+      kmv->deallocate(0);
+    }
     fclose(fp);
 
   } else {
@@ -1647,8 +1663,16 @@ void MapReduce::print(char *file, int fflag,
     if (me > 0) MPI_Recv(&token,0,MPI_INT,me-1,0,comm,&status);
     FILE *fp = fopen(file,"a");
     if (fp == NULL) error->one("Could not open print file");
-    if (kv) kv->print(fp,nstride,kflag,vflag);
-    if (kmv) kmv->print(fp,nstride,kflag,vflag);
+    if (kv) {
+      kv->allocate();
+      kv->print(fp,nstride,kflag,vflag);
+      kv->deallocate(0);
+    }
+    if (kmv) {
+      kmv->allocate();
+      kmv->print(fp,nstride,kflag,vflag);
+      kmv->deallocate(0);
+    }
     fclose(fp);
     if (me < nprocs-1) MPI_Send(&token,0,MPI_INT,me+1,0,comm);
     MPI_Barrier(comm);

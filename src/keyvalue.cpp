@@ -67,6 +67,7 @@ KeyValue::KeyValue(MapReduce *mr_caller, int memkalign, int memvalign,
   twolenbytes = 2*sizeof(int);
 
   nkv = ksize = vsize = esize = fsize = 0;
+  msize = 0;
   init_page();
 
   page = NULL;
@@ -633,7 +634,7 @@ void KeyValue::add(int n, char *buf, int kalign_buf, int valign_buf)
 }
 
 /* ----------------------------------------------------------------------
-   create virtual page entry for in-memory page
+   zero sizes for current page
 ------------------------------------------------------------------------- */
 
 void KeyValue::init_page()
@@ -641,7 +642,6 @@ void KeyValue::init_page()
   nkey = 0;
   keysize = valuesize = 0;
   alignsize = 0;
-  msize = 0;
 }
 
 /* ----------------------------------------------------------------------
