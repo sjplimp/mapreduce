@@ -36,6 +36,17 @@ describe the version you have. :ule,l
 :line
 :line
 
+[7 Apr 2014]
+
+Xiaoban Wu (U Wyoming) found another couple of bugs with the
+"sort_multivalues()"_doc/sort_multivalues.html method in the library.
+This patch should fix them.
+
+This is the "list of changed files"_patches/files.4Apr14 from the 22
+Nov 2013 version.
+
+:line
+
 [4 Apr 2014]
 
 Fixed a logic bug in one of the "print()"_doc/print.html methods which

@@ -1,0 +1,7 @@
+4Apr14 version files changed by 7Apr14 upgrade:
+
+doc/Manual.pdf
+oink/version.h
+oinkdoc/Manual.pdf
+src/mapreduce.cpp
+src/version.h
