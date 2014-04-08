@@ -2227,10 +2227,18 @@ uint64_t MapReduce::sort_multivalues(int (*appcompare)(char *, int,
       ptr2 = scratch;
       for (j = 0; j < nvalues; j++) {
 	k = order[j];
-	memcpy(ptr2,&dptr[k],slength[k]);
+	memcpy(ptr2,dptr[k],slength[k]);
 	ptr2 += slength[k];
       }
       memcpy(multivalue,scratch,mvaluebytes);
+
+      // likewise reorder the valuesizes, using scratch space
+      // copy back into original valuesizes
+
+      int *newsizes = (int *) scratch;
+      for (j = 0; j < nvalues; j++)
+        newsizes[j] = valuesizes[order[j]];
+      memcpy(valuesizes,newsizes,nvalues*sizeof(int));
     }
 
     // overwrite the changed KMV page to disk
