@@ -74,7 +74,6 @@ These are other software packages that perform MapReduce operations:
 
 "original Google MapReduce paper"_http://labs.google.com/papers/mapreduce.html by J Dean and S Ghemawat
 "Hadoop"_http://hadoop.apache.org
-"Hadoop monitoring tutorial"_https://comparite.ch/hadoop-monitoring
 "Disco"_http://discoproject.org - an implementation of MapReduce in Erlang
 "Meguro"_http://www.sevenforge.com/meguro - a Javascript MapReduce framework
 "Bashreduce"_http://blog.last.fm/2009/04/06/mapreduce-bash-script - an implementation of MapReduce in the bash shell (no kidding) :ul
