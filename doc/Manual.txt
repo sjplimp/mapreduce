@@ -1,6 +1,6 @@
 <HEAD>
 <TITLE>MapReduce-MPI Library Users Manual</TITLE>
-<META NAME="docnumber" CONTENT="http://mapreduce.sandia.gov">
+<META NAME="docnumber" CONTENT="7 Apr 2014 version">
 <META NAME="author" CONTENT="Sandia National Laboratories, Copyright (2009) Sandia Corporation">
 <META NAME="copyright" CONTENT="This software and manual is distributed under the modified Berkeley Software Distribution (BSD) License.">
 </HEAD>
@@ -16,6 +16,7 @@
 <H1></H1>
 
 MapReduce-MPI (MR-MPI) Library Documentation :h2,c
+7 Apr 2014 version :c,h4
 
 Version info: :h4
 
