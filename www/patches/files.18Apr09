@@ -1,8 +1,0 @@
-17Apr09 version files changed by 18Apr09 upgrade:
-
-doc/PDFgen.sh
-doc/mapreduce.html
-doc/mapreduce.txt
-examples/pypar_serial.py
-examples/rmat.py
-examples/wordfreq.py

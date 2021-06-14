@@ -1,6 +1,0 @@
-6Jan11 version files changed by 11Jan11 upgrade:
-
-doc/start.html
-doc/start.txt
-examples/wordfreq.cpp
-src/mapreduce.cpp
