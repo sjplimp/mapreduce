@@ -1,0 +1,22 @@
+"MapReduce-MPI WWW Site"_mws :c
+:link(mws,index.html)
+
+:line
+
+MapReduce-MPI library features and non-features :h3
+
+open-source C++ library
+C interface provided, thus callable from any hi-level language: C++, C, Fortran, scripting language, etc
+Python wrapper provided, so MapReduce programs can be written in Python
+OINK scripting language wrapper provided for easy scripting and development
+small, portable code base
+operates in serial or on any parallel platform that supports MPI
+operates in-core for data sets that fit in memory
+operates out-of-core for data sets that do not :ul
+
+no fault tolerance :ul
+
+Fault tolerance is really an MPI issue, which future versions of MPI
+may address.  Since big parallel machines never crash, nor do their
+processors die, hopefully it's a non-issue for performing MapReduce
+operations.

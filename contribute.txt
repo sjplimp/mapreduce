@@ -1,0 +1,41 @@
+"MapReduce-MPI WWW Site"_mws :c
+:link(mws,index.html)
+
+:line
+
+Contributing to the MapReduce-MPI library and OINK :h3
+
+In the spirit of an open-source code, there are various ways you can
+contribute to making the MR-MPI library and the OINK scripting wrapper
+better.  You can send email on any of these items to the developers
+listed on the "MR-MPI WWW site"_mws.
+
+Point prospective users to the MR-MPI WWW site.  Mention it in talks
+or link to it from your own WWW site. :ulb,l
+
+If you find an error or omission in the MR-MPI or OINK documentation,
+or have a suggestion for something to clarify or include, let us
+know. :l
+
+If you find a bug, please send us an email with details of how
+to reproduce it. :l
+
+If you publish a paper using MR-MPI, send the citation to
+us and we can add it to the Publications page. :l
+
+Contribute a MapReduce program which calls the MR-MPI library to be
+added to the user directory in the distribution.  Or contribute an
+OINK input script that does something interesting. :l
+
+For OINK, contribute useful map() or reduce() or compare() or hash()
+or scan() functions which we can add to the OINK source code, as
+"described here"_oinkdoc/Section_functions.html.  Or contribute a
+"named commands"_oinkdoc/Section_commands.html you have written which
+can be added to OINK. :l
+
+Create a new Makefile.machine that can be added to the src/MAKE or
+oink/MAKE directories. :l
+
+Cash. Small denominations, unmarked bills preferred. Leave in paper
+sack on author's desk. VISA also accepted. Chocolate chip cookies
+encouraged. :ule,l

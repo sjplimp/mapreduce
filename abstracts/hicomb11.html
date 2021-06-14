@@ -1,0 +1,37 @@
+<HTML>
+<P><B>Parallelizing BLAST and SOM algorithms with MapReduce-MPI library</B>
+</P>
+<P>S.-J. Sul and A. Tovchigrechko, IEEE International Parallel &
+Distributed Processing HICOMB Symposium, (2011).
+</P>
+<P>Most bioinformatics algorithms are developed in a serial form due to a
+fast pace of changes in the subject domain and the fact that many
+bioinformatics tasks can be parallelized as collections of serial jobs
+communicating at the file system level (High-Throughput Computing,
+HTC). Recently, a MapReduce-MPI library was made available by Sandia
+Lab to ease porting of a large class of serial applications to the
+High Performance Computing (HPC) architectures dominating large
+federated resources such as NSF TeraGrid. Using this library, we have
+created two open-source bioinformatics applications. The first one
+addresses a problem of adapting existing complex and highly optimized
+serial bioinformatics algorithm to HPC architecture in a minimally
+invasive way. We built a parallel BLAST implementation that calls the
+high-level methods of unmodified NCBI C++ Toolkit. We demonstrated
+scaling for up to 1000 cores on TACC Ranger cluster when processing
+the sufficiently large input datasets. Using unmodified NCBI Toolkit
+ensures that the results are compatible across the multitude of
+settings in the original serial algorithm, and that future versions of
+the upstream code can be easily integrated. The second application is
+a Self-Organizing Map (SOM) machine-learning algorithm, popular in
+bioinformatics applications such as metagenomic binning. The nature of
+the SOM requires a global synchronization step with a frequency that
+necessitates the use of an HPC environment. Our implementation of the
+“batch SOM” uses a mix of MapReduce-MPI and direct MPI calls and
+scales to 1000 cores as well. This allows easy processing of datasets
+with a size that is out of range of the serial SOM
+implementations. Both implementations are available in the open source
+at http://andreyto.github.com/mgtaxa/.
+</P>
+<P>Return to <A HREF = "../mapreduce/papers.html">MapReduce-MPI page</A>
+</P>
+</HTML>

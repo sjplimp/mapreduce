@@ -1,0 +1,71 @@
+"MapReduce-MPI WWW Site"_mws :c
+:link(mws,index.html)
+
+:line
+
+MapReduce-MPI Papers :h3
+
+If you use the MR-MPI library in one of your publications, please cite
+the following paper and also list the URL of the "MR-MPI WWW
+site"_mws, namely http://mapreduce.sandia.gov.
+
+This paper describes the MR-MPI library and several MapReduce graph
+algorithms for informatics problems:
+
+[MapReduce in MPI for Large-Scale Graph Algorithms], S. J. Plimpton
+and K. D. Devine, Parallel Computing, 37, 610-632 (2011).
+("abstract"_abstracts/pc11.html) ("preprint"_pdf/pc11.pdf)
+
+:line
+
+The authors of the MR-MPI library are "Steve Plimpton"_sjp (sjplimp at
+sandia.gov) and "Karen Devine"_kdd (kddevin at sandia.gov).
+
+:link(sjp,http://www.sandia.gov/~sjplimp)
+:link(kdd,http://www.cs.sandia.gov/~kddevin)
+
+You can send us email regarding any of these issues:
+
+If you use MR-MPI for something interesting, we'd like to hear about
+it. :ulb,l
+
+If you write a paper using the MR-MPI library, we can post a citation
+to it on this page. :l
+
+If you write a MapReduce program which calls the library, that others
+would be interested in, you can send it and we'll include it in the
+distribution. :l
+
+If you enhance the library itself or have ideas for doing so, we can
+discuss including the improvements in future releases. :l,ule
+
+:line
+
+This is a paper by Seung-Jin Sul and Andrey Tovchigrechko (J Craig
+Venter Institute) on using the MR-MPI library to parallelize two
+computational biology algorithms: BLAST and a neural network approach
+called SOM.  They've run their models successfully on up to 1024
+processors of the U Texas Ranger machine.
+
+[Parallelizing BLAST and SOM algorithms with MapReduce-MPI library],
+S.-J. Sul and A. Tovchigrechko, IEEE International Parallel &
+Distributed Processing HICOMB Symposium, (2011).
+("abstract"_abstracts/hicomb11.html) (download paper from "HICOMB
+2011 proceedings site"_http://www.hicomb.org/proceedings.html)
+
+:line
+
+Ths is a paper by "Boyu Zhang"_http://www.eecis.udel.edu/~bzhang and
+Michela Taufer (U Delaware) and collaborators who wrote two variants
+of a general analysis algorithm for large structural biology datasets
+requiring distributed memory.  The algorithm performance was evaluated
+on 1024 cores across 15 data sets.
+
+[On Efficiently Capturing Scientific Properties in Distributed Big
+Data without Moving the Data: A Case Study in Distributed Structural
+Biology using MapReduce], B. Zhang, T. Estrada, P. Cicotti, and
+M. Taufer, in the Proceedings of the 16th IEEE International
+Conferences on Computational Science and Engineering (CSE), Sydney,
+Australia (2013). ("abstract"_abstracts/cse13.html) (download paper
+from
+"http://gcl.cis.udel.edu/publications/conferences/13_CSE_zhang.pdf"_http://gcl.cis.udel.edu/publications/conferences/13_CSE_zhang.pdf)

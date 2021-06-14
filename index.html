@@ -1,0 +1,108 @@
+<HTML>
+<HEAD>
+    <TITLE> MapReduce-MPI Library </TITLE>
+    <meta name="Description" content="MapReduce-MPI home page">
+    <meta name="keywords" content="MapReduce, MPI, graph algorithms">
+    <meta name="google-site-verification" content="jIe-V87O61oNvgWFgBXMeF5bFl35XjSaG0Fm8_7q5VU" />
+    <meta name="review" content="05_01_2020" />
+    <meta name="filename" content="index.html" />
+    <meta name="subject" content="MapReduce-MPI home page" />
+    <meta name="sandia.approval_type" content="formal" />
+    <meta name="sandia.approved" content="2020-4930W" />
+    <link rev="owns" title="Steve Plimpton" href="mailto:sjplimp@sandia.gov" />
+    <link rev="made, publisher" title="Steve Plimpton" href="mailto:sjplimp@sandia.gov" />
+    <meta name="MSSmartTagsPreventParsing" content="TRUE" />
+    <meta name="Author" content="Steve Plimpton" />
+</HEAD>
+
+<CENTER><H3>MapReduce-MPI Library 
+</H3></CENTER>
+<CENTER><I>A grain of wisdom is worth an ounce of knowledge, which is worth a ton
+of data.</I> -- Neil Larson 
+</CENTER>
+<CENTER><I>It is a capital mistake to theorize before one has data.</I> -- Arthur
+Conan Doyle 
+</CENTER>
+<HR>
+
+<P>This is the home page for the MapReduce-MPI (MR-MPI) library, which is
+an open-source implementation of MapReduce written for
+distributed-memory parallel machines on top of standard MPI message
+passing.
+</P>
+<DIV ALIGN=center><TABLE  BORDER=1 >
+<TR ALIGN="center"><TD ><A HREF = "features.html">Features</A></TD><TD ><A HREF = "doc/Manual.html">Documentation</A></TD><TD ><A HREF = "doc/Interface_c++.html">Library functions</A></TD><TD ><A HREF = "oinkdoc/Manual.html">OINK scripting wrapper</A></TD><TD ><A HREF = "oinkdoc/Section_script.html#2_3">OINK commands</A></TD></TR>
+<TR ALIGN="center"><TD ><A HREF = "http://www.sandia.gov/~sjplimp/download.html">Download</A></TD><TD ><A HREF = "bug.html">Latest features & bug fixes</A></TD><TD ><A HREF = "papers.html">Publications</A></TD><TD ><A HREF = "contribute.html">Contribute</A></TD><TD ><A HREF = "open_source.html">Open source</A> 
+</TD></TR></TABLE></DIV>
+
+<P><A HREF = "http://en.wikipedia.org/wiki/Mapreduce">MapReduce</A> is the programming paradigm, popularized by Google,
+which is widely used for processing large data sets in parallel.  Its
+salient feature is that if a task can be formulated as a MapReduce,
+the user can perform it in parallel without writing any parallel code.
+Instead the user writes serial functions (maps and reduces) which
+operate on portions of the data set independently.  The data-movement
+and other necessary parallel operations can be performed in an
+application-independent fashion, in this case by the MR-MPI library.
+</P>
+<P>The MR-MPI library was developed at Sandia National Laboratories, a US
+Department of Energy facility, for use on <A HREF = "http://www.sandia.gov/~sjplimp/informatics.html">informatics
+problems</A>.  It includes C++ and C interfaces callable
+from most hi-level languages, and also a Python wrapper and our own
+<A HREF = "oinkdoc/Manual.html">OINK scripting wrapper</A>, which can be
+used to develop and chain MapReduce operations together.  MR-MPI and
+OINK are open-source codes, distributed freely under the terms of the
+modified <A HREF = "http://en.wikipedia.org/wiki/BSD_license">Berkeley Software Distribution (BSD) License</A>.  See
+<A HREF = "open_source.html">this page</A> for more details.
+</P>
+<P>The authors of the library are <A HREF = "http://www.sandia.gov/~sjplimp">Steve Plimpton</A> and <A HREF = "http://www.cs.sandia.gov/~kddevin">Karen
+Devine</A>, who can be contacted at sjplimp at sandia.gov and kddevin
+at sandia.gov.
+</P>
+<P>The MR-MPI WWW site is hosted by Sandia, which has this <A HREF = "http://www.sandia.gov/general/privacy-security/index.html">Privacy and
+Security statement</A>.
+</P>
+
+
+<HR>
+
+<P>These are other software packages that perform MapReduce operations:
+</P>
+<UL><LI><A HREF = "http://labs.google.com/papers/mapreduce.html">original Google MapReduce paper</A> by J Dean and S Ghemawat
+<LI><A HREF = "http://hadoop.apache.org">Hadoop</A>
+<LI><A HREF = "http://discoproject.org">Disco</A> - an implementation of MapReduce in Erlang
+<LI><A HREF = "http://www.sevenforge.com/meguro">Meguro</A> - a Javascript MapReduce framework
+<LI><A HREF = "http://blog.last.fm/2009/04/06/mapreduce-bash-script">Bashreduce</A> - an implementation of MapReduce in the bash shell (no kidding) 
+</UL>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<HR>
+
+<CENTER><H4>Recent MR-MPI News 
+</H4></CENTER>
+<UL><LI><IMG SRC = "images/new.gif"> (3/11) Release of graph algorithms
+from our <A HREF = "papers.html">new paper</A> as OINK commands. 
+
+<LI><IMG SRC = "images/new.gif"> (2/11) Release of OINK, a scripting
+wrapper on the MR-MPI library. 
+
+<LI><IMG SRC = "images/new.gif"> (3/10) Release of out-of-core version of
+the MR-MPI library. 
+
+<LI><IMG SRC = "images/new.gif"> (4/09) Initial open-source release of the
+MR-MPI library. 
+</UL>
+</HTML>
