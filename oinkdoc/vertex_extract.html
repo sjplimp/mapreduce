@@ -1,0 +1,46 @@
+<HTML>
+<CENTER><A HREF = "http://mapreduce.sandia.gov">MR-MPI WWW Site</A> -<A HREF = "../doc/Manual.html">MR-MPI Documentation</A> - <A HREF = "Manual.html">OINK
+Documentation</A> - <A HREF = "Section_script.html#comm">OINK Commands</A> 
+</CENTER>
+
+
+
+
+
+
+
+
+<HR>
+
+<H3>vertex_extract command 
+</H3>
+<P><B>Syntax:</B>
+</P>
+<PRE>vertex_extract -i in1 -o out1.file out1.mr 
+</PRE>
+<UL><LI>in1 = graph edges: Key = Vi Vj, Value = NULL
+<LI>out1 = all vertices in graph: Key = Vi, Value = NULL 
+</UL>
+<P><B>Examples:</B>
+</P>
+<P>vertex_degree -i mre -o vlist.txt mrv
+</P>
+<P><B>Description:</B>
+</P>
+<P>This is a named command which extracts a list of all the vertices
+in a graph from the edge list.
+</P>
+<P>See the <A HREF = "command.html">named command</A> doc page for various ways in
+which the -i inputs and -o outputs for a named command can be
+specified.
+</P>
+<P>In1 stores a set of edges.  No assumption is made about duplicates or
+self edges, i.e. (Vi,Vj) may appear multiple times, both (Vi,Vj) or
+(Vj,Vi) may appear, as may (Vi,Vi).  The input is unchanged by this
+command.
+</P>
+<P>Out1 will store the vertices in the graph.
+</P>
+<P><B>Related commands:</B> none
+</P>
+</HTML>
