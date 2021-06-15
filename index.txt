@@ -34,11 +34,14 @@ passing.
 "Library functions"_doc/Interface_c++.html,
 "OINK scripting wrapper"_oinkdoc/Manual.html,
 "OINK commands"_oinkdoc/Section_script.html#2_3,
-"Download"_download,
+"Download"_https://www.sandia.gov/~sjplimp/download.html,
+"GitHub"_https://github.com/sjplimp/mapreduce,
 "Latest features & bug fixes"_bug.html,
 "Publications"_papers.html,
 "Contribute"_contribute.html,
-"Open source"_open_source.html :tb(c=5,ea=c,a=c)
+"Open source"_open_source.html,
+.
+:tb(c=6,ea=c,a=c)
 
 "MapReduce"_wiki is the programming paradigm, popularized by Google,
 which is widely used for processing large data sets in parallel.  Its
@@ -62,11 +65,6 @@ modified "Berkeley Software Distribution (BSD) License"_bsd.  See
 The authors of the library are "Steve Plimpton"_sjp and "Karen
 Devine"_kdd, who can be contacted at sjplimp at sandia.gov and kddevin
 at sandia.gov.
-
-The MR-MPI WWW site is hosted by Sandia, which has this "Privacy and
-Security statement"_security.
-
-:link(security,http://www.sandia.gov/general/privacy-security/index.html)
 
 :line
 
