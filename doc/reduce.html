@@ -17,7 +17,7 @@
 </H3>
 <PRE>uint64_t MapReduce::reduce(void (*myreduce)(char *, int, char *, int, int *, KeyValue *, void *), void *ptr) 
 </PRE>
-<PRE>uint64_t MapReduce::multivalue_blocks() 
+<PRE>uint64_t MapReduce::multivalue_blocks(int &) 
 </PRE>
 <PRE>int MapReduce::multivalue_block(int iblock, char **ptr_multivalue, int **ptr_valuesizes) 
 </PRE>
@@ -87,15 +87,15 @@ for (int iblock = 0; iblock < nblocks; iblock++) {
 } 
 </PRE>
 <P>The call to multivalue_blocks() returns both the total number of
-values (as an unsigned 64-bit integer), and the number of blocks of
-values in the multi-value.  Each call to multivalue_block() retrieves
-one block of values.  The number of values in the block is returned,
-as nv in this case.  The multivalue and valuebytes arguments are
-pointers to a char * and int * (i.e. a char ** and int **), which will
-be set to point to the block of values and their lengths respectively,
-so they can then be used just as the multivalue and valuebytes
-arguments in the myreduce() callback itself (when the values do not
-exceed available memory).
+values (as an unsigned 64-bit integer return value), and the number of
+blocks of values in the multi-value (as first argument).  Each call to
+multivalue_block() retrieves one block of values.  The number of
+values in the block is returned, as nv in this case.  The multivalue
+and valuebytes arguments are pointers to a char * and int * (i.e. a
+char ** and int **), which will be set to point to the block of values
+and their lengths respectively, so they can then be used just as the
+multivalue and valuebytes arguments in the myreduce() callback itself
+(when the values do not exceed available memory).
 </P>
 <P>Note that in this example we are re-using (and thus overwriting) the
 original multivalue and valuebytes arguments as local variables.
